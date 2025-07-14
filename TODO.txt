@@ -1,0 +1,6 @@
+- Decide for a diagram service and add it to the project
+- Research if running it online is an option
+- Check what languages the subject wants for different parts
+	- Minimal project:
+	- Backend if any: PHP without frameworks
+	- Frontend: Typescript
