@@ -13,6 +13,11 @@ A full-stack web application featuring a real-time multiplayer Pong game with us
 	- **Pros:** Position can update instantly because it doesn't have to be sent to the server
 - **Preliminary decision:** Authoritative server
 
+### Separation of labour
+- **Database container:** Just contains the database and its manager process
+- **Backend container:** Handles game loop and whatnot
+- **Frontend container:** A webserver that sends the frontend code to the client upon request
+
 ---
 
 *This project is part of the 42 School curriculum.*
