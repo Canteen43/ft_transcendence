@@ -1,6 +1,8 @@
-- Decide for a diagram service and add it to the project
-- Research if running it online is an option
+- Research general project structure
+- Research what a websocket is
 - Check what languages the subject wants for different parts
 	- Minimal project:
 		- Backend if any: PHP without frameworks
 		- Frontend: Typescript
+- Decide for a diagram service and add it to the project
+- Think of design/features for the
