@@ -26,7 +26,18 @@ A full-stack web application featuring a real-time multiplayer Pong game with us
 - **What?:** WebSocket is a protocol, just like HTTP. It has a minimal frame and the content is completely free to choose. Also, it's bidirectional.
 - **Why?:** They are efficient for data transfer. They especially make it easier to send stuff from the server to the client.
 - **How?:** The websocket connection will be established after the HTTP connection. It will be routed from the Frontend container to the backend container.
-
+- **Visualization:**
+```
+Browser                Server
+-------                ------
+GET / HTTP/1.1 ───────►
+                      ◄─── 200 OK + HTML + JS
+parse/run JS
+new WebSocket() ──────►
+GET /socket Upgrade ─►
+                      ◄─── 101 Switching Protocols
+[ WebSocket frames ]◄─►
+```
 ---
 
 *This project is part of the 42 School curriculum.*
