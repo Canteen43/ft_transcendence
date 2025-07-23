@@ -19,7 +19,7 @@ A full-stack web application featuring a real-time multiplayer Pong game with us
 - **Frontend container:** A webserver that sends the frontend code to the client upon request and acts as a reverse proxy
 
 ### Flow of Information
-- **Client (Webbrowser)** <--> **Reverse Proxy (Webserver Container)** <--> **Backend container** <--> **Database**
+**Client (Webbrowser)** <--> **Reverse Proxy (Webserver Container)** <--> **Backend container** <--> **Database**
 
 ---
 
