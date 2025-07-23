@@ -38,6 +38,10 @@ GET /socket Upgrade ─►
                       ◄─── 101 Switching Protocols
 [ WebSocket frames ]◄─►
 ```
+
+### HTTP Version
+- **Probably 1.1**
+
 ---
 
 *This project is part of the 42 School curriculum.*

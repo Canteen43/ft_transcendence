@@ -1,4 +1,5 @@
-- Research what a websocket is
+- Find out if browser keeps HTTP connection alive when creating websocket connection
+- Build a small test program that accepts a websocket connection?
 - Check what languages the subject wants for different parts
 	- Minimal project:
 		- Backend if any: PHP without frameworks
