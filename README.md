@@ -1,8 +1,8 @@
 # Transcendence
 
-> ⚠️ **Note:** Development has just started. There is nothing implemented yet.
-
 A full-stack web application featuring a real-time multiplayer Pong game with user authentication, tournaments, and social features, built with modern web technologies.
+
+> ⚠️ **Note:** Development has just started. There is nothing implemented yet.
 
 ## Design considerations
 
@@ -16,7 +16,10 @@ A full-stack web application featuring a real-time multiplayer Pong game with us
 ### Separation of labour
 - **Database container:** Just contains the database and its manager process
 - **Backend container:** Handles game loop and whatnot
-- **Frontend container:** A webserver that sends the frontend code to the client upon request
+- **Frontend container:** A webserver that sends the frontend code to the client upon request and acts as a reverse proxy
+
+### Flow of Information
+- **Client (Webbrowser)** <--> **Reverse Proxy (Webserver Container)** <--> **Backend container** <--> **Database**
 
 ---
 
