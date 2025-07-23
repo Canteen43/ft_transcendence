@@ -19,7 +19,13 @@ A full-stack web application featuring a real-time multiplayer Pong game with us
 - **Frontend container:** A webserver that sends the frontend code to the client upon request and acts as a reverse proxy
 
 ### Flow of Information
-**Client (Webbrowser)** <--> **Reverse Proxy (Webserver Container)** <--> **Backend container** <--> **Database**
+**Client (Webbrowser)** <--> **Reverse Proxy (Webserver/ Frontend Container)** <--> **Backend container** <--> **Database**
+
+
+### WebSocket
+- **What?:** WebSocket is a protocol, just like HTTP. It has a minimal frame and the content is completely free to choose. Also, it's bidirectional.
+- **Why?:** They are efficient for data transfer. They especially make it easier to send stuff from the server to the client.
+- **How?:** The websocket connection will be established after the HTTP connection. It will be routed from the Frontend container to the backend container.
 
 ---
 
