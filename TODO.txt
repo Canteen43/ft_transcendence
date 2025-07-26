@@ -1,1 +1,6 @@
+- How do JavaScript, CSS and HTML relate?
+- How to read HTML
 - Learn about TailwindCSS
+- Look at Typescript
+- Look at excalidraw
+- Continue reading: Phase 3, https://adamwathan.me/css-utility-classes-and-separation-of-concerns/
