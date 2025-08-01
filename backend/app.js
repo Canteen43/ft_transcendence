@@ -1,26 +1,26 @@
 import dotenv from 'dotenv'
 import Fastify from 'fastify'
-import app from './fastify.js'
+import fastifyApp from './fastify.js'
 
 // Load .env
 dotenv.config()
 
 const fastify = Fastify({
-  logger: { level: 'info' }
+	logger: { level: 'info' }
 })
 
-await fastify.register(app)
+await fastify.register(fastifyApp)
 
-const start = async () => {
-  try {
-    await fastify.listen({
-      port: process.env.PORT || 3000,
-      host: '0.0.0.0'
-    })
-  } catch (err) {
-    fastify.log.error(err)
-    process.exit(1)
-  }
+async function start() {
+	try {
+		await fastify.listen({
+			port: process.env.PORT,
+			host: '0.0.0.0'
+		})
+	} catch (err) {
+		fastify.log.error(err)
+		process.exit(1)
+	}
 }
 
 start()
