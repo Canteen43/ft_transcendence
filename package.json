@@ -1,16 +1,13 @@
 {
-  "name": "backend",
+  "name": "transcendence",
   "version": "1.0.0",
   "type": "module",
-  "description": "This project was bootstrapped with Fastify-CLI.",
-  "main": "app.js",
-  "directories": {
-    "test": "test"
-  },
+  "description": "Transcendence",
+  "main": "backend/app.js",
   "scripts": {
-    "test": "node --test test/**/*.test.js",
-    "start": "node app.js",
-    "dev": "node --watch app.js"
+    "be_test": "node --test backend/test/**/*.test.js",
+    "be_start": "node backend/app.js",
+    "be_dev": "node --watch backend/app.js"
   },
   "keywords": [],
   "author": "",
@@ -25,7 +22,8 @@
     "pg": "^8.16.3",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@types/pg": "^8.15.5"

@@ -11,7 +11,7 @@ export default class UserRepository {
 		await client.connect();
 
 		const result = await pool.query<User>(
-			'SELECT login, first_name, last_name, email FROM users WHERE login = $1',
+			'SELECT login, first_name, last_name, email FROM "user" WHERE login = $1',
 			[login]
 		);
 
