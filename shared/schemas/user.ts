@@ -1,7 +1,8 @@
 import * as zod from "zod";
+import { zUUID } from '../types.js'
 
 export const UserSchema = zod.object({
-	id:			zod.uuid(),
+	id:			zUUID,
 	login:		zod.string(),
 	first_name:	zod.string().nullable(),
 	last_name:	zod.string().nullable(),

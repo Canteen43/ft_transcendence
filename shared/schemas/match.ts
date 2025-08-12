@@ -1,11 +1,12 @@
 import * as zod from "zod";
 import { MatchStatus } from '../enums.js'
+import { zUUID } from '../types.js'
 
 export const MatchSchema = zod.object({
-	id: 					zod.uuid(),
-	tournament_id:			zod.uuid(),
-	participant_1_id:		zod.uuid(),
-	participant_2_id:		zod.uuid(),
+	id: 					zUUID,
+	tournament_id:			zUUID,
+	participant_1_id:		zUUID,
+	participant_2_id:		zUUID,
 	participant_1_score:	zod.number().int(),
 	participant_2_score:	zod.number().int(),
 	tournament_round:		zod.number().int(),

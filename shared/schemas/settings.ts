@@ -1,7 +1,8 @@
 import * as zod from "zod";
+import { zUUID } from '../types.js'
 
 export const SettingsSchema = zod.object({
-	id: 			zod.uuid(),
+	id: 			zUUID,
 	max_score:		zod.number().int(),
 });
 
