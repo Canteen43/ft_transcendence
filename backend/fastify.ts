@@ -19,11 +19,11 @@ export default async function (fastify: FastifyInstance, opts: Record<string, an
 		options: Object.assign({}, opts)
 	})
 
-	// Load all routes
-	fastify.register(AutoLoad, {
-		dir: path.join(__dirname, 'routes'),
-		options: Object.assign({}, opts)
-	})
+		// Load all routes
+		fastify.register(AutoLoad, {
+			dir: path.join(__dirname, 'routes'),
+			options: Object.assign({}, opts)
+		})
 }
 
 const _options = options
