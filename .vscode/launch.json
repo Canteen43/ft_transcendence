@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FE in Chrome",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "breakOnLoad": true,
+      "runtimeArgs": ["--start-maximized", "--no-first-run", "--disable-session-crashed-bubble"],
+       "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile"
+    }
+  ]
+}

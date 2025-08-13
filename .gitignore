@@ -31,7 +31,8 @@ node_modules
 *.swp
 
 # vscode
-.vscode
+.vscode/*
+!.vscode/*.json
 *code-workspace
 
 .env
