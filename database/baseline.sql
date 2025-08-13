@@ -8,6 +8,8 @@ DROP TYPE IF EXISTS tournament_status;
 DROP TYPE IF EXISTS match_status;
 DROP TYPE IF EXISTS participant_status;
 
+DROP FUNCTION validate_same_tournament;
+
 CREATE TYPE tournament_status AS ENUM (
 	'pending',
 	'in_progress',
@@ -22,11 +24,11 @@ CREATE TYPE match_status AS ENUM (
 
 CREATE TYPE participant_status AS ENUM (
 	'creator',
-	'pending'
+	'pending',
 	'accepted'
 );
 
-CREATE OR REPLACE FUNCTION validate_same_tournament(
+CREATE FUNCTION validate_same_tournament(
 	p_tournament_id uuid,
 	p_participant_1_id uuid, 
 	p_participant_2_id uuid
@@ -75,11 +77,11 @@ CREATE TABLE tournament_participant (
 CREATE TABLE tournament_match (
 	id					uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
 	tournament_id		uuid REFERENCES tournament(id),
+	tournament_round	int,
 	participant_1_id	uuid REFERENCES tournament_participant(id),
 	participant_2_id	uuid REFERENCES tournament_participant(id),
 	participant_1_score	int,
 	participant_2_score	int,
-	tournament_round	int,
 	status				match_status
 	
 	CONSTRAINT check_same_tournament CHECK (
