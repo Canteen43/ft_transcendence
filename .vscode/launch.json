@@ -10,6 +10,16 @@
       "breakOnLoad": true,
       "runtimeArgs": ["--start-maximized", "--no-first-run", "--disable-session-crashed-bubble"],
        "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile"
+    },
+	{
+      "name": "Backend",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "program": "${workspaceFolder}/backend/app.ts",
+      "runtimeArgs": ["--trace-warnings", "--loader", "ts-node/esm"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 }
