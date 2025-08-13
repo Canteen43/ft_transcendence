@@ -1,0 +1,20 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "frontend_dev",
+			"label": "npm: frontend_dev",
+			"detail": "vite",
+			"problemMatcher": [],
+		},
+		{
+			"type": "npm",
+			"script": "frontend_build",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: frontend_build",
+			"detail": "tsc && vite build"
+		}
+	]
+}

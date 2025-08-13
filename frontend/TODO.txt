@@ -1,0 +1,126 @@
+DONE:
+- How do HTML, CSS and JS integrate
+	- Ways to integrate CSS
+		-> inline: <example style="[here]">
+		-> internal: <style> [here] </style>
+		-> external: <link rel="stylesheet" href="styles.css">
+	- Ways to integrate JS
+		-> inline: <button onclick="alert('Button clicked!')">Click me</button>
+		-> internal: <script> [here] </script>
+		-> external: <script src="[link]">
+- How does JavaScript work
+	- Runtimes (uses engine)
+		-> Chrome (V8)
+		-> Node (V8)
+		-> Firefox (SpiderMonkey)
+		-> Inside the browser JS needs to be wrapped in HTML,
+			outside it is run without.
+	- Frameworks
+- How does TypeScript work
+	-> like JS but variables have types
+	-> TS is compiled to JS with "tsc filename.ts" (+ optional tsconfig.json)
+- How does Bootstrap work
+	-> Access components via class="comp."
+- How does Tailwind work
+	-> Access utilities via class="util."
+	- Including it with CDN
+		-> "dirty" way. <script src="https://cdn.tailwindcss.com"></script>
+	- Building with npx and input.css
+		-> npm install tailwindcss @tailwindcss/cli
+		-> npx @tailwindcss/cli -i input.css -o output.css
+		-> use input.css for config (if needed)
+- What is NMP
+	-> Node Package Manager
+	-> "npm init -y" creates package.json
+	-> "nmp install [package]" installs packages locally in node_modules/
+- What is NVM
+	-> Node Version Manager that doesn't need root to be run
+	-> nvm install 20
+	-> nvm use 20
+- What is DBeaver
+	-> Client tool to interact with databases
+- What is Postman
+	-> Client tool to interact with APIs
+	-> But also to mock APIs
+- How do Single-Page-Applications work
+	-> Minimal HTML file as entypoint
+	-> All the code and design is done in JavaScript/TypeScript
+	-> JS/TS files manipulate the DOM
+- Ways to manipulate the DOM with JS/TS
+	-> Direct DOM API calls
+	-> Embedded HTML (inline or even from files)
+	-> JSX (Pseudo HTML that gets compiled into react functions that do DOM API calls)
+- How to integrate TailwindCSS into DOM manipulation
+	-> Same as normal HTML, just insert classes inline
+- How to build our frontend
+	-> Minimal HTML entrypoint
+	-> Typescript for dynamic page generation
+	-> TailwindCSS classes inside HTML for design
+- What is CORS
+	-> Cross-Origin Resource Sharing
+	-> browser-feature that prevents cross-access
+		-> e.g. malicious webpage sending requests to other pages using my credentials
+- How to make simple Vite-SPA setup work
+	- Without npm, quick and easy:
+		-> html-entrypoint + main.js + "npx vite"
+	- With npm:
+		-> nmp init -y
+		-> npm install -D vite
+		-> add "dev": "vite" to package.json, "scripts"
+- "vite" vs "vite build"
+	-> "vite" launches a test webserver and builds the project on-demand in-cache
+		-> for development
+	-> "vite build" builds the optimized deployment code
+		-> for shipping only
+	- what is amazing about this
+		-> normally. testing would require building first. that step is saved
+- How to setup tsc
+	- without config
+		-> npm install -D typescript
+		-> npx tsc example.ts (-> will create example.js)
+		-> (not possible without npm because package and CLI are not identical)
+	- with config
+		-> "npx tsc --init" to generate default tsconfig.json
+		-> "npx tsc" without filename works
+- How do launch.json and tasks.json work
+	-> both inside .vscode/
+	- tasks.json
+		-> giving descriptive tasks names to useful commands
+	- launch.json
+		-> instructions for the debugger
+- How does debug setting work for Vite + TS
+	-> add "npm run dev" as task in tasks.json
+	-> add "pwa-chrome" as type and "run dev" as preLaunchTask in launch.json
+- TS: Do I need any typescript setup when using vite?
+	-> not for developing or building
+		-> Vite does that
+		-> VS code does type checks inside the files
+	-> but for type checking
+		-> not done by Vite
+		-> use "tsc --noEmit" for that
+		-> do before shipping to be sure
+- What does our git workflow look like
+	-> Step 1: do work on branch karl
+	-> Step 2: Check main for updates
+		-> git checkout main
+		-> git pull origin main
+		-> git checkout karl
+	-> Step 3: Bring changes from main to karl
+		-> git merge main
+	-> Step 4: Update main with my changes
+		-> git checkout main
+		-> git merge karl
+		-> git push origin main
+
+
+TODO:
+Project:
+- Resolve conflict when merging workspaces
+- Read about Zod
+- Build "Add User" Function
+- Think about Forward and Backward button
+
+Learn:
+- Learn about JavaScript Frameworks
+	- JS with React, Vue, Angular, Next, Express etc
+- Do small coding challenges in JavaScript and TypeScript
