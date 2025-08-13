@@ -7,7 +7,10 @@
   "scripts": {
     "be_test": "node --test backend/test/**/*.test.js",
     "be_start": "node backend/app.js",
-    "be_dev": "node --watch backend/app.js"
+    "be_dev": "node --watch backend/app.js",
+    "frontend_dev": "vite --config ./frontend/vite.config.ts",
+    "frontend_build": "tsc --project ./frontend && vite --config ./frontend/vite.config.ts build",
+    "frontend_preview": "vite --config ./frontend/vite.config.ts preview"
   },
   "keywords": [],
   "author": "",
@@ -22,10 +25,13 @@
     "pg": "^8.16.3",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2",
     "zod": "^4.0.17"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.5"
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/pg": "^8.15.5",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.2"
   }
 }
