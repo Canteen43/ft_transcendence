@@ -1,20 +1,21 @@
 import dotenv from 'dotenv'
 import Fastify from 'fastify'
 import fastifyApp from './fastify.js'
+import type { FastifyInstance } from 'fastify'
 
 // Load .env
 dotenv.config()
 
-const fastify = Fastify({
+const fastify: FastifyInstance = Fastify({
 	logger: { level: 'info' }
 })
 
 await fastify.register(fastifyApp)
 
-async function start() {
+async function start() : Promise<void> {
 	try {
 		await fastify.listen({
-			port: process.env.PORT,
+			port: Number(process.env.PORT),
 			host: '0.0.0.0'
 		})
 	} catch (err) {
