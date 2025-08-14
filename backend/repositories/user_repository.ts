@@ -1,21 +1,57 @@
-import pg from 'pg'
-import { User } from '../../shared/user.js'
-import { pool } from '../utils/db.js';
+import * as db from '../utils/db.js';
+import { CreateUser, User, UserSchema } from '../../shared/schemas/user.js';
 
 export default class UserRepository {
+	static table = '"user"';
+
 	static async getUserByLogin(login: string): Promise<User | null> {
-		const client = new pg.Client({
-			connectionString: process.env.DATABASE_URL
-		});
-
-		await client.connect();
-
-		const result = await pool.query<User>(
-			'SELECT login, first_name, last_name, email FROM "user" WHERE login = $1',
+		const result = await db.pool.query<User>(
+			`SELECT id, login, first_name, last_name, email
+			 FROM ${this.table}
+			 WHERE login = $1`,
 			[login]
 		);
 
-		await client.end();
-		return result.rows[0] || null;
+		if (result.rows.length === 0) return null;
+		return UserSchema.parse(result.rows[0]);
+	}
+
+	static async createUser(user: CreateUser) {
+		const result = await db.pool.query<User>(
+			`INSERT INTO ${this.table} (
+				login,
+				first_name,
+				last_name,
+				email,
+				password_hash
+			) VALUES ($1, $2, $3, $4, $5)
+			RETURNING id,
+					  login,
+					  first_name,
+					  last_name,
+					  email`,
+			[
+				user.login,
+				user.first_name,
+				user.last_name,
+				user.email,
+				user.password_hash,
+			]
+		);
+		return UserSchema.parse(result.rows[0]);
+	}
+
+	static async authenticateUser(
+		login: string,
+		passwordHash: string
+	): Promise<User | null> {
+		const result = await db.pool.query<User>(
+			`SELECT login, first_name, last_name, email
+			FROM ${this.table}
+			WHERE login = $1 AND password_hash = $2`,
+			[login, passwordHash]
+		);
+		if (result.rows.length === 0) return null;
+		return UserSchema.parse(result.rows[0]);
 	}
 }
