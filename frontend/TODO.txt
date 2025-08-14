@@ -115,7 +115,7 @@ DONE:
 
 TODO:
 Project:
-- Read about Zod
+- Ask chatty for more Zod examples
 - Build "Add User" Function
 - Think about Forward and Backward button
 

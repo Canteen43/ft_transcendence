@@ -5,7 +5,7 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "FE in Chrome",
+			"name": "Frontend",
 			"type": "pwa-chrome",
 			"request": "launch",
 			"url": "http://localhost:5173",
