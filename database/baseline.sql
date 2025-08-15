@@ -8,7 +8,7 @@ DROP TYPE IF EXISTS tournament_status;
 DROP TYPE IF EXISTS match_status;
 DROP TYPE IF EXISTS participant_status;
 
-DROP FUNCTION validate_same_tournament;
+DROP FUNCTION IF EXISTS validate_same_tournament;
 
 CREATE TYPE tournament_status AS ENUM (
 	'pending',
@@ -33,6 +33,9 @@ CREATE FUNCTION validate_same_tournament(
 	p_participant_1_id uuid, 
 	p_participant_2_id uuid
 ) RETURNS boolean AS $$ BEGIN
+	IF p_participant_1_id IS NULL OR p_participant_2_id IS NULL THEN
+		RETURN TRUE;
+	END IF;
 	RETURN (
 		SELECT COUNT(*) = 2
 		FROM tournament_participant 

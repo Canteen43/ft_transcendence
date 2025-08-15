@@ -1,141 +1,101 @@
-import MatchRepository from '../repositories/match_repository.js';
-import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
-import { CreateMatchSchema, Match } from '../../shared/schemas/match.js';
+import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
 import {
+	CreateParticipant,
 	CreateParticipantSchema,
-	Participant,
 } from '../../shared/schemas/participant.js';
 import {
 	Tournament,
-	CreateDbTournamentSchema,
+	CreateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import { ParticipantStatus } from '../../shared/enums.js';
 import { TournamentStatus } from '../../shared/enums.js';
-import {
-	DatabaseError,
-	SettingsNotFoundError,
-} from '../../shared/exceptions.js';
+import { SettingsNotFoundError } from '../../shared/exceptions.js';
 import { randomInt } from '../../shared/utils.js';
 import type { UUID } from '../../shared/types.js';
 
 export default class TournamentService {
-	private static async createParticipants(
-		tournament: UUID,
+	private static createParticipants(
 		participants: UUID[]
-	) {
-		return await Promise.all(
-			participants.map(p =>
-				ParticipantRepository.createParticipant(
-					CreateParticipantSchema.parse({
-						tournament_id: tournament,
-						user_id: p,
-						status:
-							participants.length == 2
-								? ParticipantStatus.Accepted
-								: ParticipantStatus.Pending,
-					})
-				)
-			)
+	): CreateParticipant[] {
+		return participants.map(p =>
+			CreateParticipantSchema.parse({
+				user_id: p,
+				status:
+					participants.length == 2
+						? ParticipantStatus.Accepted
+						: ParticipantStatus.Pending,
+			})
 		);
 	}
 
-	private static randomParticipant(participants: Participant[]) {
+	private static randomParticipant(participants: UUID[]) {
 		const index = randomInt(0, participants.length - 1);
 		const participant = participants[index];
 		participants.splice(index, 1);
 		return participant;
 	}
 
-	private static async createMatchesForRound(
-		tournament: UUID,
-		participants: Participant[],
+	private static createMatchesForRound(
+		participants: UUID[],
 		round: number
-	): Promise<Array<Match | null>> {
-		const result: Array<Match | null> = [];
-		const participants_copy = Object.assign([], participants);
-		var match: Match | null;
-		while (participants_copy.length > 0) {
-			match = await MatchRepository.createMatch(
-				CreateMatchSchema.parse({
-					tournament_id: tournament,
-					tournament_round: round,
-					participant_1_id:
-						round == 1
-							? this.randomParticipant(participants_copy).id
-							: null,
-					participant_2_id:
-						round == 1
-							? this.randomParticipant(participants_copy).id
-							: null,
-				})
-			);
+	): CreateMatch[] {
+		const result: CreateMatch[] = [];
+		const participants_copy = [...participants];
+		const n = participants.length / 2 ** (round - 1);
+		for (var i = 0; i < n; i += 2) {
+			const match = CreateMatchSchema.parse({
+				tournament_round: round,
+				participant_1_id:
+					round == 1
+						? this.randomParticipant(participants_copy)
+						: null,
+				participant_2_id:
+					round == 1
+						? this.randomParticipant(participants_copy)
+						: null,
+			});
 			result.push(match);
 		}
 		return result;
 	}
 
-	private static async createTournamentMatches(
-		tournament: UUID,
-		participants: Participant[]
-	) {
-		const result: Array<Match | null> = [];
-		var matches: Array<Match | null> = await this.createMatchesForRound(
-			tournament,
-			participants,
-			1
-		);
-		result.concat(matches);
+	private static createTournamentMatches(
+		participants: UUID[]
+	): CreateMatch[] {
+		var result: CreateMatch[] = this.createMatchesForRound(participants, 1);
 		if (participants.length > 2) {
-			matches = await this.createMatchesForRound(
-				tournament,
-				participants,
-				2
-			);
-			result.concat(matches);
+			var matches = this.createMatchesForRound(participants, 2);
+			result.push(...matches);
 		}
-		return matches;
+		return result;
 	}
 
 	static async createTournament(
 		creator: UUID,
 		participants: UUID[]
-	): Promise<Tournament | null> {
+	): Promise<Tournament> {
 		const settings = await SettingsRepository.getSettingsByUser(creator);
 		if (!settings) throw new SettingsNotFoundError(creator);
 
-		const tournament = await TournamentRepository.createTournament(
-			CreateDbTournamentSchema.parse({
-				size: participants.length,
-				current_round: 1,
-				settings: settings.id,
-				status:
-					participants.length == 2
-						? TournamentStatus.InProgress
-						: TournamentStatus.Pending,
-			})
-		);
-		if (!tournament)
-			throw new DatabaseError('Error while creating tournament');
+		const tournament = CreateTournamentSchema.parse({
+			size: participants.length,
+			current_round: 1,
+			settings: settings.id,
+			status:
+				participants.length == 2
+					? TournamentStatus.InProgress
+					: TournamentStatus.Pending,
+		});
 
-		const all_participants = await this.createParticipants(
-			tournament.id,
-			participants
-		);
-		if (
-			all_participants.length != tournament.size ||
-			all_participants.includes(null)
-		)
-			throw new DatabaseError('Error while creating tournament');
+		const all_participants = this.createParticipants(participants);
+		const matches = this.createTournamentMatches(participants);
 
-		const matches = await this.createTournamentMatches(
-			tournament.id,
-			// @ts-expect-error - we already check for null
-			all_participants
+		return await TournamentRepository.createFullTournament(
+			tournament,
+			all_participants,
+			matches
 		);
-		if (matches.includes(null))
-			throw new DatabaseError('Error while creating tournament');
-		return tournament;
 	}
 }

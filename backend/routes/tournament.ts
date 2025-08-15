@@ -1,28 +1,39 @@
-import TournamentRepository from "../repositories/tournament_repository.js";
-import UserRepository from "../repositories/user_repository.js";
-import TournamentService from "../services/tournament_service.js";
-import * as user from "../../shared/schemas/user.js";
-import * as tournament from "../../shared/schemas/tournament.js";
-import * as constants from "../../shared/constants.js";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import * as zod from 'zod';
+import TournamentService from '../services/tournament_service.js';
+import {
+	CreateTournamentApi,
+	CreateTournamentApiSchema,
+} from '../../shared/schemas/tournament.js';
+import * as constants from '../../shared/constants.js';
+import { logger } from '../../shared/logger.js';
 
 async function createTournament(
-	fastify: FastifyInstance,
-	request: FastifyRequest<{ Body: tournament.CreateTournament }>
+	request: FastifyRequest<{ Body: CreateTournamentApi }>
 ) {
-	TournamentService.createTournament(
-		request.body.creator,
-		request.body.participants
-	);
-	// Need to catch exceptions
+	try {
+		const parsedBody = CreateTournamentApiSchema.parse(request.body);
+		const tournament = TournamentService.createTournament(
+			parsedBody.creator,
+			parsedBody.participants
+		);
+		return tournament;
+	} catch (error) {
+		logger.error(error);
+		if (error instanceof zod.ZodError)
+			throw request.server.httpErrors.badRequest(error.message);
+		throw request.server.httpErrors.internalServerError(
+			constants.TOURNAMENT_CREATION_FAILED
+		);
+	}
 }
 
 export default async function (
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	fastify.post<{ Body: tournament.CreateTournament }>(
-		"/tournaments",
-		(request) => createTournament(fastify, request)
+	fastify.post<{ Body: CreateTournamentApi }>(
+		'/tournaments',
+		createTournament
 	);
 }
