@@ -11,9 +11,25 @@ import MatchRepository from './match_repository.js';
 import ParticipantRepository from './participant_repository.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
+import { UUID } from '../../shared/types.js';
 
 export default class TournamentRepository {
 	static table = 'tournament';
+
+	static async getTournament(id: UUID): Promise<Tournament | null> {
+		const result = await db.pool.query<Tournament>(
+			`SELECT id,
+					size,
+					current_round,
+					settings,
+					status
+			FROM ${this.table}
+			WHERE id = $1 ;`,
+			[id]
+		);
+		if (result.rowCount == 0) return null;
+		return TournamentSchema.parse(result.rows[0]);
+	}
 
 	static async createTournament(src: CreateTournament): Promise<Tournament> {
 		const result = await db.getClient().query<Tournament>(

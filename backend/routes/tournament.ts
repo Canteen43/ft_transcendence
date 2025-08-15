@@ -1,16 +1,21 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import * as zod from 'zod';
+import * as z from 'zod';
 import TournamentService from '../services/tournament_service.js';
 import {
 	CreateTournamentApi,
 	CreateTournamentApiSchema,
+	FullTournament,
+	Tournament,
 } from '../../shared/schemas/tournament.js';
 import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
+import { UUID, zUUID } from '../../shared/types.js';
+import { TournamentNotFoundError } from '../../shared/exceptions.js';
+import { zodError } from '../../shared/utils.js';
 
 async function createTournament(
 	request: FastifyRequest<{ Body: CreateTournamentApi }>
-) {
+): Promise<Tournament> {
 	try {
 		const parsedBody = CreateTournamentApiSchema.parse(request.body);
 		const tournament = TournamentService.createTournament(
@@ -19,11 +24,34 @@ async function createTournament(
 		);
 		return tournament;
 	} catch (error) {
+		if (error instanceof z.ZodError)
+			throw request.server.httpErrors.badRequest(zodError(error));
 		logger.error(error);
-		if (error instanceof zod.ZodError)
-			throw request.server.httpErrors.badRequest(error.message);
 		throw request.server.httpErrors.internalServerError(
-			constants.TOURNAMENT_CREATION_FAILED
+			constants.ERROR_REQUEST_FAILED
+		);
+	}
+}
+
+async function getTournament(
+	request: FastifyRequest<{ Params: { id: UUID } }>
+): Promise<FullTournament> {
+	try {
+		const parsedUUID = zUUID.parse(request.params.id);
+		const result = await TournamentService.getFullTournament(parsedUUID);
+		if (!result)
+			throw request.server.httpErrors.notFound(
+				constants.ERROR_USER_NOT_FOUND
+			);
+		return result;
+	} catch (error) {
+		if (error instanceof z.ZodError)
+			throw request.server.httpErrors.badRequest(zodError(error));
+		if (error instanceof TournamentNotFoundError)
+			throw request.server.httpErrors.notFound(error.message);
+		logger.error(error);
+		throw request.server.httpErrors.internalServerError(
+			constants.ERROR_REQUEST_FAILED
 		);
 	}
 }
@@ -32,6 +60,8 @@ export default async function (
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
+	fastify.get<{ Params: { id: UUID } }>('/tournaments/:id', getTournament);
+
 	fastify.post<{ Body: CreateTournamentApi }>(
 		'/tournaments',
 		createTournament

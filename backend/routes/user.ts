@@ -8,7 +8,9 @@ import {
 	CreateUserSchema,
 	User,
 } from '../../shared/schemas/user.js';
-import * as zod from 'zod';
+import * as z from 'zod';
+import { logger } from '../../shared/logger.js';
+import { zodError } from '../../shared/utils.js';
 
 async function getUser(
 	request: FastifyRequest<{ Params: { login: string } }>
@@ -24,6 +26,7 @@ async function getUser(
 		}
 		return user;
 	} catch (error) {
+		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
 			constants.ERROR_REQUEST_FAILED
 		);
@@ -38,10 +41,11 @@ async function createUser(
 		const user: User = await UserRepository.createUser(parsedBody);
 		return user;
 	} catch (error) {
-		if (error instanceof zod.ZodError)
-			throw request.server.httpErrors.badRequest(error.message);
+		if (error instanceof z.ZodError)
+			throw request.server.httpErrors.badRequest(zodError(error));
+		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
-			constants.ERROR_CREATE_USER_FAILED
+			constants.ERROR_REQUEST_FAILED
 		);
 	}
 }
@@ -62,8 +66,9 @@ async function authenticate(
 			);
 		return authenticatedUser;
 	} catch (error) {
-		if (error instanceof zod.ZodError)
+		if (error instanceof z.ZodError)
 			throw request.server.httpErrors.badRequest(error.message);
+		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
 			constants.ERROR_REQUEST_FAILED
 		);

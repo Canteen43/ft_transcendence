@@ -8,14 +8,72 @@ import {
 import {
 	Tournament,
 	CreateTournamentSchema,
+	FullTournament,
+	FullTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import { ParticipantStatus } from '../../shared/enums.js';
 import { TournamentStatus } from '../../shared/enums.js';
-import { SettingsNotFoundError } from '../../shared/exceptions.js';
+import {
+	DatabaseError,
+	SettingsNotFoundError,
+	TournamentNotFoundError,
+} from '../../shared/exceptions.js';
 import { randomInt } from '../../shared/utils.js';
 import type { UUID } from '../../shared/types.js';
+import ParticipantRepository from '../repositories/participant_repository.js';
+import MatchRepository from '../repositories/match_repository.js';
 
 export default class TournamentService {
+	static async getFullTournament(id: UUID): Promise<FullTournament | null> {
+		const tournament = await TournamentRepository.getTournament(id);
+		if (!tournament) throw new TournamentNotFoundError(id);
+
+		const participants =
+			await ParticipantRepository.getTournamentParticipants(id);
+		if (participants.length == 0)
+			throw new DatabaseError(
+				'Failed to retrieve tournament participants'
+			);
+		const matches = await MatchRepository.getTournamentMatches(id);
+		if (matches.length == 0)
+			throw new DatabaseError('Failed to retrieve tournament matches');
+
+		const fullTournament = {
+			...tournament,
+			participants,
+			matches,
+		};
+
+		return FullTournamentSchema.parse(fullTournament);
+	}
+
+	static async createTournament(
+		creator: UUID,
+		participants: UUID[]
+	): Promise<Tournament> {
+		const settings = await SettingsRepository.getSettingsByUser(creator);
+		if (!settings) throw new SettingsNotFoundError(creator);
+
+		const tournament = CreateTournamentSchema.parse({
+			size: participants.length,
+			current_round: 1,
+			settings: settings.id,
+			status:
+				participants.length == 2
+					? TournamentStatus.InProgress
+					: TournamentStatus.Pending,
+		});
+
+		const all_participants = this.createParticipants(participants);
+		const matches = this.createTournamentMatches(participants);
+
+		return await TournamentRepository.createFullTournament(
+			tournament,
+			all_participants,
+			matches
+		);
+	}
+
 	private static createParticipants(
 		participants: UUID[]
 	): CreateParticipant[] {
@@ -70,32 +128,5 @@ export default class TournamentService {
 			result.push(...matches);
 		}
 		return result;
-	}
-
-	static async createTournament(
-		creator: UUID,
-		participants: UUID[]
-	): Promise<Tournament> {
-		const settings = await SettingsRepository.getSettingsByUser(creator);
-		if (!settings) throw new SettingsNotFoundError(creator);
-
-		const tournament = CreateTournamentSchema.parse({
-			size: participants.length,
-			current_round: 1,
-			settings: settings.id,
-			status:
-				participants.length == 2
-					? TournamentStatus.InProgress
-					: TournamentStatus.Pending,
-		});
-
-		const all_participants = this.createParticipants(participants);
-		const matches = this.createTournamentMatches(participants);
-
-		return await TournamentRepository.createFullTournament(
-			tournament,
-			all_participants,
-			matches
-		);
 	}
 }
