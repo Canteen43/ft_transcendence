@@ -46,6 +46,10 @@ DONE:
 	-> Minimal HTML file as entypoint
 	-> All the code and design is done in JavaScript/TypeScript
 	-> JS/TS files manipulate the DOM
+- How to get from HTML to page
+	-> HTML ---Blink---> DOM
+	-> DOM ---Blink---> Draw instructions
+	-> Draw instructions ---Skia---> Rendered Page
 - Ways to manipulate the DOM with JS/TS
 	-> Direct DOM API calls
 	-> Embedded HTML (inline or even from files)
@@ -115,11 +119,22 @@ DONE:
 
 TODO:
 Project:
-- Ask chatty for more Zod examples
-- Build "Add User" Function
-- Think about Forward and Backward button
+- Start using prettier
+- Integrate Wouters changes
+- Add create random user
+- Add create specific user
+- Add buttons for other API endpoints?
+- Add windows/navigation
 
 Learn:
+- Learn about structuring .ts files in SPA
+- Learn about windows in SPAs
+- Learn about forward and backward button
+- Basics of Fastify
+- Learn about JS syntax
+	- Import, Export
+	- Function syntax
+- Improve Zod understanding
 - Learn about JavaScript Frameworks
 	- JS with React, Vue, Angular, Next, Express etc
 - Do small coding challenges in JavaScript and TypeScript

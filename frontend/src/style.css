@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --font-ps2p: "Press Start 2P", monospace; 
+	--font-ps2p: 'Press Start 2P', monospace;
 }
