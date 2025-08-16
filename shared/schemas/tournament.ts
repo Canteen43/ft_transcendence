@@ -14,7 +14,9 @@ export const TournamentSchema = zod.object({
 	status: zod.enum(TournamentStatus),
 });
 
-export const CreateTournamentSchema = zod.object({
+export const CreateTournamentSchema = TournamentSchema.omit({ id: true });
+
+export const CreateTournamentApiSchema = zod.object({
 	creator: zUUID,
 	participants: zod.array(zUUID).refine(
 		// Check if tournament size is valid
@@ -23,8 +25,6 @@ export const CreateTournamentSchema = zod.object({
 	),
 });
 
-export const CreateDbTournamentSchema = TournamentSchema.omit({ id: true });
-
 export type Tournament = zod.infer<typeof TournamentSchema>;
+export type CreateTournamentApi = zod.infer<typeof CreateTournamentApiSchema>;
 export type CreateTournament = zod.infer<typeof CreateTournamentSchema>;
-export type CreateDbTournament = zod.infer<typeof CreateDbTournamentSchema>;

@@ -13,7 +13,10 @@ export const MatchSchema = zod.object({
 	status: zod.enum(MatchStatus),
 });
 
-export const CreateMatchSchema = MatchSchema.omit({ id: true }).extend({
+export const CreateMatchSchema = MatchSchema.omit({
+	id: true,
+	tournament_id: true,
+}).extend({
 	participant_1_score: zod.number().int().default(0),
 	participant_2_score: zod.number().int().default(0),
 	status: zod.enum(MatchStatus).default(MatchStatus.Pending),

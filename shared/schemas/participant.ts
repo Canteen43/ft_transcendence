@@ -9,7 +9,10 @@ export const ParticipantSchema = zod.object({
 	status: zod.enum(ParticipantStatus),
 });
 
-export const CreateParticipantSchema = ParticipantSchema.omit({ id: true });
+export const CreateParticipantSchema = ParticipantSchema.omit({
+	id: true,
+	tournament_id: true,
+});
 
 export type Participant = zod.infer<typeof ParticipantSchema>;
 export type CreateParticipant = zod.infer<typeof CreateParticipantSchema>;
