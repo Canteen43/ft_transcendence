@@ -44,7 +44,7 @@ createButton('Postman Mock-Request', async () => {
 });
 
 // Create a button to create a user
-createButton('Create Timestamp User', async () => {
+createButton('Create Static User', async () => {
 	const timestamp = Date.now();
 	const newUser = {
 		login: `test_${timestamp}`,
@@ -63,6 +63,41 @@ createButton('Create Timestamp User', async () => {
 
 		if (!res.ok) {
 			const errText = await res.text(); // backend error message
+			throw new Error(errText);
+		}
+
+		const data = await res.json();
+		alert(JSON.stringify(data, null, 2));
+	} catch (err) {
+		alert('Error creating user: ' + err);
+		console.error(err);
+	}
+});
+
+// Create a button to create a user via prompts
+createButton('Create Custom User', async () => {
+	const login = prompt('Enter login:');
+	const first_name = prompt('Enter first name:');
+	const last_name = prompt('Enter last name:');
+	const email = prompt('Enter email:');
+	const password_hash = prompt('Enter password hash:');
+
+	if (!login || !first_name || !last_name || !email) {
+		alert('All fields except password are required.');
+		return;
+	}
+
+	const newUser = { login, first_name, last_name, email, password_hash };
+
+	try {
+		const res = await fetch('http://localhost:8080/users', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(newUser),
+		});
+
+		if (!res.ok) {
+			const errText = await res.text();
 			throw new Error(errText);
 		}
 
