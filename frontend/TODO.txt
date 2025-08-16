@@ -119,8 +119,7 @@ DONE:
 
 TODO:
 Project:
-- Integrate Wouters changes
-- Add create random user
+- Test random user
 - Add create specific user
 - Add buttons for other API endpoints?
 - Add windows/navigation

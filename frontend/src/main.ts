@@ -31,7 +31,7 @@ function createButton(label: string, onClick: () => void) {
 }
 
 // Add first button
-createButton('Mock API-Request', async () => {
+createButton('Postman Mock-Request', async () => {
 	try {
 		const res = await fetch(
 			'https://1a7b7860-26ef-49a8-b367-439c7ea4ea05.mock.pstmn.io/users'
@@ -44,9 +44,10 @@ createButton('Mock API-Request', async () => {
 });
 
 // Create a button to create a user
-createButton('Create User', async () => {
+createButton('Create Timestamp User', async () => {
+	const timestamp = Date.now();
 	const newUser = {
-		login: 'karl1234',
+		login: `test_${timestamp}`,
 		first_name: 'Test',
 		last_name: 'User',
 		email: 'test.user@example.com',
