@@ -3,7 +3,9 @@
 import path from 'node:path';
 import AutoLoad from '@fastify/autoload';
 import url from 'node:url';
+import fastifyCors from '@fastify/cors'; // WARNING: Added by Karl
 import type { FastifyInstance } from 'fastify';
+
 
 // Pass --options via CLI arguments in command to enable these options.
 const options = {};
@@ -15,6 +17,11 @@ export default async function (
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
+	// Register CORS first, WARNING: Added by Karl
+	fastify.register(fastifyCors, {
+		origin: '*' // allow all origins for now
+	});	
+	
 	// Load all plugins
 	fastify.register(AutoLoad, {
 		dir: path.join(__dirname, 'plugins'),
