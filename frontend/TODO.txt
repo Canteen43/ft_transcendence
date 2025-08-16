@@ -119,7 +119,6 @@ DONE:
 
 TODO:
 Project:
-- Start using prettier
 - Integrate Wouters changes
 - Add create random user
 - Add create specific user
