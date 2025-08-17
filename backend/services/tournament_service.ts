@@ -1,6 +1,10 @@
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
-import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
+import {
+	CreateMatch,
+	CreateMatchSchema,
+	Match,
+} from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
 	CreateParticipantSchema,
@@ -126,6 +130,53 @@ export default class TournamentService {
 		if (participants.length > 2) {
 			var matches = this.createMatchesForRound(participants, 2);
 			result.push(...matches);
+		}
+		return result;
+	}
+
+	static async finishMatch(match: Match) {
+		const tournament = await TournamentRepository.getTournament(
+			match.tournament_id
+		);
+		if (!tournament) throw new TournamentNotFoundError(match.tournament_id);
+
+		if (match.tournament_round == this.numberOfRounds(tournament.size)) {
+			const unfinished =
+				await MatchRepository.getNumberOfUnfinishedMatches(
+					match.tournament_id,
+					match.tournament_round
+				);
+			if (!unfinished)
+				this.startNewRound(
+					match.tournament_id,
+					match.tournament_round + 1
+				);
+		}
+	}
+
+	private static async startNewRound(tournament_id: UUID, round: number) {
+		var participants = await MatchRepository.getWinners(
+			tournament_id,
+			round
+		);
+		var matches = await MatchRepository.getTournamentMatches(
+			tournament_id,
+			round
+		);
+		for (var i = 0; i < participants.length / 2; i++) {
+			MatchRepository.updateParticipants(
+				matches[i].id,
+				this.randomParticipant(participants),
+				this.randomParticipant(participants)
+			);
+		}
+	}
+
+	private static numberOfRounds(size: number): number {
+		var result = 1;
+		while (size > 2) {
+			result += size / 2;
+			size /= 2;
 		}
 		return result;
 	}
