@@ -31,6 +31,8 @@ export default async function (
 	fastify.setValidatorCompiler(validatorCompiler);
 	fastify.setSerializerCompiler(serializerCompiler);
 
+	// Register Zod OpenAPI support
+
 	// Configure swagger
 	fastify.register(swagger, {
 		openapi: {

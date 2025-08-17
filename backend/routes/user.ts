@@ -84,10 +84,7 @@ export default async function (
 ) {
 	const app = fastify.withTypeProvider<ZodTypeProvider>();
 
-	const loginParamsSchema = z.object({ login: z.string() });
-	console.log('Zod object schema:', loginParamsSchema);
-
-	app.get<{ Params: { login: string } }>(
+	app.get(
 		'/users/:login',
 		getHttpResponse({
 			params: z.object({ login: z.string() }),

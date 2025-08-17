@@ -1,6 +1,4 @@
-import { scheduler } from 'timers/promises';
 import z from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export function getHttpResponse({
 	response,
@@ -20,8 +18,6 @@ export function getHttpResponse({
 
 	if (params) schemaConfig.params = params;
 	if (body) schemaConfig.body = body;
-
-	if (params) console.log('Final params schema:', schemaConfig.params);
 
 	return { schema: schemaConfig };
 }
