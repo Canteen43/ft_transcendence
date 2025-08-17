@@ -115,18 +115,57 @@ DONE:
 		-> git checkout main
 		-> git merge karl
 		-> git push origin main
+- How does the session history work
+	-> List of Entries
+	-> Browser adds entries for normal navigation
+	-> Websites can add extra entries with pushState()
+		-> but they cannot access past entries
+	-> Websites can add the current entry with replaceState()
+	-> the args for pushState() and replaceState() are:
+		-> stateObj
+		-> title
+		-> url
+	-> after navigating within the same page, the browser fires the 'popstate' event
+		-> can be caught with an event listener
+	-> "normal" entries are different from website-created entries
+- Learn about URLs
+	- Query parameters
+		-> after path, before Hash
+		-> format: "?key=value&key2=value2"
+		-> delivered to webserver as part of path
+		-> webserver parses and can handle freely
+		-> rising popularity
+		-> hijacked for client side routing
+			-> known to be confusing
+	- Hash
+		-> after query params
+		-> format "#something/something"
+		-> never sent to webserver
+		-> change triggers event 'hashchange'
+			-> can be handled by browser
+		-> originally developed for jumping to page sections
+		-> hijacked for client side routing
+- What is SEO
+	-> search engine optimization (crawling, indexing, ranking)
 
 
 TODO:
 Project:
 - Test random user
-- Add create specific user
-- Add buttons for other API endpoints?
+- Test specific user
 - Add windows/navigation
 
 Learn:
-- Learn about structuring .ts files in SPA
+- Learn about Session History
+	- What attributes do entries save?
+	- Is it the same ones that pushState() or replaceState() provide?
+	- Do "manual" entries have a state attribute while "normal" entries don't?
+	- How do SPAs normally do it?
+	- What about form submission?
+- Learn about form submissions in HTTP in general
 - Learn about windows in SPAs
+- Learn about structuring .ts files in SPA
+- Learn about logging for frontend
 - Learn about forward and backward button
 - Basics of Fastify
 - Learn about JS syntax
