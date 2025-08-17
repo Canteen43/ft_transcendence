@@ -1,30 +1,38 @@
-import * as zod from 'zod';
+import * as z from 'zod';
 import {
 	ALLOWED_TOURNAMENT_SIZES,
 	ERROR_INVALID_TOURNAMENT_SIZE,
 } from '../constants.js';
 import { TournamentStatus } from '../enums.js';
 import { zUUID } from '../types.js';
+import { ParticipantSchema } from './participant.js';
+import { MatchSchema } from './match.js';
 
-export const TournamentSchema = zod.object({
+export const TournamentSchema = z.object({
 	id: zUUID,
-	size: zod.number().int(),
-	current_round: zod.number().int(),
+	size: z.number().int(),
+	current_round: z.number().int(),
 	settings: zUUID,
-	status: zod.enum(TournamentStatus),
+	status: z.enum(TournamentStatus),
+});
+
+export const FullTournamentSchema = TournamentSchema.extend({
+	participants: z.array(ParticipantSchema),
+	matches: z.array(MatchSchema),
 });
 
 export const CreateTournamentSchema = TournamentSchema.omit({ id: true });
 
-export const CreateTournamentApiSchema = zod.object({
+export const CreateTournamentApiSchema = z.object({
 	creator: zUUID,
-	participants: zod.array(zUUID).refine(
+	participants: z.array(zUUID).refine(
 		// Check if tournament size is valid
 		arr => ALLOWED_TOURNAMENT_SIZES.includes(arr.length),
 		{ message: ERROR_INVALID_TOURNAMENT_SIZE }
 	),
 });
 
-export type Tournament = zod.infer<typeof TournamentSchema>;
-export type CreateTournamentApi = zod.infer<typeof CreateTournamentApiSchema>;
-export type CreateTournament = zod.infer<typeof CreateTournamentSchema>;
+export type Tournament = z.infer<typeof TournamentSchema>;
+export type FullTournament = z.infer<typeof FullTournamentSchema>;
+export type CreateTournamentApi = z.infer<typeof CreateTournamentApiSchema>;
+export type CreateTournament = z.infer<typeof CreateTournamentSchema>;

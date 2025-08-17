@@ -1,12 +1,12 @@
-import * as zod from 'zod';
+import * as z from 'zod';
 import { ParticipantStatus } from '../enums.js';
 import { zUUID } from '../types.js';
 
-export const ParticipantSchema = zod.object({
+export const ParticipantSchema = z.object({
 	id: zUUID,
 	tournament_id: zUUID,
 	user_id: zUUID,
-	status: zod.enum(ParticipantStatus),
+	status: z.enum(ParticipantStatus),
 });
 
 export const CreateParticipantSchema = ParticipantSchema.omit({
@@ -14,5 +14,5 @@ export const CreateParticipantSchema = ParticipantSchema.omit({
 	tournament_id: true,
 });
 
-export type Participant = zod.infer<typeof ParticipantSchema>;
-export type CreateParticipant = zod.infer<typeof CreateParticipantSchema>;
+export type Participant = z.infer<typeof ParticipantSchema>;
+export type CreateParticipant = z.infer<typeof CreateParticipantSchema>;
