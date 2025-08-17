@@ -15,7 +15,7 @@ const fastify: FastifyInstance = Fastify({
 try {
 	await fastify.register(fastifyApp);
 } catch (error) {
-	logger.error("Failed to register application:");
+	logger.error('Failed to register application:');
 	logger.error(error);
 	process.exit(1);
 }
@@ -35,7 +35,7 @@ async function start(): Promise<void> {
 try {
 	start();
 } catch (error) {
-	logger.error("Failed to launch application:");
+	logger.error('Failed to launch application:');
 	logger.error(error);
 	process.exit(1);
 }

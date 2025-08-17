@@ -7,10 +7,13 @@ import {
 	CreateUser,
 	CreateUserSchema,
 	User,
+	UserSchema,
 } from '../../shared/schemas/user.js';
 import * as z from 'zod';
 import { logger } from '../../shared/logger.js';
 import { zodError } from '../../shared/utils.js';
+import { getHttpResponse } from '../utils/http_utils.js';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 async function getUser(
 	request: FastifyRequest<{ Params: { login: string } }>
@@ -79,7 +82,27 @@ export default async function (
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	fastify.get<{ Params: { login: string } }>('/users/:login', getUser);
-	fastify.post<{ Body: CreateUser }>('/users', createUser);
-	fastify.post<{ Body: AuthenticateUser }>('/users/auth', authenticate);
+	const app = fastify.withTypeProvider<ZodTypeProvider>();
+
+	const loginParamsSchema = z.object({ login: z.string() });
+	console.log('Zod object schema:', loginParamsSchema);
+
+	app.get<{ Params: { login: string } }>(
+		'/users/:login',
+		getHttpResponse({
+			params: z.object({ login: z.string() }),
+			response: UserSchema,
+		}),
+		getUser
+	);
+	app.post<{ Body: CreateUser }>(
+		'/users',
+		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
+		createUser
+	);
+	app.post<{ Body: AuthenticateUser }>(
+		'/users/auth',
+		getHttpResponse({ body: AuthenticateUserSchema, response: UserSchema }),
+		authenticate
+	);
 }
