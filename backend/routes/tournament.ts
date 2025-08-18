@@ -21,10 +21,9 @@ async function createTournament(
 	request: FastifyRequest<{ Body: CreateTournamentApi }>
 ): Promise<Tournament> {
 	try {
-		const parsedBody = CreateTournamentApiSchema.parse(request.body);
 		const tournament = TournamentService.createTournament(
-			parsedBody.creator,
-			parsedBody.participants
+			request.body.creator,
+			request.body.participants
 		);
 		return tournament;
 	} catch (error) {
@@ -41,8 +40,9 @@ async function getTournament(
 	request: FastifyRequest<{ Params: { id: UUID } }>
 ): Promise<FullTournament> {
 	try {
-		const parsedUUID = zUUID.parse(request.params.id);
-		const result = await TournamentService.getFullTournament(parsedUUID);
+		const result = await TournamentService.getFullTournament(
+			request.params.id
+		);
 		if (!result)
 			throw request.server.httpErrors.notFound(
 				constants.ERROR_USER_NOT_FOUND
@@ -60,7 +60,7 @@ async function getTournament(
 	}
 }
 
-export default async function (
+export default async function tournamentRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {

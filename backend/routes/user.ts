@@ -40,8 +40,7 @@ async function createUser(
 	request: FastifyRequest<{ Body: CreateUser }>
 ): Promise<User> {
 	try {
-		const parsedBody = CreateUserSchema.parse(request.body);
-		const user: User = await UserRepository.createUser(parsedBody);
+		const user: User = await UserRepository.createUser(request.body);
 		return user;
 	} catch (error) {
 		if (error instanceof z.ZodError)
@@ -56,12 +55,11 @@ async function createUser(
 async function authenticate(
 	request: FastifyRequest<{ Body: AuthenticateUser }>
 ): Promise<User> {
-	const parsedBody = AuthenticateUserSchema.parse(request.body);
 	try {
 		const authenticatedUser: User | null =
 			await UserRepository.authenticateUser(
-				parsedBody.login,
-				parsedBody.password_hash
+				request.body.login,
+				request.body.password_hash
 			);
 		if (!authenticatedUser)
 			throw request.server.httpErrors.unauthorized(
@@ -78,7 +76,7 @@ async function authenticate(
 	}
 }
 
-export default async function (
+export default async function userR(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
