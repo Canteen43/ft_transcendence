@@ -155,7 +155,10 @@ DONE:
 
 TODO:
 Project:
-- Add windows/navigation
+- Make home load through screen import
+- Remake modal component (create and destroy on demand)
+- Remake screen component (create and destroy on demand)
+	- include routing
 
 Learn:
 - Burning Questions

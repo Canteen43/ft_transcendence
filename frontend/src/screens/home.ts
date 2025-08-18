@@ -1,14 +1,6 @@
-import './style.css';
-import { Button } from './components/button';
-import { Modal } from './components/modal';
-
-const app = document.getElementById('app') as HTMLDivElement;
-
 const spaRoot = document.createElement('div');
 spaRoot.className =
 	'flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4 space-y-6';
-
-app.appendChild(spaRoot);
 
 // Heading
 const heading = document.createElement('h1');
