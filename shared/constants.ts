@@ -1,10 +1,12 @@
-export const ERROR_USER_NOT_FOUND = 'User not found';
 export const ERROR_CREATE_USER_FAILED = 'Failed to create user';
 export const ERROR_INVALID_CREDENTIALS = 'Invalid login credentials';
+export const ERROR_INVALID_INPUT = 'Invalid input';
 export const ERROR_INVALID_TOURNAMENT_SIZE =
 	'Invalid number of tournament participants';
-export const TOURNAMENT_CREATION_FAILED = 'Tournament creation failed';
-export const ERROR_REQUEST_FAILED = 'Request failed for unknown reason';
+export const ERROR_REQUEST_FAILED =
+	'Unexpected error occurred while processing request';
+export const ERROR_USER_NOT_FOUND = 'User not found';
+export const ERROR_TOURNAMENT_CREATION_FAILED = 'Tournament creation failed';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
 
