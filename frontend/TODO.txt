@@ -147,10 +147,17 @@ DONE:
 		-> hijacked for client side routing
 - What is SEO
 	-> search engine optimization (crawling, indexing, ranking)
+- How to structure .ts files in vanilla TS SPA
+	- many small files
+	- mass import with vite
+	- emphasize components
 
 
 TODO:
 Project:
+- Lay groundwork for vite imports
+	- Put button inside components
+	- Put a window inside windows?
 - Test random user
 - Test specific user
 - Add windows/navigation
@@ -160,11 +167,11 @@ Learn:
 	- What attributes do entries save?
 	- Is it the same ones that pushState() or replaceState() provide?
 	- Do "manual" entries have a state attribute while "normal" entries don't?
+	- What does the URL do?
 	- How do SPAs normally do it?
 	- What about form submission?
 - Learn about form submissions in HTTP in general
 - Learn about windows in SPAs
-- Learn about structuring .ts files in SPA
 - Learn about logging for frontend
 - Learn about forward and backward button
 - Basics of Fastify
