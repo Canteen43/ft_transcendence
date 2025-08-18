@@ -69,7 +69,7 @@ export default async function (
 	app.get(
 		'/tournaments/:id',
 		getHttpResponse({
-			params: z.object({ login: zUUID }),
+			params: z.object({ id: zUUID }),
 			response: FullTournamentSchema,
 		}),
 		getTournament
