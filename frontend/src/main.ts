@@ -1,4 +1,6 @@
 import './style.css';
+import { Button } from './components/button';
+import { AppWindow } from './components/window';
 
 const app = document.getElementById('app') as HTMLDivElement;
 
@@ -19,15 +21,10 @@ const buttonContainer = document.createElement('div');
 buttonContainer.className = 'flex space-x-4 justify-center';
 spaRoot.appendChild(buttonContainer);
 
-// Function to create buttons
+// Function to create and append a button without creating a named object
 function createButton(label: string, onClick: () => void) {
-	const btn = document.createElement('button');
-	btn.textContent = label;
-	btn.className =
-		'px-6 py-3 bg-green-700 hover:bg-green-900 rounded-lg text-white font-semibold shadow-lg transition-colors';
-	btn.addEventListener('click', onClick);
-	buttonContainer.appendChild(btn);
-	return btn;
+	const button = new Button(label, onClick);
+	buttonContainer.appendChild(button.element);
 }
 
 // Add first button

@@ -31,8 +31,7 @@ node_modules
 *.swp
 
 # vscode
-.vscode/
-!.vscode/*.json
+.vscode/chrome-debug-profile
 *code-workspace
 
 .env

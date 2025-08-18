@@ -155,19 +155,17 @@ DONE:
 
 TODO:
 Project:
-- Lay groundwork for vite imports
-	- Put button inside components
-	- Put a window inside windows?
-- Test random user
-- Test specific user
 - Add windows/navigation
 
 Learn:
+- Burning Questions
+	- How are windows typically done in SPAs?
+		- Destroying objects vs detaching or hiding
 - Learn about Session History
+	- What does the URL do?
 	- What attributes do entries save?
 	- Is it the same ones that pushState() or replaceState() provide?
 	- Do "manual" entries have a state attribute while "normal" entries don't?
-	- What does the URL do?
 	- How do SPAs normally do it?
 	- What about form submission?
 - Learn about form submissions in HTTP in general
