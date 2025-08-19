@@ -151,14 +151,14 @@ DONE:
 	- many small files
 	- mass import with vite
 	- emphasize components
-
+- Where did I get the galaxy video
+	-> https://pixabay.com/videos/galaxy-stars-sky-night-clouds-148593/
 
 TODO:
 Project:
-- Make home load through screen import
-- Remake modal component (create and destroy on demand)
-- Remake screen component (create and destroy on demand)
-	- include routing
+- Make second screen
+	- Make button to reach it
+- Add navigation
 
 Learn:
 - Burning Questions
