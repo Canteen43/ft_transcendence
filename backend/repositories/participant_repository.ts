@@ -1,12 +1,14 @@
-import * as db from '../utils/db.js';
+'use strict';
+
+import z from 'zod';
+import { DatabaseError } from '../../shared/exceptions.js';
 import {
 	CreateParticipant,
 	Participant,
 	ParticipantSchema,
 } from '../../shared/schemas/participant.js';
 import { UUID } from '../../shared/types.js';
-import { DatabaseError } from '../../shared/exceptions.js';
-import z from 'zod';
+import * as db from '../utils/db.js';
 
 export default class ParticipantRepository {
 	static table = 'tournament_participant';

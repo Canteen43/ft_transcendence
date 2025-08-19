@@ -1,6 +1,10 @@
-import UserRepository from '../repositories/user_repository.js';
-import * as constants from '../../shared/constants.js';
+'use strict';
+
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import * as z from 'zod';
+import * as constants from '../../shared/constants.js';
+import { logger } from '../../shared/logger.js';
 import {
 	AuthenticateUser,
 	AuthenticateUserSchema,
@@ -9,11 +13,9 @@ import {
 	User,
 	UserSchema,
 } from '../../shared/schemas/user.js';
-import * as z from 'zod';
-import { logger } from '../../shared/logger.js';
 import { zodError } from '../../shared/utils.js';
+import UserRepository from '../repositories/user_repository.js';
 import { getHttpResponse } from '../utils/http_utils.js';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 async function getUser(
 	request: FastifyRequest<{ Params: { login: string } }>
@@ -76,14 +78,14 @@ async function authenticate(
 	}
 }
 
-export default async function userR(
+export default async function user(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
 	const app = fastify.withTypeProvider<ZodTypeProvider>();
 
 	app.get(
-		'/users/:login',
+		'/:login',
 		getHttpResponse({
 			params: z.object({ login: z.string() }),
 			response: UserSchema,
@@ -91,12 +93,12 @@ export default async function userR(
 		getUser
 	);
 	app.post<{ Body: CreateUser }>(
-		'/users',
+		'/',
 		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
 		createUser
 	);
 	app.post<{ Body: AuthenticateUser }>(
-		'/users/auth',
+		'/auth',
 		getHttpResponse({ body: AuthenticateUserSchema, response: UserSchema }),
 		authenticate
 	);

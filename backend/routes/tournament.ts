@@ -1,6 +1,11 @@
+'use strict';
+
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import * as z from 'zod';
-import TournamentService from '../services/tournament_service.js';
+import * as constants from '../../shared/constants.js';
+import { TournamentNotFoundError } from '../../shared/exceptions.js';
+import { logger } from '../../shared/logger.js';
 import {
 	CreateTournamentApi,
 	CreateTournamentApiSchema,
@@ -9,12 +14,9 @@ import {
 	Tournament,
 	TournamentSchema,
 } from '../../shared/schemas/tournament.js';
-import * as constants from '../../shared/constants.js';
-import { logger } from '../../shared/logger.js';
 import { UUID, zUUID } from '../../shared/types.js';
-import { TournamentNotFoundError } from '../../shared/exceptions.js';
 import { zodError } from '../../shared/utils.js';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
+import TournamentService from '../services/tournament_service.js';
 import { getHttpResponse } from '../utils/http_utils.js';
 
 async function createTournament(
@@ -67,7 +69,7 @@ export default async function tournamentRoutes(
 	const app = fastify.withTypeProvider<ZodTypeProvider>();
 
 	app.get(
-		'/tournaments/:id',
+		'/:id',
 		getHttpResponse({
 			params: z.object({ id: zUUID }),
 			response: FullTournamentSchema,
@@ -76,7 +78,7 @@ export default async function tournamentRoutes(
 	);
 
 	app.post(
-		'/tournaments',
+		'/',
 		getHttpResponse({
 			body: CreateTournamentApiSchema,
 			response: TournamentSchema,

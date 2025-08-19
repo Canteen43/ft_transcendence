@@ -1,5 +1,11 @@
-import SettingsRepository from '../repositories/settings_repository.js';
-import TournamentRepository from '../repositories/tournament_repository.js';
+'use strict';
+
+import { ParticipantStatus, TournamentStatus } from '../../shared/enums.js';
+import {
+	DatabaseError,
+	SettingsNotFoundError,
+	TournamentNotFoundError,
+} from '../../shared/exceptions.js';
 import {
 	CreateMatch,
 	CreateMatchSchema,
@@ -10,22 +16,17 @@ import {
 	CreateParticipantSchema,
 } from '../../shared/schemas/participant.js';
 import {
-	Tournament,
 	CreateTournamentSchema,
 	FullTournament,
 	FullTournamentSchema,
+	Tournament,
 } from '../../shared/schemas/tournament.js';
-import { ParticipantStatus } from '../../shared/enums.js';
-import { TournamentStatus } from '../../shared/enums.js';
-import {
-	DatabaseError,
-	SettingsNotFoundError,
-	TournamentNotFoundError,
-} from '../../shared/exceptions.js';
-import { randomInt } from '../../shared/utils.js';
 import type { UUID } from '../../shared/types.js';
-import ParticipantRepository from '../repositories/participant_repository.js';
+import { randomInt } from '../../shared/utils.js';
 import MatchRepository from '../repositories/match_repository.js';
+import ParticipantRepository from '../repositories/participant_repository.js';
+import SettingsRepository from '../repositories/settings_repository.js';
+import TournamentRepository from '../repositories/tournament_repository.js';
 
 export default class TournamentService {
 	static async getFullTournament(id: UUID): Promise<FullTournament | null> {

@@ -1,10 +1,12 @@
-import * as db from '../utils/db.js';
-import { CreateMatch, Match, MatchSchema } from '../../shared/schemas/match.js';
-import type { UUID } from '../../shared/types.js';
-import { DatabaseError } from '../../shared/exceptions.js';
-import { Participant } from '../../shared/schemas/participant.js';
+'use strict';
+
 import z from 'zod';
 import { MatchStatus } from '../../shared/enums.js';
+import { DatabaseError } from '../../shared/exceptions.js';
+import { CreateMatch, Match, MatchSchema } from '../../shared/schemas/match.js';
+import { Participant } from '../../shared/schemas/participant.js';
+import type { UUID } from '../../shared/types.js';
+import * as db from '../utils/db.js';
 
 export default class MatchRepository {
 	static table = '"tournament_match"';

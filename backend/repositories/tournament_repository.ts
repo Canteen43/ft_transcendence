@@ -1,17 +1,18 @@
-import * as db from '../utils/db.js';
+'use strict';
 
+import { DatabaseError } from '../../shared/exceptions.js';
+import { logger } from '../../shared/logger.js';
+import { CreateMatch } from '../../shared/schemas/match.js';
+import { CreateParticipant } from '../../shared/schemas/participant.js';
 import {
 	CreateTournament,
 	Tournament,
 	TournamentSchema,
 } from '../../shared/schemas/tournament.js';
-import { CreateParticipant } from '../../shared/schemas/participant.js';
-import { CreateMatch } from '../../shared/schemas/match.js';
+import { UUID } from '../../shared/types.js';
+import * as db from '../utils/db.js';
 import MatchRepository from './match_repository.js';
 import ParticipantRepository from './participant_repository.js';
-import { DatabaseError } from '../../shared/exceptions.js';
-import { logger } from '../../shared/logger.js';
-import { UUID } from '../../shared/types.js';
 
 export default class TournamentRepository {
 	static table = 'tournament';

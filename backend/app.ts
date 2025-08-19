@@ -1,19 +1,19 @@
-import dotenv from 'dotenv';
-import Fastify from 'fastify';
-import fastifyApp from './fastify.js';
+'use strict';
+
+import './init.js';
+
 import type { FastifyInstance } from 'fastify';
+import Fastify from 'fastify';
 import { FASTIFY_LOG_LEVEL } from '../shared/constants.js';
 import { logger } from '../shared/logger.js';
-
-// Load .env
-dotenv.config();
+import fastifyInit from './fastify.js';
 
 const fastify: FastifyInstance = Fastify({
 	logger: { level: FASTIFY_LOG_LEVEL },
 });
 
 try {
-	await fastify.register(fastifyApp);
+	await fastify.register(fastifyInit);
 } catch (error) {
 	logger.error('Failed to register application:');
 	logger.error(error);

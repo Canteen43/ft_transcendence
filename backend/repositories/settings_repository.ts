@@ -1,7 +1,9 @@
-import * as db from '../utils/db.js';
-import UserRepository from './user_repository.js';
+'use strict';
+
 import { Settings, SettingsSchema } from '../../shared/schemas/settings.js';
 import { UUID } from '../../shared/types.js';
+import * as db from '../utils/db.js';
+import UserRepository from './user_repository.js';
 
 const table = 'settings';
 

@@ -1,24 +1,18 @@
 'use strict';
 
-import path from 'node:path';
-import AutoLoad from '@fastify/autoload';
-import url from 'node:url';
+import sensible from '@fastify/sensible';
 import type { FastifyInstance } from 'fastify';
 import {
 	serializerCompiler,
 	validatorCompiler,
 } from 'fastify-type-provider-zod';
-// import sensible from '@fastify/sensible';
-// import userRoutes from './routes/user.js';
-// import tournamentRoutes from './routes/tournament.js';
+import tournamentRoutes from './routes/tournament.js';
+import userRoutes from './routes/user.js';
 
 // Pass --options via CLI arguments in command to enable these options.
 const options = {};
 
-const __filename = url.fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export default async function (
+export default async function fastifyInit(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
@@ -26,21 +20,12 @@ export default async function (
 	fastify.setValidatorCompiler(validatorCompiler);
 	fastify.setSerializerCompiler(serializerCompiler);
 
-	// Load all plugins
-	fastify.register(AutoLoad, {
-		dir: path.join(__dirname, 'plugins'),
-		options: Object.assign({}, opts),
-	});
+	// Load sensible
+	fastify.register(sensible);
 
-	//Load all routes
-	fastify.register(AutoLoad, {
-		dir: path.join(__dirname, 'routes'),
-		options: Object.assign({}, opts),
-	});
-
-	// fastify.register(sensible);
-	// fastify.register(userRoutes);
-	// fastify.register(tournamentRoutes);
+	// Load routes
+	fastify.register(userRoutes, { prefix: '/users' });
+	fastify.register(tournamentRoutes, { prefix: '/tournaments' });
 }
 
 const _options = options;

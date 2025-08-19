@@ -1,8 +1,11 @@
+'use strict';
+
 import { AsyncLocalStorage } from 'async_hooks';
 import { Pool, PoolClient } from 'pg';
 
 const transactionStorage = new AsyncLocalStorage<PoolClient>();
 
+console.log('DB URL: ' + process.env.DATABASE_URL);
 export const pool = new Pool({
 	connectionString: process.env.DATABASE_URL,
 });
