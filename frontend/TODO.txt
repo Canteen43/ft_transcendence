@@ -156,30 +156,12 @@ DONE:
 
 TODO:
 Project:
-- Make second screen
-	- Make button to reach it
 - Add navigation
+- Make Tournament Creation Modal
 
 Learn:
-- Burning Questions
-	- How are windows typically done in SPAs?
-		- Destroying objects vs detaching or hiding
 - Learn about Session History
-	- What does the URL do?
-	- What attributes do entries save?
-	- Is it the same ones that pushState() or replaceState() provide?
-	- Do "manual" entries have a state attribute while "normal" entries don't?
-	- How do SPAs normally do it?
-	- What about form submission?
-- Learn about form submissions in HTTP in general
-- Learn about windows in SPAs
-- Learn about logging for frontend
-- Learn about forward and backward button
-- Basics of Fastify
-- Learn about JS syntax
-	- Import, Export
-	- Function syntax
-- Improve Zod understanding
-- Learn about JavaScript Frameworks
-	- JS with React, Vue, Angular, Next, Express etc
-- Do small coding challenges in JavaScript and TypeScript
+	- Can I check the value of current session history entries in chrome?
+	- Check which attributes exist
+	- What is the URL for?
+	- How can pages manipulate the URL in the address bar?
