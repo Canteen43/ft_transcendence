@@ -1,7 +1,6 @@
 'use strict';
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
 import { TournamentNotFoundError } from '../../shared/exceptions.js';
@@ -66,9 +65,7 @@ export default async function tournamentRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	const app = fastify.withTypeProvider<ZodTypeProvider>();
-
-	app.get(
+	fastify.get(
 		'/:id',
 		getHttpResponse({
 			params: z.object({ id: zUUID }),
@@ -77,7 +74,7 @@ export default async function tournamentRoutes(
 		getTournament
 	);
 
-	app.post(
+	fastify.post(
 		'/',
 		getHttpResponse({
 			body: CreateTournamentApiSchema,

@@ -1,7 +1,6 @@
 'use strict';
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
@@ -82,9 +81,7 @@ export default async function user(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	const app = fastify.withTypeProvider<ZodTypeProvider>();
-
-	app.get(
+	fastify.get(
 		'/:login',
 		getHttpResponse({
 			params: z.object({ login: z.string() }),
@@ -92,12 +89,12 @@ export default async function user(
 		}),
 		getUser
 	);
-	app.post<{ Body: CreateUser }>(
+	fastify.post<{ Body: CreateUser }>(
 		'/',
 		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
 		createUser
 	);
-	app.post<{ Body: AuthenticateUser }>(
+	fastify.post<{ Body: AuthenticateUser }>(
 		'/auth',
 		getHttpResponse({ body: AuthenticateUserSchema, response: UserSchema }),
 		authenticate

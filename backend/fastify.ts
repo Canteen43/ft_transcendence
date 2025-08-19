@@ -1,11 +1,15 @@
 'use strict';
 
 import sensible from '@fastify/sensible';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUI from '@fastify/swagger-ui';
 import type { FastifyInstance } from 'fastify';
 import {
+	fastifyZodOpenApiPlugin,
+	fastifyZodOpenApiTransformers,
 	serializerCompiler,
 	validatorCompiler,
-} from 'fastify-type-provider-zod';
+} from 'fastify-zod-openapi';
 import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
 
@@ -16,16 +20,32 @@ export default async function fastifyInit(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
+	// Configure swagger
+	await fastify.register(fastifyZodOpenApiPlugin);
+	await fastify.register(fastifySwagger, {
+		openapi: {
+			info: {
+				title: 'hello world',
+				version: '1.0.0',
+			},
+			openapi: '3.1.0',
+		},
+		...fastifyZodOpenApiTransformers,
+	});
+	await fastify.register(fastifySwaggerUI, {
+		routePrefix: '/docs',
+	});
+
 	// Set validators
 	fastify.setValidatorCompiler(validatorCompiler);
 	fastify.setSerializerCompiler(serializerCompiler);
 
 	// Load sensible
-	fastify.register(sensible);
+	await fastify.register(sensible);
 
 	// Load routes
-	fastify.register(userRoutes, { prefix: '/users' });
-	fastify.register(tournamentRoutes, { prefix: '/tournaments' });
+	await fastify.register(userRoutes, { prefix: '/users' });
+	await fastify.register(tournamentRoutes, { prefix: '/tournaments' });
 }
 
 const _options = options;

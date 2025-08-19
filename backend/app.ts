@@ -4,13 +4,14 @@ import './init.js';
 
 import type { FastifyInstance } from 'fastify';
 import Fastify from 'fastify';
+import { FastifyZodOpenApiTypeProvider } from 'fastify-zod-openapi';
 import { FASTIFY_LOG_LEVEL } from '../shared/constants.js';
 import { logger } from '../shared/logger.js';
 import fastifyInit from './fastify.js';
 
 const fastify: FastifyInstance = Fastify({
 	logger: { level: FASTIFY_LOG_LEVEL },
-});
+}).withTypeProvider<FastifyZodOpenApiTypeProvider>();
 
 try {
 	await fastify.register(fastifyInit);
