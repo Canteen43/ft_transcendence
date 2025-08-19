@@ -1,8 +1,13 @@
 'use strict';
 
+import {
+	ERROR_RETRIEVING_NEXT_ROUND,
+	ERROR_RETRIEVING_WINNERS,
+} from '../../shared/constants.js';
 import { ParticipantStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
+	MatchNotFoundError,
 	SettingsNotFoundError,
 	TournamentNotFoundError,
 } from '../../shared/exceptions.js';
@@ -57,7 +62,7 @@ export default class TournamentService {
 		participants: UUID[]
 	): Promise<Tournament> {
 		const settings = await SettingsRepository.getSettingsByUser(creator);
-		if (!settings) throw new SettingsNotFoundError(creator);
+		if (!settings) throw new SettingsNotFoundError('user', creator);
 
 		const tournament = CreateTournamentSchema.parse({
 			size: participants.length,
@@ -136,6 +141,9 @@ export default class TournamentService {
 	}
 
 	static async finishMatch(match: Match) {
+		const result_match = await MatchRepository.setFinished(match.id);
+		if (!result_match) throw new MatchNotFoundError(match.id);
+
 		const tournament = await TournamentRepository.getTournament(
 			match.tournament_id
 		);
@@ -160,10 +168,16 @@ export default class TournamentService {
 			tournament_id,
 			round
 		);
+		if (!participants.length)
+			throw new DatabaseError(ERROR_RETRIEVING_WINNERS);
+
 		var matches = await MatchRepository.getTournamentMatches(
 			tournament_id,
 			round
 		);
+		if (!participants.length)
+			throw new DatabaseError(ERROR_RETRIEVING_NEXT_ROUND);
+
 		for (var i = 0; i < participants.length / 2; i++) {
 			MatchRepository.updateParticipants(
 				matches[i].id,

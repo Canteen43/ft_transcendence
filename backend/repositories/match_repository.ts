@@ -2,29 +2,43 @@
 
 import z from 'zod';
 import { MatchStatus } from '../../shared/enums.js';
-import { DatabaseError } from '../../shared/exceptions.js';
-import { CreateMatch, Match, MatchSchema } from '../../shared/schemas/match.js';
+import {
+	DatabaseError,
+	ParticipantNotFoundError,
+} from '../../shared/exceptions.js';
+import {
+	CreateMatch,
+	Match,
+	MatchSchema,
+	UpdateMatch,
+} from '../../shared/schemas/match.js';
 import { Participant } from '../../shared/schemas/participant.js';
 import type { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
 
 export default class MatchRepository {
 	static table = '"tournament_match"';
+	static fields =
+		'id, tournament_id, tournament_round, participant_1_id, participant_2_id, participant_1_score, participant_2_score, status';
+
+	static async getMatch(match_id: UUID): Promise<Match | null> {
+		const result = await db.pool.query(
+			`SELECT ${this.fields}
+			FROM ${this.table}
+			WHERE id = $1`,
+			[match_id]
+		);
+
+		if (!result.rowCount) return null;
+		return MatchSchema.parse(result.rows[0]);
+	}
 
 	static async getTournamentMatches(
 		tournament_id: UUID,
 		tournament_round?: number
 	): Promise<Match[]> {
 		var query = `
-		SELECT
-			id,
-			tournament_id,
-			tournament_round,
-			participant_1_id,
-			participant_2_id,
-			participant_1_score,
-			participant_2_score,
-			status
+		SELECT ${this.fields}
 		FROM ${this.table}
 		WHERE tournament_id = $1`;
 
@@ -76,7 +90,6 @@ export default class MatchRepository {
 				AND (participant_1_score IS NOT NULL AND participant_2_score IS NOT NULL)`,
 			[tournament_id, round]
 		);
-
 		return result.rows.map(row => row.winner_id);
 	}
 
@@ -96,14 +109,7 @@ export default class MatchRepository {
 				participant_2_score,
 				status
 			) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING id,
-				tournament_id,
-				tournament_round,
-				participant_1_id,
-				participant_2_id,
-				participant_1_score,
-				participant_2_score,
-				status;`,
+			RETURNING ${this.fields};`,
 			[
 				tournament_id,
 				src.tournament_round,
@@ -145,6 +151,27 @@ export default class MatchRepository {
 		return result;
 	}
 
+	static async updateMatch(match_id: UUID, upd: UpdateMatch) {
+		await db.pool.query(
+			`UPDATE ${this.table}
+			SET participant_1_id = $1,
+				participant_2_id = $2,
+				participant_1_score = $3,
+				participant_2_score = $4,
+				status = $5
+			WHERE id = $6
+			RETURNING ${this.fields}`,
+			[
+				upd.participant_1_id,
+				upd.participant_2_id,
+				upd.participant_1_score,
+				upd.participant_2_score,
+				upd.status,
+				match_id,
+			]
+		);
+	}
+
 	static async updateParticipants(
 		match_id: UUID,
 		participant_1_id: UUID,
@@ -159,6 +186,34 @@ export default class MatchRepository {
 		);
 	}
 
+	static async updateScore(
+		match_id: UUID,
+		participant_id: UUID
+	): Promise<Match | null> {
+		const result = await db.pool.query(
+			`UPDATE ${this.table}
+			SET participant_1_score = participant_1_score + CASE WHEN participant_1_id == $1 THEN 1 ELSE 0 END,
+				participant_1_score = participant_1_score + CASE WHEN participant_1_id == $1 THEN 1 ELSE 0 END
+			WHERE id = $2
+			RETURNING ${this.fields}`,
+			[participant_id, match_id]
+		);
+		if (result.rowCount == 0) return null;
+		return MatchSchema.parse(result.rows[0]);
+	}
+
+	static async setFinished(match_id: UUID): Promise<Match | null> {
+		const result = await db.pool.query(
+			`UPDATE ${this.table}
+			SET status = ${MatchStatus.Finished}
+			WHERE id = $1
+			RETURNING ${this.fields}`,
+			[match_id]
+		);
+		if (result.rowCount == 0) return null;
+		return MatchSchema.parse(result.rows[0]);
+	}
+
 	private static getParticipantId(
 		participants: Participant[],
 		user_id: UUID | null
@@ -167,9 +222,7 @@ export default class MatchRepository {
 
 		const participant = participants.find(p => p.user_id === user_id);
 		if (!participant)
-			throw new DatabaseError(
-				'Participant not found while creating match'
-			);
+			throw new ParticipantNotFoundError('user_id', user_id);
 		return participant.id;
 	}
 }

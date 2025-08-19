@@ -5,8 +5,8 @@ import {
 } from '../constants.js';
 import { TournamentStatus } from '../enums.js';
 import { zUUID } from '../types.js';
-import { ParticipantSchema } from './participant.js';
 import { MatchSchema } from './match.js';
+import { ParticipantSchema } from './participant.js';
 
 export const TournamentSchema = z.object({
 	id: zUUID,

@@ -3,11 +3,25 @@
 import { Settings, SettingsSchema } from '../../shared/schemas/settings.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
+import TournamentRepository from './tournament_repository.js';
 import UserRepository from './user_repository.js';
 
 const table = 'settings';
 
 export default class SettingsRepository {
+	static async getSettingsByTournamentId(id: UUID): Promise<Settings | null> {
+		const result = await db.pool.query(
+			`SELECT ${table}.id, max_score
+			 FROM ${table}
+			 INNER JOIN ${TournamentRepository.table}
+			 	ON ${table}.id = ${TournamentRepository.table}.settings_id
+			 WHERE ${TournamentRepository.table}.id = $1`,
+			[id]
+		);
+		if (result.rows.length === 0) return null;
+		return SettingsSchema.parse(result.rows[0]);
+	}
+
 	static async getSettingsByUser(user_id: UUID): Promise<Settings | null> {
 		const result = await db.pool.query(
 			`SELECT ${table}.id, max_score

@@ -22,5 +22,14 @@ export const CreateMatchSchema = MatchSchema.omit({
 	status: z.enum(MatchStatus).default(MatchStatus.Pending),
 });
 
+export const UpdateMatchSchema = MatchSchema.pick({
+	participant_1_id: true,
+	participant_2_id: true,
+	participant_1_score: true,
+	participant_2_score: true,
+	status: true,
+});
+
 export type Match = z.infer<typeof MatchSchema>;
 export type CreateMatch = z.infer<typeof CreateMatchSchema>;
+export type UpdateMatch = z.infer<typeof UpdateMatchSchema>;

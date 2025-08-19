@@ -7,6 +7,9 @@ export const ERROR_REQUEST_FAILED =
 	'Unexpected error occurred while processing request';
 export const ERROR_USER_NOT_FOUND = 'User not found';
 export const ERROR_TOURNAMENT_CREATION_FAILED = 'Tournament creation failed';
+export const ERROR_RETRIEVING_WINNERS = 'Error retrieving match winners';
+export const ERROR_RETRIEVING_NEXT_ROUND =
+	'Error retrieving next round matches';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
 
