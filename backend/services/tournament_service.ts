@@ -15,6 +15,8 @@ import {
 	CreateMatch,
 	CreateMatchSchema,
 	Match,
+	UpdateMatch,
+	UpdateMatchSchema,
 } from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
@@ -66,7 +68,6 @@ export default class TournamentService {
 
 		const tournament = CreateTournamentSchema.parse({
 			size: participants.length,
-			current_round: 1,
 			settings: settings.id,
 			status:
 				participants.length == 2
@@ -84,6 +85,20 @@ export default class TournamentService {
 		);
 	}
 
+	static async getNumberOfRounds(tournament_id: UUID): Promise<number> {
+		const tournament =
+			await TournamentRepository.getTournament(tournament_id);
+		if (!tournament) throw new TournamentNotFoundError(tournament_id);
+		return this.numberOfRounds(tournament.size);
+	}
+
+	static randomParticipant(participants: UUID[]) {
+		const index = randomInt(0, participants.length - 1);
+		const participant = participants[index];
+		participants.splice(index, 1);
+		return participant;
+	}
+
 	private static createParticipants(
 		participants: UUID[]
 	): CreateParticipant[] {
@@ -96,13 +111,6 @@ export default class TournamentService {
 						: ParticipantStatus.Pending,
 			})
 		);
-	}
-
-	private static randomParticipant(participants: UUID[]) {
-		const index = randomInt(0, participants.length - 1);
-		const participant = participants[index];
-		participants.splice(index, 1);
-		return participant;
 	}
 
 	private static createMatchesForRound(
@@ -138,53 +146,6 @@ export default class TournamentService {
 			result.push(...matches);
 		}
 		return result;
-	}
-
-	static async finishMatch(match: Match) {
-		const result_match = await MatchRepository.setFinished(match.id);
-		if (!result_match) throw new MatchNotFoundError(match.id);
-
-		const tournament = await TournamentRepository.getTournament(
-			match.tournament_id
-		);
-		if (!tournament) throw new TournamentNotFoundError(match.tournament_id);
-
-		if (match.tournament_round == this.numberOfRounds(tournament.size)) {
-			const unfinished =
-				await MatchRepository.getNumberOfUnfinishedMatches(
-					match.tournament_id,
-					match.tournament_round
-				);
-			if (!unfinished)
-				this.startNewRound(
-					match.tournament_id,
-					match.tournament_round + 1
-				);
-		}
-	}
-
-	private static async startNewRound(tournament_id: UUID, round: number) {
-		var participants = await MatchRepository.getWinners(
-			tournament_id,
-			round
-		);
-		if (!participants.length)
-			throw new DatabaseError(ERROR_RETRIEVING_WINNERS);
-
-		var matches = await MatchRepository.getTournamentMatches(
-			tournament_id,
-			round
-		);
-		if (!participants.length)
-			throw new DatabaseError(ERROR_RETRIEVING_NEXT_ROUND);
-
-		for (var i = 0; i < participants.length / 2; i++) {
-			MatchRepository.updateParticipants(
-				matches[i].id,
-				this.randomParticipant(participants),
-				this.randomParticipant(participants)
-			);
-		}
 	}
 
 	private static numberOfRounds(size: number): number {

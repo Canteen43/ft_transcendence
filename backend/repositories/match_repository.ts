@@ -1,10 +1,12 @@
 'use strict';
 
 import z from 'zod';
-import { MatchStatus } from '../../shared/enums.js';
+import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
+	MatchNotFoundError,
 	ParticipantNotFoundError,
+	TournamentNotFoundError,
 } from '../../shared/exceptions.js';
 import {
 	CreateMatch,
@@ -13,8 +15,10 @@ import {
 	UpdateMatch,
 } from '../../shared/schemas/match.js';
 import { Participant } from '../../shared/schemas/participant.js';
+import { UpdateTournamentSchema } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
+import TournamentRepository from './tournament_repository.js';
 
 export default class MatchRepository {
 	static table = '"tournament_match"';
@@ -152,7 +156,7 @@ export default class MatchRepository {
 	}
 
 	static async updateMatch(match_id: UUID, upd: UpdateMatch) {
-		await db.pool.query(
+		const result = await db.pool.query(
 			`UPDATE ${this.table}
 			SET participant_1_id = $1,
 				participant_2_id = $2,
@@ -170,48 +174,32 @@ export default class MatchRepository {
 				match_id,
 			]
 		);
+		if (result.rowCount == 0)
+			throw new DatabaseError('Failed to update match');
+		return MatchSchema.parse(result.rows[0]);
 	}
 
-	static async updateParticipants(
-		match_id: UUID,
-		participant_1_id: UUID,
-		participant_2_id: UUID
+	static async updateMatchesAfterPointScored(
+		tournament_id: UUID,
+		matches: { id: UUID; updateMatch: UpdateMatch }[],
+		tournamentFinished: boolean
 	) {
-		await db.pool.query(
-			`UPDATE ${this.table}
-			SET participant_1_id = $1,
-				participant_2_id = $2
-			WHERE id = $3`,
-			[participant_1_id, participant_2_id, match_id]
-		);
-	}
-
-	static async updateScore(
-		match_id: UUID,
-		participant_id: UUID
-	): Promise<Match | null> {
-		const result = await db.pool.query(
-			`UPDATE ${this.table}
-			SET participant_1_score = participant_1_score + CASE WHEN participant_1_id == $1 THEN 1 ELSE 0 END,
-				participant_1_score = participant_1_score + CASE WHEN participant_1_id == $1 THEN 1 ELSE 0 END
-			WHERE id = $2
-			RETURNING ${this.fields}`,
-			[participant_id, match_id]
-		);
-		if (result.rowCount == 0) return null;
-		return MatchSchema.parse(result.rows[0]);
-	}
-
-	static async setFinished(match_id: UUID): Promise<Match | null> {
-		const result = await db.pool.query(
-			`UPDATE ${this.table}
-			SET status = ${MatchStatus.Finished}
-			WHERE id = $1
-			RETURNING ${this.fields}`,
-			[match_id]
-		);
-		if (result.rowCount == 0) return null;
-		return MatchSchema.parse(result.rows[0]);
+		await db.executeInTransaction(async () => {
+			for (const { id, updateMatch } of matches) {
+				const match = await this.updateMatch(id, updateMatch);
+				if (!match) throw new MatchNotFoundError(id);
+			}
+			if (tournamentFinished) {
+				const tournament = TournamentRepository.updateTournament(
+					tournament_id,
+					UpdateTournamentSchema.parse({
+						status: TournamentStatus.Finished,
+					})
+				);
+				if (!tournament)
+					throw new TournamentNotFoundError(tournament_id);
+			}
+		});
 	}
 
 	private static getParticipantId(

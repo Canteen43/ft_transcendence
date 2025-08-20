@@ -30,7 +30,7 @@ CREATE TYPE participant_status AS ENUM (
 
 CREATE FUNCTION validate_same_tournament(
 	p_tournament_id uuid,
-	p_participant_1_id uuid, 
+	p_participant_1_id uuid,
 	p_participant_2_id uuid
 ) RETURNS boolean AS $$ BEGIN
 	IF p_participant_1_id IS NULL OR p_participant_2_id IS NULL THEN
@@ -38,7 +38,7 @@ CREATE FUNCTION validate_same_tournament(
 	END IF;
 	RETURN (
 		SELECT COUNT(*) = 2
-		FROM tournament_participant 
+		FROM tournament_participant
 		WHERE tournament_id = p_tournament_id
 		AND   id IN (p_participant_1_id, p_participant_2_id)
 	);
@@ -64,7 +64,6 @@ CREATE TABLE "user" (
 CREATE TABLE tournament (
 	id 				uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
 	size			int,
-	current_round	int,
 	settings		uuid,
 	status			tournament_status
 );
@@ -86,7 +85,7 @@ CREATE TABLE tournament_match (
 	participant_1_score	int,
 	participant_2_score	int,
 	status				match_status
-	
+
 	CONSTRAINT check_same_tournament CHECK (
 		validate_same_tournament(tournament_id, participant_1_id, participant_2_id)
 	),

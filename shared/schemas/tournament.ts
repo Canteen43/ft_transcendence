@@ -11,7 +11,6 @@ import { ParticipantSchema } from './participant.js';
 export const TournamentSchema = z.object({
 	id: zUUID,
 	size: z.number().int(),
-	current_round: z.number().int(),
 	settings: zUUID,
 	status: z.enum(TournamentStatus),
 });
@@ -32,7 +31,12 @@ export const CreateTournamentApiSchema = z.object({
 	),
 });
 
+export const UpdateTournamentSchema = TournamentSchema.pick({
+	status: true,
+});
+
 export type Tournament = z.infer<typeof TournamentSchema>;
 export type FullTournament = z.infer<typeof FullTournamentSchema>;
 export type CreateTournamentApi = z.infer<typeof CreateTournamentApiSchema>;
 export type CreateTournament = z.infer<typeof CreateTournamentSchema>;
+export type UpdateTournament = z.infer<typeof UpdateTournamentSchema>;
