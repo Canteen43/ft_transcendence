@@ -7,6 +7,8 @@ export class HomeScreen extends Screen {
 	constructor() {
 		super(); // call the parent constructor
 
+		location.hash = '#home'; // Set initial hash to home screen
+
 		this.element.className =
 			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
 

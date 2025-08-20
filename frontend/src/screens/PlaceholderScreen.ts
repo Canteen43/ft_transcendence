@@ -14,5 +14,8 @@ export class PlaceholderScreen extends Screen {
 			},
 			this.element
 		);
+
+		// Set the initial hash to the placeholder screen
+		location.hash = '#placeholder';
 	}
 }

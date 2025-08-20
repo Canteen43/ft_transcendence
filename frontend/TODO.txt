@@ -128,6 +128,17 @@ DONE:
 	-> after navigating within the same page, the browser fires the 'popstate' event
 		-> can be caught with an event listener
 	-> "normal" entries are different from website-created entries
+	- what about "Are you sure about leaving?" prompts
+		-> these are done with the 'beforeunload' event
+		-> the 'popstate' event would be too late
+- Hash-based routing
+	-> To make SPAs navigable, SPAs can use hash-based routing
+	-> "location.hash = 'something'" will
+		-> show a URL with a hash in the browser
+		-> add an entry to the session history (which makes buttons work)
+	-> the 'hashchange' event will catch changed hashes from both
+		-> manual address bar manipulation
+		-> button navigation 
 - Learn about URLs
 	- Query parameters
 		-> after path, before Hash
@@ -156,7 +167,7 @@ DONE:
 
 TODO:
 Project:
-- Add navigation
+- Add hash-based navigation
 - Make Tournament Creation Modal
 
 Learn:
