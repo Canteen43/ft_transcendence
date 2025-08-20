@@ -193,7 +193,7 @@ DONE:
 
 TODO:
 Project:
-- Improve Design of Tournament and Game Screen CSS wise
+- Design tournament creation modal
 - Make Tournament Creation Modal
 
 Learn:
