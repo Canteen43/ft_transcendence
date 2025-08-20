@@ -5,8 +5,8 @@ import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
 import {
-	AuthenticateUser,
-	AuthenticateUserSchema,
+	AuthRequest,
+	AuthRequestSchema,
 	CreateUser,
 	CreateUserSchema,
 	User,
@@ -54,14 +54,11 @@ async function createUser(
 }
 
 async function authenticate(
-	request: FastifyRequest<{ Body: AuthenticateUser }>
+	request: FastifyRequest<{ Body: AuthRequest }>
 ): Promise<User> {
 	try {
 		const authenticatedUser: User | null =
-			await UserRepository.authenticateUser(
-				request.body.login,
-				request.body.password_hash
-			);
+			await UserRepository.authenticateUser(request.body);
 		if (!authenticatedUser)
 			throw request.server.httpErrors.unauthorized(
 				constants.ERROR_INVALID_CREDENTIALS
@@ -94,9 +91,9 @@ export default async function user(
 		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
 		createUser
 	);
-	fastify.post<{ Body: AuthenticateUser }>(
+	fastify.post<{ Body: AuthRequest }>(
 		'/auth',
-		getHttpResponse({ body: AuthenticateUserSchema, response: UserSchema }),
+		getHttpResponse({ body: AuthRequestSchema, response: UserSchema }),
 		authenticate
 	);
 }

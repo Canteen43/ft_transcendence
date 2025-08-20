@@ -32,3 +32,17 @@ export class DatabaseError extends Error {
 		this.name = 'DatabaseError';
 	}
 }
+
+export class AuthenticationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'DatabaseError';
+	}
+}
+
+export class AuthenticationFailedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'DatabaseError';
+	}
+}

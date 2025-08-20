@@ -13,11 +13,17 @@ export const CreateUserSchema = UserSchema.omit({ id: true }).extend({
 	password_hash: z.string(),
 });
 
-export const AuthenticateUserSchema = z.object({
+export const AuthRequestSchema = z.object({
 	login: z.string(),
 	password_hash: z.string(),
 });
 
+export const AuthResponseSchema = z.object({
+	login: z.string(),
+	token: z.string(),
+});
+
 export type User = z.infer<typeof UserSchema>;
-export type AuthenticateUser = z.infer<typeof AuthenticateUserSchema>;
+export type AuthRequest = z.infer<typeof AuthRequestSchema>;
+export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateUser = z.infer<typeof CreateUserSchema>;
