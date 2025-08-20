@@ -8,7 +8,7 @@ export class Router {
 
 	constructor() {
 		window.addEventListener('hashchange', () => this.handleRoute());
-		location.hash = '#home'; // Set initial hash to home screen
+		location.hash = '#home';
 	}
 
 	private handleRoute() {

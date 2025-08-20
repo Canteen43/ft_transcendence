@@ -4,13 +4,11 @@ export class Screen {
 	constructor() {
 		this.element = document.createElement('div');
 
-		// Tailwind classes for a centered "page" with 85% width & height
+
 		this.element.className = `
 			mx-auto my-auto
 			w-[85%] h-[85%]
-			bg-gray-500/80
-			rounded-2xl
-			border border-gray-300
+			bg-gray-800/80
 			shadow-2xl
 			flex flex-col
 			items-center justify-center

@@ -193,10 +193,7 @@ DONE:
 
 TODO:
 Project:
-- Put video away?
-- Make video Stop?
-- Make TournamentScreen look like Tournament
-- Make GameScreen look like Game
+- Improve Design of Tournament and Game Screen CSS wise
 - Make Tournament Creation Modal
 
 Learn:
