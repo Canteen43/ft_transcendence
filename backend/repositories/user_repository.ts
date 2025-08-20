@@ -1,6 +1,8 @@
-import * as db from '../utils/db.js';
-import { CreateUser, User, UserSchema } from '../../shared/schemas/user.js';
+'use strict';
+
 import { DatabaseError } from '../../shared/exceptions.js';
+import { CreateUser, User, UserSchema } from '../../shared/schemas/user.js';
+import * as db from '../utils/db.js';
 
 export default class UserRepository {
 	static table = '"user"';

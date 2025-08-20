@@ -1,16 +1,20 @@
-import UserRepository from '../repositories/user_repository.js';
-import * as constants from '../../shared/constants.js';
+'use strict';
+
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import * as z from 'zod';
+import * as constants from '../../shared/constants.js';
+import { logger } from '../../shared/logger.js';
 import {
 	AuthenticateUser,
 	AuthenticateUserSchema,
 	CreateUser,
 	CreateUserSchema,
 	User,
+	UserSchema,
 } from '../../shared/schemas/user.js';
-import * as z from 'zod';
-import { logger } from '../../shared/logger.js';
 import { zodError } from '../../shared/utils.js';
+import UserRepository from '../repositories/user_repository.js';
+import { getHttpResponse } from '../utils/http_utils.js';
 
 async function getUser(
 	request: FastifyRequest<{ Params: { login: string } }>
@@ -37,8 +41,7 @@ async function createUser(
 	request: FastifyRequest<{ Body: CreateUser }>
 ): Promise<User> {
 	try {
-		const parsedBody = CreateUserSchema.parse(request.body);
-		const user: User = await UserRepository.createUser(parsedBody);
+		const user: User = await UserRepository.createUser(request.body);
 		return user;
 	} catch (error) {
 		if (error instanceof z.ZodError)
@@ -53,12 +56,11 @@ async function createUser(
 async function authenticate(
 	request: FastifyRequest<{ Body: AuthenticateUser }>
 ): Promise<User> {
-	const parsedBody = AuthenticateUserSchema.parse(request.body);
 	try {
 		const authenticatedUser: User | null =
 			await UserRepository.authenticateUser(
-				parsedBody.login,
-				parsedBody.password_hash
+				request.body.login,
+				request.body.password_hash
 			);
 		if (!authenticatedUser)
 			throw request.server.httpErrors.unauthorized(
@@ -75,11 +77,26 @@ async function authenticate(
 	}
 }
 
-export default async function (
+export default async function user(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	fastify.get<{ Params: { login: string } }>('/users/:login', getUser);
-	fastify.post<{ Body: CreateUser }>('/users', createUser);
-	fastify.post<{ Body: AuthenticateUser }>('/users/auth', authenticate);
+	fastify.get(
+		'/:login',
+		getHttpResponse({
+			params: z.object({ login: z.string() }),
+			response: UserSchema,
+		}),
+		getUser
+	);
+	fastify.post<{ Body: CreateUser }>(
+		'/',
+		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
+		createUser
+	);
+	fastify.post<{ Body: AuthenticateUser }>(
+		'/auth',
+		getHttpResponse({ body: AuthenticateUserSchema, response: UserSchema }),
+		authenticate
+	);
 }
