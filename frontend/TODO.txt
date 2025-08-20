@@ -164,15 +164,44 @@ DONE:
 	- emphasize components
 - Where did I get the galaxy video
 	-> https://pixabay.com/videos/galaxy-stars-sky-night-clouds-148593/
+- How do types work in JavaScript
+	-> JS is dynamically typed
+	-> Variables don't have types. Values do.
+	-> 7 primitive types:
+		-> number (double under the hood)
+		-> string
+		-> boolean
+		-> null
+		-> undefined
+		-> bigint (ints > 2^53)
+		-> symbol
+	-> Another type: object (like struct, includes array)
+	-> Creating variables
+		-> let x (mutable)
+		-> const x (immutable, excepts elements inside objects)
+- How do types work in TypeScript
+	-> Like JS but adds types to variables as well
+	-> Checks that types of variables aren't changed
+	-> type 'any' can be changed
+	-> inference: 
+		-> when variable type isn't declared, it is inferred by value type
+	-> union types:
+		-> one variable can allow multiple types (let x: number|null)
+	-> objects and arrays:
+		-> arrays get type that applies to all elements
+		-> objects elements types cannot be changed and no elements can be added
 
 TODO:
 Project:
-- Add hash-based navigation
+- Put video away?
+- Make video Stop?
+- Make TournamentScreen look like Tournament
+- Make GameScreen look like Game
 - Make Tournament Creation Modal
 
 Learn:
-- Learn about Session History
-	- Can I check the value of current session history entries in chrome?
-	- Check which attributes exist
-	- What is the URL for?
-	- How can pages manipulate the URL in the address bar?
+- Learn about Session History API
+	- What does the URL mean?
+	- What happens when the URL is manipulated?
+	- What states exactly are saved?
+	- What exactly do elements look like?

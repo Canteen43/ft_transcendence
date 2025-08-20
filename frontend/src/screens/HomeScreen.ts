@@ -1,13 +1,15 @@
 import { Screen } from '../components/Screen';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
 import { Button } from '../components/Button';
-import { PlaceholderScreen } from './PlaceholderScreen';
 
 export class HomeScreen extends Screen {
 	constructor() {
-		super(); // call the parent constructor
+		super();
 
-		location.hash = '#home'; // Set initial hash to home screen
+		const video = document.getElementById(
+			'background-video'
+		) as HTMLVideoElement;
+		video.play();
 
 		this.element.className =
 			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
@@ -103,10 +105,9 @@ export class HomeScreen extends Screen {
 			buttonContainer
 		);
 		void new Button(
-			'To PlaceholderScreen',
+			'To TournamentScreen',
 			() => {
-				this.destroy();
-				void new PlaceholderScreen();
+				location.hash = '#tournament';
 			},
 			buttonContainer
 		);
