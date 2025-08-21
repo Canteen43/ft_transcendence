@@ -39,7 +39,7 @@ export default class TournamentRepository {
 				size,
 				settings,
 				status
-			) VALUES ($1, $2, $3, $4)
+			) VALUES ($1, $2, $3)
 			RETURNING id,
 				size,
 				settings,

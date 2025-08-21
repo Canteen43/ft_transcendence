@@ -23,8 +23,8 @@
 			"type": "node",
 			"request": "launch",
 			"cwd": "${workspaceFolder}/backend",
+			"runtimeExecutable": "tsx",
 			"program": "${workspaceFolder}/backend/app.ts",
-			"runtimeArgs": ["--trace-warnings", "--loader", "ts-node/esm"],
 			"console": "integratedTerminal",
 			"skipFiles": ["<node_internals>/**"]
 		}
