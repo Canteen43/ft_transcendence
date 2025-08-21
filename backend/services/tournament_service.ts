@@ -1,23 +1,12 @@
 'use strict';
 
-import {
-	ERROR_RETRIEVING_NEXT_ROUND,
-	ERROR_RETRIEVING_WINNERS,
-} from '../../shared/constants.js';
 import { ParticipantStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
-	MatchNotFoundError,
 	SettingsNotFoundError,
 	TournamentNotFoundError,
 } from '../../shared/exceptions.js';
-import {
-	CreateMatch,
-	CreateMatchSchema,
-	Match,
-	UpdateMatch,
-	UpdateMatchSchema,
-} from '../../shared/schemas/match.js';
+import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
 	CreateParticipantSchema,

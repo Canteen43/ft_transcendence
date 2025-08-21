@@ -16,6 +16,7 @@ export const ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST =
 	'Unable to process the authentication request';
 export const ERROR_NO_TOKEN = 'No token provided';
 export const ERROR_MALFORMED_TOKEN = 'Malformed token';
+export const ERROR_AUTHENTICATION_FAILED = 'Authentication failed';
 
 export const TOKEN_VALIDITY_PERIOD = '1h';
 
