@@ -1,5 +1,14 @@
 import * as BABYLON from 'babylonjs';
 
+export interface Pong3DOptions {
+	importedLightScale?: number; // multiply imported light intensities by this
+	shadowMapSize?: number; // shadow map resolution
+	shadowUseBlur?: boolean;
+	shadowBlurKernel?: number;
+	shadowBias?: number;
+	shadowLightIntensity?: number; // when creating a directional light for shadows
+}
+
 interface GameState {
 	paddle1_x: number;
 	paddle2_x: number;
@@ -18,10 +27,10 @@ interface BoundingInfo {
 }
 
 export class Pong3D {
-	private engine: BABYLON.Engine;
-	private scene: BABYLON.Scene;
-	private camera: BABYLON.ArcRotateCamera;
-	private canvas: HTMLCanvasElement;
+	private engine!: BABYLON.Engine;
+	private scene!: BABYLON.Scene;
+	private camera!: BABYLON.ArcRotateCamera;
+	private canvas!: HTMLCanvasElement;
 	private paddle1: BABYLON.Mesh | null = null;
 	private paddle2: BABYLON.Mesh | null = null;
 	private boundsXMin: number | null = null;
@@ -31,6 +40,17 @@ export class Pong3D {
 	private DEFAULT_CAMERA_RADIUS = 18;
 	private DEFAULT_CAMERA_BETA = Math.PI / 3;
 	private DEFAULT_CAMERA_TARGET_Y = -3;
+
+	// Lighting / shadow configuration (can be overridden via constructor options or setters)
+	private importedLightScale = 0.001;
+	private shadowMapSize = 1024;
+	private shadowUseBlur = false;
+	private shadowBlurKernel = 16;
+	private shadowBias = 0.0005;
+	private shadowLightIntensity = 0.9;
+
+	// keep references to created shadow generators so we can add casters later
+	private shadowGenerators: BABYLON.ShadowGenerator[] = [];
 
 	// Configurable paddle settings
 	private PADDLE_RANGE = 4.25;
@@ -55,7 +75,7 @@ export class Pong3D {
 		p2Right: false,
 	};
 
-	constructor(container: HTMLElement, modelUrl = '/pong.glb') {
+	constructor(container: HTMLElement, modelUrl = '/pong.glb', options?: Pong3DOptions) {
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
 		this.canvas.style.width = '100%';
@@ -73,8 +93,17 @@ export class Pong3D {
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
 
+		// Apply provided options
+		if (options) {
+			if (typeof options.importedLightScale === 'number') this.importedLightScale = options.importedLightScale;
+			if (typeof options.shadowMapSize === 'number') this.shadowMapSize = options.shadowMapSize;
+			if (typeof options.shadowUseBlur === 'boolean') this.shadowUseBlur = options.shadowUseBlur;
+			if (typeof options.shadowBlurKernel === 'number') this.shadowBlurKernel = options.shadowBlurKernel;
+			if (typeof options.shadowBias === 'number') this.shadowBias = options.shadowBias;
+			if (typeof options.shadowLightIntensity === 'number') this.shadowLightIntensity = options.shadowLightIntensity;
+		}
+
 		this.setupCamera();
-		this.setupLighting();
 		this.setupEventListeners();
 		this.loadModel(modelUrl);
 	}
@@ -99,21 +128,7 @@ export class Pong3D {
 		this.camera.keysRight = [];
 	}
 
-	private setupLighting(): void {
-		const hemi = new BABYLON.HemisphericLight(
-			'hemi',
-			new BABYLON.Vector3(0, 1, 0),
-			this.scene
-		);
-		hemi.intensity = 0.9;
 
-		const dir = new BABYLON.DirectionalLight(
-			'dir',
-			new BABYLON.Vector3(-0.5, -1, -0.5),
-			this.scene
-		);
-		dir.intensity = 0.7;
-	}
 
 	private setupEventListeners(): void {
 		// Keyboard event listeners
@@ -223,6 +238,106 @@ export class Pong3D {
 		}
 
 		this.findPaddles(scene);
+
+		// Reduce intensity of imported lights (Blender lights are often much brighter in Babylon)
+		try {
+			scene.lights.forEach(light => {
+				if (light && typeof (light as any).intensity === 'number') {
+					(light as any).intensity = (light as any).intensity * this.importedLightScale;
+				}
+			});
+			console.log('Adjusted imported light intensities by factor', this.importedLightScale);
+		} catch (e) {
+			console.warn('Could not adjust light intensities:', e);
+		}
+
+
+		// --- Shadow setup: ensure objects can cast and receive shadows ---
+		try {
+			// Prefer to create per-spotlight shadow generators if the scene contains SpotLights
+			const spotLights = scene.lights.filter(l => l instanceof BABYLON.SpotLight) as BABYLON.SpotLight[];
+
+			// helper to detect meshes that should cast/receive shadows (include small objects)
+			const shouldBeCaster = (m: BABYLON.AbstractMesh) => {
+				if (!m) return false;
+				if (m.name && /paddle|ball|player|cube|box|board|table|small|prop/i.test(m.name)) return true;
+				if (typeof (m as any).getTotalVertices === 'function') {
+					try { return (m as any).getTotalVertices() > 0; } catch (e) { return false; }
+				}
+				return false;
+			};
+
+			const allMeshes = scene.meshes.slice();
+
+			if (spotLights.length > 0) {
+				// For each spotlight, create a shadow generator tuned for hard shadows
+				spotLights.forEach((sl, idx) => {
+					try {
+						const size = Math.max(this.shadowMapSize, 2048);
+						const sg = new BABYLON.ShadowGenerator(size, sl);
+						// Hard shadows: disable blur/poisson/VSM
+						sg.usePoissonSampling = false;
+						sg.useBlurExponentialShadowMap = false;
+						sg.useExponentialShadowMap = false;
+						// minimal kernel for sharp edges
+						sg.blurKernel = 1;
+						sg.bias = this.shadowBias;
+						// Add casters and enable receivers on scene meshes
+						allMeshes.forEach(m => {
+							try {
+								if (shouldBeCaster(m)) {
+									sg.addShadowCaster(m as BABYLON.AbstractMesh, true);
+								}
+								try { (m as any).receiveShadows = true; } catch (e) {}
+							} catch (e) {}
+						});
+						// ensure known game objects (paddles/ball) are registered as casters too
+						if (this.paddle1) { try { sg.addShadowCaster(this.paddle1, true); (this.paddle1 as any).receiveShadows = true; } catch (e) {} }
+						if (this.paddle2) { try { sg.addShadowCaster(this.paddle2, true); (this.paddle2 as any).receiveShadows = true; } catch (e) {} }
+						const ball = scene.getMeshByName('ball') || scene.getMeshByName('Ball');
+						if (ball) { try { sg.addShadowCaster(ball as BABYLON.AbstractMesh, true); (ball as any).receiveShadows = true; } catch (e) {} }
+						this.shadowGenerators.push(sg);
+						console.log('Created spot shadow generator', idx, 'size', size);
+					} catch (e) {
+						console.warn('Failed to create spot shadow generator for', sl.name, e);
+					}
+				});
+			} else {
+				// Fallback: use or create a directional light as before, but tune for harder shadows
+				let shadowLight: BABYLON.DirectionalLight | null = null;
+				const existingDir = scene.lights.find(l => l instanceof BABYLON.DirectionalLight) as BABYLON.DirectionalLight | undefined;
+				if (existingDir) {
+					shadowLight = existingDir;
+					if (!shadowLight.position) shadowLight.position = new BABYLON.Vector3(0, 10, 0);
+				} else {
+					shadowLight = new BABYLON.DirectionalLight('shadowLight', new BABYLON.Vector3(-0.5, -1, -0.5), scene);
+					shadowLight.position = new BABYLON.Vector3(0, 10, 0);
+					shadowLight.intensity = this.shadowLightIntensity;
+				}
+
+				const shadowGen = new BABYLON.ShadowGenerator(this.shadowMapSize, shadowLight);
+				shadowGen.usePoissonSampling = false;
+				shadowGen.useBlurExponentialShadowMap = !!this.shadowUseBlur;
+				if (this.shadowUseBlur) shadowGen.blurKernel = this.shadowBlurKernel;
+				shadowGen.bias = this.shadowBias;
+				allMeshes.forEach(m => {
+					try {
+						if (shouldBeCaster(m)) shadowGen.addShadowCaster(m as BABYLON.AbstractMesh, true);
+						try { (m as any).receiveShadows = true; } catch (e) {}
+					} catch (e) {}
+				});
+				// register known objects
+				if (this.paddle1) { try { shadowGen.addShadowCaster(this.paddle1, true); (this.paddle1 as any).receiveShadows = true; } catch (e) {} }
+				if (this.paddle2) { try { shadowGen.addShadowCaster(this.paddle2, true); (this.paddle2 as any).receiveShadows = true; } catch (e) {} }
+				const ball = scene.getMeshByName('ball') || scene.getMeshByName('Ball');
+				if (ball) { try { shadowGen.addShadowCaster(ball as BABYLON.AbstractMesh, true); (ball as any).receiveShadows = true; } catch (e) {} }
+				this.shadowGenerators.push(shadowGen);
+				console.log('Directional shadow generator created, casters registered');
+			}
+		} catch (e) {
+			console.warn('Shadow setup failed:', e);
+		}
+
 		scene.render();
 	}
 
@@ -487,6 +602,48 @@ export class Pong3D {
 		}
 		if (this.paddle2 && typeof this.gameState.paddle2_x === 'number') {
 			this.paddle2.position.x = this.gameState.paddle2_x;
+		}
+	}
+
+	// Lighting / shadow setters
+
+	public setImportedLightScale(factor: number): void {
+		if (typeof factor === 'number' && factor >= 0) {
+			this.importedLightScale = factor;
+			console.log('importedLightScale ->', this.importedLightScale);
+		}
+	}
+
+	public setShadowMapSize(size: number): void {
+		if (typeof size === 'number' && size > 0) {
+			this.shadowMapSize = Math.floor(size);
+			console.log('shadowMapSize ->', this.shadowMapSize);
+		}
+	}
+
+	public setShadowUseBlur(enabled: boolean): void {
+		this.shadowUseBlur = !!enabled;
+		console.log('shadowUseBlur ->', this.shadowUseBlur);
+	}
+
+	public setShadowBlurKernel(kernel: number): void {
+		if (typeof kernel === 'number' && kernel >= 0) {
+			this.shadowBlurKernel = Math.floor(kernel);
+			console.log('shadowBlurKernel ->', this.shadowBlurKernel);
+		}
+	}
+
+	public setShadowBias(bias: number): void {
+		if (typeof bias === 'number') {
+			this.shadowBias = bias;
+			console.log('shadowBias ->', this.shadowBias);
+		}
+	}
+
+	public setShadowLightIntensity(i: number): void {
+		if (typeof i === 'number') {
+			this.shadowLightIntensity = i;
+			console.log('shadowLightIntensity ->', this.shadowLightIntensity);
 		}
 	}
 
