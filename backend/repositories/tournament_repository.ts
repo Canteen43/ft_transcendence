@@ -8,6 +8,7 @@ import {
 	CreateTournament,
 	Tournament,
 	TournamentSchema,
+	UpdateTournament,
 } from '../../shared/schemas/tournament.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
@@ -16,12 +17,12 @@ import ParticipantRepository from './participant_repository.js';
 
 export default class TournamentRepository {
 	static table = 'tournament';
+	static fields = 'id, size, current_round, settings, status';
 
 	static async getTournament(id: UUID): Promise<Tournament | null> {
 		const result = await db.pool.query<Tournament>(
 			`SELECT id,
 					size,
-					current_round,
 					settings,
 					status
 			FROM ${this.table}
@@ -36,16 +37,14 @@ export default class TournamentRepository {
 		const result = await db.getClient().query<Tournament>(
 			`INSERT INTO ${this.table} (
 				size,
-				current_round,
 				settings,
 				status
-			) VALUES ($1, $2, $3, $4)
+			) VALUES ($1, $2, $3)
 			RETURNING id,
 				size,
-				current_round,
 				settings,
 				status`,
-			[src.size, src.current_round, src.settings, src.status]
+			[src.size, src.settings, src.status]
 		);
 		if (result.rowCount == 0)
 			throw new DatabaseError('Failed to create match');
@@ -78,5 +77,15 @@ export default class TournamentRepository {
 
 			return tournamentResult;
 		});
+	}
+
+	static async updateTournament(tournament_id: UUID, upd: UpdateTournament) {
+		await db.pool.query(
+			`UPDATE ${this.table}
+			SET status = $1,
+			WHERE id = $2
+			RETURNING ${this.fields}`,
+			[upd.status, tournament_id]
+		);
 	}
 }

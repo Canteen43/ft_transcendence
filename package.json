@@ -26,6 +26,7 @@
 		"fastify-cli": "^7.4.0",
 		"fastify-plugin": "^5.0.0",
 		"fastify-zod-openapi": "^5.2.0",
+		"jsonwebtoken": "^9.0.2",
 		"pg": "^8.16.3",
 		"source-map-support": "^0.5.21",
 		"ts-node": "^10.9.2",
@@ -35,6 +36,7 @@
 	},
 	"devDependencies": {
 		"@tailwindcss/vite": "^4.1.11",
+		"@types/jsonwebtoken": "^9.0.10",
 		"@types/pg": "^8.15.5",
 		"prettier-plugin-organize-imports": "^4.2.0",
 		"tailwindcss": "^4.1.11",

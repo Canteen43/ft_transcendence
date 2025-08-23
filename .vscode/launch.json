@@ -6,6 +6,23 @@
 	"configurations": [
 		{
 			"name": "Frontend",
+			"type": "node-terminal",
+			"request": "launch",
+			"command": "npm run frontend_dev",
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"name": "Backend",
+			"type": "node",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/backend",
+			"runtimeExecutable": "tsx",
+			"program": "${workspaceFolder}/backend/app.ts",
+			"console": "integratedTerminal",
+			"skipFiles": ["<node_internals>/**"]
+		},
+		{
+			"name": "FE in Chrome",
 			"type": "pwa-chrome",
 			"request": "launch",
 			"url": "http://localhost:5173",
@@ -17,16 +34,12 @@
 				"--disable-session-crashed-bubble"
 			],
 			"userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile"
-		},
+		}
+	],
+	"compounds": [
 		{
-			"name": "Backend",
-			"type": "node",
-			"request": "launch",
-			"cwd": "${workspaceFolder}/backend",
-			"program": "${workspaceFolder}/backend/app.ts",
-			"runtimeArgs": ["--trace-warnings", "--loader", "ts-node/esm"],
-			"console": "integratedTerminal",
-			"skipFiles": ["<node_internals>/**"]
+			"name": "Full stack",
+			"configurations": ["Frontend", "Backend"]
 		}
 	]
 }

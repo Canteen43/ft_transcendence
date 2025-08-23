@@ -1,7 +1,12 @@
 'use strict';
 
 import { DatabaseError } from '../../shared/exceptions.js';
-import { CreateUser, User, UserSchema } from '../../shared/schemas/user.js';
+import {
+	AuthRequest,
+	CreateUser,
+	User,
+	UserSchema,
+} from '../../shared/schemas/user.js';
 import * as db from '../utils/db.js';
 
 export default class UserRepository {
@@ -46,15 +51,12 @@ export default class UserRepository {
 		return UserSchema.parse(result.rows[0]);
 	}
 
-	static async authenticateUser(
-		login: string,
-		passwordHash: string
-	): Promise<User | null> {
+	static async authenticateUser(request: AuthRequest): Promise<User | null> {
 		const result = await db.pool.query<User>(
 			`SELECT login, first_name, last_name, email
 			FROM ${this.table}
 			WHERE login = $1 AND password_hash = $2`,
-			[login, passwordHash]
+			[request.login, request.password_hash]
 		);
 		if (result.rows.length === 0) return null;
 		return UserSchema.parse(result.rows[0]);

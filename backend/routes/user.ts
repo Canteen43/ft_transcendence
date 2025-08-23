@@ -5,14 +5,15 @@ import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
 import {
-	AuthenticateUser,
-	AuthenticateUserSchema,
+	AuthRequest,
+	AuthRequestSchema,
 	CreateUser,
 	CreateUserSchema,
 	User,
 	UserSchema,
 } from '../../shared/schemas/user.js';
 import { zodError } from '../../shared/utils.js';
+import { authWrapper } from '../hooks/auth.js';
 import UserRepository from '../repositories/user_repository.js';
 import { getHttpResponse } from '../utils/http_utils.js';
 
@@ -54,14 +55,11 @@ async function createUser(
 }
 
 async function authenticate(
-	request: FastifyRequest<{ Body: AuthenticateUser }>
+	request: FastifyRequest<{ Body: AuthRequest }>
 ): Promise<User> {
 	try {
 		const authenticatedUser: User | null =
-			await UserRepository.authenticateUser(
-				request.body.login,
-				request.body.password_hash
-			);
+			await UserRepository.authenticateUser(request.body);
 		if (!authenticatedUser)
 			throw request.server.httpErrors.unauthorized(
 				constants.ERROR_INVALID_CREDENTIALS
@@ -87,16 +85,16 @@ export default async function user(
 			params: z.object({ login: z.string() }),
 			response: UserSchema,
 		}),
-		getUser
+		authWrapper(getUser)
 	);
 	fastify.post<{ Body: CreateUser }>(
 		'/',
 		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
-		createUser
+		authWrapper(createUser)
 	);
-	fastify.post<{ Body: AuthenticateUser }>(
+	fastify.post<{ Body: AuthRequest }>(
 		'/auth',
-		getHttpResponse({ body: AuthenticateUserSchema, response: UserSchema }),
+		getHttpResponse({ body: AuthRequestSchema, response: UserSchema }),
 		authenticate
 	);
 }

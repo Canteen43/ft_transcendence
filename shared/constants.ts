@@ -7,6 +7,18 @@ export const ERROR_REQUEST_FAILED =
 	'Unexpected error occurred while processing request';
 export const ERROR_USER_NOT_FOUND = 'User not found';
 export const ERROR_TOURNAMENT_CREATION_FAILED = 'Tournament creation failed';
+export const ERROR_RETRIEVING_WINNERS = 'Error retrieving match winners';
+export const ERROR_RETRIEVING_NEXT_ROUND =
+	'Error retrieving next round matches';
+export const ERROR_INVALID_TOKEN = 'Invalid token';
+export const ERROR_TOKEN_EXPIRED = 'Token is expired';
+export const ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST =
+	'Unable to process the authentication request';
+export const ERROR_NO_TOKEN = 'No token provided';
+export const ERROR_MALFORMED_TOKEN = 'Malformed token';
+export const ERROR_AUTHENTICATION_FAILED = 'Authentication failed';
+
+export const TOKEN_VALIDITY_PERIOD = '1h';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
 
