@@ -1,30 +1,48 @@
 'use strict';
 
 import z from 'zod';
-import { MatchStatus } from '../../shared/enums.js';
-import { DatabaseError } from '../../shared/exceptions.js';
-import { CreateMatch, Match, MatchSchema } from '../../shared/schemas/match.js';
+import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
+import {
+	DatabaseError,
+	MatchNotFoundError,
+	ParticipantNotFoundError,
+	TournamentNotFoundError,
+} from '../../shared/exceptions.js';
+import {
+	CreateMatch,
+	Match,
+	MatchSchema,
+	UpdateMatch,
+} from '../../shared/schemas/match.js';
 import { Participant } from '../../shared/schemas/participant.js';
+import { UpdateTournamentSchema } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
+import TournamentRepository from './tournament_repository.js';
 
 export default class MatchRepository {
 	static table = '"tournament_match"';
+	static fields =
+		'id, tournament_id, tournament_round, participant_1_id, participant_2_id, participant_1_score, participant_2_score, status';
+
+	static async getMatch(match_id: UUID): Promise<Match | null> {
+		const result = await db.pool.query(
+			`SELECT ${this.fields}
+			FROM ${this.table}
+			WHERE id = $1`,
+			[match_id]
+		);
+
+		if (!result.rowCount) return null;
+		return MatchSchema.parse(result.rows[0]);
+	}
 
 	static async getTournamentMatches(
 		tournament_id: UUID,
 		tournament_round?: number
 	): Promise<Match[]> {
 		var query = `
-		SELECT
-			id,
-			tournament_id,
-			tournament_round,
-			participant_1_id,
-			participant_2_id,
-			participant_1_score,
-			participant_2_score,
-			status
+		SELECT ${this.fields}
 		FROM ${this.table}
 		WHERE tournament_id = $1`;
 
@@ -76,7 +94,6 @@ export default class MatchRepository {
 				AND (participant_1_score IS NOT NULL AND participant_2_score IS NOT NULL)`,
 			[tournament_id, round]
 		);
-
 		return result.rows.map(row => row.winner_id);
 	}
 
@@ -96,14 +113,7 @@ export default class MatchRepository {
 				participant_2_score,
 				status
 			) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING id,
-				tournament_id,
-				tournament_round,
-				participant_1_id,
-				participant_2_id,
-				participant_1_score,
-				participant_2_score,
-				status;`,
+			RETURNING ${this.fields};`,
 			[
 				tournament_id,
 				src.tournament_round,
@@ -145,18 +155,51 @@ export default class MatchRepository {
 		return result;
 	}
 
-	static async updateParticipants(
-		match_id: UUID,
-		participant_1_id: UUID,
-		participant_2_id: UUID
-	) {
-		await db.pool.query(
+	static async updateMatch(match_id: UUID, upd: UpdateMatch) {
+		const result = await db.pool.query(
 			`UPDATE ${this.table}
 			SET participant_1_id = $1,
-				participant_2_id = $2
-			WHERE id = $3`,
-			[participant_1_id, participant_2_id, match_id]
+				participant_2_id = $2,
+				participant_1_score = $3,
+				participant_2_score = $4,
+				status = $5
+			WHERE id = $6
+			RETURNING ${this.fields}`,
+			[
+				upd.participant_1_id,
+				upd.participant_2_id,
+				upd.participant_1_score,
+				upd.participant_2_score,
+				upd.status,
+				match_id,
+			]
 		);
+		if (result.rowCount == 0)
+			throw new DatabaseError('Failed to update match');
+		return MatchSchema.parse(result.rows[0]);
+	}
+
+	static async updateMatchesAfterPointScored(
+		tournament_id: UUID,
+		matches: { id: UUID; updateMatch: UpdateMatch }[],
+		tournamentFinished: boolean
+	) {
+		await db.executeInTransaction(async () => {
+			for (const { id, updateMatch } of matches) {
+				const match = await this.updateMatch(id, updateMatch);
+				if (!match) throw new MatchNotFoundError(id);
+			}
+			if (tournamentFinished) {
+				const tournament = TournamentRepository.updateTournament(
+					tournament_id,
+					UpdateTournamentSchema.parse({
+						status: TournamentStatus.Finished,
+					})
+				);
+				if (!tournament)
+					throw new TournamentNotFoundError(tournament_id);
+			}
+		});
 	}
 
 	private static getParticipantId(
@@ -167,9 +210,7 @@ export default class MatchRepository {
 
 		const participant = participants.find(p => p.user_id === user_id);
 		if (!participant)
-			throw new DatabaseError(
-				'Participant not found while creating match'
-			);
+			throw new ParticipantNotFoundError('user_id', user_id);
 		return participant.id;
 	}
 }
