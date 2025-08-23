@@ -4,10 +4,9 @@ export class Screen {
 	constructor() {
 		this.element = document.createElement('div');
 
-
 		this.element.className = `
 			mx-auto my-auto
-			w-[85%] h-[85%]
+			w-full h-full
 			bg-gray-800/80
 			shadow-2xl
 			flex flex-col

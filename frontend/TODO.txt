@@ -199,6 +199,7 @@ Project:
 
 - Add chrome launcher to compound launch.json?
 
+- Create web socket
 - Start working on login
 - Design tournament creation modal
 - Make Tournament Creation Modal

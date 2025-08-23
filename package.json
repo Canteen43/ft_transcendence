@@ -16,6 +16,7 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
+		"@babylonjs/loaders": "^8.24.0",
 		"@fastify/autoload": "^6.0.0",
 		"@fastify/cors": "^11.1.0",
 		"@fastify/sensible": "^6.0.0",

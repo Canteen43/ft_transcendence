@@ -1,6 +1,6 @@
-import * as BABYLON from 'babylonjs';
-import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
+// import { initPongScene } from '../game/3Dview';
+import { Pong3D } from '../game/Pong3D';
 
 export class GameScreen extends Screen {
 	constructor() {
@@ -11,54 +11,41 @@ export class GameScreen extends Screen {
 		) as HTMLVideoElement;
 		video.pause();
 
-		// Keep heading near top, not centered
-		this.element.classList.remove('justify-center');
-		this.element.classList.add('justify-start');
+		// // Keep heading near top, not centered
+		// this.element.classList.remove('justify-center');
+		// this.element.classList.add('justify-start');
 
-		// Heading at the top with some margin
-		const heading = document.createElement('h1');
-		heading.textContent = 'Game';
-		heading.className =
-			'text-5xl select-none font-semibold text-grey mt-10';
-		this.element.appendChild(heading);
+		// // Heading at the top with some margin
+		// const heading = document.createElement('h1');
+		// heading.textContent = 'Game';
+		// heading.className =
+		// 	'text-5xl select-none font-semibold text-grey mt-10';
+		// this.element.appendChild(heading);
 
-		// Middle content container
-		const content = document.createElement('div');
-		content.className =
-			'flex-1 flex flex-col items-center justify-center text-center text-grey gap-3';
-		this.element.appendChild(content);
+		// // Middle content container
+		// const content = document.createElement('div');
+		// content.className =
+		// 	'flex-1 flex flex-col items-center justify-center text-center text-grey gap-3';
+		// this.element.appendChild(content);
 
-		// Adding 3D rendering canvas
-		const canvas = document.createElement('canvas');
-		canvas.className = 'w-full h-full';
-		content.appendChild(canvas);
-		const engine = new BABYLON.Engine(canvas, true);
-		const scene = new BABYLON.Scene(engine);
+		// // Initialize 3D pong
+		// const canvas = document.createElement('canvas');
+		// canvas.id = 'renderCanvas';
+		// canvas.style.width = '100%';
+		// canvas.style.height = '100%';
+		// this.element.appendChild(canvas);
+		// initPongScene();
 
-		const camera = new BABYLON.FreeCamera(
-			'camera1',
-			new BABYLON.Vector3(0, 5, -10),
-			scene
-		);
-		camera.setTarget(BABYLON.Vector3.Zero());
-		camera.attachControl(canvas, true);
+		// Initialize 3D pong
+		new Pong3D(this.element);
 
-		const light = new BABYLON.HemisphericLight(
-			'light',
-			new BABYLON.Vector3(0, 1, 0),
-			scene
-		);
-		BABYLON.MeshBuilder.CreateSphere('sphere', { diameter: 2 }, scene);
-
-		engine.runRenderLoop(() => scene.render());
-
-		// Button for testing navigation
-		void new Button(
-			'To TournamentScreen',
-			() => {
-				location.hash = '#tournament';
-			},
-			content
-		);
+		// // Button for testing navigation
+		// void new Button(
+		// 	'To TournamentScreen',
+		// 	() => {
+		// 		location.hash = '#tournament';
+		// 	},
+		// 	content
+		// );
 	}
 }
