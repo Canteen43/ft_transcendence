@@ -124,7 +124,7 @@
             paddle1 = paddleMeshes[0];
             paddle2 = paddleMeshes[1];
         } else if (paddleMeshes.length === 1) {
-            paddle1 = paddleMese if availhes[0];
+            paddle1 = paddleMeshes[0];
             // try to pick another common name
             paddle2 = meshes.find(m => m && m.name && /paddle2|player2|p2/i.test(m.name)) || null;
         } else {
