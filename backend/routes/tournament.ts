@@ -15,9 +15,8 @@ import {
 } from '../../shared/schemas/tournament.js';
 import { UUID, zUUID } from '../../shared/types.js';
 import { zodError } from '../../shared/utils.js';
-import { authWrapper } from '../hooks/auth.js';
 import TournamentService from '../services/tournament_service.js';
-import { getHttpResponse } from '../utils/http_utils.js';
+import { routeConfig } from '../utils/http_utils.js';
 
 async function createTournament(
 	request: FastifyRequest<{ Body: CreateTournamentApi }>
@@ -68,19 +67,19 @@ export default async function tournamentRoutes(
 ) {
 	fastify.get(
 		'/:id',
-		getHttpResponse({
+		routeConfig({
 			params: z.object({ id: zUUID }),
 			response: FullTournamentSchema,
 		}),
-		authWrapper(getTournament)
+		getTournament
 	);
 
 	fastify.post(
 		'/',
-		getHttpResponse({
+		routeConfig({
 			body: CreateTournamentApiSchema,
 			response: TournamentSchema,
 		}),
-		authWrapper(createTournament)
+		createTournament
 	);
 }

@@ -17,7 +17,7 @@ import {
 	User,
 } from '../../shared/schemas/user.js';
 import UserRepository from '../repositories/user_repository.js';
-import { AuthPayload } from '../types/auth_payload.js';
+import { AuthPayload } from '../types/interfaces.js';
 
 export default class UserService {
 	static async authenticate(authRequest: AuthRequest): Promise<AuthResponse> {

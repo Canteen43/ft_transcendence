@@ -20,7 +20,7 @@ export default class MatchService {
 		const match = await MatchRepository.getMatch(match_id);
 		if (!match) throw new MatchNotFoundError(match_id);
 
-		if (participant_id == match.participant_1_id)
+		if (participant_id === match.participant_1_id)
 			match.participant_1_score += 1;
 		else match.participant_2_score += 1;
 

@@ -13,9 +13,8 @@ import {
 	UserSchema,
 } from '../../shared/schemas/user.js';
 import { zodError } from '../../shared/utils.js';
-import { authWrapper } from '../hooks/auth.js';
 import UserRepository from '../repositories/user_repository.js';
-import { getHttpResponse } from '../utils/http_utils.js';
+import { routeConfig } from '../utils/http_utils.js';
 
 async function getUser(
 	request: FastifyRequest<{ Params: { login: string } }>
@@ -75,26 +74,34 @@ async function authenticate(
 	}
 }
 
-export default async function user(
+export default async function userRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
 	fastify.get(
 		'/:login',
-		getHttpResponse({
+		routeConfig({
 			params: z.object({ login: z.string() }),
 			response: UserSchema,
 		}),
-		authWrapper(getUser)
+		getUser
 	);
 	fastify.post<{ Body: CreateUser }>(
 		'/',
-		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
-		authWrapper(createUser)
+		routeConfig({
+			body: CreateUserSchema,
+			response: UserSchema,
+			secure: false,
+		}),
+		createUser
 	);
 	fastify.post<{ Body: AuthRequest }>(
 		'/auth',
-		getHttpResponse({ body: AuthRequestSchema, response: UserSchema }),
+		routeConfig({
+			body: AuthRequestSchema,
+			response: UserSchema,
+			secure: false,
+		}),
 		authenticate
 	);
 }
