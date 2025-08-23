@@ -193,6 +193,13 @@ DONE:
 
 TODO:
 Project:
+- Integrate Rufus' work
+
+- Add my fix for routing logic
+
+- Add chrome launcher to compound launch.json?
+
+- Start working on login
 - Design tournament creation modal
 - Make Tournament Creation Modal
 
