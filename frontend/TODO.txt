@@ -1,4 +1,4 @@
-DONE:
+LEARNED:
 - How do HTML, CSS and JS integrate
 	- Ways to integrate CSS
 		-> inline: <example style="[here]">
@@ -193,14 +193,17 @@ DONE:
 
 TODO:
 Project:
+- Continue Login Button
+- Read about JWT and Password hashing
+
+- Figure out how to display Wouters API webpage
 - Create web socket
-- Start working on login
+	- Add websocket class
+	- Make Websocket Connection Button
+	- Display everything that is send over websocket
+	- How to pass events to game screen?
+
+- Add music
 - Design tournament creation modal
 - Make Tournament Creation Modal
-
-Learn:
-- Learn about Session History API
-	- What does the URL mean?
-	- What happens when the URL is manipulated?
-	- What states exactly are saved?
-	- What exactly do elements look like?
+- Add more closing functionality to modals
