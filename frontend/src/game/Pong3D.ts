@@ -1,4 +1,9 @@
-import * as BABYLON from 'babylonjs';
+// Use modular Babylon packages for better tree-shaking and smaller bundles
+import * as BABYLON from '@babylonjs/core';
+// // Register loaders (glTF, etc.) as a side-effect import
+// import '@babylonjs/loaders'; // not needed, imported in main.ts?!
+// Optional GUI package (available as BABYLON GUI namespace)
+import * as GUI from '@babylonjs/gui';
 
 export interface Pong3DOptions {
 	importedLightScale?: number; // multiply imported light intensities by this
@@ -52,6 +57,24 @@ export class Pong3D {
 	// keep references to created shadow generators so we can add casters later
 	private shadowGenerators: BABYLON.ShadowGenerator[] = [];
 
+	// GUI
+	private guiTexture: GUI.AdvancedDynamicTexture | null = null;
+	private score1Text: GUI.TextBlock | null = null;
+	private score2Text: GUI.TextBlock | null = null;
+	// Player1 info UI
+	private player1Container: GUI.Rectangle | null = null;
+	private Player1Info: GUI.TextBlock | null = null;
+	// Player2 info UI
+	private player2Container: GUI.Rectangle | null = null;
+	private Player2Info: GUI.TextBlock | null = null;
+
+	// Player data
+	private player1Name: string = 'Rufus';
+	private player2Name: string = 'Karl';
+	private player1Score: number = 0;
+	private player2Score: number = 0;
+
+
 	// Configurable paddle settings
 	private PADDLE_RANGE = 4.25;
 	private PADDLE_SPEED = 6;
@@ -75,7 +98,7 @@ export class Pong3D {
 		p2Right: false,
 	};
 
-	constructor(container: HTMLElement, modelUrl = '/pong.glb', options?: Pong3DOptions) {
+	constructor(container: HTMLElement, modelUrl = '/pong3p.glb', options?: Pong3DOptions) {
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
 		this.canvas.style.width = '100%';
@@ -200,7 +223,7 @@ export class Pong3D {
 				this.startRenderLoop();
 			},
 			null,
-			(scene, message) => console.error('Error loading model:', message)
+			(_scene, message) => console.error('Error loading model:', message)
 		);
 	}
 
@@ -238,6 +261,13 @@ export class Pong3D {
 		}
 
 		this.findPaddles(scene);
+
+		// Setup GUI after model is loaded
+		try {
+			this.setupGui();
+		} catch (e) {
+			console.warn('GUI setup failed:', e);
+		}
 
 		// Reduce intensity of imported lights (Blender lights are often much brighter in Babylon)
 		try {
@@ -480,6 +510,9 @@ export class Pong3D {
 	}
 
 	private startRenderLoop(): void {
+		// If GUI has hooked into the render loop, it replaced runRenderLoop itself.
+		if (this.guiTexture) return;
+
 		this.engine.runRenderLoop(() => {
 			const dt = this.engine.getDeltaTime() / 1000; // seconds
 
@@ -490,6 +523,153 @@ export class Pong3D {
 			this.maybeLogPaddles();
 		});
 	}
+
+	/** Create a simple GUI overlay with scores and optional FPS */
+	private setupGui(): void {
+		if (this.guiTexture) return;
+		this.guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+
+		// Create a small container anchored to the top-right to reliably place the text
+		this.player1Container = new GUI.Rectangle();
+		this.player1Container.width = '400px';
+		this.player1Container.height = '200px';
+		this.player1Container.thickness = 0; // no border
+		this.player1Container.background = 'transparent';
+		this.player1Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+		this.player1Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+		this.player1Container.top = 10; // px
+		this.player1Container.left = -10; // offset from right edge
+		this.guiTexture.addControl(this.player1Container);
+
+		// Use a StackPanel so name and score are separate controls (score will be 70pt)
+		const player1Stack = new GUI.StackPanel();
+		player1Stack.isVertical = true;
+		player1Stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+		player1Stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+
+		this.Player1Info = new GUI.TextBlock();
+		this.Player1Info.textWrapping = true;
+		this.Player1Info.resizeToFit = true;
+		this.Player1Info.text = this.player1Name;
+		this.Player1Info.color = 'red';
+		this.Player1Info.fontSize = 48;
+		this.Player1Info.fontFamily = 'Arial, Helvetica, sans-serif';
+		this.Player1Info.fontWeight = 'bold';
+		this.Player1Info.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+		this.Player1Info.paddingRight = '6px';
+		this.Player1Info.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+		player1Stack.addControl(this.Player1Info);
+
+		this.score1Text = new GUI.TextBlock();
+		this.score1Text.textWrapping = true;
+		this.score1Text.resizeToFit = true;
+		this.score1Text.text = String(this.player1Score);
+		this.score1Text.color = 'white';
+		this.score1Text.fontSize = 70; // requested 70pt
+		this.score1Text.fontFamily = 'Arial, Helvetica, sans-serif';
+		this.score1Text.fontWeight = 'bold';
+		this.score1Text.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+		this.score1Text.paddingRight = '6px';
+		this.score1Text.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+		player1Stack.addControl(this.score1Text);
+
+		this.player1Container.addControl(player1Stack);
+
+		// Player 2 Info top-left
+		this.player2Container = new GUI.Rectangle();
+		this.player2Container.width = '400px';
+		this.player2Container.height = '200px';
+		this.player2Container.thickness = 0; // no border
+		this.player2Container.background = 'transparent';
+		this.player2Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		this.player2Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+		this.player2Container.top = 10; // px
+		this.player2Container.left = 20; // px from left edge (avoid overlap)
+		this.guiTexture.addControl(this.player2Container);
+
+		const player2Stack = new GUI.StackPanel();
+		player2Stack.isVertical = true;
+		player2Stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		player2Stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+
+		this.Player2Info = new GUI.TextBlock();
+		this.Player2Info.textWrapping = true;
+		this.Player2Info.resizeToFit = true;
+		this.Player2Info.text = this.player2Name;
+		this.Player2Info.color = 'blue';
+		this.Player2Info.fontSize = 48;
+		this.Player2Info.fontFamily = 'Arial, Helvetica, sans-serif';
+		this.Player2Info.fontWeight = 'bold';
+		this.Player2Info.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		this.Player2Info.paddingLeft = '6px';
+		player2Stack.addControl(this.Player2Info);
+
+		this.score2Text = new GUI.TextBlock();
+		this.score2Text.textWrapping = true;
+		this.score2Text.resizeToFit = true;
+		this.score2Text.text = String(this.player2Score);
+		this.score2Text.color = 'white';
+		this.score2Text.fontSize = 70;
+		this.score2Text.fontWeight = 'bold';
+		this.score2Text.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		this.score2Text.paddingLeft = '6px';
+		player2Stack.addControl(this.score2Text);
+
+		this.player2Container.addControl(player2Stack);
+
+		// Keep a simple render loop that updates the scene
+		this.engine.runRenderLoop(() => {
+			const dt = this.engine.getDeltaTime() / 1000;
+			this.updateBounds();
+			this.updatePaddles(dt);
+			this.scene.render();
+			this.maybeLogPaddles();
+		});
+	}
+
+	/** Update displayed scores */
+	public setScores(p1: number, p2: number): void {
+		if (this.score1Text) this.score1Text.text = String(p1);
+		if (this.score2Text) this.score2Text.text = String(p2);
+	}
+
+	/** Update the on-screen Player1Info using current name/score fields */
+	private updatePlayerInfoDisplay(): void {
+		if (this.Player1Info) this.Player1Info.text = this.player1Name;
+		if (this.score1Text) this.score1Text.text = String(this.player1Score);
+		if (this.Player2Info) this.Player2Info.text = this.player2Name;
+		if (this.score2Text) this.score2Text.text = String(this.player2Score);
+	}
+
+	/** Set player names and update display */
+	public setPlayerNames(p1: string, p2: string): void {
+		this.player1Name = p1;
+		this.player2Name = p2;
+		this.updatePlayerInfoDisplay();
+	}
+
+	/** Set player scores and update display */
+	public setPlayerScores(s1: number, s2: number): void {
+		this.player1Score = s1;
+		this.player2Score = s2;
+		this.updatePlayerInfoDisplay();
+	}
+
+	/** Set the Player1Info text */
+	public setPlayer1Info(text: string): void {
+		if (this.Player1Info) this.Player1Info.text = text;
+	}
+
+	/** Position the Player1Info container by pixel coordinates from top-left */
+	public setPlayer1Position(xPx: number, yPx: number): void {
+		if (!this.player1Container) return;
+		this.player1Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+		this.player1Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+		this.player1Container.left = xPx;
+		this.player1Container.top = yPx;
+	}
+
+
 
 	private updateBounds(): void {
 		if (this.boundsXMin === null || this.boundsXMax === null) {
