@@ -1,5 +1,4 @@
 import { Screen } from '../components/Screen';
-// import { initPongScene } from '../game/3Dview';
 import { Pong3D } from '../game/Pong3D';
 
 export class GameScreen extends Screen {

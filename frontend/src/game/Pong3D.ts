@@ -4,6 +4,8 @@ import * as BABYLON from '@babylonjs/core';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
+import { createPong3DUI } from './Pong3DUI';
+import type { Pong3DUIHandles } from './Pong3DUI';
 
 export interface Pong3DOptions {
 	importedLightScale?: number; // multiply imported light intensities by this
@@ -98,7 +100,61 @@ export class Pong3D {
 		p2Right: false,
 	};
 
-	constructor(container: HTMLElement, modelUrl = '/pong3p.glb', options?: Pong3DOptions) {
+	/** Initialize camera */
+	private setupCamera(): void {
+		this.camera = new BABYLON.ArcRotateCamera(
+			'cam',
+			Math.PI / 2,
+			this.DEFAULT_CAMERA_BETA,
+			this.DEFAULT_CAMERA_RADIUS,
+			BABYLON.Vector3.Zero(),
+			this.scene
+		);
+
+		this.camera.attachControl(this.canvas, true);
+		this.camera.wheelPrecision = 50;
+
+		// Disable camera keyboard controls so arrow keys can be used for gameplay
+		this.camera.keysUp = [];
+		this.camera.keysDown = [];
+		this.camera.keysLeft = [];
+		this.camera.keysRight = [];
+	}
+
+	private setupEventListeners(): void {
+		window.addEventListener('keydown', e => this.handleKeyDown(e));
+		window.addEventListener('keyup', e => this.handleKeyUp(e));
+		window.addEventListener('resize', () => this.engine.resize());
+		this.canvas.addEventListener('dblclick', () => this.toggleFullscreen());
+	}
+
+	private handleKeyDown(e: KeyboardEvent): void {
+		const k = e.key;
+		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p1Left = true;
+		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p1Right = true;
+
+		if (k === 'ArrowLeft' || k === 'ArrowUp') this.keyState.p2Left = true;
+		if (k === 'ArrowRight' || k === 'ArrowDown') this.keyState.p2Right = true;
+	}
+
+	private handleKeyUp(e: KeyboardEvent): void {
+		const k = e.key;
+		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p1Left = false;
+		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p1Right = false;
+
+		if (k === 'ArrowLeft' || k === 'ArrowUp') this.keyState.p2Left = false;
+		if (k === 'ArrowRight' || k === 'ArrowDown') this.keyState.p2Right = false;
+	}
+
+	private toggleFullscreen(): void {
+		if (!document.fullscreenElement) {
+			this.canvas.requestFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+		} else {
+			document.exitFullscreen();
+		}
+	}
+
+	constructor(container: HTMLElement, modelUrl = '/pong4p.glb', options?: Pong3DOptions) {
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
 		this.canvas.style.width = '100%';
@@ -129,88 +185,6 @@ export class Pong3D {
 		this.setupCamera();
 		this.setupEventListeners();
 		this.loadModel(modelUrl);
-	}
-
-	private setupCamera(): void {
-		this.camera = new BABYLON.ArcRotateCamera(
-			'cam',
-			Math.PI / 2,
-			this.DEFAULT_CAMERA_BETA,
-			this.DEFAULT_CAMERA_RADIUS,
-			BABYLON.Vector3.Zero(),
-			this.scene
-		);
-
-		this.camera.attachControl(this.canvas, true);
-		this.camera.wheelPrecision = 50;
-
-		// Disable camera keyboard controls so arrow keys can be used for gameplay
-		this.camera.keysUp = [];
-		this.camera.keysDown = [];
-		this.camera.keysLeft = [];
-		this.camera.keysRight = [];
-	}
-
-
-
-	private setupEventListeners(): void {
-		// Keyboard event listeners
-		window.addEventListener('keydown', e => this.handleKeyDown(e));
-		window.addEventListener('keyup', e => this.handleKeyUp(e));
-
-		// Resize handler
-		window.addEventListener('resize', () => this.engine.resize());
-
-		// Double click for fullscreen
-		this.canvas.addEventListener('dblclick', () => this.toggleFullscreen());
-	}
-
-	private handleKeyDown(e: KeyboardEvent): void {
-		const k = e.key;
-
-		// Paddle1: a,w -> left; d,s -> right
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') {
-			this.keyState.p1Left = true;
-		}
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S') {
-			this.keyState.p1Right = true;
-		}
-
-		// Paddle2: ArrowLeft/ArrowUp -> left; ArrowRight/ArrowDown -> right
-		if (k === 'ArrowLeft' || k === 'ArrowUp') {
-			this.keyState.p2Left = true;
-		}
-		if (k === 'ArrowRight' || k === 'ArrowDown') {
-			this.keyState.p2Right = true;
-		}
-	}
-
-	private handleKeyUp(e: KeyboardEvent): void {
-		const k = e.key;
-
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') {
-			this.keyState.p1Left = false;
-		}
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S') {
-			this.keyState.p1Right = false;
-		}
-
-		if (k === 'ArrowLeft' || k === 'ArrowUp') {
-			this.keyState.p2Left = false;
-		}
-		if (k === 'ArrowRight' || k === 'ArrowDown') {
-			this.keyState.p2Right = false;
-		}
-	}
-
-	private toggleFullscreen(): void {
-		if (!document.fullscreenElement) {
-			this.canvas
-				.requestFullscreen()
-				.catch(err => console.warn('Fullscreen failed:', err));
-		} else {
-			document.exitFullscreen();
-		}
 	}
 
 	private loadModel(modelUrl: string): void {
@@ -527,95 +501,20 @@ export class Pong3D {
 	/** Create a simple GUI overlay with scores and optional FPS */
 	private setupGui(): void {
 		if (this.guiTexture) return;
-		this.guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+		const handles = createPong3DUI(this.scene, {
+			player1Name: this.player1Name,
+			player2Name: this.player2Name,
+			player1Score: this.player1Score,
+			player2Score: this.player2Score,
+		});
 
-		// Create a small container anchored to the top-right to reliably place the text
-		this.player1Container = new GUI.Rectangle();
-		this.player1Container.width = '400px';
-		this.player1Container.height = '200px';
-		this.player1Container.thickness = 0; // no border
-		this.player1Container.background = 'transparent';
-		this.player1Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-		this.player1Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-		this.player1Container.top = 10; // px
-		this.player1Container.left = -10; // offset from right edge
-		this.guiTexture.addControl(this.player1Container);
-
-		// Use a StackPanel so name and score are separate controls (score will be 70pt)
-		const player1Stack = new GUI.StackPanel();
-		player1Stack.isVertical = true;
-		player1Stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-		player1Stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-
-		this.Player1Info = new GUI.TextBlock();
-		this.Player1Info.textWrapping = true;
-		this.Player1Info.resizeToFit = true;
-		this.Player1Info.text = this.player1Name;
-		this.Player1Info.color = 'red';
-		this.Player1Info.fontSize = 48;
-		this.Player1Info.fontFamily = 'Arial, Helvetica, sans-serif';
-		this.Player1Info.fontWeight = 'bold';
-		this.Player1Info.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-		this.Player1Info.paddingRight = '6px';
-		this.Player1Info.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-		player1Stack.addControl(this.Player1Info);
-
-		this.score1Text = new GUI.TextBlock();
-		this.score1Text.textWrapping = true;
-		this.score1Text.resizeToFit = true;
-		this.score1Text.text = String(this.player1Score);
-		this.score1Text.color = 'white';
-		this.score1Text.fontSize = 70; // requested 70pt
-		this.score1Text.fontFamily = 'Arial, Helvetica, sans-serif';
-		this.score1Text.fontWeight = 'bold';
-		this.score1Text.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-		this.score1Text.paddingRight = '6px';
-		this.score1Text.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-		player1Stack.addControl(this.score1Text);
-
-		this.player1Container.addControl(player1Stack);
-
-		// Player 2 Info top-left
-		this.player2Container = new GUI.Rectangle();
-		this.player2Container.width = '400px';
-		this.player2Container.height = '200px';
-		this.player2Container.thickness = 0; // no border
-		this.player2Container.background = 'transparent';
-		this.player2Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-		this.player2Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-		this.player2Container.top = 10; // px
-		this.player2Container.left = 20; // px from left edge (avoid overlap)
-		this.guiTexture.addControl(this.player2Container);
-
-		const player2Stack = new GUI.StackPanel();
-		player2Stack.isVertical = true;
-		player2Stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-		player2Stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-
-		this.Player2Info = new GUI.TextBlock();
-		this.Player2Info.textWrapping = true;
-		this.Player2Info.resizeToFit = true;
-		this.Player2Info.text = this.player2Name;
-		this.Player2Info.color = 'blue';
-		this.Player2Info.fontSize = 48;
-		this.Player2Info.fontFamily = 'Arial, Helvetica, sans-serif';
-		this.Player2Info.fontWeight = 'bold';
-		this.Player2Info.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-		this.Player2Info.paddingLeft = '6px';
-		player2Stack.addControl(this.Player2Info);
-
-		this.score2Text = new GUI.TextBlock();
-		this.score2Text.textWrapping = true;
-		this.score2Text.resizeToFit = true;
-		this.score2Text.text = String(this.player2Score);
-		this.score2Text.color = 'white';
-		this.score2Text.fontSize = 70;
-		this.score2Text.fontWeight = 'bold';
-		this.score2Text.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-		this.score2Text.paddingLeft = '6px';
-		player2Stack.addControl(this.score2Text);
-
-		this.player2Container.addControl(player2Stack);
+		this.guiTexture = handles.guiTexture;
+		this.player1Container = handles.player1Container;
+		this.Player1Info = handles.Player1Info;
+		this.score1Text = handles.score1Text;
+		this.player2Container = handles.player2Container;
+		this.Player2Info = handles.Player2Info;
+		this.score2Text = handles.score2Text;
 
 		// Keep a simple render loop that updates the scene
 		this.engine.runRenderLoop(() => {
