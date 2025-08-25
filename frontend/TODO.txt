@@ -193,10 +193,12 @@ LEARNED:
 
 TODO:
 Project:
+- Where to hash passwords and why?
 - Read about JWT
 
 - Figure out how to display Wouters API webpage
 
+- Add websocket button
 - Create web socket
 	- Add websocket class
 	- Make Websocket Connection Button
@@ -207,3 +209,11 @@ Project:
 - Design tournament creation modal
 - Make Tournament Creation Modal
 - Add more closing functionality to modals
+
+
+DISCUSSION POINTS:
+- Is Babylon Phisics Engine allowed?
+- Do we want Powerups/Obstacles?
+- What modules are we doing?
+- Who does what?
+- Should we priotize getting a running game?
