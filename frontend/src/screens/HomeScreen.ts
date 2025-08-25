@@ -1,6 +1,7 @@
-import { Screen } from '../components/Screen';
-import { PlaceholderModal } from '../modals/PlaceholderModal';
 import { Button } from '../components/Button';
+import { Screen } from '../components/Screen';
+import { LoginButton } from '../misc/LoginButton';
+import { PlaceholderModal } from '../modals/PlaceholderModal';
 
 export class HomeScreen extends Screen {
 	constructor() {
@@ -28,6 +29,8 @@ export class HomeScreen extends Screen {
 		this.element.appendChild(buttonContainer);
 
 		// Buttons
+		void new LoginButton(this.element);
+
 		void new Button(
 			'Postman Mock-Request',
 			async () => {

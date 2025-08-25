@@ -193,10 +193,10 @@ LEARNED:
 
 TODO:
 Project:
-- Continue Login Button
-- Read about JWT and Password hashing
+- Read about JWT
 
 - Figure out how to display Wouters API webpage
+
 - Create web socket
 	- Add websocket class
 	- Make Websocket Connection Button
