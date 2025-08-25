@@ -70,11 +70,23 @@ export class Pong3D {
 	private player2Container: GUI.Rectangle | null = null;
 	private Player2Info: GUI.TextBlock | null = null;
 
+	// Extended multi-player UI handles (when UI module is used)
+	private uiPlayerStacks: GUI.StackPanel[] | null = null;
+	private uiPlayerNameTexts: GUI.TextBlock[] | null = null;
+	private uiPlayerScoreTexts: GUI.TextBlock[] | null = null;
+	private uiMovePlayerTo: ((i: number, pos: 'top'|'bottom'|'left'|'right') => void) | null = null;
+
 	// Player data
 	private player1Name: string = 'Rufus';
 	private player2Name: string = 'Karl';
 	private player1Score: number = 0;
 	private player2Score: number = 0;
+
+	// Optional players 3 and 4 for 4-player UI
+	private player3Name: string = 'Wouter';
+	private player4Name: string = 'Helen';
+	private player3Score: number = 0;
+	private player4Score: number= 0;
 
 
 	// Configurable paddle settings
@@ -502,19 +514,22 @@ export class Pong3D {
 	private setupGui(): void {
 		if (this.guiTexture) return;
 		const handles = createPong3DUI(this.scene, {
-			player1Name: this.player1Name,
-			player2Name: this.player2Name,
-			player1Score: this.player1Score,
-			player2Score: this.player2Score,
+			playerNames: [this.player1Name, this.player2Name, this.player3Name ?? '', this.player4Name ?? ''],
+			playerScores: [this.player1Score, this.player2Score, this.player3Score ?? 0, this.player4Score ?? 0],
 		});
 
 		this.guiTexture = handles.guiTexture;
-		this.player1Container = handles.player1Container;
-		this.Player1Info = handles.Player1Info;
-		this.score1Text = handles.score1Text;
-		this.player2Container = handles.player2Container;
-		this.Player2Info = handles.Player2Info;
-		this.score2Text = handles.score2Text;
+		// store array handles for multi-player updates
+		this.uiPlayerStacks = handles.playerStacks;
+		this.uiPlayerNameTexts = handles.playerNameTexts;
+		this.uiPlayerScoreTexts = handles.playerScoreTexts;
+		this.uiMovePlayerTo = handles.movePlayerTo;
+
+		// Backwards-compat convenience: point single-player fields to first two players if available
+		if (this.uiPlayerNameTexts && this.uiPlayerNameTexts.length > 0) this.Player1Info = this.uiPlayerNameTexts[0];
+		if (this.uiPlayerScoreTexts && this.uiPlayerScoreTexts.length > 0) this.score1Text = this.uiPlayerScoreTexts[0];
+		if (this.uiPlayerNameTexts && this.uiPlayerNameTexts.length > 1) this.Player2Info = this.uiPlayerNameTexts[1];
+		if (this.uiPlayerScoreTexts && this.uiPlayerScoreTexts.length > 1) this.score2Text = this.uiPlayerScoreTexts[1];
 
 		// Keep a simple render loop that updates the scene
 		this.engine.runRenderLoop(() => {
@@ -534,6 +549,17 @@ export class Pong3D {
 
 	/** Update the on-screen Player1Info using current name/score fields */
 	private updatePlayerInfoDisplay(): void {
+		// If extended UI is present, update arrays
+		if (this.uiPlayerNameTexts && this.uiPlayerScoreTexts) {
+			const names = [this.player1Name, this.player2Name, /* p3 */ this.player3Name ?? 'Player3', /* p4 */ this.player4Name ?? 'Player4'];
+			const scores = [this.player1Score, this.player2Score, this.player3Score ?? 0, this.player4Score ?? 0];
+			for (let i = 0; i < Math.min(this.uiPlayerNameTexts.length, names.length); i++) {
+				this.uiPlayerNameTexts[i].text = names[i];
+				this.uiPlayerScoreTexts[i].text = String(scores[i]);
+			}
+			return;
+		}
+
 		if (this.Player1Info) this.Player1Info.text = this.player1Name;
 		if (this.score1Text) this.score1Text.text = String(this.player1Score);
 		if (this.Player2Info) this.Player2Info.text = this.player2Name;
@@ -547,11 +573,30 @@ export class Pong3D {
 		this.updatePlayerInfoDisplay();
 	}
 
+	/** Set player 3 and 4 names (optional) */
+	public setAdditionalPlayerNames(p3?: string, p4?: string): void {
+		if (typeof p3 === 'string') this.player3Name = p3;
+		if (typeof p4 === 'string') this.player4Name = p4;
+		this.updatePlayerInfoDisplay();
+	}
+
 	/** Set player scores and update display */
 	public setPlayerScores(s1: number, s2: number): void {
 		this.player1Score = s1;
 		this.player2Score = s2;
 		this.updatePlayerInfoDisplay();
+	}
+
+	/** Set player 3 and 4 scores */
+	public setAdditionalPlayerScores(s3?: number, s4?: number): void {
+		if (typeof s3 === 'number') this.player3Score = s3;
+		if (typeof s4 === 'number') this.player4Score = s4;
+		this.updatePlayerInfoDisplay();
+	}
+
+	/** Move a player's UI block to a named position: 'top'|'bottom'|'left'|'right' */
+	public setPlayerUIPosition(playerIndex: number, position: 'top'|'bottom'|'left'|'right') {
+		if (this.uiMovePlayerTo) this.uiMovePlayerTo(playerIndex, position);
 	}
 
 	/** Set the Player1Info text */

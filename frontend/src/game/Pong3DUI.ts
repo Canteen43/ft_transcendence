@@ -3,126 +3,237 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 
 export interface Pong3DUIOptions {
-    player1Name?: string;
-    player2Name?: string;
-    player1Score?: number;
-    player2Score?: number;
+    playerNames?: string[]; // up to 4
+    playerScores?: number[]; // up to 4
+    positions?: ('top' | 'bottom' | 'left' | 'right')[]; // optional initial placement per player
 }
 
 export interface Pong3DUIHandles {
     guiTexture: GUI.AdvancedDynamicTexture;
-    player1Container: GUI.Rectangle;
-    Player1Info: GUI.TextBlock;
-    score1Text: GUI.TextBlock;
-    player2Container: GUI.Rectangle;
-    Player2Info: GUI.TextBlock;
-    score2Text: GUI.TextBlock;
+    topContainer: GUI.Rectangle;
+    bottomContainer: GUI.Rectangle;
+    leftContainer: GUI.Rectangle;
+    rightContainer: GUI.Rectangle;
+    // per-player controls
+    playerStacks: Array<GUI.StackPanel>;
+    playerNameTexts: Array<GUI.TextBlock>;
+    playerScoreTexts: Array<GUI.TextBlock>;
+    movePlayerTo: (playerIndex: number, position: 'top' | 'bottom' | 'left' | 'right') => void;
     dispose: () => void;
 }
 
 export function createPong3DUI(scene: BABYLON.Scene, opts?: Pong3DUIOptions): Pong3DUIHandles {
-    const player1Name = opts?.player1Name ?? 'Player1';
-    const player2Name = opts?.player2Name ?? 'Player2';
-    const player1Score = typeof opts?.player1Score === 'number' ? opts!.player1Score : 0;
-    const player2Score = typeof opts?.player2Score === 'number' ? opts!.player2Score : 0;
+    const names = opts?.playerNames ?? ['Player1', 'Player2', 'Player3', 'Player4'];
+    const scores = opts?.playerScores ?? [0, 0, 0, 0];
+    const positions = opts?.positions ?? ['bottom', 'top', 'right', 'left'];
 
     const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
 
-    // Player 1 container (top-right)
-    const player1Container = new GUI.Rectangle();
-    player1Container.width = '400px';
-    player1Container.height = '200px';
-    player1Container.thickness = 0;
-    player1Container.background = 'transparent';
-    player1Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    player1Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    player1Container.top = 10;
-    player1Container.left = -10;
-    guiTexture.addControl(player1Container);
+    // create containers
+    const topContainer = new GUI.Rectangle();
+    topContainer.width = '380px';
+    topContainer.height = '100px';
+    topContainer.thickness = 0;
+    topContainer.background = 'transparent';
+    topContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    topContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    topContainer.top = -40;
+    topContainer.left = 40; // nudge to the right
+    guiTexture.addControl(topContainer);
 
-    const player1Stack = new GUI.StackPanel();
-    player1Stack.isVertical = true;
-    player1Stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    player1Stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    const bottomContainer = new GUI.Rectangle();
+    bottomContainer.width = '380px';
+    bottomContainer.height = '100px';
+    bottomContainer.thickness = 0;
+    bottomContainer.background = 'transparent';
+    bottomContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    bottomContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    topContainer.top = -40;
+    bottomContainer.left = 40; // nudge to the right
+    guiTexture.addControl(bottomContainer);
 
-    const Player1Info = new GUI.TextBlock();
-    Player1Info.textWrapping = true;
-    Player1Info.resizeToFit = true;
-    Player1Info.text = player1Name;
-    Player1Info.color = 'red';
-    Player1Info.fontSize = 48;
-    Player1Info.fontFamily = 'Arial, Helvetica, sans-serif';
-    Player1Info.fontWeight = 'bold';
-    Player1Info.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    Player1Info.paddingRight = '6px';
-    Player1Info.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    player1Stack.addControl(Player1Info);
+    const leftContainer = new GUI.Rectangle();
+    leftContainer.width = '280px';
+    leftContainer.height = '400px';
+    leftContainer.thickness = 0;
+    leftContainer.background = 'transparent';
+    leftContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    leftContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    leftContainer.left = 10;
+    leftContainer.top = '-15%'; // move up by 15% of canvas height
+    guiTexture.addControl(leftContainer);
 
-    const score1Text = new GUI.TextBlock();
-    score1Text.textWrapping = true;
-    score1Text.resizeToFit = true;
-    score1Text.text = String(player1Score);
-    score1Text.color = 'white';
-    score1Text.fontSize = 70;
-    score1Text.fontFamily = 'Arial, Helvetica, sans-serif';
-    score1Text.fontWeight = 'bold';
-    score1Text.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    score1Text.paddingRight = '6px';
-    score1Text.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    player1Stack.addControl(score1Text);
+    const rightContainer = new GUI.Rectangle();
+    rightContainer.width = '280px';
+    rightContainer.height = '400px';
+    rightContainer.thickness = 0;
+    rightContainer.background = 'transparent';
+    rightContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    rightContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    rightContainer.left = -10;
+    rightContainer.top = '-15%'; // move up by 15% of canvas height
+    guiTexture.addControl(rightContainer);
 
-    player1Container.addControl(player1Stack);
+    const playerStacks: Array<GUI.StackPanel> = [];
+    const playerNameTexts: Array<GUI.TextBlock> = [];
+    const playerScoreTexts: Array<GUI.TextBlock> = [];
 
-    // Player 2 container (top-left)
-    const player2Container = new GUI.Rectangle();
-    player2Container.width = '400px';
-    player2Container.height = '200px';
-    player2Container.thickness = 0;
-    player2Container.background = 'transparent';
-    player2Container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    player2Container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-    player2Container.top = 10;
-    player2Container.left = 20;
-    guiTexture.addControl(player2Container);
+    // helper to create a player block
+    function makePlayerBlock(idx: number) {
+        const stack = new GUI.StackPanel();
+        // default to vertical; movePlayerTo will toggle for top/bottom
+        stack.isVertical = true;
 
-    const player2Stack = new GUI.StackPanel();
-    player2Stack.isVertical = true;
-    player2Stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    player2Stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    // ensure stack can give room for large score when horizontal
+    stack.height = '120px';
+    stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
 
-    const Player2Info = new GUI.TextBlock();
-    Player2Info.textWrapping = true;
-    Player2Info.resizeToFit = true;
-    Player2Info.text = player2Name;
-    Player2Info.color = 'blue';
-    Player2Info.fontSize = 48;
-    Player2Info.fontFamily = 'Arial, Helvetica, sans-serif';
-    Player2Info.fontWeight = 'bold';
-    Player2Info.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    Player2Info.paddingLeft = '6px';
-    player2Stack.addControl(Player2Info);
+    const name = new GUI.TextBlock();
+    // default: allow wrapping for side layout; movePlayerTo will tune for horizontal layout
+    name.textWrapping = true;
+    name.resizeToFit = true;
+    name.width = '100%';
+        name.text = names[idx] ?? `Player${idx + 1}`;
+        // colors: p1 red, p2 blue, p3 green, p4 cyan
+        const colors = ['red', 'blue', 'green', 'cyan'];
+        name.color = colors[idx] ?? 'white';
+        name.fontSize = 44;
+        name.fontWeight = 'bold';
+        name.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        name.paddingRight = '6px';
 
-    const score2Text = new GUI.TextBlock();
-    score2Text.textWrapping = true;
-    score2Text.resizeToFit = true;
-    score2Text.text = String(player2Score);
-    score2Text.color = 'white';
-    score2Text.fontSize = 70;
-    score2Text.fontWeight = 'bold';
-    score2Text.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-    score2Text.paddingLeft = '6px';
-    player2Stack.addControl(score2Text);
+    const score = new GUI.TextBlock();
+    // score should adapt but not claim full width in horizontal layout; width tuned in movePlayerTo
+    score.textWrapping = false;
+    score.resizeToFit = false;
+    score.width = 'auto';
+        score.text = String(scores[idx] ?? 0);
+        score.color = 'white';
+        score.fontSize = 50;
+        score.fontWeight = 'bold';
+    score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    // vertically center text so when stacked horizontally both lines align
+    score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
 
-    player2Container.addControl(player2Stack);
+    stack.addControl(name);
+    stack.addControl(score);
+
+    // default horizontal alignment
+    stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    stack.width = 'auto';
+
+        playerStacks.push(stack);
+        playerNameTexts.push(name);
+        playerScoreTexts.push(score);
+    }
+
+    for (let i = 0; i < 4; i++) makePlayerBlock(i);
+
+    // place stacks according to positions array
+    const containerFor = (pos: 'top' | 'bottom' | 'left' | 'right') => {
+        if (pos === 'top') return topContainer;
+        if (pos === 'bottom') return bottomContainer;
+        if (pos === 'left') return leftContainer;
+        return rightContainer;
+    };
+
+    const currentParent: Array<GUI.Container | null> = [null, null, null, null];
+
+    function movePlayerTo(playerIndex: number, position: 'top' | 'bottom' | 'left' | 'right') {
+        if (playerIndex < 0 || playerIndex >= playerStacks.length) return;
+        const stack = playerStacks[playerIndex];
+        const target = containerFor(position);
+        // remove from existing parent
+        const prev = currentParent[playerIndex];
+        try {
+            if (prev && typeof (prev as any).removeControl === 'function') {
+                (prev as any).removeControl(stack);
+            }
+        } catch (e) {}
+        try {
+            target.addControl(stack);
+            currentParent[playerIndex] = target;
+        } catch (e) {
+            console.warn('Failed to move player stack', e);
+        }
+        // adjust orientation and alignment depending on container
+        const isSide = position === 'left' || position === 'right';
+        const name = playerNameTexts[playerIndex];
+        const score = playerScoreTexts[playerIndex];
+        // set vertical vs horizontal layout
+        if (isSide) {
+            // left/right: stack vertical, align text left/right
+            stack.isVertical = true;
+            stack.horizontalAlignment = position === 'left' ? GUI.Control.HORIZONTAL_ALIGNMENT_LEFT : GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            // make stack fill the container so child controls with 100% width are visible
+            stack.width = '100%';
+            stack.left = 0;
+            name.textHorizontalAlignment = position === 'left' ? GUI.Control.HORIZONTAL_ALIGNMENT_LEFT : GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            score.textHorizontalAlignment = position === 'left' ? GUI.Control.HORIZONTAL_ALIGNMENT_LEFT : GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            // padding and width: make name take container width so it wraps nicely, score centered below
+            name.paddingRight = '6px';
+            // Use explicit positioning instead of text alignment for scores
+            if (position === 'left') {
+                score.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                score.left = '0px'; // move 20px further left (was 10px, now -10px)
+                score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            } else {
+                score.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+                score.left = '-10px'; // move 5px further right (was -10px, now -15px)
+                score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+            }
+            name.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+            score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+            name.width = '100%';
+            score.width = '100%'; // keep full width so alignment works properly
+            // allow text to scale if needed
+            name.resizeToFit = true;
+            score.resizeToFit = true;
+        } else {
+            // top/bottom: stack horizontal, center both texts on one line
+            stack.isVertical = false;
+            stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+            // align stack to top for top container, center for bottom
+            stack.verticalAlignment = position === 'top' ? GUI.Control.VERTICAL_ALIGNMENT_TOP : GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+            // set fixed width to match content (name + score + padding)
+            stack.width = '370px';
+            stack.left = 0;
+            // for horizontal layout, let text align naturally in their containers
+            name.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            // align both to bottom so they sit on same baseline
+            name.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+            // give a little space between name and score when horizontal
+            name.paddingRight = '12px';
+            score.paddingLeft = '6px';
+            // ensure stack height accommodates score
+            stack.height = '100px';
+            // tune widths so both name and score can sit side-by-side
+            name.textWrapping = false;
+            name.resizeToFit = false;
+            name.width = '200px';
+            score.width = '150px';
+            score.resizeToFit = false;
+        }
+    }
+
+    // initial placement
+    for (let i = 0; i < 4; i++) {
+        const pos = positions[i] ?? ['top', 'bottom', 'left', 'right'][i];
+        movePlayerTo(i, pos);
+    }
 
     return {
         guiTexture,
-        player1Container,
-        Player1Info,
-        score1Text,
-        player2Container,
-        Player2Info,
-        score2Text,
+        topContainer,
+        bottomContainer,
+        leftContainer,
+        rightContainer,
+        playerStacks,
+        playerNameTexts,
+        playerScoreTexts,
+        movePlayerTo,
         dispose: () => guiTexture.dispose(),
     };
 }
