@@ -14,5 +14,10 @@ export const CreateParticipantSchema = ParticipantSchema.omit({
 	tournament_id: true,
 });
 
+export const UpdateParticipantSchema = ParticipantSchema.pick({
+	status: true,
+});
+
 export type Participant = z.infer<typeof ParticipantSchema>;
 export type CreateParticipant = z.infer<typeof CreateParticipantSchema>;
+export type UpdateParticipant = z.infer<typeof UpdateParticipantSchema>;

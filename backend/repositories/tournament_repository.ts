@@ -1,5 +1,6 @@
 'use strict';
 
+import { TournamentStatus } from '../../shared/enums.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import { CreateMatch } from '../../shared/schemas/match.js';
@@ -28,6 +29,25 @@ export default class TournamentRepository {
 			FROM ${this.table}
 			WHERE id = $1 ;`,
 			[id]
+		);
+		if (result.rowCount == 0) return null;
+		return TournamentSchema.parse(result.rows[0]);
+	}
+
+	static async getPendingTournament(
+		userId: UUID
+	): Promise<Tournament | null> {
+		const result = await db.pool.query<Tournament>(
+			`SELECT id,
+					size,
+					settings,
+					status
+			FROM ${this.table}
+			INNER JOIN ${ParticipantRepository.table}
+				ON ${this.table}.id = ${ParticipantRepository.table}.tournament_id
+			WHERE ${this.table}.status = $1
+			AND ${ParticipantRepository.table}.user_id = $2;`,
+			[TournamentStatus.Pending, userId]
 		);
 		if (result.rowCount == 0) return null;
 		return TournamentSchema.parse(result.rows[0]);

@@ -34,10 +34,10 @@ export class ParticipantNotFoundError extends Error {
 	}
 }
 
-export class UserNotConnectedError extends Error {
+export class ConnectionError extends Error {
 	constructor(message: string) {
 		super(message);
-		this.name = 'UserNotConnectedError';
+		this.name = 'ConnectionError';
 	}
 }
 
@@ -45,6 +45,13 @@ export class DatabaseError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = 'DatabaseError';
+	}
+}
+
+export class ProtocolError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'ProtocolError';
 	}
 }
 

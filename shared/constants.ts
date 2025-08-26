@@ -19,7 +19,7 @@ export const ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST =
 export const ERROR_NO_TOKEN = 'No token provided';
 export const ERROR_MALFORMED_TOKEN = 'Malformed token';
 export const ERROR_AUTHENTICATION_FAILED = 'Authentication failed';
-export const ERROR_USER_NOT_CONNECTED = 'User not connected';
+export const ERROR_USER_CONNECTION_NOT_FOUND = 'User connection not found';
 
 export const TOKEN_VALIDITY_PERIOD = '1h';
 
@@ -35,3 +35,11 @@ export const START_MESSAGE = { t: 's' };
 export const PAUSE_MESSAGE = { t: 's' };
 
 export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
+
+export const MESSAGE_INITIATE = 'i';
+export const MESSAGE_START = 's';
+export const MESSAGE_QUIT = 'q';
+export const MESSAGE_PAUSE = 'p';
+export const MESSAGE_MOVE = 'm';
+export const MESSAGE_ACCEPT = 'a';
+export const MESSAGE_DECLINE = 'd';
