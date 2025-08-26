@@ -22,7 +22,7 @@ export interface Pong3DUIHandles {
     dispose: () => void;
 }
 
-export function createPong3DUI(scene: BABYLON.Scene, opts?: Pong3DUIOptions): Pong3DUIHandles {
+export function createPong3DUI(_scene: BABYLON.Scene, opts?: Pong3DUIOptions): Pong3DUIHandles {
     const names = opts?.playerNames ?? ['Player1', 'Player2', 'Player3', 'Player4'];
     const scores = opts?.playerScores ?? [0, 0, 0, 0];
     const positions = opts?.positions ?? ['bottom', 'top', 'right', 'left'];
@@ -156,11 +156,38 @@ export function createPong3DUI(scene: BABYLON.Scene, opts?: Pong3DUIOptions): Po
         } catch (e) {
             console.warn('Failed to move player stack', e);
         }
-        // adjust orientation and alignment depending on container
+        // COMPLETE STYLE RESET: Ensure all properties are reset to defaults before applying position-specific styling
         const isSide = position === 'left' || position === 'right';
         const name = playerNameTexts[playerIndex];
         const score = playerScoreTexts[playerIndex];
-        // set vertical vs horizontal layout
+        
+        // Reset all position-dependent properties to defaults
+        stack.left = 0;
+        stack.width = 'auto';
+        stack.height = '120px';
+        stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        
+        name.left = 0;
+        name.paddingRight = '6px';
+        name.paddingLeft = '0px';
+        name.width = '100%';
+        name.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        name.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        name.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        name.textWrapping = true;
+        name.resizeToFit = true;
+        
+        score.left = 0;
+        score.paddingLeft = '0px';
+        score.width = 'auto';
+        score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        score.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        score.textWrapping = false;
+        score.resizeToFit = false;
+        
+        // Now apply position-specific styling
         if (isSide) {
             // left/right: stack vertical, align text left/right
             stack.isVertical = true;
