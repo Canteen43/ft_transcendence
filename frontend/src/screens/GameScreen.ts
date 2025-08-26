@@ -1,5 +1,5 @@
 import { Screen } from '../components/Screen';
-import { Button } from '../components/Button';
+import { Pong3D } from '../game/Pong3D';
 
 export class GameScreen extends Screen {
 	constructor() {
@@ -10,20 +10,41 @@ export class GameScreen extends Screen {
 		) as HTMLVideoElement;
 		video.pause();
 
-		this.element.classList.remove('justify-center');
+		// // Keep heading near top, not centered
+		// this.element.classList.remove('justify-center');
+		// this.element.classList.add('justify-start');
 
-		const heading = document.createElement('h1');
-		heading.textContent = 'Game';
-		heading.className =
-			'text-5xl font-extrabold select-none font-ps2p text-grey';
-		this.element.appendChild(heading);
+		// // Heading at the top with some margin
+		// const heading = document.createElement('h1');
+		// heading.textContent = 'Game';
+		// heading.className =
+		// 	'text-5xl select-none font-semibold text-grey mt-10';
+		// this.element.appendChild(heading);
 
-		void new Button(
-			'To TournamentScreen',
-			() => {
-				location.hash = '#tournament';
-			},
-			this.element
-		);
+		// // Middle content container
+		// const content = document.createElement('div');
+		// content.className =
+		// 	'flex-1 flex flex-col items-center justify-center text-center text-grey gap-3';
+		// this.element.appendChild(content);
+
+		// // Initialize 3D pong
+		// const canvas = document.createElement('canvas');
+		// canvas.id = 'renderCanvas';
+		// canvas.style.width = '100%';
+		// canvas.style.height = '100%';
+		// this.element.appendChild(canvas);
+		// initPongScene();
+
+		// Initialize 3D pong
+		new Pong3D(this.element);
+
+		// // Button for testing navigation
+		// void new Button(
+		// 	'To TournamentScreen',
+		// 	() => {
+		// 		location.hash = '#tournament';
+		// 	},
+		// 	content
+		// );
 	}
 }

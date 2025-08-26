@@ -40,6 +40,10 @@
 		{
 			"name": "Full stack",
 			"configurations": ["Frontend", "Backend"]
+		},
+		{
+			"name": "Full full stack",
+			"configurations": ["Frontend", "Backend", "FE in Chrome"]
 		}
 	]
 }

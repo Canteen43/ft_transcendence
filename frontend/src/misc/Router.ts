@@ -1,14 +1,15 @@
 import { Screen } from '../components/Screen'; // import your base Screen class
+import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { TournamentScreen } from '../screens/TournamentScreen';
-import { GameScreen } from '../screens/GameScreen';
 
 export class Router {
 	private currentScreen: Screen | null = null;
 
 	constructor() {
+		location.hash = location.hash || '#home'; // Default to #home if no hash
 		window.addEventListener('hashchange', () => this.handleRoute());
-		location.hash = '#home';
+		this.handleRoute(); // Initial route won't trigger hashchange so call it manually
 	}
 
 	private handleRoute() {
