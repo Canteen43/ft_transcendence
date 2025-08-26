@@ -212,8 +212,6 @@ LEARNED:
 
 TODO:
 Project:
-- Continue Login Button
-
 - Figure out how to display Wouters API webpage
 
 - Add JWT

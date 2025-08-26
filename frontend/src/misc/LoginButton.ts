@@ -1,11 +1,12 @@
 import { Button } from '../components/Button';
+import { LoginModal } from '../modals/LoginModal';
 
 export class LoginButton extends Button {
 	constructor(parent: HTMLElement) {
 		super(
 			'Login',
 			() => {
-				alert('Login clicked');
+				void new LoginModal(document.body);
 			},
 			parent
 		);
