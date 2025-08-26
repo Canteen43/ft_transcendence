@@ -13,6 +13,22 @@ import * as db from '../utils/db.js';
 export default class ParticipantRepository {
 	static table = 'tournament_participant';
 
+	static async getParticipant(
+		participant_id: UUID
+	): Promise<Participant | null> {
+		const result = await db.pool.query<Participant>(
+			`SELECT	id,
+					tournament_id,
+					user_id,
+					status
+			FROM ${this.table}
+			WHERE participant_id = $1`,
+			[participant_id]
+		);
+		if (!result.rowCount) return null;
+		return ParticipantSchema.parse(result.rows);
+	}
+
 	static async getTournamentParticipants(
 		tournament_id: UUID
 	): Promise<Participant[]> {

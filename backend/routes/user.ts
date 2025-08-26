@@ -7,6 +7,7 @@ import { logger } from '../../shared/logger.js';
 import {
 	AuthRequest,
 	AuthRequestSchema,
+	AuthResponse,
 	CreateUser,
 	CreateUserSchema,
 	User,
@@ -14,6 +15,7 @@ import {
 } from '../../shared/schemas/user.js';
 import { zodError } from '../../shared/utils.js';
 import UserRepository from '../repositories/user_repository.js';
+import UserService from '../services/user_service.js';
 import { routeConfig } from '../utils/http_utils.js';
 
 async function getUser(
@@ -55,15 +57,14 @@ async function createUser(
 
 async function authenticate(
 	request: FastifyRequest<{ Body: AuthRequest }>
-): Promise<User> {
+): Promise<AuthResponse> {
 	try {
-		const authenticatedUser: User | null =
-			await UserRepository.authenticateUser(request.body);
-		if (!authenticatedUser)
+		const authResponse = await UserService.authenticate(request.body);
+		if (!authResponse)
 			throw request.server.httpErrors.unauthorized(
 				constants.ERROR_INVALID_CREDENTIALS
 			);
-		return authenticatedUser;
+		return authResponse;
 	} catch (error) {
 		if (error instanceof z.ZodError)
 			throw request.server.httpErrors.badRequest(error.message);

@@ -18,3 +18,14 @@ type UpdateMatchEntry = {
 };
 
 export type UpdateMatchArray = UpdateMatchEntry[];
+
+export interface Vector {
+	x: number;
+	y: number;
+}
+
+export interface Message {
+	t: string;
+	d?: string;
+	l?: number[];
+}

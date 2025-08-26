@@ -3,7 +3,8 @@ import { UUID } from '../../shared/types.js';
 import { GameService } from '../services/game_service.js';
 import { GameSocket } from '../types/interfaces.js';
 
-const connections: Map<UUID, GameSocket> = new Map();
+export const connections: Map<UUID, GameSocket> = new Map();
+export const userIdToConnectionMap: Map<UUID, GameSocket> = new Map();
 
 function generateId(): UUID {
 	let id: UUID;
@@ -13,10 +14,11 @@ function generateId(): UUID {
 	return id;
 }
 
-export function addConnection(socket: GameSocket): UUID {
+export function addConnection(user_id: UUID, socket: GameSocket): UUID {
 	const id = generateId();
 	socket.socketId = id;
 	connections.set(id, socket);
+	connections.set(user_id, socket);
 	return id;
 }
 

@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
+import { AuthenticationError } from '../../shared/exceptions.js';
+import { UUID } from '../../shared/types.js';
 import {
 	addConnection,
 	handleClose,
@@ -10,10 +12,11 @@ function handleIncomingConnection(
 	webSocket: WebSocket,
 	request: FastifyRequest
 ) {
+	if (!request.user) throw new AuthenticationError('User not authenticated');
 	const socket = webSocket as GameSocket;
 	socket.addEventListener('message', handleMessage);
 	socket.addEventListener('close', handleClose);
-	addConnection(socket);
+	addConnection(request.user.userId, socket);
 }
 
 export default async function websocketRoutes(
