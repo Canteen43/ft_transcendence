@@ -190,15 +190,38 @@ LEARNED:
 	-> objects and arrays:
 		-> arrays get type that applies to all elements
 		-> objects elements types cannot be changed and no elements can be added
+- Where to hash passwords
+	-> in the backend
+	-> backend can hash and apply salts with more control
+	-> hashing is about avoiding plain storage, not transmission security
+- What is a JWT
+	-> proofs that user has logged in
+	-> server does not need to keep a session register
+	-> three parts:
+		-> header (base64)
+			-> token and signature encryption type
+		-> payload (base64)
+			-> e.g. id, role, expiry
+		-> signature
+			-> created by hashing header plus payload with a private key on server
+	-> client can resend its given jwt but not generated one
+	-> server can verify token realness by re-running encryption and checking signature
+	-> Common problem:
+		-> Tokens still work after logout unless a blacklist is kept
+			-> blacklist defeats original purpose
 
 TODO:
 Project:
-- Where to hash passwords and why?
-- Read about JWT
+- Continue Login Button
 
 - Figure out how to display Wouters API webpage
 
-- Add websocket button
+- Add JWT
+	- make it live in a variable for now
+		- (will log out at page reload)
+
+
+- Add websocket button?
 - Create web socket
 	- Add websocket class
 	- Make Websocket Connection Button
@@ -213,6 +236,11 @@ Project:
 
 DISCUSSION POINTS:
 - Is Babylon Phisics Engine allowed?
+	- Three Ways:
+		- Most bare: have own code that simulates game
+		- Medium: Use babylon plus extra code
+		- Advanced: Use CannonJS
+	- I think we go even use CannonJS
 - Do we want Powerups/Obstacles?
 - What modules are we doing?
 - Who does what?
