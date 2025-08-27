@@ -6,6 +6,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import { createPong3DUI } from './Pong3DUI';
 import { Pong3DInput } from './Pong3DInput';
+import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CAMERA_SETTINGS } from './Pong3DPOV';
 
 // ============================================================================
 // CONFIGURATION - Easily adjustable settings
@@ -18,7 +19,16 @@ import { Pong3DInput } from './Pong3DInput';
  * - 3 players → /pong3p.glb  
  * - 4 players → /pong4p.glb
  */
-export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 2;
+export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 4;
+
+/**
+ * Set the default player POV (perspective) for the camera
+ * - 1 = Player 1's perspective (bottom view)
+ * - 2 = Player 2's perspective (varies by mode)
+ * - 3 = Player 3's perspective (side view)
+ * - 4 = Player 4's perspective (side view)
+ */
+export const DEFAULT_THIS_PLAYER: 1 | 2 | 3 | 4 = 4;
 
 // ============================================================================
 
@@ -42,6 +52,7 @@ export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 2;
 export interface Pong3DOptions {
 	importedLightScale?: number; // multiply imported light intensities by this as blender lighting comes in way too strong
 	playerCount?: 2 | 3 | 4; // Number of players (2, 3, or 4)
+	thisPlayer?: 1 | 2 | 3 | 4; // POV player (1 = default position, 2-4 = rotated perspectives)
 	modelUrlOverride?: string; // Override automatic model selection
 }
 
@@ -63,41 +74,53 @@ export class Pong3D {
 	private scene!: BABYLON.Scene;
 	private camera!: BABYLON.ArcRotateCamera;
 	private canvas!: HTMLCanvasElement;
-	
+
 	// Paddle meshes - use arrays for uniform handling
 	private paddles: (BABYLON.Mesh | null)[] = [null, null, null, null];
 	private boundsXMin: number | null = null;
 	private boundsXMax: number | null = null;
 
-	// Configurable camera settings
-	private DEFAULT_CAMERA_RADIUS = 18;
-	private DEFAULT_CAMERA_BETA = Math.PI / 3;
-	private DEFAULT_CAMERA_TARGET_Y = -3;
+	// Configurable camera settings - initialized from POV module defaults
+	private DEFAULT_CAMERA_RADIUS = DEFAULT_CAMERA_SETTINGS.defaultRadius;
+	private DEFAULT_CAMERA_BETA = DEFAULT_CAMERA_SETTINGS.defaultBeta;
+	private DEFAULT_CAMERA_TARGET_Y = DEFAULT_CAMERA_SETTINGS.defaultTargetY;
+	private useGLBOrigin = DEFAULT_CAMERA_SETTINGS.useGLBOrigin ?? true; // Force camera to use GLB origin instead of calculated mesh center
+
+	/** Get camera settings object for POV module */
+	private getCameraSettings(): CameraSettings {
+		return {
+			defaultRadius: this.DEFAULT_CAMERA_RADIUS,
+			defaultBeta: this.DEFAULT_CAMERA_BETA,
+			defaultTargetY: this.DEFAULT_CAMERA_TARGET_Y,
+			useGLBOrigin: this.useGLBOrigin
+		};
+	}
 
 	// Lighting configuration (can be overridden via constructor options or setters)
 	private importedLightScale = 0.001; //turn down blender lighting
 
 	// GUI
 	private guiTexture: GUI.AdvancedDynamicTexture | null = null;
-	
+
 	// Backwards compatibility UI handles
 	private score1Text: GUI.TextBlock | null = null;
 	private score2Text: GUI.TextBlock | null = null;
 	private Player1Info: GUI.TextBlock | null = null;
 	private Player2Info: GUI.TextBlock | null = null;
-	
+
 
 	// Extended multi-player UI handles (when UI module is used)
 	private uiPlayerNameTexts: GUI.TextBlock[] | null = null;
 	private uiPlayerScoreTexts: GUI.TextBlock[] | null = null;
 	private uiPlayerStacks: GUI.StackPanel[] | null = null;
-	private uiMovePlayerTo: ((i: number, pos: 'top'|'bottom'|'left'|'right') => void) | null = null;
+	private uiMovePlayerTo: ((i: number, pos: 'top' | 'bottom' | 'left' | 'right') => void) | null = null;
 
 	// Player data - simplified to arrays for uniform handling
 	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helen'];
 	private playerScores: number[] = [0, 0, 0, 0];
 	private activePlayerCount: number = DEFAULT_PLAYER_COUNT; // Can be 2, 3, or 4
 	private initialPlayerCount: number = DEFAULT_PLAYER_COUNT; // Set at initialization, cannot be exceeded
+	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
 
 
 	// Configurable paddle settings
@@ -129,24 +152,24 @@ export class Pong3D {
 			case 2: return '/pong2p.glb';
 			case 3: return '/pong3p.glb';
 			case 4: return '/pong4p.glb';
-			default: 
+			default:
 				console.warn(`Invalid player count ${playerCount}, defaulting to 2 players`);
 				return '/pong2p.glb';
 		}
 	}
 
-	/** Initialize camera */
+	/** Initialize camera based on current player POV */
 	private setupCamera(): void {
+		const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings());
+
 		this.camera = new BABYLON.ArcRotateCamera(
 			'cam',
-			Math.PI / 2,
-			this.DEFAULT_CAMERA_BETA,
-			this.DEFAULT_CAMERA_RADIUS,
-			BABYLON.Vector3.Zero(),
+			cameraPos.alpha,
+			cameraPos.beta,
+			cameraPos.radius,
+			cameraPos.target,
 			this.scene
-		);
-
-		this.camera.attachControl(this.canvas, true);
+		); this.camera.attachControl(this.canvas, true);
 		this.camera.wheelPrecision = 50;
 
 		// Disable camera keyboard controls so arrow keys can be used for gameplay
@@ -154,6 +177,8 @@ export class Pong3D {
 		this.camera.keysDown = [];
 		this.camera.keysLeft = [];
 		this.camera.keysRight = [];
+
+		console.log(`Camera set for Player ${this.thisPlayer} POV: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}`);
 	}
 
 	private setupEventListeners(): void {
@@ -166,9 +191,10 @@ export class Pong3D {
 		// Set player count and determine model URL
 		this.activePlayerCount = options?.playerCount || DEFAULT_PLAYER_COUNT;
 		this.initialPlayerCount = this.activePlayerCount; // Store initial count
+		this.thisPlayer = options?.thisPlayer || DEFAULT_THIS_PLAYER; // Set POV player (default from constant)
 		const modelUrl = options?.modelUrlOverride || this.getModelUrlForPlayerCount(this.activePlayerCount);
-		
-		console.log(`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}`);
+
+		console.log(`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}`);
 
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
@@ -224,21 +250,30 @@ export class Pong3D {
 			const size = bounds.max.subtract(bounds.min);
 			const center = bounds.min.add(size.scale(0.5));
 
-			// Move camera target to center with vertical offset
-			const targetWithY = center.clone();
-			targetWithY.y += this.DEFAULT_CAMERA_TARGET_Y;
-			this.camera.setTarget(targetWithY);
+			// Choose camera target: either GLB origin or calculated mesh center
+			if (this.useGLBOrigin) {
+				// GLB origin mode - let the POV module handle the target, don't override it
+				console.log('Using GLB origin mode - POV module controls target:', this.camera.target);
+			} else {
+				// Use calculated mesh center with vertical offset
+				const targetWithY = center.clone();
+				targetWithY.y += this.DEFAULT_CAMERA_TARGET_Y;
+				this.camera.setTarget(targetWithY);
+				console.log('Using calculated mesh center for camera target:', targetWithY);
+			}
 
-			// Fit camera radius to bounding sphere
-			const radius = Math.max(size.length() * 0.6, 1.5);
-			const chosen = Math.max(radius, this.DEFAULT_CAMERA_RADIUS);
-			this.camera.radius = chosen;
+			// Don't override radius - let getCameraPosition control it
+			// Fit camera radius to bounding sphere (for reference only)
+			const computedRadius = Math.max(size.length() * 0.6, 1.5);
+			const chosen = Math.max(computedRadius, this.DEFAULT_CAMERA_RADIUS);
+			// this.camera.radius = chosen; // Commented out to allow custom radius per POV
 
 			console.log(
 				'Computed radius:',
-				radius,
-				'Chosen camera radius:',
+				computedRadius,
+				'Available radius:',
 				chosen,
+				'Using POV radius from getCameraPosition',
 				'Camera target:',
 				this.camera.target
 			);
@@ -308,15 +343,15 @@ export class Pong3D {
 		for (let i = 0; i < this.activePlayerCount; i++) {
 			const paddleNumber = i + 1;
 			// Look for specific numbered paddle names first
-			let paddle = paddleMeshes.find(m => 
+			let paddle = paddleMeshes.find(m =>
 				m && m.name && new RegExp(`paddle${paddleNumber}|player${paddleNumber}|p${paddleNumber}`, 'i').test(m.name)
 			) as BABYLON.Mesh | undefined;
-			
+
 			// If no specific numbered paddle found, take the next available paddle
 			if (!paddle && i < paddleMeshes.length) {
 				paddle = paddleMeshes[i] as BABYLON.Mesh;
 			}
-			
+
 			this.paddles[i] = paddle || null;
 		}
 
@@ -346,7 +381,7 @@ export class Pong3D {
 					x: this.paddles[i]!.position.x,
 					z: this.paddles[i]!.position.z
 				};
-				
+
 				// Initialize gameState as displacement from GLB position (starting at 0)
 				this.gameState.paddlePositionsX[i] = 0;
 				this.gameState.paddlePositionsY[i] = 0;
@@ -546,16 +581,16 @@ export class Pong3D {
 	/** Set active player count (2, 3, or 4) - cannot exceed initial player count */
 	public setActivePlayerCount(count: number): void {
 		const newCount = Math.max(2, Math.min(4, count));
-		
+
 		// Don't allow increasing beyond what was initialized
 		if (newCount > this.initialPlayerCount) {
 			console.warn(`Cannot set active player count to ${newCount}, initialized for ${this.initialPlayerCount} players only`);
 			return;
 		}
-		
+
 		this.activePlayerCount = newCount;
 		console.log('Active player count set to:', this.activePlayerCount);
-		
+
 		// Update UI positioning and visibility for new player count
 		this.positionPlayerInfoBlocks();
 	}
@@ -570,8 +605,19 @@ export class Pong3D {
 	}
 
 	/** Move a player's UI block to a named position: 'top'|'bottom'|'left'|'right' */
-	public setPlayerUIPosition(playerIndex: number, position: 'top'|'bottom'|'left'|'right') {
+	public setPlayerUIPosition(playerIndex: number, position: 'top' | 'bottom' | 'left' | 'right') {
 		if (this.uiMovePlayerTo) this.uiMovePlayerTo(playerIndex, position);
+	}
+
+	/** Set the camera POV to a specific player's perspective */
+	public setPlayerPOV(playerPOV: 1 | 2 | 3 | 4): void {
+		this.thisPlayer = playerPOV;
+
+		// Update camera position if camera is already initialized
+		if (this.camera) {
+			const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings());
+			applyCameraPosition(this.camera, cameraPos, this.thisPlayer);
+		}
 	}
 
 	/** Set the Player1Info text (backwards compatibility) */
@@ -629,27 +675,27 @@ export class Pong3D {
 					// 3-player triangular mode: Apply movement along the logical axis
 					// Store the logical position along each player's movement axis
 					// For 3-player mode, we track the displacement from the original GLB position
-					
+
 					// Get current logical position (displacement along movement axis)
 					const angles = [0, 4 * Math.PI / 3, 2 * Math.PI / 3]; // 0°, 240°, 120°
 					const angle = angles[i];
 					const cos = Math.cos(angle);
 					const sin = Math.sin(angle);
-					
+
 					// Get the logical position along the movement axis
 					// This represents how far the paddle has moved from its GLB position
 					let currentLogicalPos = this.gameState.paddlePositionsX[i] * cos + this.gameState.paddlePositionsY[i] * sin;
-					
+
 					// Apply movement along the logical axis
 					currentLogicalPos += movement;
-					
+
 					// Clamp the logical position
 					currentLogicalPos = Math.max(-this.PADDLE_RANGE, Math.min(this.PADDLE_RANGE, currentLogicalPos));
-					
+
 					// Convert back to X,Y displacement from original position
 					const deltaX = currentLogicalPos * cos;
 					const deltaY = currentLogicalPos * sin;
-					
+
 					// Update gameState to store the displacement
 					this.gameState.paddlePositionsX[i] = deltaX;
 					this.gameState.paddlePositionsY[i] = deltaY;
@@ -674,24 +720,24 @@ export class Pong3D {
 					const angle = angles[i];
 					const cos = Math.cos(angle);
 					const sin = Math.sin(angle);
-					
+
 					// Get current position in 2D
 					const x = this.gameState.paddlePositionsX[i];
 					const y = this.gameState.paddlePositionsY[i];
-					
+
 					// Project to 1D along the rotated axis
 					const projectedPosition = x * cos + y * sin;
-					
+
 					// Clamp the projected position
 					const clampedProjection = Math.max(
 						-this.PADDLE_RANGE,
 						Math.min(this.PADDLE_RANGE, projectedPosition)
 					);
-					
+
 					// Convert back to 2D coordinates
 					this.gameState.paddlePositionsX[i] = clampedProjection * cos;
 					this.gameState.paddlePositionsY[i] = clampedProjection * sin;
-					
+
 					// Update mesh positions relative to original GLB positions
 					this.paddles[i]!.position.x = this.originalGLBPositions[i].x + this.gameState.paddlePositionsX[i];
 					this.paddles[i]!.position.z = this.originalGLBPositions[i].z + this.gameState.paddlePositionsY[i];
@@ -737,6 +783,13 @@ export class Pong3D {
 		console.log('DEFAULT_CAMERA_TARGET_Y ->', this.DEFAULT_CAMERA_TARGET_Y);
 	}
 
+	public setUseGLBOrigin(value: boolean): void {
+		this.useGLBOrigin = value;
+		console.log('useGLBOrigin ->', this.useGLBOrigin);
+		// Immediately apply the new setting by refreshing the camera POV
+		this.setPlayerPOV(this.thisPlayer);
+	}
+
 	public setPaddleRange(value: number): void {
 		this.PADDLE_RANGE = value;
 		console.log('PADDLE_RANGE ->', this.PADDLE_RANGE);
@@ -763,7 +816,7 @@ export class Pong3D {
 				-this.PADDLE_RANGE,
 				Math.min(this.PADDLE_RANGE, position)
 			);
-			
+
 			if (this.activePlayerCount === 4 && index >= 2) {
 				// 4-player mode: Players 3-4 move on Y-axis
 				this.gameState.paddlePositionsY[index] = clampedPosition;
@@ -776,11 +829,11 @@ export class Pong3D {
 				const angle = angles[index];
 				const cos = Math.cos(angle);
 				const sin = Math.sin(angle);
-				
+
 				// Set position along the rotated axis
 				this.gameState.paddlePositionsX[index] = clampedPosition * cos;
 				this.gameState.paddlePositionsY[index] = clampedPosition * sin;
-				
+
 				if (this.paddles[index]) {
 					this.paddles[index]!.position.x = this.gameState.paddlePositionsX[index];
 					this.paddles[index]!.position.z = this.gameState.paddlePositionsY[index];
@@ -808,7 +861,7 @@ export class Pong3D {
 			const sin = Math.sin(angle);
 			const x = this.gameState.paddlePositionsX[index] || 0;
 			const y = this.gameState.paddlePositionsY[index] || 0;
-			
+
 			// Project the 2D position back to the 1D rotated axis
 			return x * cos + y * sin;
 		} else {
@@ -897,7 +950,7 @@ export class Pong3D {
 	}
 
 	public getGameState(): GameState {
-		return { 
+		return {
 			paddlePositionsX: [...this.gameState.paddlePositionsX],
 			paddlePositionsY: [...this.gameState.paddlePositionsY]
 		};
@@ -935,7 +988,7 @@ export class Pong3D {
 			this.inputHandler.cleanup();
 			this.inputHandler = null;
 		}
-		
+
 		this.engine.dispose();
 		if (this.canvas.parentElement) {
 			this.canvas.parentElement.removeChild(this.canvas);
@@ -952,8 +1005,9 @@ export class Pong3D {
  * This is a shorthand for: new Pong3D(container, { playerCount: DEFAULT_PLAYER_COUNT })
  */
 export function createPong3D(container: HTMLElement, options?: Omit<Pong3DOptions, 'playerCount'>): Pong3D {
-	return new Pong3D(container, { 
+	return new Pong3D(container, {
 		playerCount: DEFAULT_PLAYER_COUNT,
-		...options 
+		thisPlayer: DEFAULT_THIS_PLAYER,
+		...options
 	});
 }
