@@ -1,5 +1,11 @@
+// import {
+// 	AuthRequest,
+// 	AuthResponse,
+// 	AuthResponseSchema,
+// } from '../../../shared/schemas/user.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+// import { apiCall } from '../utils/apiCall.ts';
 
 export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -36,7 +42,17 @@ export class LoginModal extends Modal {
 				const username = UsernameField.value;
 				const password = PasswordField.value;
 
-				// Perform login logic here
+				const response = await apiCall<AuthResponse>(
+					'/users/auth',
+					AuthResponseSchema,
+					{
+						username,
+						password,
+					}
+				);
+				if (response) {
+					alert('Login successful!');
+				}
 			},
 			this.box
 		);

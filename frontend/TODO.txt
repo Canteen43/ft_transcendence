@@ -22,7 +22,7 @@ LEARNED:
 - How does Bootstrap work
 	-> Access components via class="comp."
 - How does Tailwind work
-	-> Access utilities via class="util."
+	-> Access utilities via class="utility"
 	- Including it with CDN
 		-> "dirty" way. <script src="https://cdn.tailwindcss.com"></script>
 	- Building with npx and input.css
@@ -95,7 +95,7 @@ LEARNED:
 - How does debug setting work for Vite + TS
 	-> add "npm run dev" as task in tasks.json
 	-> add "pwa-chrome" as type and "run dev" as preLaunchTask in launch.json
-- TS: Do I need any typescript setup when using vite?
+- Do I need any TypeScript setup when using vite
 	-> not for developing or building
 		-> Vite does that
 		-> VS code does type checks inside the files
@@ -212,17 +212,16 @@ LEARNED:
 
 TODO:
 Project:
-- Figure out how to display Wouters API webpage
+- Add API call wrapper
 
-- Add JWT
-	- make it live in a variable for now
-		- (will log out at page reload)
+- Continue with auth request
+- Save JWT as variable
 
+- Restructure frontend files into screen groups
 
-- Add websocket button?
 - Create web socket
 	- Add websocket class
-	- Make Websocket Connection Button
+	- Make Websocket Connection Button (Helene)
 	- Display everything that is send over websocket
 	- How to pass events to game screen?
 
@@ -230,16 +229,3 @@ Project:
 - Design tournament creation modal
 - Make Tournament Creation Modal
 - Add more closing functionality to modals
-
-
-DISCUSSION POINTS:
-- Is Babylon Phisics Engine allowed?
-	- Three Ways:
-		- Most bare: have own code that simulates game
-		- Medium: Use babylon plus extra code
-		- Advanced: Use CannonJS
-	- I think we go even use CannonJS
-- Do we want Powerups/Obstacles?
-- What modules are we doing?
-- Who does what?
-- Should we priotize getting a running game?
