@@ -224,7 +224,7 @@ export class GameService {
 		}
 	}
 
-	private declineTournament(connectionId: UUID, message: Message) {}
+	private declineTournament(connectionId: UUID, message: Message) {} // TODO
 
 	private async startMatch(match: Match) {
 		const dbMatch = await MatchRepository.getMatch(match.matchId);

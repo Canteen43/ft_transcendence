@@ -49,6 +49,7 @@ export const MESSAGE_PAUSE = 'p';
 export const MESSAGE_MOVE = 'm';
 export const MESSAGE_ACCEPT = 'a';
 export const MESSAGE_DECLINE = 'd';
+export const MESSAGE_GAME_STATE = 'g';
 
 export const INVITATION_MESSAGE = { t: MESSAGE_INITIATE_MATCH };
 export const MATCH_START_MESSAGE = { t: MESSAGE_START };

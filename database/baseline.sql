@@ -84,7 +84,7 @@ CREATE TABLE tournament_match (
 	participant_2_id	uuid REFERENCES tournament_participant(id),
 	participant_1_score	int,
 	participant_2_score	int,
-	status				match_status
+	status				match_status,
 
 	CONSTRAINT check_same_tournament CHECK (
 		validate_same_tournament(tournament_id, participant_1_id, participant_2_id)
