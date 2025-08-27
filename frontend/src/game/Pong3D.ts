@@ -7,6 +7,7 @@ import * as GUI from '@babylonjs/gui';
 import { createPong3DUI } from './Pong3DUI';
 import { Pong3DInput } from './Pong3DInput';
 import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CAMERA_SETTINGS } from './Pong3DPOV';
+import { Pong3DGameLoop } from './Pong3DGameLoop';
 
 // ============================================================================
 // CONFIGURATION - Easily adjustable settings
@@ -19,7 +20,7 @@ import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CA
  * - 3 players → /pong3p.glb  
  * - 4 players → /pong4p.glb
  */
-export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 4;
+export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 2;
 
 /**
  * Set the default player POV (perspective) for the camera
@@ -28,7 +29,7 @@ export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 4;
  * - 3 = Player 3's perspective (side view)
  * - 4 = Player 4's perspective (side view)
  */
-export const DEFAULT_THIS_PLAYER: 1 | 2 | 3 | 4 = 4;
+export const DEFAULT_THIS_PLAYER: 1 | 2 | 3 | 4 = 1;
 
 // ============================================================================
 
@@ -146,6 +147,10 @@ export class Pong3D {
 	// Input handler
 	private inputHandler: Pong3DInput | null = null;
 
+	// Game loop
+	private gameLoop: Pong3DGameLoop | null = null;
+	private ballMesh: BABYLON.Mesh | null = null;
+
 	/** Get the appropriate GLB model URL based on player count */
 	private getModelUrlForPlayerCount(playerCount: number): string {
 		switch (playerCount) {
@@ -220,6 +225,10 @@ export class Pong3D {
 
 		this.setupCamera();
 		this.setupEventListeners();
+
+		// Initialize game loop
+		this.gameLoop = new Pong3DGameLoop(this.scene);
+
 		this.loadModel(modelUrl);
 	}
 
@@ -280,6 +289,7 @@ export class Pong3D {
 		}
 
 		this.findPaddles(scene);
+		this.findBall(scene);
 
 		// Setup GUI after model is loaded
 		try {
@@ -301,6 +311,12 @@ export class Pong3D {
 		}
 
 		scene.render();
+
+		// Auto-start the game loop after everything is loaded
+		if (this.gameLoop) {
+			console.log("🚀 Auto-starting game loop...");
+			this.gameLoop.start();
+		}
 	}
 
 	private computeSceneBoundingInfo(
@@ -402,6 +418,45 @@ export class Pong3D {
 		}
 
 		this.hideDuplicatePaddles(meshes);
+	}
+
+	private findBall(scene: BABYLON.Scene): void {
+		const meshes = scene.meshes;
+
+		// Find ball mesh using case-insensitive name search
+		this.ballMesh = meshes.find(
+			m => m && m.name && /ball/i.test(m.name)
+		) as BABYLON.Mesh | undefined || null;
+
+		if (this.ballMesh) {
+			console.log(`Found ball mesh: ${this.ballMesh.name}`);
+			// Set the ball mesh in the game loop
+			if (this.gameLoop) {
+				this.gameLoop.setBallMesh(this.ballMesh);
+			}
+		} else {
+			console.warn('No ball mesh found in the scene!');
+			// Create a simple ball if none exists
+			this.createDefaultBall();
+		}
+	}
+
+	private createDefaultBall(): void {
+		// Create a simple sphere as a fallback ball
+		this.ballMesh = BABYLON.MeshBuilder.CreateSphere('defaultBall', { diameter: 0.2 }, this.scene);
+
+		// Create a simple material
+		const ballMaterial = new BABYLON.StandardMaterial('ballMaterial', this.scene);
+		ballMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1); // White ball
+		ballMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Slight glow
+		this.ballMesh.material = ballMaterial;
+
+		console.log('Created default ball mesh');
+
+		// Set the ball mesh in the game loop
+		if (this.gameLoop) {
+			this.gameLoop.setBallMesh(this.ballMesh);
+		}
 	}
 
 	private hideDuplicatePaddles(meshes: BABYLON.AbstractMesh[]): void {
@@ -981,8 +1036,51 @@ export class Pong3D {
 		return index >= 0 && index < this.activePlayerCount;
 	}
 
+	// ============================================================================
+	// GAME LOOP CONTROL METHODS
+	// ============================================================================
+
+	/** Start the game loop */
+	public startGame(): void {
+		if (this.gameLoop) {
+			this.gameLoop.start();
+		}
+	}
+
+	/** Stop the game loop */
+	public stopGame(): void {
+		if (this.gameLoop) {
+			this.gameLoop.stop();
+		}
+	}
+
+	/** Reset the ball to center position */
+	public resetBall(): void {
+		if (this.gameLoop) {
+			this.gameLoop.resetBall();
+		}
+	}
+
+	/** Set ball velocity (for testing different speeds) */
+	public setBallVelocity(velocity: BABYLON.Vector3): void {
+		if (this.gameLoop) {
+			this.gameLoop.setBallVelocity(velocity);
+		}
+	}
+
+	/** Get current game state from the game loop */
+	public getGameLoopState(): any {
+		return this.gameLoop ? this.gameLoop.getGameState() : null;
+	}
+
 	// Cleanup method
 	public dispose(): void {
+		// Clean up game loop
+		if (this.gameLoop) {
+			this.gameLoop.stop();
+			this.gameLoop = null;
+		}
+
 		// Clean up input handler
 		if (this.inputHandler) {
 			this.inputHandler.cleanup();
