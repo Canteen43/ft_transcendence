@@ -7,15 +7,16 @@ import { logger } from '../../shared/logger.js';
 import {
 	AuthRequest,
 	AuthRequestSchema,
+	AuthResponse,
 	CreateUser,
 	CreateUserSchema,
 	User,
 	UserSchema,
 } from '../../shared/schemas/user.js';
 import { zodError } from '../../shared/utils.js';
-import { authWrapper } from '../hooks/auth.js';
 import UserRepository from '../repositories/user_repository.js';
-import { getHttpResponse } from '../utils/http_utils.js';
+import UserService from '../services/user_service.js';
+import { routeConfig } from '../utils/http_utils.js';
 
 async function getUser(
 	request: FastifyRequest<{ Params: { login: string } }>
@@ -56,15 +57,14 @@ async function createUser(
 
 async function authenticate(
 	request: FastifyRequest<{ Body: AuthRequest }>
-): Promise<User> {
+): Promise<AuthResponse> {
 	try {
-		const authenticatedUser: User | null =
-			await UserRepository.authenticateUser(request.body);
-		if (!authenticatedUser)
+		const authResponse = await UserService.authenticate(request.body);
+		if (!authResponse)
 			throw request.server.httpErrors.unauthorized(
 				constants.ERROR_INVALID_CREDENTIALS
 			);
-		return authenticatedUser;
+		return authResponse;
 	} catch (error) {
 		if (error instanceof z.ZodError)
 			throw request.server.httpErrors.badRequest(error.message);
@@ -75,26 +75,34 @@ async function authenticate(
 	}
 }
 
-export default async function user(
+export default async function userRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
 	fastify.get(
 		'/:login',
-		getHttpResponse({
+		routeConfig({
 			params: z.object({ login: z.string() }),
 			response: UserSchema,
 		}),
-		authWrapper(getUser)
+		getUser
 	);
 	fastify.post<{ Body: CreateUser }>(
 		'/',
-		getHttpResponse({ body: CreateUserSchema, response: UserSchema }),
-		authWrapper(createUser)
+		routeConfig({
+			body: CreateUserSchema,
+			response: UserSchema,
+			secure: false,
+		}),
+		createUser
 	);
 	fastify.post<{ Body: AuthRequest }>(
 		'/auth',
-		getHttpResponse({ body: AuthRequestSchema, response: UserSchema }),
+		routeConfig({
+			body: AuthRequestSchema,
+			response: UserSchema,
+			secure: false,
+		}),
 		authenticate
 	);
 }

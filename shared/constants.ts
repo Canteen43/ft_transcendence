@@ -1,3 +1,5 @@
+import { UUID } from './types.js';
+
 export const ERROR_CREATE_USER_FAILED = 'Failed to create user';
 export const ERROR_INVALID_CREDENTIALS = 'Invalid login credentials';
 export const ERROR_INVALID_INPUT = 'Invalid input';
@@ -17,10 +19,19 @@ export const ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST =
 export const ERROR_NO_TOKEN = 'No token provided';
 export const ERROR_MALFORMED_TOKEN = 'Malformed token';
 export const ERROR_AUTHENTICATION_FAILED = 'Authentication failed';
+export const ERROR_USER_NOT_CONNECTED = 'User not connected';
 
 export const TOKEN_VALIDITY_PERIOD = '1h';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
+export const FIELD_WIDTH = 1800;
+export const FIELD_HEIGTH = 1000;
+export const PADDLE_WIDTH = 100;
 
 export const FASTIFY_LOG_LEVEL = 'info';
 export const APP_LOG_LEVEL = 'debug';
+
+export const START_MESSAGE = { t: 's' };
+export const PAUSE_MESSAGE = { t: 's' };
+
+export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;

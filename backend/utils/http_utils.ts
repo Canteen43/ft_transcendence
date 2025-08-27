@@ -1,17 +1,17 @@
-'use strict';
-
 import z from 'zod';
 
-export function getHttpResponse({
+export function routeConfig({
 	response,
 	params,
 	body,
 	code = 200,
+	secure = true,
 }: {
 	params?: z.ZodType;
 	body?: z.ZodType;
 	code?: number;
 	response?: z.ZodType;
+	secure?: boolean;
 }) {
 	const schemaConfig: { [key: string]: any } = {};
 
@@ -21,5 +21,6 @@ export function getHttpResponse({
 	if (params) schemaConfig.params = params;
 	if (body) schemaConfig.body = body;
 
+	if (!secure) return { schema: schemaConfig, preHandler: [] };
 	return { schema: schemaConfig };
 }
