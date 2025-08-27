@@ -1,3 +1,5 @@
+import { Player } from '../backend/types/interfaces.js';
+import { ParticipantStatus } from './enums.js';
 import { UUID } from './types.js';
 
 export const ERROR_CREATE_USER_FAILED = 'Failed to create user';
@@ -31,15 +33,23 @@ export const PADDLE_WIDTH = 100;
 export const FASTIFY_LOG_LEVEL = 'info';
 export const APP_LOG_LEVEL = 'debug';
 
-export const START_MESSAGE = { t: 's' };
-export const PAUSE_MESSAGE = { t: 's' };
-
 export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
+export const EMPTY_PLAYER: Player = {
+	userId: EMPTY_UUID,
+	score: 0,
+	status: ParticipantStatus.Pending,
+};
 
-export const MESSAGE_INITIATE = 'i';
+export const MESSAGE_INITIATE_TOURNAMENT = 't';
+export const MESSAGE_INITIATE_MATCH = 'i';
+export const MESSAGE_START_TOURNAMENT = 'st';
 export const MESSAGE_START = 's';
 export const MESSAGE_QUIT = 'q';
 export const MESSAGE_PAUSE = 'p';
 export const MESSAGE_MOVE = 'm';
 export const MESSAGE_ACCEPT = 'a';
 export const MESSAGE_DECLINE = 'd';
+
+export const INVITATION_MESSAGE = { t: MESSAGE_INITIATE_MATCH };
+export const MATCH_START_MESSAGE = { t: MESSAGE_START };
+export const TOURNAMENT_START_MESSAGE = { t: MESSAGE_START_TOURNAMENT };
