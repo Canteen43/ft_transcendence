@@ -1,5 +1,7 @@
 // Use modular Babylon packages for better tree-shaking and smaller bundles
 import * as BABYLON from '@babylonjs/core';
+import { CannonJSPlugin } from '@babylonjs/core/Physics/Plugins/cannonJSPlugin';
+import * as CANNON from 'cannon-es';
 // // Register loaders (glTF, etc.) as a side-effect import
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
@@ -124,12 +126,21 @@ export class Pong3D {
 	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
 
 
-	// Configurable paddle settings
-	private PADDLE_RANGE = 4.25;
-	private PADDLE_SPEED = 6;
+	// === GAME PHYSICS CONFIGURATION ===
+	// Ball settings
+	private BALL_VELOCITY_CONSTANT = 12; // Constant ball speed
+
+	// Paddle physics settings
+	private PADDLE_MASS = 10; // Paddle mass for collision response
+	private PADDLE_FORCE = 3; // Force applied when moving
+	private PADDLE_DECELERATION_FORCE = 15; // Force applied when braking/changing direction
+	private PADDLE_RANGE = 4.25; // Movement range from center
+	private PADDLE_MAX_VELOCITY = 8; // Maximum paddle speed
+
+	// === END CONFIGURATION ===
 
 	// Debug logging
-	private debugPaddleLogging = true;
+	private debugPaddleLogging = false; // Disabled by default
 	private readonly PADDLE_LOG_INTERVAL = 250; // ms
 	private lastPaddleLog = 0;
 
@@ -218,6 +229,12 @@ export class Pong3D {
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
 
+		// Enable physics engine
+		const gravityVector = BABYLON.Vector3.Zero(); // No gravity for Pong
+		const physicsPlugin = new CannonJSPlugin(true, 10, CANNON);
+		this.scene.enablePhysics(gravityVector, physicsPlugin);
+
+
 		// Apply provided options
 		if (options) {
 			if (typeof options.importedLightScale === 'number') this.importedLightScale = options.importedLightScale;
@@ -290,6 +307,7 @@ export class Pong3D {
 
 		this.findPaddles(scene);
 		this.findBall(scene);
+		this.setupPhysicsImpostors(scene); // Create physics impostors for meshes
 
 		// Setup GUI after model is loaded
 		try {
@@ -317,6 +335,193 @@ export class Pong3D {
 			console.log("🚀 Auto-starting game loop...");
 			this.gameLoop.start();
 		}
+	}
+
+	private setupPhysicsImpostors(scene: BABYLON.Scene): void {
+		console.log('Setting up physics impostors...');
+
+		// Ball impostor
+		if (this.ballMesh) {
+			// Simple de-parenting without world transform preservation
+			if (this.ballMesh.parent) {
+				this.ballMesh.parent = null;
+			}
+			this.ballMesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+				this.ballMesh,
+				BABYLON.PhysicsImpostor.SphereImpostor,
+				{ mass: 1, restitution: 1.0, friction: 0 },
+				this.scene
+			);
+
+			// Lock ball movement to X-Z plane (no Y movement)
+			if (this.ballMesh.physicsImpostor.physicsBody) {
+				if (this.ballMesh.physicsImpostor.physicsBody.linearFactor) {
+					this.ballMesh.physicsImpostor.physicsBody.linearFactor.set(1, 0, 1); // X and Z only, no Y
+				}
+				// Remove any damping from ball so it doesn't slow down
+				this.ballMesh.physicsImpostor.physicsBody.linearDamping = 0;
+				this.ballMesh.physicsImpostor.physicsBody.angularDamping = 0;
+			}
+
+			console.log(`Created SphereImpostor for: ${this.ballMesh.name}`);
+		}
+
+		// Capture original paddle positions BEFORE any de-parenting operations
+		for (let i = 0; i < this.activePlayerCount; i++) {
+			if (this.paddles[i]) {
+				const paddle = this.paddles[i]!;
+				console.log(`=== Paddle ${i + 1} DEBUG INFO ===`);
+				console.log(`  - Local position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`);
+				console.log(`  - World position: x=${paddle.absolutePosition.x}, y=${paddle.absolutePosition.y}, z=${paddle.absolutePosition.z}`);
+				console.log(`  - Parent: ${paddle.parent ? paddle.parent.name : 'none'}`);
+
+				// Check the raw transform data
+				console.log(`  - Transform matrix elements [12,13,14]: [${paddle.getWorldMatrix().m[12]}, ${paddle.getWorldMatrix().m[13]}, ${paddle.getWorldMatrix().m[14]}]`);
+
+				// Check mesh bounding box
+				if (paddle.getBoundingInfo) {
+					const bbox = paddle.getBoundingInfo().boundingBox;
+					console.log(`  - Bounding box min: (${bbox.minimum.x}, ${bbox.minimum.y}, ${bbox.minimum.z})`);
+					console.log(`  - Bounding box max: (${bbox.maximum.x}, ${bbox.maximum.y}, ${bbox.maximum.z})`);
+					console.log(`  - Bounding box center: (${bbox.center.x}, ${bbox.center.y}, ${bbox.center.z})`);
+				}
+
+				// Check if this is a mesh with geometry
+				if (paddle instanceof BABYLON.Mesh) {
+					const mesh = paddle as BABYLON.Mesh;
+					console.log(`  - Is Mesh: true, hasVertexData: ${mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind) !== null}`);
+
+					// Check if vertices are positioned relative to origin
+					const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+					if (positions && positions.length >= 6) {
+						console.log(`  - First vertex: (${positions[0]}, ${positions[1]}, ${positions[2]})`);
+						console.log(`  - Second vertex: (${positions[3]}, ${positions[4]}, ${positions[5]})`);
+					}
+				};
+
+				// Check if there are any transforms in the parent hierarchy
+				if (paddle.parent) {
+					console.log(`  - Checking parent hierarchy for transforms...`);
+					let currentParent: BABYLON.Node | null = paddle.parent;
+					let level = 0;
+					while (currentParent && level < 3) {
+						if (currentParent instanceof BABYLON.TransformNode) {
+							const transform = currentParent as BABYLON.TransformNode;
+							console.log(`    Parent ${level} (${currentParent.name}): pos(${transform.position.x}, ${transform.position.y}, ${transform.position.z})`);
+						}
+						currentParent = currentParent.parent;
+						level++;
+					}
+				}
+
+				// Store the WORLD positions (which have the correct transforms)
+				// Note: The GLB has paddles on Z-axis, but we need them on X-axis for the game
+				this.originalGLBPositions[i] = {
+					x: paddle.absolutePosition.x, // Keep X as X 
+					z: paddle.absolutePosition.z  // Keep Z as Z
+				};
+				console.log(`  - Stored for game: x=${this.originalGLBPositions[i].x}, z=${this.originalGLBPositions[i].z}`);
+			}
+		}
+
+		// Paddles impostors
+		this.paddles.forEach((paddle, paddleIndex) => {
+			if (paddle) {
+				// Preserve world transform (position AND rotation) before de-parenting
+				const worldMatrix = paddle.getWorldMatrix();
+				const position = new BABYLON.Vector3();
+				const rotationQuaternion = new BABYLON.Quaternion();
+				const scaling = new BABYLON.Vector3();
+				worldMatrix.decompose(scaling, rotationQuaternion, position);
+
+				// Simple de-parenting 
+				if (paddle.parent) {
+					paddle.parent = null;
+				}
+
+				// Restore both position and rotation
+				paddle.position = position;
+				paddle.rotationQuaternion = rotationQuaternion;
+				paddle.scaling = scaling;
+
+				// Fix rotation - rotate 180 degrees around Y-axis to face correct direction
+				const yRotation = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), Math.PI);
+				paddle.rotationQuaternion = paddle.rotationQuaternion!.multiply(yRotation);
+
+				console.log(`Paddle ${paddleIndex + 1} AFTER positioning:`);
+				console.log(`  - Game position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`);
+
+				paddle.physicsImpostor = new BABYLON.PhysicsImpostor(
+					paddle,
+					BABYLON.PhysicsImpostor.BoxImpostor,
+					{
+						mass: this.PADDLE_MASS, // Use configurable paddle mass
+						restitution: 1.0,
+						friction: 0,
+					},
+					this.scene
+				);
+				// Set damping properties and lock rotation
+				if (paddle.physicsImpostor.physicsBody) {
+					paddle.physicsImpostor.physicsBody.linearDamping = 0.02;  // Very low damping for smooth acceleration buildup
+					paddle.physicsImpostor.physicsBody.angularDamping = 1.0;  // Maximum angular damping
+					paddle.physicsImpostor.physicsBody.fixedRotation = true; // Lock all rotation
+
+					// Lock Y and Z axes completely by setting their factors to 0
+					if (paddle.physicsImpostor.physicsBody.linearFactor) {
+						paddle.physicsImpostor.physicsBody.linearFactor.set(1, 0, 0); // Only allow X movement
+					}
+					if (paddle.physicsImpostor.physicsBody.angularFactor) {
+						paddle.physicsImpostor.physicsBody.angularFactor.set(0, 0, 0); // No rotation at all
+					}
+				}
+
+				console.log(`Created DYNAMIC BoxImpostor for: ${paddle.name}`);
+			}
+		});
+
+		// Walls (only create physics for actual wall collision geometry)
+		scene.meshes.forEach(mesh => {
+			// Only create physics for meshes that are specifically walls, not court surfaces
+			if (mesh && mesh.name &&
+				!/ball/i.test(mesh.name) &&
+				!/paddle/i.test(mesh.name) &&
+				!/court/i.test(mesh.name) &&    // Exclude court surface meshes
+				!/surface/i.test(mesh.name) &&  // Exclude surface meshes
+				!/ground/i.test(mesh.name) &&   // Exclude ground meshes
+				/wall/i.test(mesh.name) &&      // Only include wall meshes
+				mesh.isVisible &&
+				mesh.getTotalVertices() > 0) {
+
+				console.log(`Creating physics for wall mesh: ${mesh.name} (parent: ${mesh.parent ? mesh.parent.name : 'none'})`);
+				console.log(`  - Position: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`);
+				console.log(`  - World position: x=${mesh.absolutePosition.x}, y=${mesh.absolutePosition.y}, z=${mesh.absolutePosition.z}`);
+
+				// De-parent wall meshes to fix physics collision detection
+				if (mesh.parent) {
+					const worldMatrix = mesh.getWorldMatrix();
+					const position = new BABYLON.Vector3();
+					const rotationQuaternion = new BABYLON.Quaternion();
+					const scaling = new BABYLON.Vector3();
+					worldMatrix.decompose(scaling, rotationQuaternion, position);
+
+					mesh.parent = null;
+					mesh.position = position;
+					mesh.rotationQuaternion = rotationQuaternion;
+					mesh.scaling = scaling;
+
+					console.log(`  - De-parented and repositioned to: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`);
+				}
+
+				mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+					mesh,
+					BABYLON.PhysicsImpostor.BoxImpostor,
+					{ mass: 0, restitution: 1.0, friction: 0 },
+					this.scene
+				);
+				console.log(`Created static BoxImpostor for wall: ${mesh.name}`);
+			}
+		});
 	}
 
 	private computeSceneBoundingInfo(
@@ -392,18 +597,11 @@ export class Pong3D {
 		// Initialize paddle positions from their mesh positions
 		for (let i = 0; i < this.activePlayerCount; i++) {
 			if (this.paddles[i]) {
-				// Store original GLB position for relative movement
-				this.originalGLBPositions[i] = {
-					x: this.paddles[i]!.position.x,
-					z: this.paddles[i]!.position.z
-				};
-
 				// Initialize gameState as displacement from GLB position (starting at 0)
 				this.gameState.paddlePositionsX[i] = 0;
 				this.gameState.paddlePositionsY[i] = 0;
 			} else {
-				// Default position for missing paddles
-				this.originalGLBPositions[i] = { x: 0, z: 0 };
+				// Default for missing paddles
 				this.gameState.paddlePositionsX[i] = 0;
 				this.gameState.paddlePositionsY[i] = 0;
 			}
@@ -507,10 +705,8 @@ export class Pong3D {
 		if (this.guiTexture) return;
 
 		this.engine.runRenderLoop(() => {
-			const dt = this.engine.getDeltaTime() / 1000; // seconds
-
 			this.updateBounds();
-			this.updatePaddles(dt);
+			this.updatePaddles();
 
 			this.scene.render();
 			this.maybeLogPaddles();
@@ -543,9 +739,8 @@ export class Pong3D {
 
 		// Keep a simple render loop that updates the scene
 		this.engine.runRenderLoop(() => {
-			const dt = this.engine.getDeltaTime() / 1000;
 			this.updateBounds();
-			this.updatePaddles(dt);
+			this.updatePaddles();
 			this.scene.render();
 			this.maybeLogPaddles();
 		});
@@ -680,7 +875,27 @@ export class Pong3D {
 		if (this.Player1Info) this.Player1Info.text = text;
 	}
 
+	private maintainConstantBallVelocity(): void {
+		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 
+		const currentVelocity = this.ballMesh.physicsImpostor.getLinearVelocity();
+		if (!currentVelocity) return;
+
+		// Calculate current speed (magnitude) in X-Z plane only
+		const currentSpeed = Math.sqrt(currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z);
+
+		// Only adjust if ball is moving and speed differs significantly from target
+		if (currentSpeed > 0.1 && Math.abs(currentSpeed - this.BALL_VELOCITY_CONSTANT) > 0.5) {
+			// Normalize the X-Z velocity and scale to constant speed
+			const scale = this.BALL_VELOCITY_CONSTANT / currentSpeed;
+			const correctedVelocity = new BABYLON.Vector3(
+				currentVelocity.x * scale,
+				0, // Keep Y locked to 0
+				currentVelocity.z * scale
+			);
+			this.ballMesh.physicsImpostor.setLinearVelocity(correctedVelocity);
+		}
+	}
 
 	private updateBounds(): void {
 		if (this.boundsXMin === null || this.boundsXMax === null) {
@@ -698,17 +913,16 @@ export class Pong3D {
 		}
 	}
 
-	private updatePaddles(dt: number): void {
+	private updatePaddles(): void {
+		// Maintain constant ball velocity
+		this.maintainConstantBallVelocity();
+
 		// Get current key state from input handler
 		const keyState = this.inputHandler?.getKeyState() || {
-			p1Left: false,
-			p1Right: false,
-			p2Left: false,
-			p2Right: false,
-			p3Left: false,
-			p3Right: false,
-			p4Left: false,
-			p4Right: false,
+			p1Left: false, p1Right: false,
+			p2Left: false, p2Right: false,
+			p3Left: false, p3Right: false,
+			p4Left: false, p4Right: false,
 		};
 
 		// Key state arrays for easy iteration
@@ -717,94 +931,71 @@ export class Pong3D {
 
 		// Update only active paddles
 		for (let i = 0; i < this.activePlayerCount; i++) {
-			if (!this.paddles[i]) continue;
+			const paddle = this.paddles[i];
+			if (!paddle || !paddle.physicsImpostor) continue;
 
 			const dir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
-			if (dir !== 0) {
-				const movement = dir * this.PADDLE_SPEED * dt;
 
-				if (this.activePlayerCount === 4 && i >= 2) {
-					// 4-player mode: Players 3-4 move on Y-axis
-					this.gameState.paddlePositionsY[i] += movement;
-				} else if (this.activePlayerCount === 3) {
-					// 3-player triangular mode: Apply movement along the logical axis
-					// Store the logical position along each player's movement axis
-					// For 3-player mode, we track the displacement from the original GLB position
+			// Flip direction for player 1 (index 0) to fix inverted controls
+			const correctedDir = i === 0 ? -dir : dir;
+			const originalPos = this.originalGLBPositions[i];
 
-					// Get current logical position (displacement along movement axis)
-					const angles = [0, 4 * Math.PI / 3, 2 * Math.PI / 3]; // 0°, 240°, 120°
-					const angle = angles[i];
-					const cos = Math.cos(angle);
-					const sin = Math.sin(angle);
+			// Track previous direction for direction change detection
+			const currentVelocity = paddle.physicsImpostor.getLinearVelocity()!;
+			const prevDir = Math.sign(currentVelocity.x);
 
-					// Get the logical position along the movement axis
-					// This represents how far the paddle has moved from its GLB position
-					let currentLogicalPos = this.gameState.paddlePositionsX[i] * cos + this.gameState.paddlePositionsY[i] * sin;
+			// Check if we need to apply deceleration force
+			// Only decelerate if we have significant velocity to avoid deadspots
+			const hasSignificantVelocity = Math.abs(currentVelocity.x) > 0.1;
+			const shouldDecelerate = hasSignificantVelocity && ((correctedDir === 0) || (prevDir !== 0 && Math.sign(correctedDir) !== prevDir));
 
-					// Apply movement along the logical axis
-					currentLogicalPos += movement;
+			if (shouldDecelerate) {
+				// Apply deceleration force opposing current velocity
+				const decelerationDirection = -Math.sign(currentVelocity.x);
+				const decelerationForce = new BABYLON.Vector3(decelerationDirection * this.PADDLE_DECELERATION_FORCE, 0, 0);
+				paddle.physicsImpostor.applyImpulse(decelerationForce, paddle.position);
 
-					// Clamp the logical position
-					currentLogicalPos = Math.max(-this.PADDLE_RANGE, Math.min(this.PADDLE_RANGE, currentLogicalPos));
+				// Higher damping during deceleration for quick stopping
+				paddle.physicsImpostor.physicsBody.linearDamping = 0.8;
+			}
 
-					// Convert back to X,Y displacement from original position
-					const deltaX = currentLogicalPos * cos;
-					const deltaY = currentLogicalPos * sin;
+			// Stop very small velocities to prevent oscillation
+			if (Math.abs(currentVelocity.x) < 0.1) {
+				paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+			}
 
-					// Update gameState to store the displacement
-					this.gameState.paddlePositionsX[i] = deltaX;
-					this.gameState.paddlePositionsY[i] = deltaY;
-				} else {
-					// 2-player mode or players 1-2 in 4-player mode: X-axis movement only
-					this.gameState.paddlePositionsX[i] += movement;
-				}
+			// Apply movement force when direction is set and not decelerating
+			if (correctedDir !== 0 && !shouldDecelerate) {
+				// Apply force for gradual acceleration
+				const force = new BABYLON.Vector3(correctedDir * this.PADDLE_FORCE, 0, 0);
+				paddle.physicsImpostor.applyImpulse(force, paddle.position);
 
-				// Apply clamping and update mesh positions ONLY when there's movement
-				if (this.activePlayerCount === 4 && i >= 2) {
-					// Clamp Y position for players 3-4 in 4-player mode
-					this.gameState.paddlePositionsY[i] = Math.max(
-						-this.PADDLE_RANGE,
-						Math.min(this.PADDLE_RANGE, this.gameState.paddlePositionsY[i])
-					);
-					// Update mesh Y position relative to original GLB position
-					this.paddles[i]!.position.x = this.originalGLBPositions[i].x;
-					this.paddles[i]!.position.z = this.originalGLBPositions[i].z + this.gameState.paddlePositionsY[i];
-				} else if (this.activePlayerCount === 3) {
-					// For 3-player mode, clamp position along the rotated axis
-					const angles = [0, 4 * Math.PI / 3, 2 * Math.PI / 3]; // 0°, 240°, 120°
-					const angle = angles[i];
-					const cos = Math.cos(angle);
-					const sin = Math.sin(angle);
+				// Low damping while moving for acceleration buildup
+				paddle.physicsImpostor.physicsBody.linearDamping = 0.02;
+			} else if (!shouldDecelerate) {
+				// Reset damping when not moving and not decelerating to avoid stickiness
+				paddle.physicsImpostor.physicsBody.linearDamping = 0.02;
+			}
 
-					// Get current position in 2D
-					const x = this.gameState.paddlePositionsX[i];
-					const y = this.gameState.paddlePositionsY[i];
+			// Wall boundary checking - if paddle goes out of bounds, move it back and stop it
+			const currentPos = paddle.position;
+			const minX = originalPos.x - this.PADDLE_RANGE;
+			const maxX = originalPos.x + this.PADDLE_RANGE;
 
-					// Project to 1D along the rotated axis
-					const projectedPosition = x * cos + y * sin;
+			if (currentPos.x < minX || currentPos.x > maxX) {
+				// Store original position before clamping
+				const originalX = currentPos.x;
 
-					// Clamp the projected position
-					const clampedProjection = Math.max(
-						-this.PADDLE_RANGE,
-						Math.min(this.PADDLE_RANGE, projectedPosition)
-					);
+				// Clamp position
+				paddle.position.x = Math.max(minX, Math.min(maxX, currentPos.x));
 
-					// Convert back to 2D coordinates
-					this.gameState.paddlePositionsX[i] = clampedProjection * cos;
-					this.gameState.paddlePositionsY[i] = clampedProjection * sin;
+				// Only stop velocity if moving further out of bounds
+				const velocity = paddle.physicsImpostor.getLinearVelocity()!;
+				const isMovingFurtherOut = (originalX <= minX && velocity.x < 0) ||
+					(originalX >= maxX && velocity.x > 0);
 
-					// Update mesh positions relative to original GLB positions
-					this.paddles[i]!.position.x = this.originalGLBPositions[i].x + this.gameState.paddlePositionsX[i];
-					this.paddles[i]!.position.z = this.originalGLBPositions[i].z + this.gameState.paddlePositionsY[i];
-				} else {
-					// Clamp X position for 2-player mode or players 1-2 in 4-player mode
-					this.gameState.paddlePositionsX[i] = Math.max(
-						-this.PADDLE_RANGE,
-						Math.min(this.PADDLE_RANGE, this.gameState.paddlePositionsX[i])
-					);
-					// Update mesh X position relative to original GLB position
-					this.paddles[i]!.position.x = this.originalGLBPositions[i].x + this.gameState.paddlePositionsX[i];
-					this.paddles[i]!.position.z = this.originalGLBPositions[i].z;
+				if (isMovingFurtherOut) {
+					paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
 				}
 			}
 		}
@@ -851,8 +1042,8 @@ export class Pong3D {
 	}
 
 	public setPaddleSpeed(value: number): void {
-		this.PADDLE_SPEED = value;
-		console.log('PADDLE_SPEED ->', this.PADDLE_SPEED);
+		this.PADDLE_FORCE = value;
+		console.log('PADDLE_FORCE (speed) ->', this.PADDLE_FORCE);
 	}
 
 	public togglePaddleLogging(enabled?: boolean): void {
@@ -1109,3 +1300,6 @@ export function createPong3D(container: HTMLElement, options?: Omit<Pong3DOption
 		...options
 	});
 }
+
+// Expose CANNON to window for Babylon.js plugin
+(window as any).CANNON = CANNON;

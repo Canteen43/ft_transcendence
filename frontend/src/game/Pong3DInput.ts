@@ -44,13 +44,18 @@ export class Pong3DInput {
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
+		// Bind event handlers to 'this' instance to ensure correct context
+		// and allow them to be removed correctly in cleanup.
+		this.handleKeyDown = this.handleKeyDown.bind(this);
+		this.handleKeyUp = this.handleKeyUp.bind(this);
+		this.toggleFullscreen = this.toggleFullscreen.bind(this);
 		this.setupEventListeners();
 	}
 
 	private setupEventListeners(): void {
-		window.addEventListener('keydown', e => this.handleKeyDown(e));
-		window.addEventListener('keyup', e => this.handleKeyUp(e));
-		this.canvas.addEventListener('dblclick', () => this.toggleFullscreen());
+		window.addEventListener('keydown', this.handleKeyDown);
+		window.addEventListener('keyup', this.handleKeyUp);
+		this.canvas.addEventListener('dblclick', this.toggleFullscreen);
 	}
 
 	private handleKeyDown(e: KeyboardEvent): void {
