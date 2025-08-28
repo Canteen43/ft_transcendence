@@ -3,7 +3,14 @@ import pretty from 'pino-pretty';
 
 import { APP_LOG_LEVEL } from './constants.js';
 
-export const logger =
-	(process.env.NODE_ENV || '').toLowerCase() === 'development'
-		? pino({ level: APP_LOG_LEVEL }, pretty())
-		: pino({ level: APP_LOG_LEVEL });
+export const logger = pino({
+	level: APP_LOG_LEVEL,
+	redact: {
+		paths: ['params.password_hash', 'params.token'],
+		censor: '[REDACTED]',
+	},
+	transport:
+		(process.env.NODE_ENV || '').toLowerCase() === 'development'
+			? { target: 'pino-pretty' }
+			: undefined,
+});

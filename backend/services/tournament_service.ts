@@ -25,17 +25,17 @@ import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 
 export default class TournamentService {
-	static async getFullTournament(id: UUID): Promise<FullTournament | null> {
-		const tournament = await TournamentRepository.getTournament(id);
+	static getFullTournament(id: UUID): FullTournament | null {
+		const tournament = TournamentRepository.getTournament(id);
 		if (!tournament) throw new TournamentNotFoundError(id);
 
 		const participants =
-			await ParticipantRepository.getTournamentParticipants(id);
+			ParticipantRepository.getTournamentParticipants(id);
 		if (participants.length == 0)
 			throw new DatabaseError(
 				'Failed to retrieve tournament participants'
 			);
-		const matches = await MatchRepository.getTournamentMatches(id);
+		const matches = MatchRepository.getTournamentMatches(id);
 		if (matches.length == 0)
 			throw new DatabaseError('Failed to retrieve tournament matches');
 
@@ -48,11 +48,8 @@ export default class TournamentService {
 		return FullTournamentSchema.parse(fullTournament);
 	}
 
-	static async createTournament(
-		creator: UUID,
-		participants: UUID[]
-	): Promise<Tournament> {
-		const settings = await SettingsRepository.getSettingsByUser(creator);
+	static createTournament(creator: UUID, participants: UUID[]): Tournament {
+		const settings = SettingsRepository.getSettingsByUser(creator);
 		if (!settings) throw new SettingsNotFoundError('user', creator);
 
 		const tournament = CreateTournamentSchema.parse({
@@ -67,16 +64,15 @@ export default class TournamentService {
 		const all_participants = this.createParticipants(participants);
 		const matches = this.createTournamentMatches(participants);
 
-		return await TournamentRepository.createFullTournament(
+		return TournamentRepository.createFullTournament(
 			tournament,
 			all_participants,
 			matches
 		);
 	}
 
-	static async getNumberOfRounds(tournament_id: UUID): Promise<number> {
-		const tournament =
-			await TournamentRepository.getTournament(tournament_id);
+	static getNumberOfRounds(tournament_id: UUID): number {
+		const tournament = TournamentRepository.getTournament(tournament_id);
 		if (!tournament) throw new TournamentNotFoundError(tournament_id);
 		return this.numberOfRounds(tournament.size);
 	}

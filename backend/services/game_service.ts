@@ -70,7 +70,7 @@ export class GameService {
 		return this.instance;
 	}
 
-	async handleMessage(connectionId: UUID, message: string) {
+	handleMessage(connectionId: UUID, message: string) {
 		const json = JSON.parse(message);
 		const handler =
 			this.protocolFunctionMap[
@@ -78,7 +78,7 @@ export class GameService {
 			];
 		if (handler) {
 			try {
-				await handler.call(this, connectionId, json);
+				handler.call(this, connectionId, json);
 			} catch (error) {
 				// TODO: destroy game?
 			}
@@ -87,13 +87,13 @@ export class GameService {
 		}
 	}
 
-	private async handleInitiate(connectionId: UUID, message: Message) {
+	private handleInitiate(connectionId: UUID, message: Message) {
 		const socket = this.getSocket(connectionId);
 		const match_id = message.d as UUID;
-		const match = await MatchRepository.getMatch(match_id);
+		const match = MatchRepository.getMatch(match_id);
 		if (!match) throw new MatchNotFoundError(match_id);
 
-		const matchObject = await this.createMatchObject(match, socket.userId);
+		const matchObject = this.createMatchObject(match, socket.userId);
 		matchObject.players.forEach(p => {
 			this.matches.set(
 				this.getSocketByUserId(p.userId).socketId,
@@ -107,14 +107,14 @@ export class GameService {
 		);
 	}
 
-	private async handlePause(connectionId: UUID, message: Message) {
+	private handlePause(connectionId: UUID, message: Message) {
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.sendMatchMessage(message, match.players);
 		match.status = MatchStatus.Paused;
 	}
 
-	private async handleMove(connectionId: UUID, message: Message) {
+	private handleMove(connectionId: UUID, message: Message) {
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		const players = this.getUsersFromConnectionId(
@@ -128,34 +128,31 @@ export class GameService {
 		this.sendMatchMessage(message, players.others);
 	}
 
-	private async handleAccept(connectionId: UUID, message: Message) {
+	private handleAccept(connectionId: UUID, message: Message) {
 		const match = this.matches.get(connectionId);
 		if (match) this.acceptMatch(connectionId, message, match);
-		else await this.acceptTournament(connectionId, message);
+		else this.acceptTournament(connectionId, message);
 	}
 
-	private async handleDecline(connectionId: UUID, message: Message) {
+	private handleDecline(connectionId: UUID, message: Message) {
 		const match = this.matches.get(connectionId);
 		if (match) this.declineMatch(connectionId, message, match);
 		else this.declineTournament(connectionId, message);
 	}
 
-	private async handleQuit(connectionId: UUID, message: Message) {
+	private handleQuit(connectionId: UUID, message: Message) {
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.endMatch(match);
 	}
 
-	private async createMatchObject(
-		match: MatchFromSchema,
-		creator: UUID
-	): Promise<Match> {
+	private createMatchObject(match: MatchFromSchema, creator: UUID): Match {
 		if (!match.participant_1_id || !match.participant_2_id)
 			throw new MatchNotReadyError(match.id);
-		const participant1 = await ParticipantRepository.getParticipant(
+		const participant1 = ParticipantRepository.getParticipant(
 			match.participant_1_id
 		);
-		const participant2 = await ParticipantRepository.getParticipant(
+		const participant2 = ParticipantRepository.getParticipant(
 			match.participant_2_id
 		);
 		if (!participant1 || !participant2)
@@ -171,11 +168,7 @@ export class GameService {
 		return match_object;
 	}
 
-	private async acceptMatch(
-		connectionId: UUID,
-		message: Message,
-		match: Match
-	) {
+	private acceptMatch(connectionId: UUID, message: Message, match: Match) {
 		const players = this.getUsersFromConnectionId(
 			connectionId,
 			match.players
@@ -184,7 +177,7 @@ export class GameService {
 		this.sendMatchMessage(outgoing_message, match.players);
 		match.accept(players.current.userId);
 		if (match.status == MatchStatus.Pending && match.allAccepted()) {
-			await this.startMatch(match);
+			this.startMatch(match);
 		}
 	}
 
@@ -198,25 +191,21 @@ export class GameService {
 		this.endMatch(match);
 	}
 
-	private async acceptTournament(connectionId: UUID, message: Message) {
+	private acceptTournament(connectionId: UUID, message: Message) {
 		const socket = this.getSocket(connectionId);
-		const tournament = await this.getTournament(socket.userId);
-		const participant = await this.getParticipant(
-			tournament.id,
-			socket.userId
-		);
+		const tournament = this.getTournament(socket.userId);
+		const participant = this.getParticipant(tournament.id, socket.userId);
 		participant.status = ParticipantStatus.Accepted;
 		const update = UpdateParticipantSchema.strip().parse(participant);
-		await ParticipantRepository.updateParticipant(participant.id, update);
-		const participants =
-			await ParticipantRepository.getTournamentParticipants(
-				tournament.id
-			);
+		ParticipantRepository.updateParticipant(participant.id, update);
+		const participants = ParticipantRepository.getTournamentParticipants(
+			tournament.id
+		);
 		if (participants.every(p => p.status === ParticipantStatus.Accepted)) {
 			tournament.status = TournamentStatus.InProgress;
 			const tournamentUpdate =
 				UpdateTournamentSchema.strip().parse(tournament);
-			await TournamentRepository.updateTournament(
+			TournamentRepository.updateTournament(
 				tournament.id,
 				tournamentUpdate
 			);
@@ -226,8 +215,8 @@ export class GameService {
 
 	private declineTournament(connectionId: UUID, message: Message) {} // TODO
 
-	private async startMatch(match: Match) {
-		const dbMatch = await MatchRepository.getMatch(match.matchId);
+	private startMatch(match: Match) {
+		const dbMatch = MatchRepository.getMatch(match.matchId);
 		if (!dbMatch) throw new MatchNotFoundError(match.matchId);
 		dbMatch.status = MatchStatus.InProgress;
 		const matchUpdate = UpdateMatchSchema.strip().parse(dbMatch);
@@ -282,19 +271,15 @@ export class GameService {
 		return socket;
 	}
 
-	private async getTournament(userId: UUID): Promise<Tournament> {
-		const tournament =
-			await TournamentRepository.getPendingTournament(userId);
+	private getTournament(userId: UUID): Tournament {
+		const tournament = TournamentRepository.getPendingTournament(userId);
 		if (!tournament)
 			throw new ProtocolError('No pending tournament to accept');
 		return tournament;
 	}
 
-	private async getParticipant(
-		tournamentId: UUID,
-		userId: UUID
-	): Promise<Participant> {
-		const participant = await ParticipantRepository.getParticipant(
+	private getParticipant(tournamentId: UUID, userId: UUID): Participant {
+		const participant = ParticipantRepository.getParticipant(
 			tournamentId,
 			userId
 		);
