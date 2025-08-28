@@ -22,6 +22,16 @@ export const ERROR_NO_TOKEN = 'No token provided';
 export const ERROR_MALFORMED_TOKEN = 'Malformed token';
 export const ERROR_AUTHENTICATION_FAILED = 'Authentication failed';
 export const ERROR_USER_CONNECTION_NOT_FOUND = 'User connection not found';
+export const ERROR_FAILED_TO_CREATE_USER = 'Failed to create user';
+export const ERROR_FAILED_TO_CREATE_MATCH = 'Failed to create match';
+export const ERROR_FAILED_TO_CREATE_PARTICIPANT =
+	'Failed to create participant';
+export const ERROR_FAILED_TO_CREATE_TOURNAMENT = 'Failed to create tournament';
+export const ERROR_FAILED_TO_UPDATE_USER = 'Failed to update user';
+export const ERROR_FAILED_TO_UPDATE_MATCH = 'Failed to update match';
+export const ERROR_FAILED_TO_UPDATE_PARTICIPANT =
+	'Failed to update participant';
+export const ERROR_FAILED_TO_UPDATE_TOURNAMENT = 'Failed to update tournament';
 
 export const TOKEN_VALIDITY_PERIOD = '1h';
 
@@ -54,3 +64,5 @@ export const MESSAGE_GAME_STATE = 'g';
 export const INVITATION_MESSAGE = { t: MESSAGE_INITIATE_MATCH };
 export const MATCH_START_MESSAGE = { t: MESSAGE_START };
 export const TOURNAMENT_START_MESSAGE = { t: MESSAGE_START_TOURNAMENT };
+
+export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';

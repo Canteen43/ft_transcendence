@@ -1,5 +1,4 @@
-'use strict';
-
+import { ERROR_FAILED_TO_CREATE_TOURNAMENT } from '../../shared/constants.js';
 import { TournamentStatus } from '../../shared/enums.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
@@ -20,77 +19,66 @@ export default class TournamentRepository {
 	static table = 'tournament';
 	static fields = 'id, size, current_round, settings, status';
 
-	static async getTournament(id: UUID): Promise<Tournament | null> {
-		const result = await db.pool.query<Tournament>(
-			`SELECT id,
-					size,
-					settings,
-					status
-			FROM ${this.table}
-			WHERE id = $1 ;`,
+	static getTournament(id: UUID): Tournament | null {
+		const result = db.queryOne<Tournament>(
+			`SELECT id, size, settings, status
+		 FROM ${this.table}
+		 WHERE id = ?`,
 			[id]
 		);
-		if (result.rowCount == 0) return null;
-		return TournamentSchema.parse(result.rows[0]);
+
+		if (!result) return null;
+		return TournamentSchema.parse(result);
 	}
 
-	static async getPendingTournament(
-		userId: UUID
-	): Promise<Tournament | null> {
-		const result = await db.pool.query<Tournament>(
-			`SELECT id,
-					size,
-					settings,
-					status
+	static getPendingTournament(userId: UUID): Tournament | null {
+		const result = db.queryOne<Tournament>(
+			`SELECT ${this.table}.id,
+				${this.table}.size,
+				${this.table}.settings,
+				${this.table}.status
 			FROM ${this.table}
 			INNER JOIN ${ParticipantRepository.table}
-				ON ${this.table}.id = ${ParticipantRepository.table}.tournament_id
-			WHERE ${this.table}.status = $1
-			AND ${ParticipantRepository.table}.user_id = $2;`,
+			ON ${this.table}.id = ${ParticipantRepository.table}.tournament_id
+			WHERE ${this.table}.status = ?
+			AND   ${ParticipantRepository.table}.user_id = ?`,
 			[TournamentStatus.Pending, userId]
 		);
-		if (result.rowCount == 0) return null;
-		return TournamentSchema.parse(result.rows[0]);
+
+		if (!result) return null;
+		return TournamentSchema.parse(result);
 	}
 
-	static async createTournament(src: CreateTournament): Promise<Tournament> {
-		const result = await db.getClient().query<Tournament>(
-			`INSERT INTO ${this.table} (
-				size,
-				settings,
-				status
-			) VALUES ($1, $2, $3)
-			RETURNING id,
-				size,
-				settings,
-				status`,
+	static createTournament(src: CreateTournament): Tournament {
+		const result = db.queryOne<Tournament>(
+			`INSERT INTO ${this.table} (size, settings, status)
+			VALUES (?, ?, ?)
+			RETURNING id, size, settings, status`,
 			[src.size, src.settings, src.status]
 		);
-		if (result.rowCount == 0)
-			throw new DatabaseError('Failed to create match');
-		return TournamentSchema.parse(result.rows[0]);
+
+		if (!result) throw new DatabaseError(ERROR_FAILED_TO_CREATE_TOURNAMENT);
+		return TournamentSchema.parse(result);
 	}
 
-	static async createFullTournament(
+	static createFullTournament(
 		tournament: CreateTournament,
 		participants: CreateParticipant[],
 		matches: CreateMatch[]
-	): Promise<Tournament> {
-		return await db.executeInTransaction(async () => {
+	): Tournament {
+		return db.executeInTransaction(() => {
 			logger.info('Creating tournament');
-			const tournamentResult = await this.createTournament(tournament);
+			const tournamentResult = this.createTournament(tournament);
 			logger.debug(`Created tournament ${tournamentResult.id}`);
 
-			const participsResult =
-				await ParticipantRepository.createParticipants(
-					tournamentResult.id,
-					participants
-				);
-			logger.debug(`Created ${participsResult.length} participants`);
+			const participantsResult = participants.map(p =>
+				ParticipantRepository.createParticipant(tournamentResult.id, p)
+			);
+			logger.debug(`Created ${participantsResult.length} participants`);
 
-			const matchesResult = await MatchRepository.createMatches(
+			const matchesResult = MatchRepository.createMatches(
 				tournamentResult.id,
-				participsResult,
+				participantsResult,
 				matches
 			);
 			logger.debug(`Created ${matchesResult.length} matches`);
@@ -99,13 +87,19 @@ export default class TournamentRepository {
 		});
 	}
 
-	static async updateTournament(tournament_id: UUID, upd: UpdateTournament) {
-		await db.pool.query(
+	static updateTournament(
+		tournament_id: UUID,
+		upd: UpdateTournament
+	): Tournament | null {
+		const row = db.queryOne<Tournament>(
 			`UPDATE ${this.table}
-			SET status = $1,
-			WHERE id = $2
-			RETURNING ${this.fields}`,
+		 SET status = ?
+		 WHERE id = ?
+		 RETURNING id, size, settings, status`,
 			[upd.status, tournament_id]
 		);
+
+		if (!row) return null;
+		return TournamentSchema.parse(row);
 	}
 }

@@ -1,5 +1,4 @@
-'use strict';
-
+import { ERROR_FAILED_TO_CREATE_USER } from '../../shared/constants.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import {
 	AuthRequest,
@@ -11,33 +10,25 @@ import * as db from '../utils/db.js';
 
 export default class UserRepository {
 	static table = '"user"';
+	static fields = 'id, login, first_name, last_name, email';
 
-	static async getUserByLogin(login: string): Promise<User | null> {
-		const result = await db.pool.query<User>(
-			`SELECT id, login, first_name, last_name, email
-			 FROM ${this.table}
-			 WHERE login = $1`,
+	static getUserByLogin(login: string): User | null {
+		const row = db.queryOne<User>(
+			`SELECT ${this.fields}
+			FROM ${this.table}
+			WHERE login = ?`,
 			[login]
 		);
 
-		if (result.rows.length === 0) return null;
-		return UserSchema.parse(result.rows[0]);
+		if (!row) return null;
+		return UserSchema.parse(row);
 	}
 
-	static async createUser(user: CreateUser): Promise<User> {
-		const result = await db.pool.query<User>(
-			`INSERT INTO ${this.table} (
-				login,
-				first_name,
-				last_name,
-				email,
-				password_hash
-			) VALUES ($1, $2, $3, $4, $5)
-			RETURNING id,
-					  login,
-					  first_name,
-					  last_name,
-					  email`,
+	static createUser(user: CreateUser): User {
+		const row = db.queryOne<User>(
+			`INSERT INTO ${this.table} (login, first_name, last_name, email, password_hash)
+			VALUES (?, ?, ?, ?, ?)
+			RETURNING ${this.fields}`,
 			[
 				user.login,
 				user.first_name,
@@ -46,19 +37,21 @@ export default class UserRepository {
 				user.password_hash,
 			]
 		);
-		if (result.rowCount == 0)
-			throw new DatabaseError('Failed to create user');
-		return UserSchema.parse(result.rows[0]);
+
+		if (!row) throw new DatabaseError(ERROR_FAILED_TO_CREATE_USER);
+
+		return UserSchema.parse(row);
 	}
 
-	static async authenticateUser(request: AuthRequest): Promise<User | null> {
-		const result = await db.pool.query<User>(
+	static authenticateUser(request: AuthRequest): User | null {
+		const row = db.queryOne<User>(
 			`SELECT login, first_name, last_name, email
 			FROM ${this.table}
-			WHERE login = $1 AND password_hash = $2`,
+			WHERE login = ? AND password_hash = ?`,
 			[request.login, request.password_hash]
 		);
-		if (result.rows.length === 0) return null;
-		return UserSchema.parse(result.rows[0]);
+
+		if (!row) return null;
+		return UserSchema.parse(row);
 	}
 }
