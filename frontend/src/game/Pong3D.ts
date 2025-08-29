@@ -130,12 +130,15 @@ export class Pong3D {
 	// Ball settings
 	private BALL_VELOCITY_CONSTANT = 12; // Constant ball speed
 
+	// Ball control settings - velocity-based reflection angle modification
+	private MAX_BALL_ANGLE_INFLUENCE = Math.PI / 3; // Max angle change (30 degrees) when paddle at max velocity
+	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
+
 	// Paddle physics settings
-	private PADDLE_MASS = 10; // Paddle mass for collision response
-	private PADDLE_FORCE = 3; // Force applied when moving
-	private PADDLE_DECELERATION_FORCE = 15; // Force applied when braking/changing direction
+	private PADDLE_MASS = 3; // Paddle mass for collision response
+	private PADDLE_FORCE = 15; // Force applied when moving
 	private PADDLE_RANGE = 4.25; // Movement range from center
-	private PADDLE_MAX_VELOCITY = 8; // Maximum paddle speed
+	private PADDLE_MAX_VELOCITY = 12; // Maximum paddle speed
 
 	// === END CONFIGURATION ===
 
@@ -143,6 +146,9 @@ export class Pong3D {
 	private debugPaddleLogging = false; // Disabled by default
 	private readonly PADDLE_LOG_INTERVAL = 250; // ms
 	private lastPaddleLog = 0;
+
+	// Track boundary stop state to avoid repeated velocity zeroing
+	private paddleStoppedAtBoundary: boolean[] = [false, false, false, false];
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
@@ -444,9 +450,12 @@ export class Pong3D {
 				paddle.rotationQuaternion = rotationQuaternion;
 				paddle.scaling = scaling;
 
-				// Fix rotation - rotate 180 degrees around Y-axis to face correct direction
-				const yRotation = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), Math.PI);
-				paddle.rotationQuaternion = paddle.rotationQuaternion!.multiply(yRotation);
+				// Fix rotation for paddle 1 - rotate 180 degrees around Y-axis to face correct direction
+				// Paddle 2 is assumed to be correctly oriented in the GLB model.
+				if (paddleIndex === 0) {
+					const yRotation = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), Math.PI);
+					paddle.rotationQuaternion = paddle.rotationQuaternion!.multiply(yRotation);
+				}
 
 				console.log(`Paddle ${paddleIndex + 1} AFTER positioning:`);
 				console.log(`  - Game position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`);
@@ -461,9 +470,9 @@ export class Pong3D {
 					},
 					this.scene
 				);
-				// Set damping properties and lock rotation
+				// Set physics properties and lock rotation - NO DAMPING for pure force-based physics
 				if (paddle.physicsImpostor.physicsBody) {
-					paddle.physicsImpostor.physicsBody.linearDamping = 0.02;  // Very low damping for smooth acceleration buildup
+					paddle.physicsImpostor.physicsBody.linearDamping = 0;  // No damping - pure force-based physics
 					paddle.physicsImpostor.physicsBody.angularDamping = 1.0;  // Maximum angular damping
 					paddle.physicsImpostor.physicsBody.fixedRotation = true; // Lock all rotation
 
@@ -487,8 +496,6 @@ export class Pong3D {
 				!/ball/i.test(mesh.name) &&
 				!/paddle/i.test(mesh.name) &&
 				!/court/i.test(mesh.name) &&    // Exclude court surface meshes
-				!/surface/i.test(mesh.name) &&  // Exclude surface meshes
-				!/ground/i.test(mesh.name) &&   // Exclude ground meshes
 				/wall/i.test(mesh.name) &&      // Only include wall meshes
 				mesh.isVisible &&
 				mesh.getTotalVertices() > 0) {
@@ -522,6 +529,129 @@ export class Pong3D {
 				console.log(`Created static BoxImpostor for wall: ${mesh.name}`);
 			}
 		});
+
+		// Set up ball-paddle collision detection AFTER all impostors are created
+		if (this.ballMesh?.physicsImpostor) {
+			const paddleImpostors = this.paddles
+				.filter(p => p && p.physicsImpostor)
+				.map(p => p!.physicsImpostor!);
+
+			if (paddleImpostors.length > 0) {
+				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(paddleImpostors, (main, collided) => {
+					this.handleBallPaddleCollision(main, collided);
+				});
+				console.log(`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`);
+			}
+		}
+	}
+
+	/**
+	 * Handle ball-paddle collision to implement velocity-based ball control
+	 * The paddle's velocity influences the ball's reflection angle
+	 */
+	private handleBallPaddleCollision(ballImpostor: BABYLON.PhysicsImpostor, paddleImpostor: BABYLON.PhysicsImpostor): void {
+		if (!this.ballMesh || !ballImpostor.physicsBody) return;
+
+		// Find which paddle was hit
+		let paddleIndex = -1;
+		for (let i = 0; i < this.activePlayerCount; i++) {
+			if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
+				paddleIndex = i;
+				break;
+			}
+		}
+
+		if (paddleIndex === -1) return; // Unknown paddle
+
+		const paddle = this.paddles[paddleIndex]!;
+		if (!paddle.physicsImpostor?.physicsBody) return;
+
+		// Get current velocities
+		const ballVelocity = ballImpostor.getLinearVelocity();
+		const paddleVelocity = paddle.physicsImpostor.getLinearVelocity();
+
+		if (!ballVelocity || !paddleVelocity) return;
+
+		// Determine movement axis for this paddle
+		let paddleAxis = new BABYLON.Vector3(1, 0, 0); // Default for 2-player
+		if (this.activePlayerCount === 3) {
+			const angles = [0, 4 * Math.PI / 3, 2 * Math.PI / 3];
+			paddleAxis = new BABYLON.Vector3(Math.cos(angles[paddleIndex]), 0, Math.sin(angles[paddleIndex]));
+		} else if (this.activePlayerCount === 4 && paddleIndex >= 2) {
+			paddleAxis = new BABYLON.Vector3(0, 0, 1); // Z-axis for players 3-4
+		}
+		paddleAxis = paddleAxis.normalize();
+
+		// Get paddle velocity along its movement axis
+		const paddleVelAlongAxis = BABYLON.Vector3.Dot(paddleVelocity, paddleAxis);
+
+		// Calculate velocity ratio (0.0 = stationary, ±1.0 = max velocity)
+		const velocityRatio = Math.max(-1.0, Math.min(1.0, paddleVelAlongAxis / this.PADDLE_MAX_VELOCITY));
+
+		// Calculate angle influence based on paddle velocity
+		// FLIPPED BASE LOGIC: 
+		// Positive velocity (moving right) = negative angle (ball deflects left)
+		// Negative velocity (moving left) = positive angle (ball deflects right)
+		let angleInfluence = -velocityRatio * this.MAX_BALL_ANGLE_INFLUENCE * this.BALL_ANGLE_MULTIPLIER;
+
+		// Individual player control: flip player 2 to get opposite behavior
+		if (paddleIndex === 1) {
+			angleInfluence = -angleInfluence;
+		}
+
+		// IMPORTANT: For paddle orientation consistency
+		// - Paddle 1 (bottom): moving right (+X) should deflect ball to +X (right side of court)
+		// - Paddle 2 (top): moving right (+X) should deflect ball to +X (right side of court)
+		// The rotation is applied around Y-axis, where positive rotation = rightward deflection
+		// No inversion needed - the physics reflection handles orientation correctly
+
+		// Calculate proper reflection direction first
+		// For 2-player mode: paddles face along Z-axis, normal is Z direction
+		// For 3/4-player modes: calculate normal based on paddle orientation
+		let paddleNormal = new BABYLON.Vector3(0, 0, 1); // Default for player 1 (faces +Z)
+
+		if (this.activePlayerCount === 2) {
+			// 2-player: Player 1 faces +Z, Player 2 faces -Z
+			paddleNormal = paddleIndex === 0 ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(0, 0, -1);
+		} else if (this.activePlayerCount === 3) {
+			// 3-player: Calculate normal based on paddle position
+			const angles = [0, 4 * Math.PI / 3, 2 * Math.PI / 3];
+			const angle = angles[paddleIndex];
+			paddleNormal = new BABYLON.Vector3(-Math.cos(angle), 0, -Math.sin(angle)); // Inward facing
+		} else if (this.activePlayerCount === 4) {
+			// 4-player: Players 1,2 face Z, Players 3,4 face X
+			if (paddleIndex === 0) paddleNormal = new BABYLON.Vector3(0, 0, 1);
+			else if (paddleIndex === 1) paddleNormal = new BABYLON.Vector3(0, 0, -1);
+			else if (paddleIndex === 2) paddleNormal = new BABYLON.Vector3(-1, 0, 0);
+			else paddleNormal = new BABYLON.Vector3(1, 0, 0);
+		}
+
+		// Calculate perfect reflection: R = V - 2(V·N)N
+		const ballVelNormalized = ballVelocity.normalize();
+		const dotProduct = BABYLON.Vector3.Dot(ballVelNormalized, paddleNormal);
+		const perfectReflection = ballVelNormalized.subtract(paddleNormal.scale(2 * dotProduct));
+
+		// Apply angle influence by rotating the perfect reflection
+		// Rotate around Y-axis (vertical), positive angle = rightward deflection
+		const rotationMatrix = BABYLON.Matrix.RotationAxis(BABYLON.Vector3.Up(), angleInfluence);
+		const modifiedDirection = BABYLON.Vector3.TransformCoordinates(perfectReflection, rotationMatrix);
+
+		// Apply the new velocity while maintaining constant speed
+		const newVelocity = modifiedDirection.normalize().scale(this.BALL_VELOCITY_CONSTANT);
+
+		// Ensure Y component stays zero (2D movement only)
+		newVelocity.y = 0;
+
+		// Apply the modified velocity
+		ballImpostor.setLinearVelocity(newVelocity);
+
+		if (this.debugPaddleLogging) {
+			console.log(`Ball-Paddle Collision: Player ${paddleIndex + 1}`);
+			console.log(`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`);
+			console.log(`  - Angle influence: ${(angleInfluence * 180 / Math.PI).toFixed(1)}°`);
+			console.log(`  - Perfect reflection: (${perfectReflection.x.toFixed(2)}, ${perfectReflection.z.toFixed(2)})`);
+			console.log(`  - Modified direction: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`);
+		}
 	}
 
 	private computeSceneBoundingInfo(
@@ -929,73 +1059,100 @@ export class Pong3D {
 		const leftKeys = [keyState.p1Left, keyState.p2Left, keyState.p3Left, keyState.p4Left];
 		const rightKeys = [keyState.p1Right, keyState.p2Right, keyState.p3Right, keyState.p4Right];
 
-		// Update only active paddles
+		// Update only active paddles with anti-drift force-based physics
 		for (let i = 0; i < this.activePlayerCount; i++) {
 			const paddle = this.paddles[i];
 			if (!paddle || !paddle.physicsImpostor) continue;
 
-			const dir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
+			// Determine movement axis
+			let axis = new BABYLON.Vector3(1, 0, 0);
+			if (this.activePlayerCount === 3) {
+				const angles = [0, 4 * Math.PI / 3, 2 * Math.PI / 3];
+				axis = new BABYLON.Vector3(Math.cos(angles[i]), 0, Math.sin(angles[i]));
+			} else if (this.activePlayerCount === 4) {
+				axis = (i >= 2) ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(1, 0, 0);
+			}
+			const axisNorm = axis.normalize();
 
-			// Flip direction for player 1 (index 0) to fix inverted controls
-			const correctedDir = i === 0 ? -dir : dir;
+			// Get current state
 			const originalPos = this.originalGLBPositions[i];
-
-			// Track previous direction for direction change detection
-			const currentVelocity = paddle.physicsImpostor.getLinearVelocity()!;
-			const prevDir = Math.sign(currentVelocity.x);
-
-			// Check if we need to apply deceleration force
-			// Only decelerate if we have significant velocity to avoid deadspots
-			const hasSignificantVelocity = Math.abs(currentVelocity.x) > 0.1;
-			const shouldDecelerate = hasSignificantVelocity && ((correctedDir === 0) || (prevDir !== 0 && Math.sign(correctedDir) !== prevDir));
-
-			if (shouldDecelerate) {
-				// Apply deceleration force opposing current velocity
-				const decelerationDirection = -Math.sign(currentVelocity.x);
-				const decelerationForce = new BABYLON.Vector3(decelerationDirection * this.PADDLE_DECELERATION_FORCE, 0, 0);
-				paddle.physicsImpostor.applyImpulse(decelerationForce, paddle.position);
-
-				// Higher damping during deceleration for quick stopping
-				paddle.physicsImpostor.physicsBody.linearDamping = 0.8;
-			}
-
-			// Stop very small velocities to prevent oscillation
-			if (Math.abs(currentVelocity.x) < 0.1) {
-				paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
-			}
-
-			// Apply movement force when direction is set and not decelerating
-			if (correctedDir !== 0 && !shouldDecelerate) {
-				// Apply force for gradual acceleration
-				const force = new BABYLON.Vector3(correctedDir * this.PADDLE_FORCE, 0, 0);
-				paddle.physicsImpostor.applyImpulse(force, paddle.position);
-
-				// Low damping while moving for acceleration buildup
-				paddle.physicsImpostor.physicsBody.linearDamping = 0.02;
-			} else if (!shouldDecelerate) {
-				// Reset damping when not moving and not decelerating to avoid stickiness
-				paddle.physicsImpostor.physicsBody.linearDamping = 0.02;
-			}
-
-			// Wall boundary checking - if paddle goes out of bounds, move it back and stop it
 			const currentPos = paddle.position;
-			const minX = originalPos.x - this.PADDLE_RANGE;
-			const maxX = originalPos.x + this.PADDLE_RANGE;
+			const currentVelocity = paddle.physicsImpostor.getLinearVelocity()!;
+			const velAlong = BABYLON.Vector3.Dot(currentVelocity, axisNorm);
+			const speedAlong = Math.abs(velAlong);
 
-			if (currentPos.x < minX || currentPos.x > maxX) {
-				// Store original position before clamping
-				const originalX = currentPos.x;
+			// Check bounds
+			const posAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
+			const originAlongAxis = BABYLON.Vector3.Dot(new BABYLON.Vector3(originalPos.x, 0, originalPos.z), axisNorm);
+			const minBound = originAlongAxis - this.PADDLE_RANGE;
+			const maxBound = originAlongAxis + this.PADDLE_RANGE;
+			const isOutOfBounds = posAlongAxis < minBound || posAlongAxis > maxBound;
 
-				// Clamp position
-				paddle.position.x = Math.max(minX, Math.min(maxX, currentPos.x));
+			// Get player input
+			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
 
-				// Only stop velocity if moving further out of bounds
-				const velocity = paddle.physicsImpostor.getLinearVelocity()!;
-				const isMovingFurtherOut = (originalX <= minX && velocity.x < 0) ||
-					(originalX >= maxX && velocity.x > 0);
+			// ANTI-DRIFT: Aggressively stop any velocity when no input
+			if (inputDir === 0 && !isOutOfBounds) {
+				// Force complete stop - no gradual braking to prevent drift
+				paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+				continue; // Skip all other logic when stopping
+			}
 
-				if (isMovingFurtherOut) {
+			// ANTI-DRIFT: Clamp maximum velocity to prevent runaway acceleration
+			if (speedAlong > this.PADDLE_MAX_VELOCITY) {
+				const clampedVel = axisNorm.scale(Math.sign(velAlong) * this.PADDLE_MAX_VELOCITY);
+				// Preserve non-movement-axis velocity components (should be zero anyway)
+				const perpVel = currentVelocity.subtract(axisNorm.scale(velAlong));
+				paddle.physicsImpostor.setLinearVelocity(clampedVel.add(perpVel));
+			}
+
+			// State machine: Only apply forces when needed
+			if (isOutOfBounds) {
+				// PRIORITY 1: Hit boundary - stop and clamp position to prevent overshoot
+				if (!this.paddleStoppedAtBoundary[i]) {
+					// First time hitting boundary - stop the paddle
 					paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+					this.paddleStoppedAtBoundary[i] = true;
+				}
+
+				// Clamp position to boundary to prevent overshoot
+				const clampedPosAlongAxis = Math.max(minBound, Math.min(maxBound, posAlongAxis));
+				const clampedPos = new BABYLON.Vector3(originalPos.x, paddle.position.y, originalPos.z)
+					.add(axisNorm.scale(clampedPosAlongAxis - originAlongAxis));
+				paddle.position = clampedPos;
+
+				// Allow movement back toward valid area (any inward direction)
+				if (inputDir !== 0) {
+					const wantedDirection = Math.sign(inputDir);
+					const isMovingInward = (posAlongAxis < minBound && wantedDirection > 0) ||
+						(posAlongAxis > maxBound && wantedDirection < 0);
+
+					// Allow any movement that brings paddle back inward
+					if (isMovingInward) {
+						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
+						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+						this.paddleStoppedAtBoundary[i] = false; // Reset boundary stop flag
+					}
+				}
+			} else {
+				// Reset boundary stop flag when paddle is back in valid area
+				this.paddleStoppedAtBoundary[i] = false;
+
+				if (inputDir !== 0) {
+					// PRIORITY 2: Move based on input
+					const wantedDirection = Math.sign(inputDir);
+					const currentDirection = Math.sign(velAlong);
+
+					if (currentDirection !== 0 && wantedDirection !== currentDirection) {
+						// Need to change direction - stop first, then apply new force
+						paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
+						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+					} else {
+						// Same direction or starting from rest - accelerate
+						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
+						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+					}
 				}
 			}
 		}
@@ -1044,6 +1201,21 @@ export class Pong3D {
 	public setPaddleSpeed(value: number): void {
 		this.PADDLE_FORCE = value;
 		console.log('PADDLE_FORCE (speed) ->', this.PADDLE_FORCE);
+	}
+
+	public setBallAngleInfluence(maxAngleDegrees: number): void {
+		this.MAX_BALL_ANGLE_INFLUENCE = maxAngleDegrees * Math.PI / 180; // Convert to radians
+		console.log('MAX_BALL_ANGLE_INFLUENCE ->', maxAngleDegrees, 'degrees');
+	}
+
+	public setBallAngleMultiplier(multiplier: number): void {
+		this.BALL_ANGLE_MULTIPLIER = Math.max(0, Math.min(2, multiplier)); // Clamp between 0-2
+		console.log('BALL_ANGLE_MULTIPLIER ->', this.BALL_ANGLE_MULTIPLIER);
+	}
+
+	public setBallVelocityConstant(speed: number): void {
+		this.BALL_VELOCITY_CONSTANT = Math.max(1, speed); // Minimum speed of 1
+		console.log('BALL_VELOCITY_CONSTANT ->', this.BALL_VELOCITY_CONSTANT);
 	}
 
 	public togglePaddleLogging(enabled?: boolean): void {
