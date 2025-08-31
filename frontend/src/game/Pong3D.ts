@@ -1577,6 +1577,26 @@ export class Pong3D {
 			}
 			const axisNorm = axis.normalize();
 
+			// --- AXIS CONSTRAINT: Snap to axis before any movement or rendering ---
+			if (this.activePlayerCount === 3 && paddle && paddle.physicsImpostor) {
+				const originalPos = this.originalGLBPositions[i];
+				const posVec = new BABYLON.Vector3(paddle!.position.x, 0, paddle!.position.z);
+				const originVec = new BABYLON.Vector3(originalPos.x, 0, originalPos.z);
+				const relPos = posVec.subtract(originVec);
+				const projLen = BABYLON.Vector3.Dot(relPos, axisNorm);
+				const projVec = axisNorm.scale(projLen);
+				const correctedPos = originVec.add(projVec);
+				paddle!.position.x = correctedPos.x;
+				paddle!.position.z = correctedPos.z;
+				// For velocity, zero out off-axis component
+				const vel = paddle!.physicsImpostor!.getLinearVelocity();
+				if (vel) {
+					const velAlong = BABYLON.Vector3.Dot(vel, axisNorm);
+					const velAlongVec = axisNorm.scale(velAlong);
+					paddle!.physicsImpostor!.setLinearVelocity(velAlongVec);
+				}
+			}
+
 			// Get current state
 			const originalPos = this.originalGLBPositions[i];
 			const currentPos = paddle.position;
@@ -1584,20 +1604,9 @@ export class Pong3D {
 			const velAlong = BABYLON.Vector3.Dot(currentVelocity, axisNorm);
 			const speedAlong = Math.abs(velAlong);
 
-			// AXIS RESTORATION: Snap paddle back to its movement line
-			// Calculate how far the paddle is from its movement axis
-			const originPoint = new BABYLON.Vector3(originalPos.x, paddle.position.y, originalPos.z);
-			const positionAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
-			const originAlongAxis = BABYLON.Vector3.Dot(originPoint, axisNorm);
-
-			// The correct position should be: origin + (distance along axis) * axis direction
-			const correctPosition = originPoint.add(axisNorm.scale(positionAlongAxis - originAlongAxis));
-
-			// Snap paddle to the correct position on its movement line
-			paddle.position = correctPosition;
-
-			// Check bounds (use the position along axis we already calculated)
-			const posAlongAxis = positionAlongAxis;
+			// Check bounds
+			const posAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
+			const originAlongAxis = BABYLON.Vector3.Dot(new BABYLON.Vector3(originalPos.x, 0, originalPos.z), axisNorm);
 			const minBound = originAlongAxis - this.PADDLE_RANGE;
 			const maxBound = originAlongAxis + this.PADDLE_RANGE;
 			const isOutOfBounds = posAlongAxis < minBound || posAlongAxis > maxBound;
@@ -1610,6 +1619,25 @@ export class Pong3D {
 				// Force complete stop - no gradual braking to prevent drift
 				paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
 				continue; // Skip all other logic when stopping
+				// --- AXIS CONSTRAINT: Snap to axis again after all movement/physics ---
+				if (this.activePlayerCount === 3 && paddle && paddle.physicsImpostor) {
+					const originalPos = this.originalGLBPositions[i];
+					const posVec = new BABYLON.Vector3(paddle!.position.x, 0, paddle!.position.z);
+					const originVec = new BABYLON.Vector3(originalPos.x, 0, originalPos.z);
+					const relPos = posVec.subtract(originVec);
+					const projLen = BABYLON.Vector3.Dot(relPos, axisNorm);
+					const projVec = axisNorm.scale(projLen);
+					const correctedPos = originVec.add(projVec);
+					paddle!.position.x = correctedPos.x;
+					paddle!.position.z = correctedPos.z;
+					// For velocity, zero out off-axis component
+					const vel = paddle!.physicsImpostor!.getLinearVelocity();
+					if (vel) {
+						const velAlong = BABYLON.Vector3.Dot(vel, axisNorm);
+						const velAlongVec = axisNorm.scale(velAlong);
+						paddle!.physicsImpostor!.setLinearVelocity(velAlongVec);
+					}
+				}
 			}
 
 			// ANTI-DRIFT: Clamp maximum velocity to prevent runaway acceleration
@@ -1666,6 +1694,35 @@ export class Pong3D {
 						// Same direction or starting from rest - accelerate
 						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
 						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+					}
+				}
+
+				// --- SOFT AXIS CONSTRAINT: Only correct off-axis drift if it exceeds epsilon ---
+				if (this.activePlayerCount === 3) {
+					const posVec = new BABYLON.Vector3(paddle.position.x, 0, paddle.position.z);
+					const originVec = new BABYLON.Vector3(originalPos.x, 0, originalPos.z);
+					const relPos = posVec.subtract(originVec);
+					const projLen = BABYLON.Vector3.Dot(relPos, axisNorm);
+					const projVec = axisNorm.scale(projLen);
+					const offAxisVec = relPos.subtract(projVec);
+					const offAxisDist = offAxisVec.length();
+					const AXIS_EPSILON = 0.01; // Allowable drift before correction
+					if (offAxisDist > AXIS_EPSILON) {
+						// Only correct the off-axis component, keep along-axis untouched
+						const correctedPos = originVec.add(projVec);
+						paddle.position.x = correctedPos.x;
+						paddle.position.z = correctedPos.z;
+					}
+					// For velocity, zero out off-axis component but keep along-axis
+					const vel = paddle.physicsImpostor.getLinearVelocity();
+					if (vel) {
+						const velAlong = BABYLON.Vector3.Dot(vel, axisNorm);
+						const velAlongVec = axisNorm.scale(velAlong);
+						const offAxisVel = vel.subtract(velAlongVec);
+						if (offAxisVel.length() > AXIS_EPSILON) {
+							// Only zero out the off-axis velocity
+							paddle.physicsImpostor.setLinearVelocity(velAlongVec);
+						}
 					}
 				}
 			}
