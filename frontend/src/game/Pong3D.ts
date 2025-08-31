@@ -22,8 +22,7 @@ import { Pong3DGameLoop } from './Pong3DGameLoop';
  * - 3 players → /pong3p.glb  
  * - 4 players → /pong4p.glb
  */
-export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 2;
-;
+export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 4;
 
 /**
  * Set the default player POV (perspective) for the camera
