@@ -117,12 +117,7 @@ export class Pong3DGameLoop {
             this.gameState.ball.velocity = linearVelocity;
         }
 
-        // Fallback check if ball goes out of bounds (e.g., falls through the world)
-        const maxDistance = 20;
-        if (Math.abs(this.gameState.ball.position.z) > maxDistance || Math.abs(this.gameState.ball.position.x) > maxDistance) {
-            console.log(`🏓 Ball went out of bounds. Position: ${this.gameState.ball.position.toString()}`);
-            this.resetBall();
-        }
+        // Boundary detection is handled by the main Pong3D class
     }
 
     /**
@@ -147,12 +142,11 @@ export class Pong3DGameLoop {
     }
 
     /**
-     * Set ball velocity (useful for testing different speeds)
-     */
+ * Set ball velocity (for testing different speeds)
+ */
     setBallVelocity(velocity: BABYLON.Vector3): void {
         if (this.ballMesh && this.ballMesh.physicsImpostor) {
             this.ballMesh.physicsImpostor.setLinearVelocity(velocity);
-            console.log(`🎯 Ball velocity set to: ${velocity.toString()}`);
         }
     }
 
