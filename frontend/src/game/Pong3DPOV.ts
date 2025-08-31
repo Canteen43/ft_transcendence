@@ -24,12 +24,14 @@ export interface CameraSettings {
  * @param playerPOV - Which player's perspective (1-4)
  * @param activePlayerCount - How many players are active (2-4)
  * @param settings - Camera configuration settings
+ * @param isLocal - Whether this is local 2-player mode (both players on same screen)
  * @returns Camera position configuration
  */
 export function getCameraPosition(
     playerPOV: 1 | 2 | 3 | 4,
     activePlayerCount: number,
-    settings: CameraSettings
+    settings: CameraSettings,
+    isLocal?: boolean
 ): CameraPosition {
     const { defaultRadius, defaultBeta, defaultTargetY, useGLBOrigin } = settings;
 
@@ -43,14 +45,25 @@ export function getCameraPosition(
     switch (playerPOV) {
         case 1:
             // Player 1 POV (default - bottom view looking up)
-          if (activePlayerCount === 2) {
-                return {
-                    alpha: Math.PI / 2,
-                    beta: defaultBeta,
-                    radius: defaultRadius,
-                    target: createTarget()
-                };
-             } else if (activePlayerCount === 3) {
+            if (activePlayerCount === 2) {
+                if (isLocal) {
+                    // Local 2-player mode: Use overhead view so both players can see clearly
+                    return {
+                        alpha: 0 ,
+                        beta: Math.PI / 7, // More overhead angle for better view of both sides
+                        radius: defaultRadius -1, // Pulled back further for wider view
+                        target: createTarget(defaultTargetY+2) // Slightly elevated target
+                    };
+                } else {
+                    // Network 2-player mode: Standard view
+                    return {
+                        alpha: Math.PI / 2,
+                        beta: defaultBeta,
+                        radius: defaultRadius,
+                        target: createTarget()
+                    };
+                }
+            } else if (activePlayerCount === 3) {
                 return {
                     alpha: Math.PI / 2,
                     beta: Math.PI / 7,
@@ -58,7 +71,7 @@ export function getCameraPosition(
                     target: createTarget(defaultTargetY + 3)
                 };
             } else { // 4-player
-                 return {
+                return {
                     alpha: Math.PI / 2,
                     beta: defaultBeta - 0.1,
                     radius: defaultRadius + 2,
@@ -69,13 +82,23 @@ export function getCameraPosition(
         case 2:
             // Player 2 POV - depends on player count
             if (activePlayerCount === 2) {
-                // 2-player: Player 2 is opposite side (rotated 180°)
-                return {
-                    alpha: 3 * Math.PI / 2,
-                    beta: defaultBeta,
-                    radius: defaultRadius,
-                    target: createTarget()
-                };
+                if (isLocal) {
+                    // Local 2-player mode: Same overhead view as Player 1 (shared screen)
+                    return {
+                        alpha: Math.PI / 2,
+                        beta: Math.PI / 6, // Same overhead angle
+                        radius: defaultRadius + 3, // Same pulled back view
+                        target: createTarget(defaultTargetY + 1) // Same elevated target
+                    };
+                } else {
+                    // Network 2-player mode: Opposite side (rotated 180°)
+                    return {
+                        alpha: 3 * Math.PI / 2,
+                        beta: defaultBeta,
+                        radius: defaultRadius,
+                        target: createTarget()
+                    };
+                }
             } else if (activePlayerCount === 3) {
                 // 3-player: Player 2 shares same view as Player 1 for now
                 return {
@@ -102,7 +125,7 @@ export function getCameraPosition(
                     radius: defaultRadius - 1,
                     target: createTarget(defaultTargetY + 3)
                 };
-            } else  {
+            } else {
                 // 4-player: Player 3 is right side
                 return {
                     alpha: Math.PI / 2 + Math.PI / 2,
@@ -116,11 +139,11 @@ export function getCameraPosition(
         case 4:
             // Player 4 POV (4-player mode only - left side)
             return {
-                    alpha: Math.PI / 2 - Math.PI / 2,
-                    beta: defaultBeta - 0.1,
-                    radius: defaultRadius + 2,
-                    target: createTarget(defaultTargetY + 0.3)
-                };
+                alpha: Math.PI / 2 - Math.PI / 2,
+                beta: defaultBeta - 0.1,
+                radius: defaultRadius + 2,
+                target: createTarget(defaultTargetY + 0.3)
+            };
     }
 }
 

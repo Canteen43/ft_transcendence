@@ -33,6 +33,14 @@ export const DEFAULT_PLAYER_COUNT: 2 | 3 | 4 = 2;
  */
 export const DEFAULT_THIS_PLAYER: 1 | 2 | 3 | 4 = 1;
 
+/**
+ * Set default game mode
+ * - true = Local 2-player mode (both players on same screen/keyboard)
+ * - false = Network play mode (players on different devices)
+ * Note: Local mode only applies when playerCount = 2
+ */
+export const DEFAULT_LOCAL_MODE: boolean = true;
+
 // ============================================================================
 
 /**
@@ -57,6 +65,7 @@ export interface Pong3DOptions {
 	playerCount?: 2 | 3 | 4; // Number of players (2, 3, or 4)
 	thisPlayer?: 1 | 2 | 3 | 4; // POV player (1 = default position, 2-4 = rotated perspectives)
 	modelUrlOverride?: string; // Override automatic model selection
+	local?: boolean; // Local 2-player mode vs network play (only applies when playerCount = 2)
 }
 
 
@@ -124,6 +133,7 @@ export class Pong3D {
 	private activePlayerCount: number = DEFAULT_PLAYER_COUNT; // Can be 2, 3, or 4
 	private initialPlayerCount: number = DEFAULT_PLAYER_COUNT; // Set at initialization, cannot be exceeded
 	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
+	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
 
 
 	// === GAME PHYSICS CONFIGURATION ===
@@ -133,6 +143,12 @@ export class Pong3D {
 	// Ball control settings - velocity-based reflection angle modification
 	private MAX_BALL_ANGLE_INFLUENCE = Math.PI / 3; // Max angle change (30 degrees) when paddle at max velocity
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
+
+	// Ball spin physics settings
+	private SPIN_TRANSFER_FACTOR = 1.0; // How much paddle velocity becomes spin
+	private MAGNUS_COEFFICIENT = 0.1; // Strength of Magnus force effect
+	private SPIN_DECAY_FACTOR = 0.98; // Spin decay per frame (0.99 = slow decay)
+	private ballSpin: BABYLON.Vector3 = new BABYLON.Vector3(0, 0, 0); // Current ball spin
 
 	// Paddle physics settings
 	private PADDLE_MASS = 3; // Paddle mass for collision response
@@ -191,7 +207,7 @@ export class Pong3D {
 
 	/** Initialize camera based on current player POV */
 	private setupCamera(): void {
-		const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings());
+		const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings(), this.local);
 
 		this.camera = new BABYLON.ArcRotateCamera(
 			'cam',
@@ -223,9 +239,10 @@ export class Pong3D {
 		this.activePlayerCount = options?.playerCount || DEFAULT_PLAYER_COUNT;
 		this.initialPlayerCount = this.activePlayerCount; // Store initial count
 		this.thisPlayer = options?.thisPlayer || DEFAULT_THIS_PLAYER; // Set POV player (default from constant)
+		this.local = options?.local ?? DEFAULT_LOCAL_MODE; // Set local mode (default from constant)
 		const modelUrl = options?.modelUrlOverride || this.getModelUrlForPlayerCount(this.activePlayerCount);
 
-		console.log(`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}`);
+		console.log(`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}, Local: ${this.local}`);
 
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
@@ -553,6 +570,18 @@ export class Pong3D {
 				console.log(`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`);
 			}
 
+			// Set up wall collision detection for spin handling
+			const wallImpostors = this.scene.meshes
+				.filter(mesh => mesh && mesh.name && /wall/i.test(mesh.name) && mesh.physicsImpostor)
+				.map(mesh => mesh.physicsImpostor!);
+
+			if (wallImpostors.length > 0) {
+				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(wallImpostors, (main, collided) => {
+					this.handleBallWallCollision(main, collided);
+				});
+				console.log(`Set up ball-wall collision detection for ${wallImpostors.length} walls`);
+			}
+
 			// Set up manual goal detection
 			this.setupManualGoalDetection();
 		}
@@ -663,6 +692,26 @@ export class Pong3D {
 		// Apply the modified velocity
 		ballImpostor.setLinearVelocity(newVelocity);
 
+		// Add spin physics: paddle velocity creates spin
+		// Spin is proportional to paddle velocity, just like the angle influence
+		const spinInfluence = paddleVelAlongAxis * this.SPIN_TRANSFER_FACTOR;
+
+		// For spin, we use the paddle's movement axis to determine spin direction
+		// Paddle moving right (+) = clockwise spin, paddle moving left (-) = counterclockwise spin
+		// Apply spin around Y-axis (vertical) for side-to-side paddle movement
+		const spinAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis for vertical spin
+		const newSpin = spinAxis.scale(spinInfluence);
+
+		// Individual player control: flip player 2 spin direction to match angle behavior
+		if (paddleIndex === 1) {
+			newSpin.scaleInPlace(-1);
+		}
+
+		// Set the new spin (replace any existing spin)
+		this.ballSpin = newSpin.clone();
+
+		console.log(`🌪️ Ball spin applied: ${this.ballSpin.y.toFixed(2)} (from paddle velocity: ${paddleVelAlongAxis.toFixed(2)})`);
+
 		if (this.debugPaddleLogging) {
 			console.log(`Ball-Paddle Collision: Player ${paddleIndex + 1}`);
 			console.log(`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`);
@@ -670,6 +719,17 @@ export class Pong3D {
 			console.log(`  - Perfect reflection: (${perfectReflection.x.toFixed(2)}, ${perfectReflection.z.toFixed(2)})`);
 			console.log(`  - Modified direction: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`);
 		}
+	}
+
+	private handleBallWallCollision(ballImpostor: BABYLON.PhysicsImpostor, wallImpostor: BABYLON.PhysicsImpostor): void {
+		console.log(`🧱 Ball-Wall Collision detected`);
+
+		// When ball hits wall, spin is preserved but may be modified by friction
+		// For realistic physics, some spin energy is lost
+		const spinFrictionFactor = 0.8; // 20% spin loss on wall collision
+		this.ballSpin.scaleInPlace(spinFrictionFactor);
+
+		console.log(`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballSpin.y.toFixed(2)}`);
 	}
 
 	private handleGoalCollision(goalIndex: number): void {
@@ -796,9 +856,10 @@ export class Pong3D {
 				this.gameLoop.resetBall();
 			}
 
-			// Clear the goal state
+			// Clear the goal state and reset spin
 			this.goalScored = false;
 			this.pendingGoalData = null;
+			this.ballSpin.set(0, 0, 0); // Reset spin to zero
 
 			console.log(`⚡ Ball reset completed after boundary collision`);
 		}
@@ -1214,7 +1275,7 @@ export class Pong3D {
 
 		// Update camera position if camera is already initialized
 		if (this.camera) {
-			const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings());
+			const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings(), this.local);
 			applyCameraPosition(this.camera, cameraPos, this.thisPlayer);
 		}
 	}
@@ -1230,6 +1291,12 @@ export class Pong3D {
 		const currentVelocity = this.ballMesh.physicsImpostor.getLinearVelocity();
 		if (!currentVelocity) return;
 
+		// Apply Magnus force from spin (ball curving effect)
+		this.applyMagnusForce();
+
+		// Apply spin decay over time
+		this.ballSpin.scaleInPlace(this.SPIN_DECAY_FACTOR);
+
 		// Calculate current speed (magnitude) in X-Z plane only
 		const currentSpeed = Math.sqrt(currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z);
 
@@ -1243,6 +1310,34 @@ export class Pong3D {
 				currentVelocity.z * scale
 			);
 			this.ballMesh.physicsImpostor.setLinearVelocity(correctedVelocity);
+		}
+	}
+
+	private applyMagnusForce(): void {
+		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
+
+		// Get current ball velocity
+		const velocity = this.ballMesh.physicsImpostor.getLinearVelocity();
+		if (!velocity) return;
+
+		// Magnus force = spin × velocity (cross product)
+		// This creates a force perpendicular to both spin and velocity
+		const magnusForce = BABYLON.Vector3.Cross(this.ballSpin, velocity);
+
+		// Scale the Magnus force by coefficient
+		magnusForce.scaleInPlace(this.MAGNUS_COEFFICIENT);
+
+		// Apply Magnus force as impulse (small continuous force)
+		// Scale down the impulse to make it smooth
+		const impulseScale = 0.016; // Approximate frame time for 60fps
+		magnusForce.scaleInPlace(impulseScale);
+
+		// Apply the impulse to curve the ball's path
+		this.ballMesh.physicsImpostor.applyImpulse(magnusForce, this.ballMesh.position);
+
+		// Debug logging (only when spin is significant)
+		if (this.ballSpin.length() > 0.1) {
+			console.log(`🌪️ Magnus force applied: ${magnusForce.toString()} (spin: ${this.ballSpin.y.toFixed(2)})`);
 		}
 	}
 
@@ -1616,6 +1711,11 @@ export class Pong3D {
 	/** Get initial player count (max possible) */
 	public getInitialPlayerCount(): number {
 		return this.initialPlayerCount;
+	}
+
+	/** Check if game is in local 2-player mode */
+	public isLocal(): boolean {
+		return this.local;
 	}
 
 	/** Check if a player index is active */
