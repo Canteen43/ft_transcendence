@@ -2,8 +2,8 @@
  * Pong3DInput - Handles keyboard input for up to 4 players
  * 
  * Key Bindings:
- * - Player 1: A/W (left) D/S (right)
- * - Player 2: Arrow Left/Up (left) Arrow Right/Down (right)  
+ * - Player 1: Arrow Right/Up (left) Arrow Left/Down (right)
+ * - Player 2: A/W (left) D/S (right)  
  * - Player 3: Q (left) E (right)
  * - Player 4: U (left) I (right)
  * 
@@ -60,13 +60,13 @@ export class Pong3DInput {
 
 	private handleKeyDown(e: KeyboardEvent): void {
 		const k = e.key;
-		// Player 1: WASD
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p1Left = true;
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p1Right = true;
+		// Player 1: Arrow keys (left/right swapped)
+		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = true;
+		if (k === 'ArrowLeft' || k === 'ArrowDown') this.keyState.p1Right = true;
 
-		// Player 2: Arrow keys
-		if (k === 'ArrowLeft' || k === 'ArrowUp') this.keyState.p2Left = true;
-		if (k === 'ArrowRight' || k === 'ArrowDown') this.keyState.p2Right = true;
+		// Player 2: WASD
+		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p2Left = true;
+		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p2Right = true;
 
 		// Player 3: QE keys
 		if (k === 'q' || k === 'Q') this.keyState.p3Left = true;
@@ -79,13 +79,13 @@ export class Pong3DInput {
 
 	private handleKeyUp(e: KeyboardEvent): void {
 		const k = e.key;
-		// Player 1: WASD
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p1Left = false;
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p1Right = false;
+		// Player 1: Arrow keys (left/right swapped)
+		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = false;
+		if (k === 'ArrowLeft' || k === 'ArrowDown') this.keyState.p1Right = false;
 
-		// Player 2: Arrow keys
-		if (k === 'ArrowLeft' || k === 'ArrowUp') this.keyState.p2Left = false;
-		if (k === 'ArrowRight' || k === 'ArrowDown') this.keyState.p2Right = false;
+		// Player 2: WASD
+		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p2Left = false;
+		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p2Right = false;
 
 		// Player 3: QE keys
 		if (k === 'q' || k === 'Q') this.keyState.p3Left = false;

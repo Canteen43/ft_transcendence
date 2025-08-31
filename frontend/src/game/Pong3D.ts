@@ -168,6 +168,15 @@ export class Pong3D {
 	private gameLoop: Pong3DGameLoop | null = null;
 	private ballMesh: BABYLON.Mesh | null = null;
 
+	// Goal detection
+	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
+	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
+	private onGoalCallback: ((scoringPlayer: number, goalPlayer: number) => void) | null = null;
+	private lastGoalTime: number = 0; // Prevent multiple goal triggers
+	private readonly GOAL_COOLDOWN_MS = 2000; // 2 seconds between goals
+	private goalScored: boolean = false; // Track when goal is scored but ball should continue moving
+	private pendingGoalData: { scoringPlayer: number, goalPlayer: number } | null = null; // Store goal data for delayed reset
+
 	/** Get the appropriate GLB model URL based on player count */
 	private getModelUrlForPlayerCount(playerCount: number): string {
 		switch (playerCount) {
@@ -312,6 +321,7 @@ export class Pong3D {
 		}
 
 		this.findPaddles(scene);
+		this.findGoals(scene);
 		this.findBall(scene);
 		this.setupPhysicsImpostors(scene); // Create physics impostors for meshes
 
@@ -530,7 +540,7 @@ export class Pong3D {
 			}
 		});
 
-		// Set up ball-paddle collision detection AFTER all impostors are created
+		// Set up goal collision detection AFTER all impostors are created
 		if (this.ballMesh?.physicsImpostor) {
 			const paddleImpostors = this.paddles
 				.filter(p => p && p.physicsImpostor)
@@ -542,6 +552,9 @@ export class Pong3D {
 				});
 				console.log(`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`);
 			}
+
+			// Set up manual goal detection
+			this.setupManualGoalDetection();
 		}
 	}
 
@@ -562,6 +575,11 @@ export class Pong3D {
 		}
 
 		if (paddleIndex === -1) return; // Unknown paddle
+
+		// Track which player last hit the ball
+		console.log(`🏓 Ball hit by Player ${paddleIndex + 1}`);
+		this.lastPlayerToHitBall = paddleIndex;
+		console.log(`Last player to hit ball updated to: ${this.lastPlayerToHitBall}`);
 
 		const paddle = this.paddles[paddleIndex]!;
 		if (!paddle.physicsImpostor?.physicsBody) return;
@@ -651,6 +669,138 @@ export class Pong3D {
 			console.log(`  - Angle influence: ${(angleInfluence * 180 / Math.PI).toFixed(1)}°`);
 			console.log(`  - Perfect reflection: (${perfectReflection.x.toFixed(2)}, ${perfectReflection.z.toFixed(2)})`);
 			console.log(`  - Modified direction: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`);
+		}
+	}
+
+	private handleGoalCollision(goalIndex: number): void {
+		console.log(`🏆 GOAL COLLISION DETECTED! Goal index: ${goalIndex}`);
+
+		// Check cooldown to prevent multiple triggers
+		const currentTime = performance.now();
+		if (currentTime - this.lastGoalTime < this.GOAL_COOLDOWN_MS) {
+			console.log(`Goal on cooldown, ignoring collision`);
+			return;
+		}
+
+		// goalIndex is the player whose goal was hit (they conceded)
+		// The scoring player is the one who last hit the ball
+		const scoringPlayer = this.lastPlayerToHitBall;
+		const goalPlayer = goalIndex;
+
+		console.log(`Last player to hit ball: ${scoringPlayer}`);
+		console.log(`Goal player (conceding): ${goalPlayer}`);
+		console.log(`Current scores before goal:`, this.playerScores);
+
+		if (scoringPlayer === -1) {
+			console.warn('Goal detected but no player has hit the ball yet');
+			return;
+		}		// Prevent scoring against yourself (in case of weird physics)
+		if (scoringPlayer === goalPlayer) {
+			console.warn(`Player ${scoringPlayer + 1} hit their own goal - no score`);
+			return;
+		}
+
+		// Award point to the scoring player
+		console.log(`Awarding point to player ${scoringPlayer}...`);
+		this.playerScores[scoringPlayer]++;
+		console.log(`New scores after goal:`, this.playerScores);
+
+		console.log(`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`);
+		console.log(`Score: ${this.playerScores.map((score, i) => `P${i + 1}: ${score}`).join(', ')}`);
+
+		// Update the UI
+		console.log(`Updating UI display...`);
+		this.updatePlayerInfoDisplay();
+		console.log(`UI update completed`);
+
+		// Call the goal callback if set
+		if (this.onGoalCallback) {
+			console.log(`Calling goal callback...`);
+			this.onGoalCallback(scoringPlayer, goalPlayer);
+		} else {
+			console.log(`No goal callback set`);
+		}
+
+		// Instead of immediately resetting the ball, let it continue to the boundary
+		// Store the goal data for later processing when the ball reaches the boundary
+		this.goalScored = true;
+		this.pendingGoalData = { scoringPlayer, goalPlayer };
+		console.log(`🚀 Goal scored! Ball will continue to boundary before reset...`);
+
+		// Reset the last player tracker and set cooldown
+		this.lastPlayerToHitBall = -1;
+		this.lastGoalTime = performance.now();
+	}
+
+	private setupManualGoalDetection(): void {
+		console.log(`🔧 Setting up manual goal detection as backup...`);
+
+		// This will be called every frame to check for goal collisions manually
+		this.scene.registerBeforeRender(() => {
+			this.checkManualGoalCollisions();
+		});
+	}
+
+	private checkManualGoalCollisions(): void {
+		if (!this.ballMesh) return;
+
+		const ballPosition = this.ballMesh.position;
+
+		// If a goal was scored and we're waiting for the ball to reach the boundary, check for boundary collision
+		if (this.goalScored && this.pendingGoalData) {
+			this.checkBoundaryCollisionAfterGoal(ballPosition);
+		}
+
+		// Check each goal for collision (only if no goal has been scored yet)
+		if (!this.goalScored) {
+			this.goalMeshes.forEach((goal, index) => {
+				if (!goal) return;
+
+				// Get goal bounding box
+				const goalBounds = goal.getBoundingInfo().boundingBox;
+				const goalMin = goalBounds.minimumWorld;
+				const goalMax = goalBounds.maximumWorld;
+
+				// Check if ball is inside goal bounds
+				const isInside =
+					ballPosition.x >= goalMin.x && ballPosition.x <= goalMax.x &&
+					ballPosition.y >= goalMin.y && ballPosition.y <= goalMax.y &&
+					ballPosition.z >= goalMin.z && ballPosition.z <= goalMax.z;
+
+				if (isInside) {
+					console.log(`🎯 Manual goal detection: Ball inside Goal ${index + 1}!`);
+					this.handleGoalCollision(index);
+				}
+			});
+		}
+	}
+
+	private checkBoundaryCollisionAfterGoal(ballPosition: BABYLON.Vector3): void {
+		// Get scene boundaries
+		if (this.boundsXMin === null || this.boundsXMax === null) {
+			this.updateBounds();
+			return; // Wait for bounds to be computed
+		}
+
+		// Check if ball has reached the boundary (add small margin for detection)
+		const margin = 0.5;
+		const hitBoundary =
+			ballPosition.x <= (this.boundsXMin + margin) ||
+			ballPosition.x >= (this.boundsXMax - margin);
+
+		if (hitBoundary) {
+			console.log(`🎯 Ball reached boundary after goal! Resetting ball...`);
+
+			// Now reset the ball
+			if (this.gameLoop) {
+				this.gameLoop.resetBall();
+			}
+
+			// Clear the goal state
+			this.goalScored = false;
+			this.pendingGoalData = null;
+
+			console.log(`⚡ Ball reset completed after boundary collision`);
 		}
 	}
 
@@ -785,6 +935,58 @@ export class Pong3D {
 		if (this.gameLoop) {
 			this.gameLoop.setBallMesh(this.ballMesh);
 		}
+	}
+
+	private findGoals(scene: BABYLON.Scene): void {
+		const meshes = scene.meshes;
+
+		// Find goal meshes using case-insensitive name search
+		const goalMeshes = meshes.filter(
+			m => m && m.name && /goal/i.test(m.name)
+		);
+
+		// Try to identify goals by numbered names for the expected number of players
+		for (let i = 0; i < this.activePlayerCount; i++) {
+			const goalNumber = i + 1;
+			// Look for specific numbered goal names first
+			let goal = goalMeshes.find(m =>
+				m && m.name && new RegExp(`goal${goalNumber}|g${goalNumber}`, 'i').test(m.name)
+			) as BABYLON.Mesh | undefined;
+
+			// If no specific numbered goal found, take the next available goal
+			if (!goal && i < goalMeshes.length) {
+				goal = goalMeshes[i] as BABYLON.Mesh;
+			}
+
+			this.goalMeshes[i] = goal || null;
+		}
+
+		// Clear unused goal slots
+		for (let i = this.activePlayerCount; i < 4; i++) {
+			this.goalMeshes[i] = null;
+		}
+
+		// Log what we found
+		const foundGoals = this.goalMeshes.filter(g => g !== null);
+		console.log(`Found ${foundGoals.length}/${this.activePlayerCount} expected goals:`, foundGoals.map(g => g?.name));
+
+		if (foundGoals.length === 0) {
+			console.warn('No goal meshes found in the scene! Add meshes named "goal1", "goal2", etc. for score detection');
+			return;
+		}
+
+		if (foundGoals.length < this.activePlayerCount) {
+			console.warn(`Expected ${this.activePlayerCount} goals but only found ${foundGoals.length}`);
+		}
+
+		// Make goal meshes invisible and collision-only
+		this.goalMeshes.forEach((goal, index) => {
+			if (goal) {
+				goal.isVisible = false; // Make completely invisible
+				goal.checkCollisions = true; // Enable collision detection
+				console.log(`Goal ${index + 1} (${goal.name}): Made invisible for collision-only detection`);
+			}
+		});
 	}
 
 	private hideDuplicatePaddles(meshes: BABYLON.AbstractMesh[]): void {
@@ -933,20 +1135,37 @@ export class Pong3D {
 
 	/** Update the on-screen Player info using current name/score fields */
 	private updatePlayerInfoDisplay(): void {
+		console.log(`📊 Updating UI with scores:`, this.playerScores);
+
 		// If extended UI is present, update arrays
 		if (this.uiPlayerNameTexts && this.uiPlayerScoreTexts) {
+			console.log(`Using extended UI arrays`);
 			for (let i = 0; i < Math.min(this.uiPlayerNameTexts.length, this.playerNames.length); i++) {
 				this.uiPlayerNameTexts[i].text = this.playerNames[i];
 				this.uiPlayerScoreTexts[i].text = String(this.playerScores[i]);
+				console.log(`Set Player ${i + 1}: ${this.playerNames[i]} - ${this.playerScores[i]}`);
 			}
 			return;
 		}
 
 		// Backwards compatibility for single player fields
-		if (this.Player1Info) this.Player1Info.text = this.playerNames[0];
-		if (this.score1Text) this.score1Text.text = String(this.playerScores[0]);
-		if (this.Player2Info) this.Player2Info.text = this.playerNames[1];
-		if (this.score2Text) this.score2Text.text = String(this.playerScores[1]);
+		console.log(`Using backwards compatibility UI`);
+		if (this.Player1Info) {
+			this.Player1Info.text = this.playerNames[0];
+			console.log(`Set Player1Info to: ${this.playerNames[0]}`);
+		}
+		if (this.score1Text) {
+			this.score1Text.text = String(this.playerScores[0]);
+			console.log(`Set score1Text to: ${this.playerScores[0]}`);
+		}
+		if (this.Player2Info) {
+			this.Player2Info.text = this.playerNames[1];
+			console.log(`Set Player2Info to: ${this.playerNames[1]}`);
+		}
+		if (this.score2Text) {
+			this.score2Text.text = String(this.playerScores[1]);
+			console.log(`Set score2Text to: ${this.playerScores[1]}`);
+		}
 	}
 
 	/** Set player names and update display */
@@ -1216,6 +1435,11 @@ export class Pong3D {
 	public setBallVelocityConstant(speed: number): void {
 		this.BALL_VELOCITY_CONSTANT = Math.max(1, speed); // Minimum speed of 1
 		console.log('BALL_VELOCITY_CONSTANT ->', this.BALL_VELOCITY_CONSTANT);
+	}
+
+	public setOnGoalCallback(callback: (scoringPlayer: number, goalPlayer: number) => void): void {
+		this.onGoalCallback = callback;
+		console.log('Goal callback set');
 	}
 
 	public togglePaddleLogging(enabled?: boolean): void {
