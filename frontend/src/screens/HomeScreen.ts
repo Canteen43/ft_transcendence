@@ -1,6 +1,10 @@
-import { Screen } from '../components/Screen';
-import { PlaceholderModal } from '../modals/PlaceholderModal';
 import { Button } from '../components/Button';
+import { Screen } from '../components/Screen';
+import type { GameOptions } from '../misc/GameOptions';
+import { LoginButton } from '../misc/LoginButton';
+import { PlaceholderModal } from '../modals/PlaceholderModal';
+
+export let gameOptions: GameOptions | null = null;
 
 export class HomeScreen extends Screen {
 	constructor() {
@@ -28,6 +32,8 @@ export class HomeScreen extends Screen {
 		this.element.appendChild(buttonContainer);
 
 		// Buttons
+		void new LoginButton(this.element);
+
 		void new Button(
 			'Postman Mock-Request',
 			async () => {
@@ -49,6 +55,7 @@ export class HomeScreen extends Screen {
 				const timestamp = Date.now();
 				const newUser = {
 					login: `test_${timestamp}`,
+					// login: `helene`,
 					first_name: 'Test',
 					last_name: 'User',
 					email: 'test.user@example.com',
@@ -79,7 +86,12 @@ export class HomeScreen extends Screen {
 		void new Button(
 			'Local 1v1',
 			() => {
-				void new PlaceholderModal(this.element);
+				gameOptions = {
+					type: 'local',
+					playerCount: 2,
+					thisPlayer: 1,
+				};
+				location.hash = '#game';
 			},
 			buttonContainer
 		);

@@ -1,4 +1,4 @@
-import { Screen } from '../components/Screen'; // import your base Screen class
+import { Screen } from '../components/Screen';
 import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { TournamentScreen } from '../screens/TournamentScreen';

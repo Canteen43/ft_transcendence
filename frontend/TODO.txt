@@ -1,4 +1,4 @@
-DONE:
+LEARNED:
 - How do HTML, CSS and JS integrate
 	- Ways to integrate CSS
 		-> inline: <example style="[here]">
@@ -22,7 +22,7 @@ DONE:
 - How does Bootstrap work
 	-> Access components via class="comp."
 - How does Tailwind work
-	-> Access utilities via class="util."
+	-> Access utilities via class="utility"
 	- Including it with CDN
 		-> "dirty" way. <script src="https://cdn.tailwindcss.com"></script>
 	- Building with npx and input.css
@@ -95,7 +95,7 @@ DONE:
 - How does debug setting work for Vite + TS
 	-> add "npm run dev" as task in tasks.json
 	-> add "pwa-chrome" as type and "run dev" as preLaunchTask in launch.json
-- TS: Do I need any typescript setup when using vite?
+- Do I need any TypeScript setup when using vite
 	-> not for developing or building
 		-> Vite does that
 		-> VS code does type checks inside the files
@@ -190,23 +190,30 @@ DONE:
 	-> objects and arrays:
 		-> arrays get type that applies to all elements
 		-> objects elements types cannot be changed and no elements can be added
+- Where to hash passwords
+	-> in the backend
+	-> backend can hash and apply salts with more control
+	-> hashing is about avoiding plain storage, not transmission security
+- What is a JWT
+	-> proofs that user has logged in
+	-> server does not need to keep a session register
+	-> three parts:
+		-> header (base64)
+			-> token and signature encryption type
+		-> payload (base64)
+			-> e.g. id, role, expiry
+		-> signature
+			-> created by hashing header plus payload with a private key on server
+	-> client can resend its given jwt but not generated one
+	-> server can verify token realness by re-running encryption and checking signature
+	-> Common problem:
+		-> Tokens still work after logout unless a blacklist is kept
+			-> blacklist defeats original purpose
 
 TODO:
-Project:
-- Integrate Rufus' work
+- Create WebSocket
 
-- Add my fix for routing logic
-
-- Add chrome launcher to compound launch.json?
-
-- Create web socket
-- Start working on login
-- Design tournament creation modal
-- Make Tournament Creation Modal
-
-Learn:
-- Learn about Session History API
-	- What does the URL mean?
-	- What happens when the URL is manipulated?
-	- What states exactly are saved?
-	- What exactly do elements look like?
+- Add API call wrapper
+- Continue with auth request
+- Save JWT as variable
+- Restructure frontend files into screen groups
