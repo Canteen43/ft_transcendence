@@ -32,6 +32,7 @@ export const ERROR_FAILED_TO_UPDATE_MATCH = 'Failed to update match';
 export const ERROR_FAILED_TO_UPDATE_PARTICIPANT =
 	'Failed to update participant';
 export const ERROR_FAILED_TO_UPDATE_TOURNAMENT = 'Failed to update tournament';
+export const ERROR_PLAYER_NOT_FOUND = 'Player not found in match';
 
 export const TOKEN_VALIDITY_PERIOD = '1h';
 
@@ -47,6 +48,7 @@ export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
 export const EMPTY_PLAYER: Player = {
 	userId: EMPTY_UUID,
 	score: 0,
+	paddlePos: 0,
 	status: ParticipantStatus.Pending,
 };
 
@@ -60,6 +62,7 @@ export const MESSAGE_MOVE = 'm';
 export const MESSAGE_ACCEPT = 'a';
 export const MESSAGE_DECLINE = 'd';
 export const MESSAGE_GAME_STATE = 'g';
+export const MESSAGE_POINT = 'x';
 
 export const INVITATION_MESSAGE = { t: MESSAGE_INITIATE_MATCH };
 export const MATCH_START_MESSAGE = { t: MESSAGE_START };

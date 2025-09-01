@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { UUID } from '../../shared/types.js';
-import { GameService } from '../services/game_service.js';
+import { GameService } from '../game/game_service.js';
 import { GameSocket } from '../types/interfaces.js';
 
 export const connections: Map<UUID, GameSocket> = new Map(); // Links connectionId to socket

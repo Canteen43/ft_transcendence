@@ -15,7 +15,6 @@ export class Match {
 	ballCoordinate: Vect2;
 	ballDirection: Vect2;
 	status: MatchStatus;
-	paddlePos: number[];
 
 	constructor(match_id: UUID, users: UUID[], creator: UUID) {
 		this.matchId = match_id;
@@ -23,10 +22,10 @@ export class Match {
 		this.ballCoordinate = { x: FIELD_WIDTH / 2, y: FIELD_HEIGTH / 2 };
 		this.ballDirection = this.normalize({ x: 1, y: Math.random() * 2 });
 		this.status = MatchStatus.Pending;
-		this.paddlePos = new Array(users.length).fill(0);
 		this.players = users.map(userId => ({
 			userId: userId,
 			score: 0,
+			paddlePos: 0,
 			status:
 				userId == creator
 					? ParticipantStatus.Accepted
