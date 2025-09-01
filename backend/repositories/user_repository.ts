@@ -45,7 +45,7 @@ export default class UserRepository {
 
 	static authenticateUser(request: AuthRequest): User | null {
 		const row = db.queryOne<User>(
-			`SELECT login, first_name, last_name, email
+			`SELECT id, login, first_name, last_name, email
 			FROM ${this.table}
 			WHERE login = ? AND password_hash = ?`,
 			[request.login, request.password_hash]

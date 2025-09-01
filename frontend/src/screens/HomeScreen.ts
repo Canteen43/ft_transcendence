@@ -52,6 +52,7 @@ export class HomeScreen extends Screen {
 				const timestamp = Date.now();
 				const newUser = {
 					login: `test_${timestamp}`,
+					// login: `helene`,
 					first_name: 'Test',
 					last_name: 'User',
 					email: 'test.user@example.com',

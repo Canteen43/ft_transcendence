@@ -9,6 +9,7 @@ import {
 	AuthRequest,
 	AuthRequestSchema,
 	AuthResponse,
+	AuthResponseSchema,
 	CreateUser,
 	CreateUserSchema,
 	User,
@@ -95,7 +96,7 @@ export default async function userRoutes(
 		'/auth',
 		routeConfig({
 			body: AuthRequestSchema,
-			response: UserSchema,
+			response: AuthResponseSchema,
 			secure: false,
 		}),
 		authenticate

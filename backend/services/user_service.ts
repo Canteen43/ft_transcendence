@@ -28,11 +28,12 @@ export default class UserService {
 		const user: User | null = UserRepository.authenticateUser(authRequest);
 		if (!user)
 			throw new AuthenticationFailedError(ERROR_INVALID_CREDENTIALS);
-		return AuthResponseSchema.parse({
-			id: user.id,
-			token: jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+		const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
 				expiresIn: TOKEN_VALIDITY_PERIOD,
-			}),
+			});
+		return AuthResponseSchema.parse({
+			login: user.login,
+			token: token,
 		});
 	}
 
