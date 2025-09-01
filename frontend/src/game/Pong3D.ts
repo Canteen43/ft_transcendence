@@ -4,8 +4,8 @@ import * as BABYLON from '@babylonjs/core';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-// import type { GameOptions } from '../misc/GameOptions';
-// import { gameOptions } from '../screens/HomeScreen';
+import type { GameOptions } from '../misc/GameOptions';
+import { gameOptions } from '../screens/HomeScreen';
 import { Pong3DInput } from './Pong3DInput';
 import { createPong3DUI } from './Pong3DUI';
 
@@ -95,18 +95,6 @@ export class Pong3D {
 		| ((i: number, pos: 'top' | 'bottom' | 'left' | 'right') => void)
 		| null = null;
 
-	// // Check if game Options can be read
-	// if(gameOptions) {
-	// 	alert(
-	// 		'Player Count: ' +
-	// 			gameOptions.playerCount +
-	// 			', This Player: ' +
-	// 			gameOptions.thisPlayer +
-	// 			', Game Type: ' +
-	// 			gameOptions.type
-	// 	);
-	// }
-
 	// Player data - simplified to arrays for uniform handling
 	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helen'];
 	private playerScores: number[] = [0, 0, 0, 0];
@@ -185,6 +173,7 @@ export class Pong3D {
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
 		// Set player count and determine model URL
+
 		this.activePlayerCount = options?.playerCount || DEFAULT_PLAYER_COUNT;
 		this.initialPlayerCount = this.activePlayerCount; // Store initial count
 		const modelUrl =
@@ -221,6 +210,18 @@ export class Pong3D {
 		this.setupCamera();
 		this.setupEventListeners();
 		this.loadModel(modelUrl);
+
+		// TODO: Remove this block. Its purpose was to showcase that gameOptions are accessible
+		if (gameOptions) {
+			alert(
+				'Player Count: ' +
+					gameOptions.playerCount +
+					', This Player: ' +
+					gameOptions.thisPlayer +
+					', Game Type: ' +
+					gameOptions.type
+			);
+		}
 	}
 
 	private loadModel(modelUrl: string): void {
