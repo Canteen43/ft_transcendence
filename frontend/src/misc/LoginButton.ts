@@ -14,3 +14,5 @@ export class LoginButton extends Button {
 		this.element.classList.add('absolute', 'top-4', 'right-4');
 	}
 }
+
+

@@ -5,7 +5,8 @@
 // } from '../../../shared/schemas/user.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
-// import { apiCall } from '../utils/apiCall.ts';
+import { RegisterModal } from './RegisterModal';
+// import { ForgottenPwModal } from './ForgottenPwModal';
 
 export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -35,26 +36,59 @@ export class LoginModal extends Modal {
 		PasswordField.placeholder = 'Enter your password';
 		PasswordField.className = 'border border-gray-300 rounded p-2';
 		this.box.appendChild(PasswordField);
-
+		
 		void new Button(
 			'Login',
 			async () => {
 				const username = UsernameField.value;
 				const password = PasswordField.value;
-
-				const response = await apiCall<AuthResponse>(
-					'/users/auth',
-					AuthResponseSchema,
-					{
-						username,
-						password,
+				
+				// fastify.post<{ Body: AuthRequest }>('/auth', getHttpResponse({ body: AuthRequestSchema, response: UserSchema }), authenticate);
+				// export const AuthRequestSchema = z.object({ login: z.string(),password_hash: z.string(),});	},this.box);
+				try {
+					const response = await fetch('/users/auth', {
+						method : 'POST',
+						headers: { 'Content-Type': 'application/json', },
+						body: JSON.stringify({
+							login: username,
+							password_hash: password,
+						})
+					});
+					if (response.ok) {
+						const authData = await response.json();
+						console.log('Login successful:', authData);
+						this.destroy();
 					}
-				);
-				if (response) {
-					alert('Login successful!');
+					else {
+						console.error('Login unsuccessful');
+					}
+				}
+				catch (error) {
+					console.error('Login error:', error);
 				}
 			},
 			this.box
 		);
+
+		// Create a password input
+		const RegisterLink = document.createElement('button');
+		RegisterLink.textContent = 'No account yet? Register here';
+		RegisterLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
+		RegisterLink.onclick = () => { 
+			this.destroy();
+			new RegisterModal(parent);
+		}
+		this.box.appendChild(RegisterLink);
+
+		// Create a password input
+		const ForgotPasswordLink = document.createElement('button');
+		ForgotPasswordLink.textContent = 'I forgot my password';
+		ForgotPasswordLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
+		ForgotPasswordLink.onclick  = () => { 
+			this.destroy();
+			// new ForgottenPwModal(this.parent);
+		}
+		this.box.appendChild(ForgotPasswordLink);
 	}
 }
+
