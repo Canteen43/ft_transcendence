@@ -1,5 +1,3 @@
-'use strict';
-
 import fastifyCors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import fastifySwagger from '@fastify/swagger';
@@ -13,6 +11,7 @@ import {
 	validatorCompiler,
 } from 'fastify-zod-openapi';
 import { authHook } from './hooks/auth.js';
+import matchRoutes from './routes/match.js';
 import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
 import websocketRoutes from './routes/websocket.js';
@@ -57,6 +56,7 @@ export default async function fastifyInit(
 	// Load routes
 	await fastify.register(userRoutes, { prefix: '/users' });
 	await fastify.register(tournamentRoutes, { prefix: '/tournaments' });
+	await fastify.register(matchRoutes, { prefix: '/matches' });
 	await fastify.register(websocketRoutes, { prefix: '/websocket' });
 
 	fastify.addHook('preHandler', authHook);

@@ -12,23 +12,29 @@ import { Match, UpdateMatchSchema } from '../../shared/schemas/match.js';
 import type { UpdateMatchArray } from '../../shared/types.js';
 import { UUID } from '../../shared/types.js';
 import MatchRepository from '../repositories/match_repository.js';
+import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentService from './tournament_service.js';
 
 export default class MatchService {
-	static pointScored(match_id: UUID, participant_id: UUID) {
-		const match = MatchRepository.getMatch(match_id);
-		if (!match) throw new MatchNotFoundError(match_id);
+	static processPointAndCheckMatchFinished(
+		matchId: UUID,
+		userId: UUID
+	): boolean {
+		const match = MatchRepository.getMatch(matchId);
 
-		if (participant_id === match.participant_1_id)
-			match.participant_1_score += 1;
+		if (!match) throw new MatchNotFoundError(matchId);
+		const userId1 = ParticipantRepository.getMatchParticipantUserId(
+			match.participant_1_id
+		);
+		if (userId === userId1) match.participant_1_score += 1;
 		else match.participant_2_score += 1;
 
-		const { updateMatches, tournamentFinished } =
-			this.handleFinishedMatch(match);
+		const { updateMatches, matchFinished, tournamentFinished } =
+			this.checkMatchFinished(match);
 
 		updateMatches.push({
-			id: match_id,
+			id: matchId,
 			updateMatch: UpdateMatchSchema.strip().parse(match),
 		});
 
@@ -37,9 +43,10 @@ export default class MatchService {
 			updateMatches,
 			tournamentFinished
 		);
+		return matchFinished;
 	}
 
-	private static handleFinishedMatch(match: Match) {
+	private static checkMatchFinished(match: Match) {
 		const updateMatches: UpdateMatchArray = [];
 		let tournamentFinished = false;
 
@@ -59,7 +66,7 @@ export default class MatchService {
 			tournamentFinished = finished;
 		}
 
-		return { updateMatches, tournamentFinished };
+		return { updateMatches, matchFinished, tournamentFinished };
 	}
 
 	private static checkRoundFinished(

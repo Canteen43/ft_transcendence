@@ -6,22 +6,22 @@ DROP TABLE IF EXISTS settings;
 
 CREATE TABLE settings (
 	id TEXT PRIMARY KEY DEFAULT (
-	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
-	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
-	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    lower(hex(randomblob(6)))
+		lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+		lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+		'4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		lower(hex(randomblob(6)))
 	),
 	max_score INTEGER
 );
 
 CREATE TABLE "user" (
 	id TEXT PRIMARY KEY DEFAULT (
-	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
-	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
-	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    lower(hex(randomblob(6)))
+		lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+		lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+		'4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		lower(hex(randomblob(6)))
 	),
 	login TEXT NOT NULL,
 	first_name TEXT,
@@ -34,11 +34,11 @@ CREATE TABLE "user" (
 
 CREATE TABLE tournament (
 	id TEXT PRIMARY KEY DEFAULT (
-	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
-	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
-	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    lower(hex(randomblob(6)))
+		lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+		lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+		'4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		lower(hex(randomblob(6)))
 	),
 	size INTEGER,
 	settings TEXT,
@@ -47,11 +47,11 @@ CREATE TABLE tournament (
 
 CREATE TABLE tournament_participant (
 	id TEXT PRIMARY KEY DEFAULT (
-	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
-	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
-	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    lower(hex(randomblob(6)))
+		lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+		lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+		'4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		lower(hex(randomblob(6)))
 	),
 	tournament_id TEXT REFERENCES tournament(id),
 	user_id TEXT REFERENCES "user"(id),
@@ -61,11 +61,11 @@ CREATE TABLE tournament_participant (
 
 CREATE TABLE tournament_match (
 	id TEXT PRIMARY KEY DEFAULT (
-	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
-	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
-	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
-	    lower(hex(randomblob(6)))
+		lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+		lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+		'4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+		lower(hex(randomblob(6)))
 	),
 	tournament_id TEXT REFERENCES tournament(id),
 	tournament_round INTEGER,
@@ -87,19 +87,19 @@ BEFORE INSERT ON tournament_match
 FOR EACH ROW
 WHEN NEW.participant_1_id IS NOT NULL AND NEW.participant_2_id IS NOT NULL
 BEGIN
-    SELECT RAISE(ABORT, 'Both participants must belong to the same tournament')
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM tournament_participant
-        WHERE tournament_id = NEW.tournament_id
-        AND id = NEW.participant_1_id
-    )
-    OR NOT EXISTS (
-        SELECT 1
-        FROM tournament_participant
-        WHERE tournament_id = NEW.tournament_id
-        AND id = NEW.participant_2_id
-    );
+	SELECT RAISE(ABORT, 'Both participants must belong to the same tournament')
+	WHERE NOT EXISTS (
+		SELECT 1
+		FROM tournament_participant
+		WHERE tournament_id = NEW.tournament_id
+		AND id = NEW.participant_1_id
+	)
+	OR NOT EXISTS (
+		SELECT 1
+		FROM tournament_participant
+		WHERE tournament_id = NEW.tournament_id
+		AND id = NEW.participant_2_id
+	);
 END;
 
 DROP TRIGGER IF EXISTS validate_same_tournament_update;
@@ -108,17 +108,17 @@ BEFORE UPDATE ON tournament_match
 FOR EACH ROW
 WHEN NEW.participant_1_id IS NOT NULL AND NEW.participant_2_id IS NOT NULL
 BEGIN
-    SELECT RAISE(ABORT, 'Both participants must belong to the same tournament')
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM tournament_participant
-        WHERE tournament_id = NEW.tournament_id
-        AND id = NEW.participant_1_id
-    )
-    OR NOT EXISTS (
-        SELECT 1
-        FROM tournament_participant
-        WHERE tournament_id = NEW.tournament_id
-        AND id = NEW.participant_2_id
-    );
+	SELECT RAISE(ABORT, 'Both participants must belong to the same tournament')
+	WHERE NOT EXISTS (
+		SELECT 1
+		FROM tournament_participant
+		WHERE tournament_id = NEW.tournament_id
+		AND id = NEW.participant_1_id
+	)
+	OR NOT EXISTS (
+		SELECT 1
+		FROM tournament_participant
+		WHERE tournament_id = NEW.tournament_id
+		AND id = NEW.participant_2_id
+	);
 END;

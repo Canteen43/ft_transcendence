@@ -14,5 +14,6 @@ export interface GameSocket extends WebSocket {
 export interface Player {
 	userId: UUID;
 	score: number;
+	paddlePos: number;
 	status: ParticipantStatus;
 }

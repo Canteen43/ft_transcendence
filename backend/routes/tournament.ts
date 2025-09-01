@@ -1,9 +1,6 @@
-'use strict';
-
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
-import { TournamentNotFoundError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import {
 	CreateTournamentApi,
@@ -48,7 +45,7 @@ async function getTournament(
 	}
 	if (!result)
 		throw request.server.httpErrors.notFound(
-			constants.ERROR_USER_NOT_FOUND
+			constants.ERROR_TOURNAMENT_NOT_FOUND
 		);
 	return result;
 }
