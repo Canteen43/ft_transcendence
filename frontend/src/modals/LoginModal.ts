@@ -7,7 +7,7 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
-// import { ForgottenPwModal } from './ForgottenPwModal';
+// import { ForgottenModal } from './ForgottenModal';
 
 export class LoginModal extends Modal {
 	private UsernameField:HTMLInputElement;
@@ -85,7 +85,6 @@ export class LoginModal extends Modal {
 	}
 
 	private handleForgot(parent: HTMLElement) { 
-		this.destroy();
-		// new ForgottenPwModal(this.parent);
+		// new ForgottenModal(parent);
 	}
 }
