@@ -211,26 +211,11 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-Project:
-- Pass Info to game screen (player count, local vs remote)
 - Create WebSocket
-- How to handle database ignoring
 
+- How to handle database ignoring
 - Run Backend as task
 - Add API call wrapper
-
 - Continue with auth request
 - Save JWT as variable
-
 - Restructure frontend files into screen groups
-
-- Create web socket
-	- Add websocket class
-	- Make Websocket Connection Button (Helene)
-	- Display everything that is send over websocket
-	- How to pass events to game screen?
-
-- Add music
-- Design tournament creation modal
-- Make Tournament Creation Modal
-- Add more closing functionality to modals
