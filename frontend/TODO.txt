@@ -214,6 +214,5 @@ TODO:
 - Create WebSocket
 
 - Add API call wrapper
-- Continue with auth request
 - Save JWT as variable
 - Restructure frontend files into screen groups
