@@ -17,16 +17,15 @@ import {
 	User,
 } from '../../shared/schemas/user.js';
 import UserRepository from '../repositories/user_repository.js';
-import { AuthPayload } from '../types/auth_payload.js';
+import { AuthPayload } from '../types/interfaces.js';
 
 export default class UserService {
-	static async authenticate(authRequest: AuthRequest): Promise<AuthResponse> {
+	static authenticate(authRequest: AuthRequest): AuthResponse {
 		if (!process.env.JWT_SECRET)
 			throw new AuthenticationError(
 				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
 			);
-		const user: User | null =
-			await UserRepository.authenticateUser(authRequest);
+		const user: User | null = UserRepository.authenticateUser(authRequest);
 		if (!user)
 			throw new AuthenticationFailedError(ERROR_INVALID_CREDENTIALS);
 		return AuthResponseSchema.parse({

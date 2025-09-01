@@ -13,9 +13,17 @@ export class TournamentNotFoundError extends Error {
 }
 
 export class MatchNotFoundError extends Error {
-	constructor(id: string) {
-		super(`Match not found: ${id}`);
+	constructor(id?: string) {
+		if (id) super(`Match not found: ${id}`);
+		else super('Match not found');
 		this.name = 'MatchNotFoundError';
+	}
+}
+
+export class MatchNotReadyError extends Error {
+	constructor(id: string) {
+		super(`Match not ready to start: ${id}`);
+		this.name = 'MatchNotReadyError';
 	}
 }
 
@@ -26,10 +34,24 @@ export class ParticipantNotFoundError extends Error {
 	}
 }
 
+export class ConnectionError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'ConnectionError';
+	}
+}
+
 export class DatabaseError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = 'DatabaseError';
+	}
+}
+
+export class ProtocolError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'ProtocolError';
 	}
 }
 

@@ -10,6 +10,7 @@ export enum MatchStatus {
 	InProgress = 'in_progress',
 	Finished = 'finished',
 	Cancelled = 'cancelled',
+	Paused = 'paused',
 }
 
 export enum ParticipantStatus {

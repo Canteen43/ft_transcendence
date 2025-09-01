@@ -13,9 +13,11 @@ async function authenticateRequest(request: FastifyRequest) {
 		if (!authHeader) throw new AuthenticationFailedError(ERROR_NO_TOKEN);
 
 		// Expect header like "Bearer <token>"
-		const token = authHeader.split(' ')[1];
-		if (!token) throw new AuthenticationFailedError(ERROR_MALFORMED_TOKEN);
+		const parts = authHeader.split(' ')[1];
+		if (parts[0] !== 'Bearer' || !parts[1])
+			throw new AuthenticationFailedError(ERROR_MALFORMED_TOKEN);
 
+		const token = parts[1];
 		request.user = UserService.verifyToken(token);
 	} catch (error) {
 		if (error instanceof AuthenticationFailedError)
@@ -27,11 +29,6 @@ async function authenticateRequest(request: FastifyRequest) {
 	}
 }
 
-export function authWrapper<RouteGeneric extends RouteGenericInterface = {}>(
-	handler: (request: FastifyRequest<RouteGeneric>) => any | Promise<any>
-) {
-	return async (request: FastifyRequest<RouteGeneric>) => {
-		//await authenticateRequest(request);
-		return handler(request);
-	};
-}
+export const authHook = async (request: FastifyRequest) => {
+	//await authenticateRequest(request);
+};

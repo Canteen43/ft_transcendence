@@ -16,16 +16,16 @@ import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentService from './tournament_service.js';
 
 export default class MatchService {
-	static async pointScored(match_id: UUID, participant_id: UUID) {
-		const match = await MatchRepository.getMatch(match_id);
+	static pointScored(match_id: UUID, participant_id: UUID) {
+		const match = MatchRepository.getMatch(match_id);
 		if (!match) throw new MatchNotFoundError(match_id);
 
-		if (participant_id == match.participant_1_id)
+		if (participant_id === match.participant_1_id)
 			match.participant_1_score += 1;
 		else match.participant_2_score += 1;
 
 		const { updateMatches, tournamentFinished } =
-			await this.handleFinishedMatch(match);
+			this.handleFinishedMatch(match);
 
 		updateMatches.push({
 			id: match_id,
@@ -39,11 +39,11 @@ export default class MatchService {
 		);
 	}
 
-	private static async handleFinishedMatch(match: Match) {
+	private static handleFinishedMatch(match: Match) {
 		const updateMatches: UpdateMatchArray = [];
 		let tournamentFinished = false;
 
-		const matchFinished = await this.matchFinished(
+		const matchFinished = this.matchFinished(
 			match.tournament_id,
 			match.participant_1_score,
 			match.participant_2_score
@@ -51,7 +51,7 @@ export default class MatchService {
 
 		if (matchFinished) {
 			match.status = MatchStatus.Finished;
-			const [newRound, finished] = await this.checkRoundFinished(
+			const [newRound, finished] = this.checkRoundFinished(
 				match.tournament_id,
 				match.tournament_round
 			);
@@ -62,13 +62,13 @@ export default class MatchService {
 		return { updateMatches, tournamentFinished };
 	}
 
-	private static async checkRoundFinished(
+	private static checkRoundFinished(
 		tournament_id: UUID,
 		tournament_round: number
-	): Promise<[newRound: UpdateMatchArray, tournamentFinished: boolean]> {
+	): [newRound: UpdateMatchArray, tournamentFinished: boolean] {
 		var tournamentFinished = false;
 		const newRound: UpdateMatchArray = [];
-		const unfinished = await MatchRepository.getNumberOfUnfinishedMatches(
+		const unfinished = MatchRepository.getNumberOfUnfinishedMatches(
 			tournament_id,
 			tournament_round
 		);
@@ -76,33 +76,26 @@ export default class MatchService {
 		// Current match status hasn't been updated yet,
 		// so unfinished == 1 means round is over
 		if (unfinished <= 1) {
-			const rounds =
-				await TournamentService.getNumberOfRounds(tournament_id);
+			const rounds = TournamentService.getNumberOfRounds(tournament_id);
 			if (tournament_round == rounds) tournamentFinished = true;
 			else {
 				newRound.push(
-					...(await this.startNewRound(
-						tournament_id,
-						tournament_round + 1
-					))
+					...this.startNewRound(tournament_id, tournament_round + 1)
 				);
 			}
 		}
 		return [newRound, tournamentFinished];
 	}
 
-	private static async startNewRound(
+	private static startNewRound(
 		tournament_id: UUID,
 		round: number
-	): Promise<UpdateMatchArray> {
-		var participants = await MatchRepository.getWinners(
-			tournament_id,
-			round
-		);
+	): UpdateMatchArray {
+		var participants = MatchRepository.getWinners(tournament_id, round);
 		if (!participants.length)
 			throw new DatabaseError(ERROR_RETRIEVING_WINNERS);
 
-		var matches = await MatchRepository.getTournamentMatches(
+		var matches = MatchRepository.getTournamentMatches(
 			tournament_id,
 			round
 		);
@@ -123,13 +116,13 @@ export default class MatchService {
 		return newRound;
 	}
 
-	private static async matchFinished(
+	private static matchFinished(
 		tournament_id: UUID,
 		score_1: number,
 		score_2: number
-	): Promise<boolean> {
+	): boolean {
 		const settings =
-			await SettingsRepository.getSettingsByTournamentId(tournament_id);
+			SettingsRepository.getSettingsByTournamentId(tournament_id);
 		if (!settings)
 			throw new SettingsNotFoundError('tournament', tournament_id);
 		if (score_1 == settings.max_score || score_2 == settings.max_score)

@@ -1,6 +1,6 @@
 {
 	"name": "transcendence",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"type": "module",
 	"description": "Transcendence",
 	"main": "backend/app.js",
@@ -24,7 +24,10 @@
 		"@fastify/sensible": "^6.0.0",
 		"@fastify/swagger": "^9.5.1",
 		"@fastify/swagger-ui": "^5.2.3",
+		"@fastify/websocket": "^11.2.0",
+		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^24.2.0",
+		"better-sqlite3": "^12.2.0",
 		"cannon-es": "^0.20.0",
 		"fastify": "^5.0.0",
 		"fastify-cli": "^7.4.0",
