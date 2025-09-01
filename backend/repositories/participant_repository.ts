@@ -1,77 +1,89 @@
-'use strict';
-
 import z from 'zod';
+import {
+	ERROR_FAILED_TO_CREATE_PARTICIPANT,
+	ERROR_FAILED_TO_UPDATE_PARTICIPANT,
+} from '../../shared/constants.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import {
 	CreateParticipant,
 	Participant,
 	ParticipantSchema,
+	UpdateParticipant,
 } from '../../shared/schemas/participant.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
 
 export default class ParticipantRepository {
 	static table = 'tournament_participant';
+	static fields = 'id, tournament_id, user_id, status';
 
-	static async getParticipant(
-		participant_id: UUID
-	): Promise<Participant | null> {
-		const result = await db.pool.query<Participant>(
-			`SELECT	id,
-					tournament_id,
-					user_id,
-					status
-			FROM ${this.table}
-			WHERE participant_id = $1`,
-			[participant_id]
-		);
-		if (!result.rowCount) return null;
-		return ParticipantSchema.parse(result.rows);
+	// Overloaded function for get participant
+	// Takes a participant_id or
+	// a tournament_id plus user_id
+	static getParticipant(participant_id: UUID): Participant | null;
+	static getParticipant(
+		tournament_id: UUID,
+		user_id: UUID
+	): Participant | null;
+	static getParticipant(arg1: UUID, arg2?: UUID): Participant | null {
+		let query: string;
+		let params: any[];
+
+		if (arg2 === undefined) {
+			query = `SELECT ${this.fields} FROM ${this.table} WHERE id = ?`;
+			params = [arg1];
+		} else {
+			query = `SELECT ${this.fields} FROM ${this.table} WHERE tournament_id = ? AND user_id = ?`;
+			params = [arg1, arg2];
+		}
+
+		const result = db.queryOne<Participant>(query, params);
+		if (!result) return null;
+		return ParticipantSchema.parse(result);
 	}
 
-	static async getTournamentParticipants(
-		tournament_id: UUID
-	): Promise<Participant[]> {
-		const result = await db.pool.query<Participant>(
-			`SELECT	id,
-					tournament_id,
-					user_id,
-					status
-			FROM ${this.table}
-			WHERE tournament_id = $1`,
+	static getTournamentParticipants(tournament_id: UUID): Participant[] {
+		const results = db.queryAll<Participant>(
+			`SELECT ${this.fields} FROM ${this.table} WHERE tournament_id = ?`,
 			[tournament_id]
 		);
-		return z.array(ParticipantSchema).parse(result.rows);
+		return z.array(ParticipantSchema).parse(results);
 	}
 
-	static async createParticipant(
+	static createParticipant(
 		tournament_id: UUID,
 		participant: CreateParticipant
-	): Promise<Participant> {
-		const result = await db.getClient().query<Participant>(
-			`INSERT INTO ${this.table} (
-				tournament_id,
-				user_id,
-				status
-			) VALUES ($1, $2, $3)
-			RETURNING id,
-				tournament_id,
-				user_id,
-				status;`,
+	): Participant {
+		const createdParticipant = db.queryOne<Participant>(
+			`INSERT INTO ${this.table} (tournament_id, user_id, status)
+			VALUES (?, ?, ?)
+			RETURNING ${this.fields}`,
 			[tournament_id, participant.user_id, participant.status]
 		);
-		if (result.rowCount == 0)
-			throw new DatabaseError('Failed to create participant');
-		return ParticipantSchema.parse(result.rows[0]);
+
+		if (!createdParticipant)
+			throw new DatabaseError(ERROR_FAILED_TO_CREATE_PARTICIPANT);
+
+		return ParticipantSchema.parse(createdParticipant);
 	}
 
-	static async createParticipants(
-		tournament_id: UUID,
-		participants: CreateParticipant[]
-	): Promise<Array<Participant>> {
-		const result = await Promise.all(
-			participants.map(p => this.createParticipant(tournament_id, p))
-		);
-		return result;
+	static updateParticipant(
+		participant_id: UUID,
+		upd: UpdateParticipant
+	): Participant {
+		return db.executeInTransaction(() => {
+			const updatedParticipant = db.queryOne<Participant>(
+				`UPDATE ${this.table}
+				SET status = ?
+				WHERE id = ?
+				RETURNING ${this.fields}`,
+				[upd.status, participant_id]
+			);
+
+			if (!updatedParticipant)
+				throw new DatabaseError(ERROR_FAILED_TO_UPDATE_PARTICIPANT);
+
+			return ParticipantSchema.parse(updatedParticipant);
+		});
 	}
 }

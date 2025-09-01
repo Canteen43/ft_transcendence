@@ -4,93 +4,121 @@ DROP TABLE IF EXISTS tournament;
 DROP TABLE IF EXISTS "user";
 DROP TABLE IF EXISTS settings;
 
-DROP TYPE IF EXISTS tournament_status;
-DROP TYPE IF EXISTS match_status;
-DROP TYPE IF EXISTS participant_status;
-
-DROP FUNCTION IF EXISTS validate_same_tournament;
-
-CREATE TYPE tournament_status AS ENUM (
-	'pending',
-	'in_progress',
-	'finished'
-);
-
-CREATE TYPE match_status AS ENUM (
-	'pending',
-	'in_progress',
-	'finished'
-);
-
-CREATE TYPE participant_status AS ENUM (
-	'creator',
-	'pending',
-	'accepted'
-);
-
-CREATE FUNCTION validate_same_tournament(
-	p_tournament_id uuid,
-	p_participant_1_id uuid,
-	p_participant_2_id uuid
-) RETURNS boolean AS $$ BEGIN
-	IF p_participant_1_id IS NULL OR p_participant_2_id IS NULL THEN
-		RETURN TRUE;
-	END IF;
-	RETURN (
-		SELECT COUNT(*) = 2
-		FROM tournament_participant
-		WHERE tournament_id = p_tournament_id
-		AND   id IN (p_participant_1_id, p_participant_2_id)
-	);
-END;
-$$ LANGUAGE plpgsql;
-
 CREATE TABLE settings (
-	id			uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-	max_score	int
+	id TEXT PRIMARY KEY DEFAULT (
+	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    lower(hex(randomblob(6)))
+	),
+	max_score INTEGER
 );
 
 CREATE TABLE "user" (
-	id				uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-	login			varchar(128) NOT NULL,
-	first_name		varchar(128),
-	last_name		varchar(128),
-	email			varchar(128),
-	password_hash	text NOT NULL,
-	settings_id		uuid REFERENCES settings(id),
+	id TEXT PRIMARY KEY DEFAULT (
+	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    lower(hex(randomblob(6)))
+	),
+	login TEXT NOT NULL,
+	first_name TEXT,
+	last_name TEXT,
+	email TEXT,
+	password_hash TEXT NOT NULL,
+	settings_id TEXT REFERENCES settings(id),
 	CONSTRAINT unique_user_login UNIQUE (login)
 );
 
 CREATE TABLE tournament (
-	id 				uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-	size			int,
-	settings		uuid,
-	status			tournament_status
+	id TEXT PRIMARY KEY DEFAULT (
+	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    lower(hex(randomblob(6)))
+	),
+	size INTEGER,
+	settings TEXT,
+	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished'))
 );
 
 CREATE TABLE tournament_participant (
-	id				uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-	tournament_id	uuid REFERENCES tournament(id),
-	user_id			uuid REFERENCES "user"(id),
-	status			participant_status,
+	id TEXT PRIMARY KEY DEFAULT (
+	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    lower(hex(randomblob(6)))
+	),
+	tournament_id TEXT REFERENCES tournament(id),
+	user_id TEXT REFERENCES "user"(id),
+	status TEXT CHECK (status IN ('creator', 'pending', 'accepted')),
 	CONSTRAINT unique_tournament_user UNIQUE (tournament_id, user_id)
 );
 
 CREATE TABLE tournament_match (
-	id					uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-	tournament_id		uuid REFERENCES tournament(id),
-	tournament_round	int,
-	participant_1_id	uuid REFERENCES tournament_participant(id),
-	participant_2_id	uuid REFERENCES tournament_participant(id),
-	participant_1_score	int,
-	participant_2_score	int,
-	status				match_status
-
-	CONSTRAINT check_same_tournament CHECK (
-		validate_same_tournament(tournament_id, participant_1_id, participant_2_id)
+	id TEXT PRIMARY KEY DEFAULT (
+	    lower(substr(hex(randomblob(4)),1,8)) || '-' ||
+	    lower(substr(hex(randomblob(2)),1,4)) || '-' ||
+	    '4' || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
+	    lower(hex(randomblob(6)))
 	),
+	tournament_id TEXT REFERENCES tournament(id),
+	tournament_round INTEGER,
+	participant_1_id TEXT REFERENCES tournament_participant(id),
+	participant_2_id TEXT REFERENCES tournament_participant(id),
+	participant_1_score INTEGER,
+	participant_2_score INTEGER,
+	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished')),
 	CONSTRAINT check_different_participants CHECK (
 		participant_1_id != participant_2_id
 	)
 );
 
+-- Ensure match participants belong to the same tournament
+
+DROP TRIGGER IF EXISTS validate_same_tournament_insert;
+CREATE TRIGGER validate_same_tournament_insert
+BEFORE INSERT ON tournament_match
+FOR EACH ROW
+WHEN NEW.participant_1_id IS NOT NULL AND NEW.participant_2_id IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'Both participants must belong to the same tournament')
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM tournament_participant
+        WHERE tournament_id = NEW.tournament_id
+        AND id = NEW.participant_1_id
+    )
+    OR NOT EXISTS (
+        SELECT 1
+        FROM tournament_participant
+        WHERE tournament_id = NEW.tournament_id
+        AND id = NEW.participant_2_id
+    );
+END;
+
+DROP TRIGGER IF EXISTS validate_same_tournament_update;
+CREATE TRIGGER validate_same_tournament_update
+BEFORE UPDATE ON tournament_match
+FOR EACH ROW
+WHEN NEW.participant_1_id IS NOT NULL AND NEW.participant_2_id IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'Both participants must belong to the same tournament')
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM tournament_participant
+        WHERE tournament_id = NEW.tournament_id
+        AND id = NEW.participant_1_id
+    )
+    OR NOT EXISTS (
+        SELECT 1
+        FROM tournament_participant
+        WHERE tournament_id = NEW.tournament_id
+        AND id = NEW.participant_2_id
+    );
+END;

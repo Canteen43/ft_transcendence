@@ -19,7 +19,7 @@ type UpdateMatchEntry = {
 
 export type UpdateMatchArray = UpdateMatchEntry[];
 
-export interface Vector {
+export interface Vect2 {
 	x: number;
 	y: number;
 }

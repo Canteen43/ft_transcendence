@@ -15,6 +15,7 @@ import {
 import { authHook } from './hooks/auth.js';
 import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
+import websocketRoutes from './routes/websocket.js';
 
 // Pass --options via CLI arguments in command to enable these options.
 const options = {};
@@ -56,6 +57,7 @@ export default async function fastifyInit(
 	// Load routes
 	await fastify.register(userRoutes, { prefix: '/users' });
 	await fastify.register(tournamentRoutes, { prefix: '/tournaments' });
+	await fastify.register(websocketRoutes, { prefix: '/websocket' });
 
 	fastify.addHook('preHandler', authHook);
 }

@@ -1,6 +1,9 @@
-'use strict';
-
+import { match } from 'assert';
 import z from 'zod';
+import {
+	ERROR_FAILED_TO_CREATE_MATCH,
+	ERROR_FAILED_TO_UPDATE_MATCH,
+} from '../../shared/constants.js';
 import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
@@ -21,89 +24,83 @@ import * as db from '../utils/db.js';
 import TournamentRepository from './tournament_repository.js';
 
 export default class MatchRepository {
-	static table = '"tournament_match"';
+	static table = 'tournament_match';
 	static fields =
 		'id, tournament_id, tournament_round, participant_1_id, participant_2_id, participant_1_score, participant_2_score, status';
 
-	static async getMatch(match_id: UUID): Promise<Match | null> {
-		const result = await db.pool.query(
+	static getMatch(match_id: UUID): Match | null {
+		const result = db.queryOne(
 			`SELECT ${this.fields}
 			FROM ${this.table}
-			WHERE id = $1`,
+			WHERE id = ?`,
 			[match_id]
 		);
 
-		if (!result.rowCount) return null;
-		return MatchSchema.parse(result.rows[0]);
+		if (!result) return null;
+		return MatchSchema.parse(result);
 	}
 
-	static async getTournamentMatches(
+	static getTournamentMatches(
 		tournament_id: UUID,
 		tournament_round?: number
-	): Promise<Match[]> {
+	): Match[] {
 		var query = `
 		SELECT ${this.fields}
 		FROM ${this.table}
-		WHERE tournament_id = $1`;
+		WHERE tournament_id = ?`;
 
 		const params: any[] = [tournament_id];
 
 		if (tournament_round !== undefined) {
-			query += ` AND tournament_round = $2`;
+			query += ` AND tournament_round = ?`;
 			params.push(tournament_round);
 		}
 
-		const result = await db.pool.query<Match>(query, params);
-		return z.array(MatchSchema).parse(result.rows);
+		const result = db.queryAll<Match>(query, params);
+		return z.array(MatchSchema).parse(result);
 	}
 
-	static async getNumberOfUnfinishedMatches(
+	static getNumberOfUnfinishedMatches(
 		tournament_id: UUID,
 		tournament_round?: number
-	): Promise<number> {
+	): number {
 		var query = `
 		SELECT COUNT(*) as count
 		FROM ${this.table}
-		WHERE tournament_id = $1 AND status != $2`;
+		WHERE tournament_id = ? AND status != ?`;
 
 		const params: any[] = [tournament_id, MatchStatus.Finished];
 
 		if (tournament_round !== undefined) {
-			query += ` AND tournament_round = $3`;
+			query += ` AND tournament_round = ?`;
 			params.push(tournament_round);
 		}
 
-		const result = await db.pool.query(query, params);
-		return parseInt(result.rows[0].count);
+		const result = db.queryOne<{ count: number }>(query, params) as {
+			count: number;
+		};
+		return result.count;
 	}
 
-	static async getWinners(
-		tournament_id: UUID,
-		round: number
-	): Promise<UUID[]> {
-		const result = await db.pool.query(
+	static getWinners(tournament_id: UUID, round: number): UUID[] {
+		const result = db.queryAll<{ winner_id: UUID }>(
 			`SELECT
 				CASE
 					WHEN participant_1_score > participant_2_score THEN participant_1_id
 					ELSE participant_2_id
 				END as winner_id
 			FROM ${this.table}
-			WHERE tournament_id = $1
-				AND tournament_round = $2
-				AND status = $3
+			WHERE tournament_id = ?
+				AND tournament_round = ?
+				AND status = ?
 				AND (participant_1_score IS NOT NULL AND participant_2_score IS NOT NULL)`,
-			[tournament_id, round]
-		);
-		return result.rows.map(row => row.winner_id);
+			[tournament_id, round, MatchStatus.Finished]
+		) as { winner_id: UUID }[];
+		return result.map(row => row.winner_id);
 	}
 
-	static async createMatch(
-		tournament_id: UUID,
-		participant_1_id: UUID | null,
-		participant_2_id: UUID | null,
-		src: CreateMatch
-	): Promise<Match> {
-		const result = await db.getClient().query<Match>(
+	static createMatch(tournament_id: UUID, src: CreateMatch): Match {
+		const createdMatch = db.queryOne<Match>(
 			`INSERT INTO ${this.table} (
 				tournament_id,
 				tournament_round,
@@ -112,59 +109,57 @@ export default class MatchRepository {
 				participant_1_score,
 				participant_2_score,
 				status
-			) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING ${this.fields};`,
+			) VALUES (?, ?, ?, ?, ?, ?, ?)
+			RETURNING ${this.fields}`,
 			[
 				tournament_id,
 				src.tournament_round,
-				participant_1_id,
-				participant_2_id,
+				src.participant_1_id,
+				src.participant_2_id,
 				src.participant_1_score,
 				src.participant_2_score,
 				src.status,
 			]
 		);
-		if (result.rowCount == 0)
-			throw new DatabaseError('Failed to create match');
-		return MatchSchema.parse(result.rows[0]);
+
+		if (!createdMatch) {
+			throw new DatabaseError(ERROR_FAILED_TO_CREATE_MATCH);
+		}
+
+		return MatchSchema.parse(createdMatch);
 	}
 
-	static async createMatches(
+	static createMatches(
 		tournament_id: UUID,
 		participants: Participant[],
 		matches: CreateMatch[]
-	): Promise<Array<Match>> {
+	): Array<Match> {
 		const result: Array<Match> = [];
 		for (const m of matches) {
-			const participant_1_id = this.getParticipantId(
+			m.participant_1_id = this.getParticipantId(
 				participants,
 				m.participant_1_id
 			);
-			const participant_2_id = this.getParticipantId(
+			m.participant_2_id = this.getParticipantId(
 				participants,
 				m.participant_2_id
 			);
-			const match = await this.createMatch(
-				tournament_id,
-				participant_1_id,
-				participant_2_id,
-				m
-			);
+			const match = this.createMatch(tournament_id, m);
 			result.push(match);
 		}
 		return result;
 	}
 
-	static async updateMatch(match_id: UUID, upd: UpdateMatch) {
-		const result = await db.pool.query(
+	static updateMatch(match_id: UUID, upd: UpdateMatch): Match {
+		const updatedMatch = db.queryOne<Match>(
 			`UPDATE ${this.table}
-			SET participant_1_id = $1,
-				participant_2_id = $2,
-				participant_1_score = $3,
-				participant_2_score = $4,
-				status = $5
-			WHERE id = $6
-			RETURNING ${this.fields}`,
+		 SET participant_1_id = ?,
+			 participant_2_id = ?,
+			 participant_1_score = ?,
+			 participant_2_score = ?,
+			 status = ?
+		 WHERE id = ?
+		 RETURNING ${this.fields}`,
 			[
 				upd.participant_1_id,
 				upd.participant_2_id,
@@ -174,19 +169,21 @@ export default class MatchRepository {
 				match_id,
 			]
 		);
-		if (result.rowCount == 0)
-			throw new DatabaseError('Failed to update match');
-		return MatchSchema.parse(result.rows[0]);
+
+		if (!updatedMatch)
+			throw new DatabaseError(ERROR_FAILED_TO_UPDATE_MATCH);
+
+		return MatchSchema.parse(updatedMatch);
 	}
 
-	static async updateMatchesAfterPointScored(
+	static updateMatchesAfterPointScored(
 		tournament_id: UUID,
 		matches: { id: UUID; updateMatch: UpdateMatch }[],
 		tournamentFinished: boolean
-	) {
-		await db.executeInTransaction(async () => {
+	): void {
+		db.executeInTransaction(() => {
 			for (const { id, updateMatch } of matches) {
-				const match = await this.updateMatch(id, updateMatch);
+				const match = this.updateMatch(id, updateMatch);
 				if (!match) throw new MatchNotFoundError(id);
 			}
 			if (tournamentFinished) {

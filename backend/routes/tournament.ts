@@ -14,7 +14,6 @@ import {
 	TournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import { UUID, zUUID } from '../../shared/types.js';
-import { zodError } from '../../shared/utils.js';
 import TournamentService from '../services/tournament_service.js';
 import { routeConfig } from '../utils/http_utils.js';
 
@@ -28,8 +27,6 @@ async function createTournament(
 		);
 		return tournament;
 	} catch (error) {
-		if (error instanceof z.ZodError)
-			throw request.server.httpErrors.badRequest(zodError(error));
 		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
 			constants.ERROR_REQUEST_FAILED
@@ -40,25 +37,20 @@ async function createTournament(
 async function getTournament(
 	request: FastifyRequest<{ Params: { id: UUID } }>
 ): Promise<FullTournament> {
+	var result: FullTournament | null;
 	try {
-		const result = await TournamentService.getFullTournament(
-			request.params.id
-		);
-		if (!result)
-			throw request.server.httpErrors.notFound(
-				constants.ERROR_USER_NOT_FOUND
-			);
-		return result;
+		result = TournamentService.getFullTournament(request.params.id);
 	} catch (error) {
-		if (error instanceof z.ZodError)
-			throw request.server.httpErrors.badRequest(zodError(error));
-		if (error instanceof TournamentNotFoundError)
-			throw request.server.httpErrors.notFound(error.message);
 		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
 			constants.ERROR_REQUEST_FAILED
 		);
 	}
+	if (!result)
+		throw request.server.httpErrors.notFound(
+			constants.ERROR_USER_NOT_FOUND
+		);
+	return result;
 }
 
 export default async function tournamentRoutes(
