@@ -13,6 +13,19 @@ export const MatchSchema = z.object({
 	status: z.enum(MatchStatus),
 });
 
+export const MatchSchemaWithUserId = z.object({
+	id: zUUID,
+	tournament_id: zUUID,
+	tournament_round: z.number().int(),
+	participant_1_id: zUUID.nullable(),
+	participant_2_id: zUUID.nullable(),
+	participant_1_user_id: zUUID.nullable(),
+	participant_2_user_id: zUUID.nullable(),
+	participant_1_score: z.number().int(),
+	participant_2_score: z.number().int(),
+	status: z.enum(MatchStatus),
+});
+
 export const CreateMatchSchema = MatchSchema.omit({
 	id: true,
 	tournament_id: true,
@@ -31,5 +44,6 @@ export const UpdateMatchSchema = MatchSchema.pick({
 });
 
 export type Match = z.infer<typeof MatchSchema>;
+export type MatchWithUserId = z.infer<typeof MatchSchemaWithUserId>;
 export type CreateMatch = z.infer<typeof CreateMatchSchema>;
 export type UpdateMatch = z.infer<typeof UpdateMatchSchema>;

@@ -3,7 +3,10 @@ import {
 	ERROR_FAILED_TO_CREATE_PARTICIPANT,
 	ERROR_FAILED_TO_UPDATE_PARTICIPANT,
 } from '../../shared/constants.js';
-import { DatabaseError } from '../../shared/exceptions.js';
+import {
+	DatabaseError,
+	ParticipantNotFoundError,
+} from '../../shared/exceptions.js';
 import {
 	CreateParticipant,
 	Participant,
@@ -40,6 +43,18 @@ export default class ParticipantRepository {
 		const result = db.queryOne<Participant>(query, params);
 		if (!result) return null;
 		return ParticipantSchema.parse(result);
+	}
+
+	static getMatchParticipantUserId(participant_id: UUID | null): UUID {
+		let participant: Participant | null = null;
+		if (participant_id)
+			participant = ParticipantRepository.getParticipant(participant_id);
+		if (!participant || !participant.user_id)
+			throw new ParticipantNotFoundError(
+				'participant id',
+				participant_id || 'empty'
+			);
+		return participant.user_id;
 	}
 
 	static getTournamentParticipants(tournament_id: UUID): Participant[] {

@@ -48,6 +48,7 @@ import {
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
+import MatchService from '../services/match_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
 import { Match } from './match.js';
 
@@ -95,6 +96,7 @@ export class GameService {
 	}
 
 	private handleInitiate(connectionId: UUID, message: Message) {
+		logger.debug('websocket: game initiate message received.');
 		const socket = this.getSocket(connectionId);
 		const match_id = message.d as UUID;
 		const match = MatchRepository.getMatch(match_id);
@@ -115,18 +117,21 @@ export class GameService {
 	}
 
 	private handleAccept(connectionId: UUID, message: Message) {
+		logger.debug('websocket: accept message received.');
 		const match = this.matches.get(connectionId);
 		if (match) this.acceptMatch(connectionId, message, match);
 		else this.acceptTournament(connectionId, message);
 	}
 
 	private handleDecline(connectionId: UUID, message: Message) {
+		logger.debug('websocket: decline message received.');
 		const match = this.matches.get(connectionId);
 		if (match) this.declineMatch(connectionId, message, match);
 		else this.declineTournament(connectionId, message);
 	}
 
 	private handleMove(connectionId: UUID, message: Message) {
+		logger.debug('websocket: move message received.');
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		const players = this.getPlayersFromConnectionId(
@@ -144,6 +149,7 @@ export class GameService {
 	}
 
 	private handlePoint(connectionId: UUID, message: Message) {
+		logger.debug('websocket: point scored message received.');
 		const userId = message.d as UUID;
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
@@ -151,16 +157,26 @@ export class GameService {
 		if (!player)
 			throw new ProtocolError(ERROR_PLAYER_NOT_FOUND + ': ' + userId);
 		player.score++;
+		const matchFinished = MatchService.processPointAndCheckMatchFinished(
+			match.matchId,
+			userId
+		);
+		if (matchFinished) {
+			match.status = MatchStatus.Finished;
+			// TODO: Send match finished
+		}
 		this.sendMatchMessage(message, match.players);
 	}
 
 	private handleQuit(connectionId: UUID, message: Message) {
+		logger.debug('websocket: quit message received.');
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.endMatch(match);
 	}
 
 	private handlePause(connectionId: UUID, message: Message) {
+		logger.debug('websocket: pause message received.');
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.sendMatchMessage(message, match.players);
@@ -234,7 +250,15 @@ export class GameService {
 		}
 	}
 
-	private declineTournament(connectionId: UUID, message: Message) {} // TODO
+	private declineTournament(connectionId: UUID, message: Message) {
+		const socket = this.getSocket(connectionId);
+		const tournament = this.getTournament(socket.userId);
+		const participants = ParticipantRepository.getTournamentParticipants(
+			tournament.id
+		);
+		message.d = socket.userId;
+		this.sendTournamentMessage(message, participants);
+	} // TODO: delete tournament?
 
 	private startMatch(match: Match) {
 		const dbMatch = MatchRepository.getMatch(match.matchId);
