@@ -1,7 +1,10 @@
 import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
+import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
+
+export let gameOptions: GameOptions | null = null;
 
 export class HomeScreen extends Screen {
 	constructor() {
@@ -83,7 +86,12 @@ export class HomeScreen extends Screen {
 		void new Button(
 			'Local 1v1',
 			() => {
-				void new PlaceholderModal(this.element);
+				gameOptions = {
+					type: 'local',
+					playerCount: 2,
+					thisPlayer: 1,
+				};
+				location.hash = '#game';
 			},
 			buttonContainer
 		);

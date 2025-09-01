@@ -22,7 +22,7 @@
 			"skipFiles": ["<node_internals>/**"]
 		},
 		{
-			"name": "FE in Chrome",
+			"name": "Chrome",
 			"type": "pwa-chrome",
 			"request": "launch",
 			"url": "http://localhost:5173",

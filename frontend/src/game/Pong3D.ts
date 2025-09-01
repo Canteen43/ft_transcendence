@@ -6,20 +6,22 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-import { createPong3DUI } from './Pong3DUI';
+import type { GameOptions } from '../misc/GameOptions';
+import { gameOptions } from '../screens/HomeScreen';
 import { Pong3DInput } from './Pong3DInput';
 import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CAMERA_SETTINGS } from './Pong3DPOV';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
+import { createPong3DUI } from './Pong3DUI';
 
 // ============================================================================
 // CONFIGURATION - Easily adjustable settings
 // ============================================================================
 
-/** 
+/**
  * Set the number of players for the game (2, 3, or 4)
  * This will automatically load the appropriate model:
  * - 2 players → /pong2p.glb
- * - 3 players → /pong3p.glb  
+ * - 3 players → /pong3p.glb
  * - 4 players → /pong4p.glb
  */
 export const PLAYER_COUNT: 2 | 3 | 4 = 2;
@@ -45,7 +47,7 @@ export const LOCAL_MODE: boolean = true;
 
 /**
  * Pong3D - A 3D Pong game engine supporting 2-4 players
- * 
+ *
  * Features:
  * - Supports 2, 3, or 4 players via constructor options
  * - Automatically loads appropriate GLB model (pong2p.glb, pong3p.glb, pong4p.glb)
@@ -53,7 +55,7 @@ export const LOCAL_MODE: boolean = true;
  * - Uniform handling of all players through arrays
  * - Configurable camera, lighting, and game settings
  * - Integrated GUI with scores and player info
- * 
+ *
  * Usage:
  * - Specify playerCount in options: new Pong3D(container, { playerCount: 4 })
  * - Appropriate GLB model will be loaded automatically
@@ -68,7 +70,6 @@ export interface Pong3DOptions {
 	local?: boolean; // Local 2-player mode vs network play (only applies when playerCount = 2)
 	outOfBoundsDistance?: number; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 }
-
 
 // Game state - simplified to arrays for uniform handling
 interface GameState {
@@ -185,13 +186,16 @@ export class Pong3D {
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
-		{ x: 0, z: 0 }, { x: 0, z: 0 }, { x: 0, z: 0 }, { x: 0, z: 0 }
+		{ x: 0, z: 0 },
+		{ x: 0, z: 0 },
+		{ x: 0, z: 0 },
+		{ x: 0, z: 0 },
 	];
 
 	// Game state
 	private gameState: GameState = {
 		paddlePositionsX: [0, 0, 0, 0], // x positions for paddles 0-3 (displacement from GLB)
-		paddlePositionsY: [0, 0, 0, 0]  // y positions for paddles 0-3 (displacement from GLB)
+		paddlePositionsY: [0, 0, 0, 0], // y positions for paddles 0-3 (displacement from GLB)
 	};
 
 	// Input handler
@@ -284,7 +288,8 @@ export class Pong3D {
 
 		// Apply provided options
 		if (options) {
-			if (typeof options.importedLightScale === 'number') this.importedLightScale = options.importedLightScale;
+			if (typeof options.importedLightScale === 'number')
+				this.importedLightScale = options.importedLightScale;
 		}
 
 		this.setupCamera();
@@ -294,6 +299,18 @@ export class Pong3D {
 		this.gameLoop = new Pong3DGameLoop(this.scene);
 
 		this.loadModel(modelUrl);
+
+		// TODO: Remove this block. Its purpose was to showcase that gameOptions are accessible
+		if (gameOptions) {
+			alert(
+				'Player Count: ' +
+					gameOptions.playerCount +
+					', This Player: ' +
+					gameOptions.thisPlayer +
+					', Game Type: ' +
+					gameOptions.type
+			);
+		}
 	}
 
 	private loadModel(modelUrl: string): void {
@@ -378,10 +395,14 @@ export class Pong3D {
 				});
 
 				if (light && typeof (light as any).intensity === 'number') {
-					(light as any).intensity = (light as any).intensity * this.importedLightScale;
+					(light as any).intensity =
+						(light as any).intensity * this.importedLightScale;
 				}
 			});
-			console.log('Adjusted imported light intensities by factor', this.importedLightScale);
+			console.log(
+				'Adjusted imported light intensities by factor',
+				this.importedLightScale
+			);
 		} catch (e) {
 			console.warn('Could not adjust light intensities:', e);
 		}
@@ -1182,7 +1203,10 @@ export class Pong3D {
 
 		// Log what we found
 		const foundPaddles = this.paddles.filter(p => p !== null);
-		console.log(`Found ${foundPaddles.length}/${this.activePlayerCount} expected paddles:`, foundPaddles.map(p => p?.name));
+		console.log(
+			`Found ${foundPaddles.length}/${this.activePlayerCount} expected paddles:`,
+			foundPaddles.map(p => p?.name)
+		);
 
 		if (foundPaddles.length === 0) {
 			console.warn('No paddle meshes found in the scene!');
@@ -1190,7 +1214,9 @@ export class Pong3D {
 		}
 
 		if (foundPaddles.length < this.activePlayerCount) {
-			console.warn(`Expected ${this.activePlayerCount} paddles but only found ${foundPaddles.length}`);
+			console.warn(
+				`Expected ${this.activePlayerCount} paddles but only found ${foundPaddles.length}`
+			);
 		}
 
 		// Initialize paddle positions from their mesh positions
@@ -1337,7 +1363,10 @@ export class Pong3D {
 				// Compare distance to all active paddles
 				const isDuplicate = this.paddles.some(paddle => {
 					if (!paddle || !paddle.position) return false;
-					const distance = BABYLON.Vector3.Distance(m.position, paddle.position);
+					const distance = BABYLON.Vector3.Distance(
+						m.position,
+						paddle.position
+					);
 					return distance < EPS;
 				});
 
@@ -1397,10 +1426,14 @@ export class Pong3D {
 		this.positionPlayerInfoBlocks();
 
 		// Backwards-compat convenience: point single-player fields to first two players if available
-		if (this.uiPlayerNameTexts && this.uiPlayerNameTexts.length > 0) this.Player1Info = this.uiPlayerNameTexts[0];
-		if (this.uiPlayerScoreTexts && this.uiPlayerScoreTexts.length > 0) this.score1Text = this.uiPlayerScoreTexts[0];
-		if (this.uiPlayerNameTexts && this.uiPlayerNameTexts.length > 1) this.Player2Info = this.uiPlayerNameTexts[1];
-		if (this.uiPlayerScoreTexts && this.uiPlayerScoreTexts.length > 1) this.score2Text = this.uiPlayerScoreTexts[1];
+		if (this.uiPlayerNameTexts && this.uiPlayerNameTexts.length > 0)
+			this.Player1Info = this.uiPlayerNameTexts[0];
+		if (this.uiPlayerScoreTexts && this.uiPlayerScoreTexts.length > 0)
+			this.score1Text = this.uiPlayerScoreTexts[0];
+		if (this.uiPlayerNameTexts && this.uiPlayerNameTexts.length > 1)
+			this.Player2Info = this.uiPlayerNameTexts[1];
+		if (this.uiPlayerScoreTexts && this.uiPlayerScoreTexts.length > 1)
+			this.score2Text = this.uiPlayerScoreTexts[1];
 
 		// Keep a simple render loop that updates the scene
 		this.engine.runRenderLoop(() => {
@@ -1414,7 +1447,7 @@ export class Pong3D {
 	/**
 	 * Position player info blocks based on active player count and court layout:
 	 * - 2 players: Player 1 = bottom, Player 2 = top
-	 * - 3 players: Player 1 = bottom, Player 2 = right, Player 3 = left  
+	 * - 3 players: Player 1 = bottom, Player 2 = right, Player 3 = left
 	 * - 4 players: Player 1 = bottom, Player 2 = top, Player 3 = right, Player 4 = left
 	 * - Inactive players are hidden
 	 * Note: Left and right positioning styles are consistent across player counts
@@ -1513,7 +1546,12 @@ export class Pong3D {
 	}
 
 	/** Set player names and update display */
-	public setPlayerNames(p1: string, p2: string, p3?: string, p4?: string): void {
+	public setPlayerNames(
+		p1: string,
+		p2: string,
+		p3?: string,
+		p4?: string
+	): void {
 		this.playerNames[0] = p1;
 		this.playerNames[1] = p2;
 		if (typeof p3 === 'string') this.playerNames[2] = p3;
@@ -1527,7 +1565,9 @@ export class Pong3D {
 
 		// Don't allow increasing beyond what was initialized
 		if (newCount > this.initialPlayerCount) {
-			console.warn(`Cannot set active player count to ${newCount}, initialized for ${this.initialPlayerCount} players only`);
+			console.warn(
+				`Cannot set active player count to ${newCount}, initialized for ${this.initialPlayerCount} players only`
+			);
 			return;
 		}
 
@@ -1539,7 +1579,12 @@ export class Pong3D {
 	}
 
 	/** Set player scores and update display */
-	public setPlayerScores(s1: number, s2: number, s3?: number, s4?: number): void {
+	public setPlayerScores(
+		s1: number,
+		s2: number,
+		s3?: number,
+		s4?: number
+	): void {
 		this.playerScores[0] = s1;
 		this.playerScores[1] = s2;
 		if (typeof s3 === 'number') this.playerScores[2] = s3;
@@ -1648,8 +1693,18 @@ export class Pong3D {
 		};
 
 		// Key state arrays for easy iteration
-		const leftKeys = [keyState.p1Left, keyState.p2Left, keyState.p3Left, keyState.p4Left];
-		const rightKeys = [keyState.p1Right, keyState.p2Right, keyState.p3Right, keyState.p4Right];
+		const leftKeys = [
+			keyState.p1Left,
+			keyState.p2Left,
+			keyState.p3Left,
+			keyState.p4Left,
+		];
+		const rightKeys = [
+			keyState.p1Right,
+			keyState.p2Right,
+			keyState.p3Right,
+			keyState.p4Right,
+		];
 
 		// Update only active paddles with anti-drift force-based physics
 		for (let i = 0; i < this.activePlayerCount; i++) {
@@ -1810,9 +1865,20 @@ export class Pong3D {
 		if (now - this.lastPaddleLog < this.PADDLE_LOG_INTERVAL) return;
 
 		this.lastPaddleLog = now;
-		const activePositionsX = this.gameState.paddlePositionsX.slice(0, this.activePlayerCount);
-		const activePositionsY = this.gameState.paddlePositionsY.slice(0, this.activePlayerCount);
-		console.log('Active paddle positions X:', activePositionsX, 'Y:', activePositionsY);
+		const activePositionsX = this.gameState.paddlePositionsX.slice(
+			0,
+			this.activePlayerCount
+		);
+		const activePositionsY = this.gameState.paddlePositionsY.slice(
+			0,
+			this.activePlayerCount
+		);
+		console.log(
+			'Active paddle positions X:',
+			activePositionsX,
+			'Y:',
+			activePositionsY
+		);
 	}
 
 	// Public configuration methods
@@ -1899,8 +1965,10 @@ export class Pong3D {
 				this.gameState.paddlePositionsY[index] = clampedPosition * sin;
 
 				if (this.paddles[index]) {
-					this.paddles[index]!.position.x = this.gameState.paddlePositionsX[index];
-					this.paddles[index]!.position.z = this.gameState.paddlePositionsY[index];
+					this.paddles[index]!.position.x =
+						this.gameState.paddlePositionsX[index];
+					this.paddles[index]!.position.z =
+						this.gameState.paddlePositionsY[index];
 				}
 			} else {
 				// 2-player mode: X-axis movement only
@@ -1959,7 +2027,11 @@ export class Pong3D {
 
 	public resetPaddles(positions?: number[]): void {
 		if (positions) {
-			for (let i = 0; i < Math.min(positions.length, this.activePlayerCount); i++) {
+			for (
+				let i = 0;
+				i < Math.min(positions.length, this.activePlayerCount);
+				i++
+			) {
 				if (this.activePlayerCount === 4 && i >= 2) {
 					this.gameState.paddlePositionsY[i] = positions[i];
 				} else if (this.activePlayerCount === 3) {
@@ -1987,12 +2059,16 @@ export class Pong3D {
 		for (let i = 0; i < this.activePlayerCount; i++) {
 			if (this.paddles[i]) {
 				if (this.activePlayerCount === 4 && i >= 2) {
-					this.paddles[i]!.position.z = this.gameState.paddlePositionsY[i];
+					this.paddles[i]!.position.z =
+						this.gameState.paddlePositionsY[i];
 				} else if (this.activePlayerCount === 3) {
-					this.paddles[i]!.position.x = this.gameState.paddlePositionsX[i];
-					this.paddles[i]!.position.z = this.gameState.paddlePositionsY[i];
+					this.paddles[i]!.position.x =
+						this.gameState.paddlePositionsX[i];
+					this.paddles[i]!.position.z =
+						this.gameState.paddlePositionsY[i];
 				} else {
-					this.paddles[i]!.position.x = this.gameState.paddlePositionsX[i];
+					this.paddles[i]!.position.x =
+						this.gameState.paddlePositionsX[i];
 				}
 			}
 		}
@@ -2019,7 +2095,7 @@ export class Pong3D {
 	public getGameState(): GameState {
 		return {
 			paddlePositionsX: [...this.gameState.paddlePositionsX],
-			paddlePositionsY: [...this.gameState.paddlePositionsY]
+			paddlePositionsY: [...this.gameState.paddlePositionsY],
 		};
 	}
 

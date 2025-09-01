@@ -6,7 +6,7 @@
 			"script": "frontend_dev",
 			"label": "npm: frontend_dev",
 			"detail": "vite",
-			"problemMatcher": [],
+			"problemMatcher": []
 		},
 		{
 			"type": "npm",
@@ -15,6 +15,16 @@
 			"problemMatcher": [],
 			"label": "npm: frontend_build",
 			"detail": "tsc && vite build"
+		},
+		{
+			"label": "backend_run",
+			"type": "shell",
+			"command": "npx",
+			"args": ["tsx", "app.ts"],
+			"options": {
+				"cwd": "${workspaceFolder}/backend"
+			},
+			"problemMatcher": []
 		}
 	]
 }
