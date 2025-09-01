@@ -212,7 +212,7 @@ LEARNED:
 
 TODO:
 - Create WebSocket
+- Save JWT as variable
 
 - Add API call wrapper
-- Save JWT as variable
 - Restructure frontend files into screen groups
