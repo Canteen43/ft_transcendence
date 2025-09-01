@@ -213,8 +213,6 @@ LEARNED:
 TODO:
 - Create WebSocket
 
-- How to handle database ignoring
-- Run Backend as task
 - Add API call wrapper
 - Continue with auth request
 - Save JWT as variable
