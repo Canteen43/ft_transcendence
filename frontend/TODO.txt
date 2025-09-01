@@ -212,6 +212,11 @@ LEARNED:
 
 TODO:
 Project:
+- Pass Info to game screen (player count, local vs remote)
+- Create WebSocket
+- How to handle database ignoring
+
+- Run Backend as task
 - Add API call wrapper
 
 - Continue with auth request
