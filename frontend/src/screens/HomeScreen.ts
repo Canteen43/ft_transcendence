@@ -2,6 +2,7 @@ import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
+import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
 
 export let gameOptions: GameOptions | null = null;
@@ -113,6 +114,16 @@ export class HomeScreen extends Screen {
 			'Tournament',
 			() => {
 				void new PlaceholderModal(this.element);
+			},
+			buttonContainer
+		);
+		void new Button(
+			'Test WebSocket',
+			() => {
+				webSocket.send(JSON.stringify({
+					t: 'test',
+					d: 'Test message!'
+				}));
 			},
 			buttonContainer
 		);

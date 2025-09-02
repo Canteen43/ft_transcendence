@@ -70,13 +70,7 @@ export class LoginModal extends Modal {
 			if (response.ok) {
 				const authData = await response.json();
 				console.log('Login successful:', authData);
-				// This belongs here
 				webSocket.open();
-				// This is just to test that the websocket is working
-				webSocket.addMessageListener((event) => {
-					alert('Message from server: ' + event.data);
-				});
-				webSocket.send("Test message!");
 				this.destroy();
 			} else {
 				console.error('Login unsuccessful');

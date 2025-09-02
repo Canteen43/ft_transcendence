@@ -104,4 +104,4 @@ export class WebSocketWrapper {
 
 }
 
-export const webSocket = new WebSocketWrapper("wss://localhost:8080");
+export const webSocket = new WebSocketWrapper("ws://localhost:8080/websocket");
