@@ -40,7 +40,8 @@ import {
 	Tournament,
 	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
-import { Message, UUID } from '../../shared/types.js';
+import { Message } from '../../shared/schemas/message.js'
+import { UUID } from '../../shared/types.js';
 import {
 	connections,
 	userIdToConnectionMap,
@@ -56,7 +57,7 @@ export class GameService {
 	private static instance: GameService;
 	private matches = new Map<UUID, Match>(); // Links connectionId to match
 
-	private constructor() {}
+	private constructor() { }
 
 	private readonly protocolFunctionMap = {
 		[MESSAGE_INITIATE_MATCH]: this.handleInitiate,
@@ -80,7 +81,7 @@ export class GameService {
 		const json = JSON.parse(message);
 		const handler =
 			this.protocolFunctionMap[
-				json.type as keyof typeof this.protocolFunctionMap
+			json.type as keyof typeof this.protocolFunctionMap
 			];
 		if (handler) {
 			try {

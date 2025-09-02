@@ -1,12 +1,12 @@
 import * as z from 'zod';
-import { zUUID } from '../types.js';
+import { sanitizedString, zUUID } from '../types.js';
 
 export const UserSchema = z.object({
 	id: zUUID,
-	login: z.string(),
-	first_name: z.string().nullable(),
-	last_name: z.string().nullable(),
-	email: z.string().nullable(),
+	login: sanitizedString,
+	first_name: sanitizedString,
+	last_name: sanitizedString,
+	email: sanitizedString,
 });
 
 export const CreateUserSchema = UserSchema.omit({ id: true }).extend({
