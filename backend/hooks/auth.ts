@@ -7,13 +7,13 @@ import {
 import { AuthenticationFailedError } from '../../shared/exceptions.js';
 import UserService from '../services/user_service.js';
 
-async function authenticateRequest(request: FastifyRequest) {
+function authenticateRequest(request: FastifyRequest) {
 	try {
 		const authHeader = request.headers['authorization'];
 		if (!authHeader) throw new AuthenticationFailedError(ERROR_NO_TOKEN);
 
 		// Expect header like "Bearer <token>"
-		const parts = authHeader.split(' ')[1];
+		const parts = authHeader.split(' ');
 		if (parts[0] !== 'Bearer' || !parts[1])
 			throw new AuthenticationFailedError(ERROR_MALFORMED_TOKEN);
 
@@ -29,6 +29,6 @@ async function authenticateRequest(request: FastifyRequest) {
 	}
 }
 
-export const authHook = async (request: FastifyRequest) => {
-	//await authenticateRequest(request);
+export const authHook = (request: FastifyRequest) => {
+	authenticateRequest(request);
 };
