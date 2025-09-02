@@ -52,6 +52,7 @@ import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
 import { Match } from './match.js';
+import { formatError } from '../utils/utils.js';
 
 export class GameService {
 	private static instance: GameService;
@@ -87,9 +88,15 @@ export class GameService {
 			try {
 				handler.call(this, connectionId, json);
 			} catch (error) {
+				logger.warn(`Error while handling websocket message: ${formatError(error)}`);
 				const match = this.matches.get(connectionId);
-				if (!match) throw new MatchNotFoundError();
-				this.endMatch(match);
+				if (match) {
+					try {
+						this.endMatch(match);
+					} catch (error) {
+						logger.warn(`Error while trying to end match: ${formatError(error)}`);
+					}
+				}
 			}
 		} else {
 			logger.warn(`No handler for message type: ${json.type}`);
