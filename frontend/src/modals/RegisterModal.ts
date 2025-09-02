@@ -1,84 +1,86 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { LoginModal } from './LoginModal';
+
 
 export class RegisterModal extends Modal {
+	private UsernameField:HTMLInputElement;
+	private FirstNameField:HTMLInputElement;
+	private LastNameField:HTMLInputElement;
+	private EmailField:HTMLInputElement;
+	private PasswordField:HTMLInputElement;
+	private PasswordRepeatField:HTMLInputElement;
+
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add(
-			'flex',
-			'flex-col',
-			'items-center',
-			'justify-center',
-			'gap-2',
-			'p-4'
-		);
-
-		// Create an input 
-		const UsernameField = document.createElement('input');
-		UsernameField.type = 'text';
-		UsernameField.id = 'username';
-		UsernameField.placeholder = 'Enter your username';
-		UsernameField.className = 'border border-gray-300 rounded p-2';
-		this.box.appendChild(UsernameField);
-
-		// Create an input
-		const FirstNameField = document.createElement('input');
-		FirstNameField.type = 'text';
-		FirstNameField.id = 'first_name';
-		FirstNameField.placeholder = 'Enter your first name';
-		FirstNameField.className = 'border border-gray-300 rounded p-2';
-		this.box.appendChild(FirstNameField);
-
-		// Create an input
-		const LastNameField = document.createElement('input');
-		LastNameField.type = 'text';
-		LastNameField.id = 'last_name';
-		LastNameField.placeholder = 'Enter your last name';
-		LastNameField.className = 'border border-gray-300 rounded p-2';
-		this.box.appendChild(LastNameField);
-
-		// Create an input
-		const EmailField = document.createElement('input');
-		EmailField.type = 'text';
-		EmailField.id = 'email';
-		EmailField.placeholder = 'Enter your email';
-		EmailField.className = 'border border-gray-300 rounded p-2';
-		this.box.appendChild(EmailField);
-
-		// Create an input
-		const PasswordField = document.createElement('input');
-		PasswordField.type = 'password';
-		PasswordField.id = 'password';
-		PasswordField.placeholder = 'Enter your password';
-		PasswordField.className = 'border border-gray-300 rounded p-2';
-		this.box.appendChild(PasswordField);
-
-		// Create an input
-		const PasswordRepeatField = document.createElement('input');
-		PasswordRepeatField.type = 'password';
-		PasswordRepeatField.id = 'password_repeat';
-		PasswordRepeatField.placeholder = 'Confirm your password';
-		PasswordRepeatField.className = 'border border-gray-300 rounded p-2';
-		this.box.appendChild(PasswordRepeatField);
-		
-		void new Button(
-			'Register',
-			async () => {
-				const username = UsernameField.value;
-				const firstName = FirstNameField.value;
-				const lastName = LastNameField.value;
-				const email = EmailField.value;
-				const password = PasswordField.value;
-				const passwordRepeat = PasswordRepeatField.value;
-
-				if (password !== passwordRepeat) {
-					alert('Passwords do not match!');
-					return;
-				}
-			},
-			this.box
-		);
+		this.box.classList.add('flex', 'flex-col','items-center','justify-center','gap-2','p-4');
+		this.UsernameField = this.myCreateInput('text', 'username', 'Enter your username');
+		this.FirstNameField = this.myCreateInput('text', 'first_name', 'Enter your first name');
+		this.LastNameField = this.myCreateInput('text', 'last_name', 'Enter your last name');
+		this.EmailField = this.myCreateInput('email', 'email', 'Enter your email');
+		this.PasswordField = this.myCreateInput('password', 'password', 'Enter your password');
+		this.PasswordRepeatField = this.myCreateInput('password', 'passwordrepeat', 'Re-enter your password');
+		new Button('Login', () => this.handleRegister(), this.box);
+		this.createLinks(parent);
 	}
-}
 
+
+		// helpers
+		private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
+			const input = document.createElement('input');
+			input.type = type;
+			input.id = id;
+			input.placeholder = placeholder;
+			input.className = 'border border-gray-300 rounded p-2';
+			this.box.appendChild(input);
+			return input;
+		}
+
+		private createLinks(parent: HTMLElement) {
+			const RegisterLink = document.createElement('button');
+			RegisterLink.textContent = 'Go back to log-in';
+			RegisterLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
+			RegisterLink.onclick = () => this.handleGoBack(parent);
+			this.box.appendChild(RegisterLink);
+
+		}
+
+		private async handleRegister() {
+			const username = this.UsernameField.value;
+			const firstName = this.FirstNameField.value;
+			const lastName = this.LastNameField.value;
+			const email = this.EmailField.value;
+			const password = this.PasswordField.value;
+			const passwordRepeat = this.PasswordRepeatField.value;
+
+			if (password !== passwordRepeat) {
+				alert('Passwords do not match!');
+				return;
+			}
+
+			try {
+				const response = await fetch('http://localhost:8080/users/', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ login: username, first_name: firstName, last_name: lastName, email:email, password_hash: password }),
+				});
+
+				if (response.ok) {
+					const authData = await response.json();
+					console.log('Login successful:', authData);
+					this.destroy();
+				} else {
+					console.error('Login unsuccessful');
+				}
+			} catch (error) {
+				console.error('Login error:', error);
+			}
+		}
+
+	private handleGoBack(parent: HTMLElement) { 
+		this.destroy();
+		new LoginModal(parent);
+	}
+
+}

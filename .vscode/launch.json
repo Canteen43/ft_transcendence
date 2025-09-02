@@ -5,6 +5,20 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Chrome",
+			"type": "pwa-chrome",
+			"request": "launch",
+			"url": "http://localhost:5173",
+			"webRoot": "${workspaceFolder}/frontend/src",
+			"breakOnLoad": true,
+			"runtimeArgs": [
+				"--start-maximized",
+				"--no-first-run",
+				"--disable-session-crashed-bubble"
+			],
+			"userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile"
+		},
+		{
 			"name": "Frontend",
 			"type": "node-terminal",
 			"request": "launch",
@@ -20,20 +34,6 @@
 			"program": "${workspaceFolder}/backend/app.ts",
 			"console": "integratedTerminal",
 			"skipFiles": ["<node_internals>/**"]
-		},
-		{
-			"name": "Chrome",
-			"type": "pwa-chrome",
-			"request": "launch",
-			"url": "http://localhost:5173",
-			"webRoot": "${workspaceFolder}/frontend/src",
-			"breakOnLoad": true,
-			"runtimeArgs": [
-				"--start-maximized",
-				"--no-first-run",
-				"--disable-session-crashed-bubble"
-			],
-			"userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile"
 		}
 	],
 	"compounds": [
