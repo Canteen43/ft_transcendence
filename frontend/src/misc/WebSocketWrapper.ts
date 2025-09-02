@@ -25,6 +25,7 @@ export class WebSocketWrapper {
 	}
 
 	open(): void {
+		this.address += `?token=${TEMP_JWT}`;
 		this.ws = new WebSocket(this.address);
 		this.ws.addEventListener("message", (event) => this.routeListener(event));
 		this.ws.addEventListener("close", () => {
@@ -108,6 +109,6 @@ export class WebSocketWrapper {
 
 }
 
-export const webSocket = new WebSocketWrapper(`ws://localhost:8080/websocket?token=${TEMP_JWT}`);
+export const webSocket = new WebSocketWrapper(`ws://localhost:8080/websocket`);
 // TODO: Avoid hardcoding port
 // Access to environment variables is needed for that

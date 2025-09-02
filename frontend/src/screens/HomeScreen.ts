@@ -4,6 +4,7 @@ import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
 import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
+import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
 
 export let gameOptions: GameOptions | null = null;
 
@@ -106,7 +107,7 @@ export class HomeScreen extends Screen {
 		void new Button(
 			'Remote 1v1',
 			() => {
-				void new PlaceholderModal(this.element);
+				void new Remote2PlayerModal(this.element);
 			},
 			buttonContainer
 		);
