@@ -73,7 +73,7 @@ export class LoginModal extends Modal {
 					sessionStorage.setItem("token", authData.token);
 				}
 				console.log('Login successful for: ', authData.login);
-				alert('You logged-in successfully! You can now play remotely, '  + authData.login + '  ' + authData.token);
+				//alert('You logged-in successfully! You can now play remotely, '  + authData.login + '  ' + authData.token);
 				// This belongs here
 				webSocket.open();
 				// This is just to test that the websocket is working
