@@ -13,14 +13,6 @@ export const zUUID: z.ZodType<UUID> = z.uuid()
 		message: 'Invalid UUID',
 	}) as unknown as z.ZodType<UUID>;
 
-export const sanitizedString = z.string()
-	.transform((val) =>
-		sanitizeHtml(val, {
-			allowedTags: ['b', 'i', 'em', 'strong', 'a'],
-			allowedAttributes: { a: ['href'] },
-		})
-	);
-
 type UpdateMatchEntry = {
 	id: UUID;
 	updateMatch: UpdateMatch;
