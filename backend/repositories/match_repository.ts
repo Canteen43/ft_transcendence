@@ -37,7 +37,7 @@ export default class MatchRepository {
 			LEFT JOIN ${ParticipantRepository.table} p1
 				ON ${this.table}.participant_1_id = p1.participant_id
 			LEFT JOIN ${ParticipantRepository.table} p2
-				ON ${this.table}.participant_1_id = p2.participant_id
+				ON ${this.table}.participant_2_id = p2.participant_id
 			WHERE id = ?`,
 			[match_id]
 		);

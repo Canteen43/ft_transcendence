@@ -40,7 +40,8 @@ import {
 	Tournament,
 	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
-import { Message, UUID } from '../../shared/types.js';
+import { Message } from '../../shared/schemas/message.js'
+import { UUID } from '../../shared/types.js';
 import {
 	connections,
 	userIdToConnectionMap,
