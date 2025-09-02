@@ -1,4 +1,3 @@
-import { match } from 'assert';
 import z from 'zod';
 import {
 	ERROR_FAILED_TO_CREATE_MATCH,
@@ -15,12 +14,15 @@ import {
 	CreateMatch,
 	Match,
 	MatchSchema,
+	MatchSchemaWithUserId,
+	MatchWithUserId,
 	UpdateMatch,
 } from '../../shared/schemas/match.js';
 import { Participant } from '../../shared/schemas/participant.js';
 import { UpdateTournamentSchema } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
+import ParticipantRepository from './participant_repository.js';
 import TournamentRepository from './tournament_repository.js';
 
 export default class MatchRepository {
@@ -28,16 +30,20 @@ export default class MatchRepository {
 	static fields =
 		'id, tournament_id, tournament_round, participant_1_id, participant_2_id, participant_1_score, participant_2_score, status';
 
-	static getMatch(match_id: UUID): Match | null {
+	static getMatch(match_id: UUID): MatchWithUserId | null {
 		const result = db.queryOne(
-			`SELECT ${this.fields}
+			`SELECT ${this.fields}, p1.user_id as participant_1_user_id, p2.user_id as participant_2_user_id
 			FROM ${this.table}
+			LEFT JOIN ${ParticipantRepository.table} p1
+				ON ${this.table}.participant_1_id = p1.participant_id
+			LEFT JOIN ${ParticipantRepository.table} p2
+				ON ${this.table}.participant_1_id = p2.participant_id
 			WHERE id = ?`,
 			[match_id]
 		);
 
 		if (!result) return null;
-		return MatchSchema.parse(result);
+		return MatchSchemaWithUserId.parse(result);
 	}
 
 	static getTournamentMatches(
