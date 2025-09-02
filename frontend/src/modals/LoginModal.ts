@@ -7,18 +7,19 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
+import { webSocket } from '../misc/WebSocketWrapper';
 import { ForgottenModal } from './ForgottenModal';
 
 
 export class LoginModal extends Modal {
-	private UsernameField:HTMLInputElement;
-	private PasswordField:HTMLInputElement;
+	private UsernameField: HTMLInputElement;
+	private PasswordField: HTMLInputElement;
 
 
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add( 'flex', 'flex-col', 'items-center', 'justify-center', 'gap-2', 'p-4');
+		this.box.classList.add('flex', 'flex-col', 'items-center', 'justify-center', 'gap-2', 'p-4');
 		this.UsernameField = this.myCreateInput('text', 'username', 'Enter your username');
 		this.PasswordField = this.myCreateInput('password', 'password', 'Enter your password');
 		new Button('Login', () => this.handleLogin(), this.box);
@@ -50,7 +51,7 @@ export class LoginModal extends Modal {
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
-		ForgotPasswordLink.onclick  = () => this.handleForgot(parent);
+		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		this.box.appendChild(ForgotPasswordLink);
 
 	}
@@ -73,6 +74,13 @@ export class LoginModal extends Modal {
 				}
 				console.log('Login successful for: ', authData.login);
 				alert('You logged-in successfully! You can now play remotely, '  + authData.login + '  ' + authData.token);
+				// This belongs here
+				webSocket.open();
+				// This is just to test that the websocket is working
+				webSocket.addMessageListener((event) => {
+					alert('Message from server: ' + event.data);
+				});
+				webSocket.send("Test message!");
 				this.destroy();
 			} else {
 				alert('Login unsuccessful');
@@ -84,7 +92,7 @@ export class LoginModal extends Modal {
 	}
 
 
-	private handleRegister(parent: HTMLElement) { 
+	private handleRegister(parent: HTMLElement) {
 		this.destroy();
 		new RegisterModal(parent);
 	}

@@ -211,12 +211,13 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Create WebSocket
+- Save JWT as variable /Helene
 
+
+- Where to put Macros
 - Add API call wrapper
-- Continue with auth request
-- Save JWT as variable
-- Restructure frontend files into screen groups
+- Make shortcut for running frontend + backend?
+- Restructure frontend files into screen groups?
 
 
 
