@@ -10,6 +10,9 @@ import { RegisterModal } from './RegisterModal';
 import { webSocket } from '../misc/WebSocketWrapper';
 // import { ForgottenModal } from './ForgottenModal';
 
+// Temporary export of JWT
+export let TEMP_JWT: string | null = null;
+
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
@@ -70,6 +73,7 @@ export class LoginModal extends Modal {
 			if (response.ok) {
 				const authData = await response.json();
 				console.log('Login successful:', authData);
+				TEMP_JWT = authData.token; // Temporary JWT
 				webSocket.open();
 				this.destroy();
 			} else {

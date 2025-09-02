@@ -14,6 +14,7 @@ import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_POINT,
 } from "../../../shared/constants";
+import { TEMP_JWT } from "../modals/LoginModal";
 
 export class WebSocketWrapper {
 	private ws?: WebSocket;
@@ -26,6 +27,9 @@ export class WebSocketWrapper {
 	open(): void {
 		this.ws = new WebSocket(this.address);
 		this.ws.addEventListener("message", (event) => this.routeListener(event));
+		this.ws.addEventListener("close", () => {
+			alert("WebSocket connection closed");
+		});
 	}
 
 	private routeListener(event: MessageEvent): void {
@@ -104,4 +108,6 @@ export class WebSocketWrapper {
 
 }
 
-export const webSocket = new WebSocketWrapper("ws://localhost:8080/websocket");
+export const webSocket = new WebSocketWrapper(`ws://localhost:8080/websocket?token=${TEMP_JWT}`);
+// TODO: Avoid hardcoding port
+// Access to environment variables is needed for that

@@ -217,12 +217,11 @@ Helene:
 		- checks if request was successful
 		- checks if Zod type is correct
 		- adds JWT to all requests
-	- Reorganize home page 
-Karl:
-	- WebSocket
-		- one handler for each state (normal FE vs game)
-		- use Zod schema
+	- Reorganize home page
 
+- Invite player to 1v1 via Modal
+
+- Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
 - Make shortcut for running frontend + backend?
 - Restructure frontend files into screen groups?
