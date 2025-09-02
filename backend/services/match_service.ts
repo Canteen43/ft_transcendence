@@ -106,7 +106,7 @@ export default class MatchService {
 			tournament_id,
 			round
 		);
-		if (!participants.length)
+		if (!matches.length)
 			throw new DatabaseError(ERROR_RETRIEVING_NEXT_ROUND);
 
 		const newRound: UpdateMatchArray = [];
