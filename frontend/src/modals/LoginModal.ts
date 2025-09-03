@@ -1,10 +1,10 @@
 import { AuthRequestSchema, AuthResponseSchema } from '../../../shared/schemas/user.ts';
+import { apiCall } from '../utils/apiCall';
+import { webSocket } from '../misc/WebSocketWrapper';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
-import { webSocket } from '../misc/WebSocketWrapper';
 import { ForgottenModal } from './ForgottenModal';
-import { apiCall } from '../utils/apiCall';
 
 
 export class LoginModal extends Modal {
@@ -38,7 +38,7 @@ export class LoginModal extends Modal {
 		try {
 			const authData = await apiCall(
 				"POST",
-				"users/auth",
+				"/users/auth",
 				AuthResponseSchema,
 				requestData
 			);

@@ -7,7 +7,9 @@ import { ZodType, z } from "zod";
 // use ZodType<T> when you need to type a function parameter or a variable that 
 // can accept any Zod schema.
 
-const API_BASE = `http://localhost:${Number(process.env.PORT)}`;
+// const API_BASE = `http://localhost:${Number(process.env.PORT)}`;
+const API_BASE = `http://localhost:8080`;
+
 
 export async function apiCall<T>(	method: string,
 									route: string,
@@ -31,8 +33,8 @@ export async function apiCall<T>(	method: string,
 		const res = await fetch(`${API_BASE}${route}`, options);
 
 		if (!res.ok) {
-			alert(`❌ API error: ${res.status} ${res.statusText} (${route})`);
-			console.error(`❌ API error: ${res.status} ${res.statusText} (${route})`);
+			alert(` API error: ${res.status} ${res.statusText} (${route})`);
+			console.error(` API error: ${res.status} ${res.statusText} (${route})`);
 			return null;
 		}
 
@@ -40,16 +42,16 @@ export async function apiCall<T>(	method: string,
 
 		const parsed = schema.safeParse(data);
 		if (!parsed.success) {
-			alert(`❌ Zod validation failed: ${res.status} ${res.statusText} (${route})`);
-			console.error("❌ Zod validation failed:", z.treeifyError(parsed.error));
+			alert(` Zod validation failed: ${res.status} ${res.statusText} (${route})`);
+			console.error(" Zod validation failed:", z.treeifyError(parsed.error));
 			return null;
 		}
 
 		return parsed.data;
 		
 	} catch (err) {
-		alert(`❌ Network error for ${route}:`);
-		console.error(`❌ Network error for ${route}:`, err);
+		alert(` Network error for ${route}:`);
+		console.error(` Network error for ${route}:`, err);
 		return null;
 	}
 }
