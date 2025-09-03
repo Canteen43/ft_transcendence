@@ -24,6 +24,7 @@ export const AuthRequestSchema = z.object({
 
 export const AuthResponseSchema = z.object({
 	login: z.string(),
+	user_id: zUUID,
 	token: z.string(),
 });
 
