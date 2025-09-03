@@ -24,6 +24,8 @@ export function routeConfig({
 	if (body) schemaConfig.body = body;
 	if (querystring) schemaConfig.querystring = querystring;
 
-	if (!secure) return { schema: schemaConfig, preHandler: [] };
-	return { schema: schemaConfig };
+	return {
+		schema: schemaConfig,
+		config: { secure },
+	};
 }

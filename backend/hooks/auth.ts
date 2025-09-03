@@ -6,6 +6,7 @@ import {
 } from '../../shared/constants.js';
 import { AuthenticationFailedError } from '../../shared/exceptions.js';
 import UserService from '../services/user_service.js';
+import { FastifyReply } from 'fastify/types/reply.js';
 
 function authenticateRequest(request: FastifyRequest) {
 	try {
@@ -29,6 +30,8 @@ function authenticateRequest(request: FastifyRequest) {
 	}
 }
 
-export const authHook = (request: FastifyRequest) => {
-	authenticateRequest(request);
+export const authHook = (request: FastifyRequest, reply: FastifyReply, done: Function) => {
+	if (request.routeOptions?.config?.secure !== false)
+		authenticateRequest(request);
+	done();
 };
