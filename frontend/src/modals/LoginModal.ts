@@ -37,27 +37,15 @@ export class LoginModal extends Modal {
 		}
 
 		try {
-			const authData = await apiCall(
-				"POST",
-				"/users/auth",
-				AuthResponseSchema,
-				requestData
-			);
-
+			const authData = await apiCall("POST", "/users/auth", AuthResponseSchema, requestData);
 			if (!authData) {
 				alert("Login unsuccessful");
 				return;
 			}
-
-			console.log('Login successful for: ', authData.login);
+			alert( 'You logged-in successfully! You can now play remotely, ' + authData.login);
 
 			// Store JWT token
 			sessionStorage.setItem("token", authData.token);
-
-			alert(
-				'You logged-in successfully! You can now play remotely, ' +
-				authData.login
-			);
 
 			// Open websocket
 			webSocket.open();
@@ -72,9 +60,6 @@ export class LoginModal extends Modal {
 		}
 	}
 
-
-
-	// helpers
 	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
@@ -86,22 +71,20 @@ export class LoginModal extends Modal {
 	}
 
 	private createLinks(parent: HTMLElement) {
-
 		// Create a password input
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
 		RegisterLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleRegister(parent);
 		this.box.appendChild(RegisterLink);
-
 		// Create a password input
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		this.box.appendChild(ForgotPasswordLink);
-
 	}
+	
 	private handleRegister(parent: HTMLElement) {
 		this.destroy();
 		new RegisterModal(parent);

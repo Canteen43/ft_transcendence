@@ -28,35 +28,43 @@ export class RegisterModal extends Modal {
 		this.createLinks(parent);
 	}
 
-	private async handleRegister(parent: HTMLElement) {
-		const username = this.UsernameField.value.trim();
-		const firstName = this.FirstNameField.value.trim();
-		const lastName = this.LastNameField.value.trim();
-		const email = this.EmailField.value.trim();
-		const password = this.PasswordField.value.trim();
-		const repeatPassword = this.PasswordRepeatField.value.trim();
 
-		if (!this.verif(username, firstName, lastName, email, password, repeatPassword)) 
-			return;
+		private async handleRegister(parent:HTMLElement) {
+			const username = this.UsernameField.value.trim();
+			const firstName = this.FirstNameField.value.trim();
+			const lastName = this.LastNameField.value.trim();
+			const email = this.EmailField.value.trim();
+			const password = this.PasswordField.value.trim();
+			const repeatPassword = this.PasswordRepeatField.value.trim();
 
-		const requestData = { login: username, first_name: firstName, last_name: lastName, email, password_hash: password };
+			if (!this.verif(username, firstName, lastName, email, password, repeatPassword)) 
+				return;
 
-		const parseResult = CreateUserSchema.safeParse(requestData);
-		if (!parseResult.success) {
-			alert("Invalid input format");
-			console.error("Request validation failed:", z.treeifyError(parseResult.error));
-			return;
-		}
+			const requestData = { login: username, 
+				first_name: firstName,
+				last_name: lastName,
+				email: email,
+				password_hash: password };
 
-		try {
-			await apiCall("POST", "/users/", UserSchema, requestData);
-			alert("Registration successful! Please log in.");
-			this.destroy();
-			new LoginModal(parent);
-		} catch (error) {
-			console.error("Registration error:", error);
-			alert("Registration failed. Please try again.");
-		}
+			const parseResult = CreateUserSchema.safeParse(requestData);
+			if (!parseResult.success) {
+				alert("Invalid login format");
+				console.error("Request validation failed:", z.treeifyError(parseResult.error));
+				return;
+			}
+			
+			try { 
+				const regData = await apiCall("POST", "/users/", UserSchema, requestData);
+				if (!regData) {
+					alert("Registration unsuccessful");
+					return;
+				}
+				console.log('Registration successful for: ', regData.login);
+				new LoginModal(parent);
+				this.destroy();
+			} catch (error) {
+				console.error('Login error:', error);
+			}
 	}
 
 	private verif(username: string, firstName: string, lastName: string, email: string,
@@ -65,25 +73,25 @@ export class RegisterModal extends Modal {
 		if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
 			alert('Username must be 3–20 characters (letters, numbers, underscores)');
 			return false;
-		}	// First name: optional, but if present → 1–30 letters
+		} // First name: optional, but if present → 1–30 letters
 		if (firstName !== '' &&
 			!/^[a-zA-Z]{1,30}$/.test(firstName)) {
 			alert('First name must be 1–30 letters (if provided)');
 			return false;
-		}	// Last name: optional, but if present → 1–30 letters
+		} // Last name: optional, but if present → 1–30 letters
 		if (lastName !== '' &&
 			!/^[a-zA-Z]{1,30}$/.test(lastName)) {
 			alert('Last name must be 1–30 letters (if provided)');
 			return false;
-		}	// Email: optional, simple check, max length
+		} // Email: required, simple check, max length
 		if (email !== '' && !email.includes('@') || email.length > 100) {
 			alert('Invalid or too long email');
 			return false;
-		}	// Password: required, 8–64 chars
+		} // Password: required, 8–64 chars
 		if (password.length < 8 || password.length > 64) {
 			alert('Password must be 8–64 characters');
 			return false;
-		}	// Password confirmation
+		} // Password confirmation
 		if (password !== repeatPassword) {
 			alert('Passwords do not match');
 			return false;
