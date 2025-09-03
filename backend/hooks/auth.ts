@@ -8,7 +8,7 @@ import { AuthenticationFailedError } from '../../shared/exceptions.js';
 import UserService from '../services/user_service.js';
 import { FastifyReply } from 'fastify/types/reply.js';
 
-function authenticateRequest(request: FastifyRequest) {
+export function authenticateRequest(request: FastifyRequest) {
 	try {
 		const authHeader = request.headers['authorization'];
 		if (!authHeader) throw new AuthenticationFailedError(ERROR_NO_TOKEN);
