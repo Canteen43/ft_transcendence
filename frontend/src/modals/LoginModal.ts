@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
 import { ForgottenModal } from './ForgottenModal';
+import { z } from "zod";
 
 
 export class LoginModal extends Modal {
@@ -31,7 +32,7 @@ export class LoginModal extends Modal {
 		const parseResult = AuthRequestSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			alert("Invalid login format");
-			console.error("Request validation failed:", parseResult.error.format());
+			console.error("Request validation failed:", z.treeifyError(parseResult.error));
 			return;
 		}
 
