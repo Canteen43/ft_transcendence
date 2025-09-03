@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { zUUID } from '../types.js';
+import { sanitizedString, zUUID } from '../types.js';
 
 export const UserSchema = z.object({
 	id: zUUID,
@@ -10,6 +10,10 @@ export const UserSchema = z.object({
 });
 
 export const CreateUserSchema = UserSchema.omit({ id: true }).extend({
+	login: sanitizedString,
+	first_name: sanitizedString.nullable(),
+	last_name: sanitizedString.nullable(),
+	email: sanitizedString.nullable(),
 	password_hash: z.string(),
 });
 

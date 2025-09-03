@@ -110,7 +110,7 @@ export default async function userRoutes(
 			params: z.object({ id: zUUID }),
 			response: UserSchema,
 		}),
-		getUserByLogin
+		getUserById
 	);
 	fastify.post<{ Body: CreateUser }>(
 		'/',
