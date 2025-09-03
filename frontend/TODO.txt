@@ -219,11 +219,15 @@ Helene:
 		- adds JWT to all requests
 	- Reorganize home page
 
-- Invite player to 1v1 via Modal
+Karl:
+	- Why does websocket close immediately?
+	
 
+
+- Invite player to 1v1 via Modal
 - Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
-- Make shortcut for running frontend + backend?
+- Make shortcut for running frontend + backend tasks
 - Restructure frontend files into screen groups?
 
 
