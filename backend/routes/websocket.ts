@@ -7,7 +7,7 @@ import {
 	handleMessage,
 } from '../connection_manager/connection_manager.js';
 import { GameSocket } from '../types/interfaces.js';
-import { authHook } from '../hooks/auth.js';
+import { authenticateRequest } from '../hooks/auth.js';
 import { routeConfig } from '../utils/http_utils.js';
 import z from 'zod';
 
@@ -16,7 +16,7 @@ function handleIncomingConnection(
 	request: FastifyRequest<{ Querystring: { token: string } }>
 ) {
 	request.headers['authorization'] = `Bearer ${request.query.token}`;
-	authHook(request);
+	authenticateRequest(request);
 
 	if (!request.user) throw new AuthenticationError('User not authenticated');
 	const socket = webSocket as GameSocket;

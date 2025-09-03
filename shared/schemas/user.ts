@@ -1,6 +1,24 @@
 import * as z from 'zod';
 import { sanitizedString, zUUID } from '../types.js';
 
+const passwordSchema = z.string()
+	.min(8, "Password must be at least 8 characters")
+	.max(128, "Password must be at most 8 characters")
+	.regex(/[a-z]/, "Password must contain at least one lowercase letter")
+	.regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+	.regex(/[0-9]/, "Password must contain at least one number")
+	.regex(/[^a-zA-Z0-9]/, "Password must contain at least one special character");
+
+const loginSchema = z.string()
+	.min(3, "Login must be at least 3 characters")
+	.max(20, "Login must be at most 20 characters")
+	.regex(/^[a-zA-Z0-9_-]+$/, "Login can contain only letters, numbers, _ or -")
+
+const nameSchema = z.string()
+	.min(2, "First and last name must be at least 2 characters")
+	.max(128, "First and last name must be at most 128 characters")
+	.regex(/^[a-zA-Z-\.\s]+$/, "Name can contain only letters, numbers, - or .")
+
 export const UserSchema = z.object({
 	id: zUUID,
 	login: z.string(),
@@ -10,10 +28,10 @@ export const UserSchema = z.object({
 });
 
 export const CreateUserSchema = UserSchema.omit({ id: true }).extend({
-	login: sanitizedString,
-	first_name: sanitizedString.nullable(),
-	last_name: sanitizedString.nullable(),
-	email: sanitizedString.nullable(),
+	login: z.string().pipe(loginSchema),
+	first_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
+	last_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
+	email: z.email().nullable(),
 	password_hash: z.string(),
 });
 
