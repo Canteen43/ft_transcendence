@@ -11,10 +11,12 @@ export async function apiCall<T>(
 		const options: RequestInit | undefined = body
 			? {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(body),
-				}
-			: undefined;
+					headers: {
+						"Content-Type": "application/json",
+						...(token ? { "Authorization": `Bearer ${token}` } : {}),
+					},
+					...(body ? { body: JSON.stringify(body) } : {}),
+					};
 
 		const res = await fetch(`${API_BASE}${route}`, options);
 
@@ -40,3 +42,5 @@ export async function apiCall<T>(
 		return null;
 	}
 }
+
+
