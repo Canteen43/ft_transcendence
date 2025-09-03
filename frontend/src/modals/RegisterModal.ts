@@ -29,75 +29,55 @@ export class RegisterModal extends Modal {
 	}
 
 
-		private async handleRegister(parent:HTMLElement) {
-			const username = this.UsernameField.value.trim();
-			const firstName = this.FirstNameField.value.trim();
-			const lastName = this.LastNameField.value.trim();
-			const email = this.EmailField.value.trim();
-			const password = this.PasswordField.value.trim();
-			const repeatPassword = this.PasswordRepeatField.value.trim();
-
-			if (!this.verif(username, firstName, lastName, email, password, repeatPassword)) 
-				return;
-
-			const requestData = { login: username, 
-				first_name: firstName,
-				last_name: lastName,
-				email: email,
-				password_hash: password };
-
-			const parseResult = CreateUserSchema.safeParse(requestData);
-			if (!parseResult.success) {
-				alert("Invalid login format");
-				console.error("Request validation failed:", z.treeifyError(parseResult.error));
-				return;
-			}
-			
-			try { 
-				const regData = await apiCall("POST", "/users/", UserSchema, requestData);
-				if (!regData) {
-					alert("Registration unsuccessful");
-					return;
-				}
-				console.log('Registration successful for: ', regData.login);
-				new LoginModal(parent);
-				this.destroy();
-			} catch (error) {
-				console.error('Login error:', error);
-			}
+	private formatZodErrors(error: z.ZodError): string {
+		return error.issues.map(err => {
+			const field = err.path.join('.');
+			return `${field}: ${err.message}`;
+		}).join('\n');
 	}
 
-	private verif(username: string, firstName: string, lastName: string, email: string,
-							password: string, repeatPassword: string): boolean {
-		// Username: required, 3–20 chars, only letters/numbers/underscores
-		if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-			alert('Username must be 3–20 characters (letters, numbers, underscores)');
-			return false;
-		} // First name: optional, but if present → 1–30 letters
-		if (firstName !== '' &&
-			!/^[a-zA-Z]{1,30}$/.test(firstName)) {
-			alert('First name must be 1–30 letters (if provided)');
-			return false;
-		} // Last name: optional, but if present → 1–30 letters
-		if (lastName !== '' &&
-			!/^[a-zA-Z]{1,30}$/.test(lastName)) {
-			alert('Last name must be 1–30 letters (if provided)');
-			return false;
-		} // Email: required, simple check, max length
-		if (email !== '' && !email.includes('@') || email.length > 100) {
-			alert('Invalid or too long email');
-			return false;
-		} // Password: required, 8–64 chars
-		if (password.length < 8 || password.length > 64) {
-			alert('Password must be 8–64 characters');
-			return false;
-		} // Password confirmation
+	private async handleRegister(parent:HTMLElement) {
+		const username = this.UsernameField.value.trim();
+		const firstName = this.FirstNameField.value.trim();
+		const lastName = this.LastNameField.value.trim();
+		const email = this.EmailField.value.trim();
+		const password = this.PasswordField.value.trim();
+		const repeatPassword = this.PasswordRepeatField.value.trim();
+
 		if (password !== repeatPassword) {
 			alert('Passwords do not match');
-			return false;
+			return;
 		}
-		return true;
+
+		const requestData = { 
+			login: username, 
+			first_name: firstName || null,
+			last_name: lastName || null,
+			email: email || null,
+			password_hash: password };
+
+		const parseResult = CreateUserSchema.safeParse(requestData);
+		if (!parseResult.success) {
+			const errorMessage = this.formatZodErrors(parseResult.error);
+			alert(errorMessage);
+			console.error("Request validation failed:", parseResult.error);
+			return;
+		}
+		
+		try { 
+			const regData = await apiCall("POST", "/users/", UserSchema, requestData);
+			if (!regData) {
+				alert("Registration unsuccessful");
+				return;
+			}
+			console.log('Registration successful for: ', regData.login);
+			new LoginModal(parent);
+			this.destroy();
+		} catch (error) {
+			console.error('Login error:', error);
+		}
 	}
+
 
 	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
 		const input = document.createElement('input');

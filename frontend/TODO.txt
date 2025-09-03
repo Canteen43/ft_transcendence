@@ -211,17 +211,17 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Save JWT as variable /Helene
-
-
 - Where to put Macros
 - Make shortcut for running frontend + backend?
 - Restructure frontend files into screen groups?
-
-
 
 
 - Logout logic and Button
 - Better error handling on registration 
    -> if login already exist
    -> string validation in backend?
+
+Game: 
+- add a pause button? 
+- add a close button?
+- main screen: add a button for the rules?
