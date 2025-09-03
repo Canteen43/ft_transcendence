@@ -4,7 +4,7 @@
 		{
 			"type": "npm",
 			"script": "frontend_dev",
-			"label": "npm: frontend_dev",
+			"label": "frontend_run",
 			"detail": "vite",
 			"problemMatcher": []
 		},
@@ -13,7 +13,7 @@
 			"script": "frontend_build",
 			"group": "build",
 			"problemMatcher": [],
-			"label": "npm: frontend_build",
+			"label": "frontend_build",
 			"detail": "tsc && vite build"
 		},
 		{
@@ -25,6 +25,11 @@
 				"cwd": "${workspaceFolder}/backend"
 			},
 			"problemMatcher": []
+		},
+		{
+			"label": "fullstack_run",
+			"dependsOn": ["frontend_run", "backend_run"],
+			"dependsOrder": "parallel"
 		}
 	]
 }

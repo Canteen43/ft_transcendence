@@ -220,14 +220,16 @@ Helene:
 	- Reorganize home page
 
 Karl:
-	- Why does websocket close immediately?
-	
+	- Pull from main (should include Helene's API wrapper)
+	- @Wouter: Where can I easily look up how APIs work?
+	- Make shortcut for running frontend + backend tasks
+		- use keybindings.json
+		- Doesn't work at all so far
 
 
 - Invite player to 1v1 via Modal
 - Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
-- Make shortcut for running frontend + backend tasks
 - Restructure frontend files into screen groups?
 
 
