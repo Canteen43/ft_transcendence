@@ -6,4 +6,7 @@ declare module 'fastify' {
 			userId: UUID;
 		};
 	}
+	interface FastifyContextConfig {
+		secure?: boolean;
+	}
 }

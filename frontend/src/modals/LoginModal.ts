@@ -8,7 +8,8 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
 import { webSocket } from '../misc/WebSocketWrapper';
-// import { ForgottenModal } from './ForgottenModal';
+import { ForgottenModal } from './ForgottenModal';
+
 
 // Temporary export of JWT
 export let TEMP_JWT: string | null = null;
@@ -58,7 +59,6 @@ export class LoginModal extends Modal {
 
 	}
 
-
 	private async handleLogin() {
 		const username = this.UsernameField.value;
 		const password = this.PasswordField.value;
@@ -72,11 +72,16 @@ export class LoginModal extends Modal {
 
 			if (response.ok) {
 				const authData = await response.json();
-				console.log('Login successful:', authData);
+				if (authData.token) {
+					sessionStorage.setItem("token", authData.token);
+				}
+				console.log('Login successful for: ', authData.login);
+				//alert('You logged-in successfully! You can now play remotely, '  + authData.login + '  ' + authData.token);
 				TEMP_JWT = authData.token; // Temporary JWT
 				webSocket.open();
 				this.destroy();
 			} else {
+				alert('Login unsuccessful');
 				console.error('Login unsuccessful');
 			}
 		} catch (error) {
@@ -90,7 +95,7 @@ export class LoginModal extends Modal {
 		new RegisterModal(parent);
 	}
 
-	private handleForgot(parent: HTMLElement) {
-		// new ForgottenModal(parent);
+	private handleForgot(parent: HTMLElement) { 
+		new ForgottenModal(parent);
 	}
 }
