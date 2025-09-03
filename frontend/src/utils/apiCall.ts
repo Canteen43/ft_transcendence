@@ -1,46 +1,55 @@
-import { ZodSchema } from 'zod';
+import { ZodType, z } from "zod";
+// z is a namespace containing all Zod functions and helpers. Toolbox that has 
+// all the functions to create schemas and helpers. TypeScript can infer the 
+// schema type automatically with z.infer<typeof schema>
 
-const API_BASE = 'http://localhost:8080';
+// ZodType<T> is the TypeScript type representing a Zod schema.
+// use ZodType<T> when you need to type a function parameter or a variable that 
+// can accept any Zod schema.
 
-export async function apiCall<T>(
-	route: string,
-	schema: ZodSchema<T>,
-	body?: any
-): Promise<T | null> {
+const API_BASE = `http://localhost:${Number(process.env.PORT)}`;
+
+export async function apiCall<T>(	method: string,
+									route: string,
+									schema: ZodType<T>,
+									body?: unknown
+									): Promise<T | null> {
 	try {
-		const options: RequestInit | undefined = body
-			? {
-					method: 'POST',
-					headers: {
-						"Content-Type": "application/json",
-						...(token ? { "Authorization": `Bearer ${token}` } : {}),
-					},
-					...(body ? { body: JSON.stringify(body) } : {}),
-					};
 
+		const token = sessionStorage.getItem("token");
+
+		const headers: Record<string, string> = {};
+		if (token) headers.Authorization = `Bearer ${token}`;
+		if (body) headers["Content-Type"] = "application/json";
+
+		const options: RequestInit = {
+			method,
+			headers,
+			body: body ? JSON.stringify(body) : undefined,
+		};
+		
 		const res = await fetch(`${API_BASE}${route}`, options);
 
 		if (!res.ok) {
-			console.error(
-				`API error: ${res.status} ${res.statusText} (${route})`
-			);
+			alert(`❌ API error: ${res.status} ${res.statusText} (${route})`);
+			console.error(`❌ API error: ${res.status} ${res.statusText} (${route})`);
 			return null;
 		}
 
-		const json = await res.json();
+		const data = await res.json();
 
-		// Validate using Zod
-		const parsed = schema.safeParse(json);
+		const parsed = schema.safeParse(data);
 		if (!parsed.success) {
-			console.error('Zod validation failed:', parsed.error);
+			alert(`❌ Zod validation failed: ${res.status} ${res.statusText} (${route})`);
+			console.error("❌ Zod validation failed:", z.treeifyError(parsed.error));
 			return null;
 		}
 
 		return parsed.data;
+		
 	} catch (err) {
-		console.error(`Network error for ${route}:`, err);
+		alert(`❌ Network error for ${route}:`);
+		console.error(`❌ Network error for ${route}:`, err);
 		return null;
 	}
 }
-
-

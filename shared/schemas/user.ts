@@ -31,3 +31,5 @@ export type User = z.infer<typeof UserSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateUser = z.infer<typeof CreateUserSchema>;
+
+

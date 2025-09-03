@@ -1,14 +1,10 @@
-// import {
-// 	AuthRequest,
-// 	AuthResponse,
-// 	AuthResponseSchema,
-// } from '../../../shared/schemas/user.ts';
-
+import { AuthRequestSchema, AuthResponseSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
 import { webSocket } from '../misc/WebSocketWrapper';
 import { ForgottenModal } from './ForgottenModal';
+import { apiCall } from '../utils/apiCall';
 
 
 export class LoginModal extends Modal {
@@ -25,6 +21,56 @@ export class LoginModal extends Modal {
 		new Button('Login', () => this.handleLogin(), this.box);
 		this.createLinks(parent);
 	}
+
+	private async handleLogin() {
+		const username = this.UsernameField.value.trim();
+		const password = this.PasswordField.value.trim();
+
+		const requestData = { login: username, password_hash: password };
+
+		const parseResult = AuthRequestSchema.safeParse(requestData);
+		if (!parseResult.success) {
+			alert("Invalid login format");
+			console.error("Request validation failed:", parseResult.error.format());
+			return;
+		}
+
+		try {
+			const authData = await apiCall(
+				"POST",
+				"users/auth",
+				AuthResponseSchema,
+				requestData
+			);
+
+			if (!authData) {
+				alert("Login unsuccessful");
+				return;
+			}
+
+			console.log('Login successful for: ', authData.login);
+
+			// Store JWT token
+			sessionStorage.setItem("token", authData.token);
+
+			alert(
+				'You logged-in successfully! You can now play remotely, ' +
+				authData.login
+			);
+
+			// Open websocket
+			webSocket.open();
+			webSocket.addMessageListener((event) => {
+				alert('Message from server: ' + event.data);
+			});
+			webSocket.send("Test message!");
+
+			this.destroy();
+		} catch (error) {
+			console.error('Login error:', error);
+		}
+	}
+
 
 
 	// helpers
@@ -55,49 +101,12 @@ export class LoginModal extends Modal {
 		this.box.appendChild(ForgotPasswordLink);
 
 	}
-
-	private async handleLogin() {
-		const username = this.UsernameField.value;
-		const password = this.PasswordField.value;
-
-		try {
-			const response = await fetch('http://localhost:8080/users/auth', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ login: username, password_hash: password }),
-			});
-
-			if (response.ok) {
-				const authData = await response.json();
-				if (authData.token) {
-					sessionStorage.setItem("token", authData.token);
-				}
-				console.log('Login successful for: ', authData.login);
-				//alert('You logged-in successfully! You can now play remotely, '  + authData.login + '  ' + authData.token);
-				// This belongs here
-				webSocket.open();
-				// This is just to test that the websocket is working
-				webSocket.addMessageListener((event) => {
-					alert('Message from server: ' + event.data);
-				});
-				webSocket.send("Test message!");
-				this.destroy();
-			} else {
-				alert('Login unsuccessful');
-				console.error('Login unsuccessful');
-			}
-		} catch (error) {
-			console.error('Login error:', error);
-		}
-	}
-
-
 	private handleRegister(parent: HTMLElement) {
 		this.destroy();
 		new RegisterModal(parent);
 	}
 
-	private handleForgot(parent: HTMLElement) { 
+	private handleForgot(parent: HTMLElement) {
 		new ForgottenModal(parent);
 	}
 }
