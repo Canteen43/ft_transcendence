@@ -32,13 +32,14 @@ export class WebSocketWrapper {
 		this.address += `?token=${token}`;
 		this.ws = new WebSocket(this.address);
 		this.ws.addEventListener("message", (event) => this.routeListener(event));
+		// This is for debugging
 		this.ws.addEventListener("close", () => {
 			alert("WebSocket connection closed");
 		});
 	}
 
 	private routeListener(event: MessageEvent): void {
-		if (location.hash === "#home") {
+		if (location.hash === "#game") {
 			gameListener(event);
 		} else {
 			this.regListener(event);
@@ -47,7 +48,7 @@ export class WebSocketWrapper {
 
 	send(message: string): void {
 		if (!this.ws) {
-			console.warn("Websocket not open. Message not sent.");
+			console.warn("Websocket not opened. Message not sent.");
 			return;
 		}
 		this.ws.send(message);
