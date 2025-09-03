@@ -7,7 +7,7 @@ import {
 	handleMessage,
 } from '../connection_manager/connection_manager.js';
 import { GameSocket } from '../types/interfaces.js';
-import { authenticateRequest, authHook } from '../hooks/auth.js';
+import { authenticateRequest } from '../hooks/auth.js';
 import { routeConfig } from '../utils/http_utils.js';
 import z from 'zod';
 

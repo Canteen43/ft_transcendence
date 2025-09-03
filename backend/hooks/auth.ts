@@ -31,7 +31,7 @@ export function authenticateRequest(request: FastifyRequest) {
 }
 
 export const authHook = (request: FastifyRequest, reply: FastifyReply, done: Function) => {
-	if (request.routeOptions?.config?.secure !== false)
+	if (request.routeOptions?.config?.secure !== false && !request.url?.startsWith('/docs'))
 		authenticateRequest(request);
 	done();
 };
