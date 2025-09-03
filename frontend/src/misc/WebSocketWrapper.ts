@@ -14,7 +14,6 @@ import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_POINT,
 } from "../../../shared/constants";
-import { TEMP_JWT } from "../modals/LoginModal";
 
 export class WebSocketWrapper {
 	private ws?: WebSocket;
@@ -25,7 +24,12 @@ export class WebSocketWrapper {
 	}
 
 	open(): void {
-		this.address += `?token=${TEMP_JWT}`;
+		let token = sessionStorage.getItem("token");
+		if (!token) {
+			console.error("No token found");
+			return;
+		}
+		this.address += `?token=${token}`;
 		this.ws = new WebSocket(this.address);
 		this.ws.addEventListener("message", (event) => this.routeListener(event));
 		this.ws.addEventListener("close", () => {

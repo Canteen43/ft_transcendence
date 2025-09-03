@@ -29,7 +29,8 @@
 		{
 			"label": "fullstack_run",
 			"dependsOn": ["frontend_run", "backend_run"],
-			"dependsOrder": "parallel"
+			"dependsOrder": "parallel",
+			"problemMatcher": []
 		}
 	]
 }

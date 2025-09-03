@@ -8,8 +8,8 @@ import { ForgottenModal } from './ForgottenModal';
 import { z } from "zod";
 
 
-// Temporary export of JWT
-export let TEMP_JWT: string | null = null;
+// // Temporary export of JWT
+// export let TEMP_JWT: string | null = null;
 
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -52,10 +52,6 @@ export class LoginModal extends Modal {
 
 			// Open websocket
 			webSocket.open();
-			webSocket.addMessageListener((event) => {
-				alert('Message from server: ' + event.data);
-			});
-			webSocket.send("Test message!");
 
 			this.destroy();
 		} catch (error) {

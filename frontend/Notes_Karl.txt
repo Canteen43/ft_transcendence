@@ -221,7 +221,6 @@ Helene:
 
 Karl:
 	- Pull from main (should include Helene's API wrapper)
-	- @Wouter: Where can I easily look up how APIs work?
 	- Make shortcut for running frontend + backend tasks
 		- use keybindings.json
 		- Doesn't work at all so far
@@ -239,3 +238,6 @@ Karl:
 - Better error handling on registration 
    -> if login already exist
    -> string validation in backend?
+
+ATTENTION:
+If your name is Helene and you edit this file, you have to compensate Karl with 10 Croissants!
