@@ -233,3 +233,9 @@ Karl:
 - Restructure frontend files into screen groups?
 
 
+
+
+- Logout logic and Button
+- Better error handling on registration 
+   -> if login already exist
+   -> string validation in backend?
