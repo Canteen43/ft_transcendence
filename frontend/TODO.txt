@@ -215,8 +215,13 @@ TODO:
 
 
 - Where to put Macros
-- Add API call wrapper
 - Make shortcut for running frontend + backend?
 - Restructure frontend files into screen groups?
 
 
+
+
+- Logout logic and Button
+- Better error handling on registration 
+   -> if login already exist
+   -> string validation in backend?
