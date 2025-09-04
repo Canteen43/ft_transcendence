@@ -1,247 +1,237 @@
-/*  import { Button } from '../components/Button';
-import { Screen } from '../components/Screen';
-import type { GameOptions } from '../misc/GameOptions';
-import { LoginButton } from '../misc/LoginButton';
-import { webSocket } from '../misc/WebSocketWrapper';
-import { PlaceholderModal } from '../modals/PlaceholderModal';
-import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
+// import { Button } from '../components/Button';
+// import { Screen } from '../components/Screen';
+// import type { GameOptions } from '../misc/GameOptions';
+// import { LoginButton } from '../misc/LoginButton';
+// import { webSocket } from '../misc/WebSocketWrapper';
+// import { PlaceholderModal } from '../modals/PlaceholderModal';
+// import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
 
-export let gameOptions: GameOptions | null = null;
+// // Import the FIXED particles utility
+// import { initParticles } from '../utils/particles';
 
-export class HomeScreen extends Screen {
-	constructor() {
-		super();
+// export let gameOptions: GameOptions | null = null;
 
-		const video = document.getElementById(
-			'background-video'
-		) as HTMLVideoElement;
-		video.play();
+// export class HomeScreen extends Screen {
+// 	private particlesContainer: HTMLDivElement | null = null;
 
-		this.element.className =
-			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
+// 	constructor() {
+// 		super();
 
-		// Heading
-		const heading = document.createElement('h1');
-		heading.textContent = 'transcendence';
-		heading.className =
-			'text-7xl font-extrabold select-none font-ps2p text-white';
-		heading.style.textShadow = `2px 2px 0px pink, -2px 2px 0px pink, 2px -2px 0px pink, -2px -2px 0px pink`;
-		this.element.appendChild(heading);
+// 		console.log("🚀 Creating HomeScreen with modern particles setup");
 
-		// Button container
-		const buttonContainer = document.createElement('div');
-		buttonContainer.className = 'flex space-x-4 justify-center';
-		this.element.appendChild(buttonContainer);
+// 		// // Root layout with dark background
+// 		// this.element.className =
+// 		// 	'flex flex-col min-h-screen bg-gray-900 text-white relative overflow-hidden';
 
-		// Buttons
-		void new LoginButton(this.element);
+// 		// // Ensure proper positioning for particles
+// 		// this.element.style.position = 'relative';
+// 		// this.element.style.width = '100%';
+// 		// this.element.style.height = '100vh';
 
-		void new Button(
-			'Postman Mock-Request',
-			async () => {
-				try {
-					const res = await fetch(
-						'https://1a7b7860-26ef-49a8-b367-439c7ea4ea05.mock.pstmn.io/users'
-					);
-					const data = await res.json();
-					alert(JSON.stringify(data, null, 2));
-				} catch {
-					alert('Error fetching data');
-				}
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Create Test User',
-			async () => {
-				const timestamp = Date.now();
-				const newUser = {
-					login: `test_${timestamp}`,
-					// login: `helene`,
-					first_name: 'Test',
-					last_name: 'User',
-					email: 'test.user@example.com',
-					password_hash: 'supersecret',
-				};
+// 		// Create particles container first
+// 		this.createParticlesContainer();
 
-				try {
-					const res = await fetch('http://localhost:8080/users', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify(newUser),
-					});
+// 		// // Create UI elements
+// 		// this.createUIElements();
 
-					if (!res.ok) {
-						const errText = await res.text(); // backend error message
-						throw new Error(errText);
-					}
+// 		// Initialize particles after DOM is ready
+// 		requestAnimationFrame(() => {
+// 			console.log("🎨 Initializing particles...");
+// 			this.initParticlesAsync();
+// 		});
+// 	}
 
-					const data = await res.json();
-					alert(JSON.stringify(data, null, 2));
-				} catch (err) {
-					alert('Error creating user: ' + err);
-					console.error(err);
-				}
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Local 1v1',
-			() => {
-				gameOptions = {
-					type: 'local',
-					playerCount: 2,
-					thisPlayer: 1,
-				};
-				location.hash = '#game';
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Local 1vAI',
-			() => {
-				void new PlaceholderModal(this.element);
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Remote 1v1',
-			() => {
-				void new Remote2PlayerModal(this.element);
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Tournament',
-			() => {
-				void new PlaceholderModal(this.element);
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Test WebSocket',
-			() => {
-				webSocket.send(JSON.stringify({
-					t: 'test',
-					d: 'Test message!'
-				}));
-			},
-			buttonContainer
-		);
-		void new Button(
-			'To TournamentScreen',
-			() => {
-				location.hash = '#tournament';
-			},
-			buttonContainer
-		);
-	}
-} */
+// 	private createParticlesContainer() {
+// 		this.particlesContainer = document.createElement('div');
+// 		this.particlesContainer.id = "tsparticles";
+
+// 		// Essential styling for particles container - LOWER z-index
+// 		this.particlesContainer.style.position = 'absolute';
+// 		this.particlesContainer.style.top = '0';
+// 		this.particlesContainer.style.left = '0';
+// 		this.particlesContainer.style.width = '100%';
+// 		this.particlesContainer.style.height = '100%';
+// 		this.particlesContainer.style.zIndex = '0'; // Lower than UI elements
+// 		this.particlesContainer.style.pointerEvents = 'auto';
+
+// 		// Ensure it's the first child (behind everything else)
+// 		this.element.insertBefore(this.particlesContainer, this.element.firstChild);
+
+// 		console.log("✨ Particles container created");
+// 	}
+
+// 	private createUIElements() {
+// 		// Login button - top right with high z-index
+// 		const loginContainer = document.createElement('div');
+// 		loginContainer.className = 'absolute top-4 right-4 z-50';
+// 		void new LoginButton(loginContainer);
+// 		this.element.appendChild(loginContainer);
+
+// 		// // Main content wrapper with high z-index
+// 		// const contentWrapper = document.createElement('div');
+// 		// contentWrapper.className = 'relative z-10 flex flex-col items-center justify-center flex-1';
+
+// 		// // Title
+// 		// const heading = document.createElement('h1');
+// 		// heading.textContent = 'TRANSCENDANCE';
+// 		// heading.className = 'text-6xl font-extrabold text-center font-ps2p mb-12 select-none';
+// 		// heading.style.textShadow = `2px 2px 0px #ff4da6, -2px 2px 0px #ff4da6, 2px -2px 0px #ff4da6, -2px -2px 0px #ff4da6`;
+// 		// contentWrapper.appendChild(heading);
+
+// 		// // Buttons grid
+// 		// const grid = document.createElement('div');
+// 		// grid.className = 'grid grid-cols-2 gap-6 justify-center items-start max-w-3xl mx-auto';
+
+// 		// // Local game column
+// 		// const localCol = document.createElement('div');
+// 		// localCol.className = 'flex flex-col space-y-3';
+// 		// localCol.appendChild(this.makeSectionTitle('Local Game'));
+
+// 		// void new Button('1 player', () => {
+// 		// 	gameOptions = { type: 'local', playerCount: 1, thisPlayer: 1 };
+// 		// 	location.hash = '#game';
+// 		// }, localCol);
+// 		// void new Button('2 players', () => {
+// 		// 	gameOptions = { type: 'local', playerCount: 2, thisPlayer: 1 };
+// 		// 	location.hash = '#game';
+// 		// }, localCol);
+// 		// void new Button('3 players', () => {
+// 		// 	gameOptions = { type: 'local', playerCount: 3, thisPlayer: 1 };
+// 		// 	location.hash = '#game';
+// 		// }, localCol);
+// 		// void new Button('4 players', () => {
+// 		// 	gameOptions = { type: 'local', playerCount: 4, thisPlayer: 1 };
+// 		// 	location.hash = '#game';
+// 		// }, localCol);
+
+// 		// // Remote game column
+// 		// const remoteCol = document.createElement('div');
+// 		// remoteCol.className = 'flex flex-col space-y-3';
+// 		// remoteCol.appendChild(this.makeSectionTitle('Remote Game'));
+
+// 		// void new Button('Tournament', () => {
+// 		// 	void new PlaceholderModal(this.element);
+// 		// }, remoteCol);
+// 		// void new Button('2 players', () => {
+// 		// 	void new Remote2PlayerModal(this.element);
+// 		// }, remoteCol);
+// 		// void new Button('3 players', () => {
+// 		// 	void new PlaceholderModal(this.element);
+// 		// }, remoteCol);
+// 		// void new Button('4 players', () => {
+// 		// 	void new PlaceholderModal(this.element);
+// 		// }, remoteCol);
+
+// 		// grid.appendChild(localCol);
+// 		// grid.appendChild(remoteCol);
+// 		// contentWrapper.appendChild(grid);
+// 		// this.element.appendChild(contentWrapper);
+// 	}
+
+// 	// private makeSectionTitle(title: string): HTMLElement {
+// 	// 	const h = document.createElement('h2');
+// 	// 	h.textContent = title;
+// 	// 	h.className = 'text-2xl font-bold mb-2 text-pink-400';
+// 	// 	return h;
+// 	// }
+
+// 	private async initParticlesAsync() {
+// 		try {
+// 			console.log('🎯 Starting particles initialization...');
+// 			await initParticles();
+// 			console.log('✅ Particles initialized successfully');
+
+// 		} catch (error) {
+// 			console.error('❌ Failed to initialize particles:', error);
+// 		}
+// 	}
+
+// 	destroy() {
+// 		// Clean up particles if needed
+// 		if (this.particlesContainer) {
+// 			this.particlesContainer.remove();
+// 		}
+// 		super.destroy?.();
+// 		console.log('🧽 HomeScreen destroyed');
+// 	}
+// }
+
+
+
 import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
+import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
+
+// Import particles
+import { initParticles } from '../utils/particles';
 
 export let gameOptions: GameOptions | null = null;
 
 export class HomeScreen extends Screen {
+	private particlesContainer: HTMLDivElement | null = null;
+
 	constructor() {
 		super();
 
-		const video = document.getElementById('background-video') as HTMLVideoElement;
-		video.play();
+		this.createParticlesContainer();
+		this.createUIElements();
 
-		this.element.className =
-			'flex flex-col items-center justify-center min-h-screen bg-transparent p-8';
+		requestAnimationFrame(() => {
+			void this.initParticlesAsync();
+		});
+	}
 
-		// Login button top-right
-		void new LoginButton(this.element);
+	private createParticlesContainer() {
+		this.particlesContainer = document.createElement('div');
+		this.particlesContainer.id = "tsparticles";
+		this.particlesContainer.style.position = 'absolute';
+		this.particlesContainer.style.top = '0';
+		this.particlesContainer.style.left = '0';
+		this.particlesContainer.style.width = '100%';
+		this.particlesContainer.style.height = '100%';
+		this.particlesContainer.style.zIndex = '0';
+		this.particlesContainer.style.pointerEvents = 'none'; // prevent blocking clicks
+		this.element.insertBefore(this.particlesContainer, this.element.firstChild);
+	}
 
-		// Main content container - perfectly centered
-		const mainContainer = document.createElement('div');
-		mainContainer.className = 'flex flex-col items-center justify-center flex-1';
-		this.element.appendChild(mainContainer);
+	private createUIElements() {
+		// === Login button (top-right) ===
+		const loginContainer = document.createElement('div');
+		loginContainer.className = 'absolute top-4 right-4 z-50';
+		void new LoginButton(loginContainer);
+		this.element.appendChild(loginContainer);
 
-		// Title
+		// === Centered title ===
+		const contentWrapper = document.createElement('div');
+		contentWrapper.className =
+			'relative z-10 flex flex-col items-center justify-center h-full select-none';
+
 		const heading = document.createElement('h1');
-		heading.textContent = 'PONG';
+		heading.textContent = 'TRANSCENDANCE';
 		heading.className =
-			'text-9xl font-extrabold select-none font-ps2p text-white mb-16 text-center';
-		heading.style.textShadow = `2px 2px 0px #ff79c6, -2px 2px 0px #ff79c6, 2px -2px 0px #ff79c6, -2px -2px 0px #ff79c6`;
-		mainContainer.appendChild(heading);
+			'text-6xl font-extrabold text-center font-justsans mb-12 text-white';
+		heading.style.textShadow =
+			'2px 2px 0px #ff4da6, -2px 2px 0px #ff4da6, 2px -2px 0px #ff4da6, -2px -2px 0px #ff4da6';
 
-		// Panels container
-		const panelsContainer = document.createElement('div');
-		panelsContainer.className = 'flex w-full max-w-6xl justify-center gap-6';
-		mainContainer.appendChild(panelsContainer);
+		contentWrapper.appendChild(heading);
+		this.element.appendChild(contentWrapper);
+	}
 
-		// Panel definitions
-		const panels = [
-			{
-				title: 'PLAY LOCALLY',
-				buttons: [
-					{ label: '2 players', players: 2 },
-					{ label: '3 players', players: 3 },
-					{ label: '4 players', players: 4 },
-					{ label: 'vs AI', players: 2 },
-				],
-				action: (players: number) => {
-					gameOptions = { type: 'local', playerCount: players, thisPlayer: 1 };
-					location.hash = '#game';
-				},
-			},
-			{
-				title: 'PLAY REMOTE',
-				buttons: [
-					{ label: '2 players' },
-					{ label: '3 players' },
-					{ label: '4 players' },
-					{ label: 'TOURNAMENT', hash: '#tournament' },
-				],
-				action: (_: any, hash?: string) => {
-					if (hash) location.hash = hash;
-					else void new PlaceholderModal(this.element);
-				},
-			},
-			{
-				title: 'TESTING',
-				buttons: [
-					{ label: 'Test Mode 1' },
-					{ label: 'Test Mode 2' },
-					{ label: 'Debug Game' },
-					{ label: 'Settings' },
-				],
-				action: () => {
-					void new PlaceholderModal(this.element);
-				},
-			},
-		];
-
-		// Create panels dynamically
-		for (const panel of panels) {
-			const panelEl = document.createElement('div');
-			panelEl.className = `flex flex-col items-center justify-center bg-pink-100/20 backdrop-blur-sm border border-pink-200/40 rounded-xl p-6 flex-1 gap-3 transition-all duration-300 hover:bg-pink-100/30 hover:border-pink-300/60`;
-			panelsContainer.appendChild(panelEl);
-
-			const titleEl = document.createElement('h2');
-			titleEl.textContent = panel.title;
-			titleEl.className = 'text-2xl font-extrabold font-ps2p text-white mb-4 text-center';
-			titleEl.style.textShadow = `1px 1px 0px #ff79c6, -1px 1px 0px #ff79c6, 1px -1px 0px #ff79c6, -1px -1px 0px #ff79c6`;
-			panelEl.appendChild(titleEl);
-
-			// Button container for centering
-			const buttonContainer = document.createElement('div');
-			buttonContainer.className = 'flex flex-col items-center gap-2 w-full';
-			panelEl.appendChild(buttonContainer);
-
-			for (const btn of panel.buttons) {
-				const buttonElement = document.createElement('button');
-				buttonElement.textContent = btn.label;
-				buttonElement.className = 'font-ps2p text-sm text-white bg-pink-500/20 hover:bg-pink-500/40 border border-pink-400/30 hover:border-pink-400/60 rounded-lg px-4 py-2 transition-all duration-200 w-full max-w-48';
-				buttonElement.onclick = () => panel.action(btn.players ?? 0, btn.hash);
-				buttonContainer.appendChild(buttonElement);
-			}
+	private async initParticlesAsync() {
+		try {
+			await initParticles();
+		} catch (error) {
+			console.error('❌ Failed to initialize particles:', error);
 		}
+	}
+
+	destroy() {
+		if (this.particlesContainer) {
+			this.particlesContainer.remove();
+		}
+		super.destroy?.();
 	}
 }

@@ -1,10 +1,47 @@
-/* Import retro font from google */
+/* 1. Import retro font (Google Fonts) */
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-/* Mandatory Tailwind CSS Import */
+/* 2. Tailwind core */
 @import 'tailwindcss';
 
-/* Injecting font into Tailwind CSS */
+/* 3. Custom fonts */
+@font-face {
+	font-family: 'Ignazio';
+	src: url('../fonts/ignazio/Ignazio_Outline.otf') format('opentype');
+	font-weight: normal;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JustSans';
+	src: url('../fonts/just-sans-outline/JUST Sans Outline ExBold.otf') format('opentype');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'JustSans';
+	src: url('../fonts/just-sans-outline/JUST Sans Outline Regular.otf.otf') format('opentype');
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* 4. Extend Tailwind theme */
 @theme {
 	--font-ps2p: 'Press Start 2P', monospace;
+	--font-ignazio: 'Ignazio', sans-serif;
+	--font-justsans: 'JustSans', sans-serif;
+}
+
+@keyframes float {
+  0%   { transform: translate(0, 0); }
+  50%  { transform: translate(15px, -10px); }
+  100% { transform: translate(0, 0); }
+}
+
+.floating-title {
+  animation: float 6s ease-in-out infinite;
 }
