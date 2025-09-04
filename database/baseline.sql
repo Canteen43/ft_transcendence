@@ -27,8 +27,8 @@ CREATE TABLE "user" (
 	first_name TEXT,
 	last_name TEXT,
 	email TEXT,
-	password_hash TEXT NOT NULL,
 	settings_id TEXT REFERENCES settings(id),
+	password_hash TEXT NOT NULL,
 	CONSTRAINT unique_user_login UNIQUE (login)
 );
 

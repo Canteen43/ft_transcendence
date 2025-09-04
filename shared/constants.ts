@@ -3,8 +3,6 @@ import { ParticipantStatus } from './enums.js';
 import { Message } from './schemas/message.js'
 import { UUID } from './types.js';
 
-export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
-
 export const ERROR_CREATE_USER_FAILED = 'Failed to create user';
 export const ERROR_INVALID_CREDENTIALS = 'Invalid login credentials';
 export const ERROR_INVALID_INPUT = 'Invalid input';
@@ -32,6 +30,8 @@ export const ERROR_FAILED_TO_CREATE_MATCH = 'Failed to create match';
 export const ERROR_FAILED_TO_CREATE_PARTICIPANT =
 	'Failed to create participant';
 export const ERROR_FAILED_TO_CREATE_TOURNAMENT = 'Failed to create tournament';
+export const ERROR_FAILED_TO_CREATE_SETTINGS =
+	'Failed to create settings object';
 export const ERROR_FAILED_TO_UPDATE_USER = 'Failed to update user';
 export const ERROR_FAILED_TO_UPDATE_MATCH = 'Failed to update match';
 export const ERROR_FAILED_TO_UPDATE_PARTICIPANT =
@@ -73,3 +73,7 @@ export const MESSAGE_POINT = 'x';
 export const INVITATION_MESSAGE: Message = { t: MESSAGE_INITIATE_MATCH };
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_START_MESSAGE: Message = { t: MESSAGE_START_TOURNAMENT };
+
+export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
+
+export const DEFAULT_MAX_SCORE = 3;
