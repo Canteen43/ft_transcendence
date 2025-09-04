@@ -1,41 +1,64 @@
-/* 1. Import retro font (Google Fonts) */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+/* ==============================
+	1. Google Fonts
+============================== */
+@import url('https://fonts.googleapis.com/css2?family=Rubik+Microbe&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sigmar&display=swap');
 
-/* 2. Tailwind core */
+/* @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); */
+
+/* ==============================
+	2. Tailwind import
+============================== */
 @import 'tailwindcss';
 
-/* 3. Custom fonts */
-@font-face {
-	font-family: 'Ignazio';
-	src: url('../fonts/ignazio/Ignazio_Outline.otf') format('opentype');
-	font-weight: normal;
-	font-style: normal;
-	font-display: swap;
+/* ==============================
+	3. Custom fonts
+============================== */
+/* @font-face {
+  font-family: 'Ignazio';
+  src: url('../fonts/ignazio/Ignazio_Outline.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-	font-family: 'JustSans';
-	src: url('../fonts/just-sans-outline/JUST Sans Outline ExBold.otf') format('opentype');
-	font-weight: 700;
-	font-style: normal;
-	font-display: swap;
+  font-family: 'JustSans';
+  src: url('../fonts/just-sans-outline/JUST Sans Outline ExBold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
-	font-family: 'JustSans';
-	src: url('../fonts/just-sans-outline/JUST Sans Outline Regular.otf.otf') format('opentype');
-	font-weight: 500;
-	font-style: normal;
-	font-display: swap;
-}
+  font-family: 'JustSans';
+  src: url('../fonts/just-sans-outline/JUST Sans Outline Regular.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+} */
 
-/* 4. Extend Tailwind theme */
+/* ==============================
+	4. CSS Variables (Fonts + Colors)
+============================== */
 @theme {
 	--font-ps2p: 'Press Start 2P', monospace;
 	--font-ignazio: 'Ignazio', sans-serif;
 	--font-justsans: 'JustSans', sans-serif;
+	--font-rubik: 'Rubik Microbe', sans-serif;
+	--font-sigmar: 'Sigmar', sans-serif;
 }
 
+:root {
+	--pink-light: #ffb6d9;
+	--pink-dark: #ff4da6;
+	--yellow-green: #f7fbc4;
+	--off-white: #f8f8f2;
+}
+
+/* ==============================
+   5. Floating animation
+============================== */
 @keyframes float {
   0%   { transform: translate(0, 0); }
   50%  { transform: translate(15px, -10px); }
@@ -45,3 +68,4 @@
 .floating-title {
   animation: float 6s ease-in-out infinite;
 }
+
