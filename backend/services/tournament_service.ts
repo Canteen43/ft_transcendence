@@ -19,6 +19,7 @@ import {
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import { randomInt } from '../../shared/utils.js';
+import { GameProtocol } from '../game/game_protocol.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
@@ -48,27 +49,28 @@ export default class TournamentService {
 		return FullTournamentSchema.parse(fullTournament);
 	}
 
-	static createTournament(creator: UUID, participants: UUID[]): Tournament {
+	static createTournament(creator: UUID, users: UUID[]): Tournament {
 		const settings = SettingsRepository.getSettingsByUser(creator);
 		if (!settings) throw new SettingsNotFoundError('user', creator);
 
-		const tournament = CreateTournamentSchema.parse({
-			size: participants.length,
+		const createTournament = CreateTournamentSchema.parse({
+			size: users.length,
 			settings: settings.id,
 			status:
-				participants.length == 2
+				users.length == 2
 					? TournamentStatus.InProgress
 					: TournamentStatus.Pending,
 		});
 
-		const all_participants = this.createParticipants(participants);
-		const matches = this.createTournamentMatches(participants);
-
-		return TournamentRepository.createFullTournament(
-			tournament,
-			all_participants,
-			matches
+		const createParticipants = this.createParticipants(users);
+		const createMatches = this.createTournamentMatches(users);
+		const { tournament, participants } = TournamentRepository.createFullTournament(
+			createTournament,
+			createParticipants,
+			createMatches
 		);
+		GameProtocol.getInstance().sendTournamentInvites(participants.filter(p => p.user_id !== creator));
+		return tournament;
 	}
 
 	static getNumberOfRounds(tournament_id: UUID): number {
@@ -85,13 +87,13 @@ export default class TournamentService {
 	}
 
 	private static createParticipants(
-		participants: UUID[]
+		users: UUID[]
 	): CreateParticipant[] {
-		return participants.map(p =>
+		return users.map(p =>
 			CreateParticipantSchema.parse({
 				user_id: p,
 				status:
-					participants.length == 2
+					users.length == 2
 						? ParticipantStatus.Accepted
 						: ParticipantStatus.Pending,
 			})
