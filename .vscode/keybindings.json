@@ -1,0 +1,11 @@
+[
+	{
+		// "key": "ctrl+alt+r",
+		// "command": "workbench.action.tasks.runTask",
+		// "args": {
+		// 	"task": "fullstack_run"
+		// }
+		"key": "ctrl+alt+r",
+		"command": "workbench.action.terminal.toggleTerminal"
+	}
+]

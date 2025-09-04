@@ -213,6 +213,23 @@ LEARNED:
 TODO:
 - Where to put Macros
 - Make shortcut for running frontend + backend?
+Helene:
+	- Make API Wrapper work
+		- supports different request types
+		- checks if request was successful
+		- checks if Zod type is correct
+		- adds JWT to all requests
+	- Reorganize home page
+
+Karl:
+- Make shortcut for running frontend + backend tasks
+	- use keybindings.json
+	- Doesn't work at all so far
+- Invite player to 1v1 via Modal
+
+
+- Use function pointers instead of switch statement for WebSocket-Messages
+- put Macros in shared/constants
 - Restructure frontend files into screen groups?
 
 
@@ -225,3 +242,5 @@ Game:
 - add a pause button? 
 - add a close button?
 - main screen: add a button for the rules?
+ATTENTION:
+If your name is Helene and you edit this file, you have to compensate Karl with 10 Croissants!
