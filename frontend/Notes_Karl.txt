@@ -211,11 +211,23 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Save JWT as variable /Helene
+Helene:
+	- Make API Wrapper work
+		- supports different request types
+		- checks if request was successful
+		- checks if Zod type is correct
+		- adds JWT to all requests
+	- Reorganize home page
+
+Karl:
+- Make shortcut for running frontend + backend tasks
+	- use keybindings.json
+	- Doesn't work at all so far
+- Invite player to 1v1 via Modal
 
 
-- Where to put Macros
-- Make shortcut for running frontend + backend?
+- Use function pointers instead of switch statement for WebSocket-Messages
+- put Macros in shared/constants
 - Restructure frontend files into screen groups?
 
 
@@ -225,3 +237,6 @@ TODO:
 - Better error handling on registration 
    -> if login already exist
    -> string validation in backend?
+
+ATTENTION:
+If your name is Helene and you edit this file, you have to compensate Karl with 10 Croissants!
