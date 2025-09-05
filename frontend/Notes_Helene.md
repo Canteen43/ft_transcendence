@@ -91,6 +91,7 @@ functions: getItem, setItem, removeItem
 TODO:
 
 - Logout logic and Button
+- Login: better error handling for username existent
 - Better error handling on registration 
    -> if login already exist
    -> string validation in backend?
@@ -102,3 +103,6 @@ Game:
 
 Websocket:
 - what to do if the connection closes from the server side? Loop to connect again?
+
+
+https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9

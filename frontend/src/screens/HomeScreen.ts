@@ -161,7 +161,7 @@
 import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
-import { LoginButton } from '../misc/LoginButton';
+import { AuthComponent } from '../misc/AuthComponent';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
 import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
 import { initParticles } from '../utils/particles';
@@ -205,10 +205,11 @@ private createUIElements() {
 	////////////////////////////
 	// LOGIN BUTTON
 	////////////////////////////
-	const loginContainer = document.createElement('div');
-	loginContainer.className = 'fixed top-4 right-4 z-50';
-	void new LoginButton(loginContainer);
-	app.appendChild(loginContainer);
+	const authContainer = document.createElement('div');
+	authContainer.className = 'fixed top-4 right-4 z-50';
+	void new AuthComponent(authContainer);
+	app.appendChild(authContainer);
+
 
 	////////////////////////////
 	// HOME ECRAN

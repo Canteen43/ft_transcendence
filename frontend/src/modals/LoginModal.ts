@@ -7,12 +7,9 @@ import { RegisterModal } from './RegisterModal';
 import { ForgottenModal } from './ForgottenModal';
 import { z } from "zod";
 
-
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
-	private loginButton: Button | null = null;
-	private logoutButton: Button | null = null;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -20,45 +17,13 @@ export class LoginModal extends Modal {
 		this.box.classList.add('flex', 'flex-col', 'items-center', 'justify-center', 'gap-2', 'p-4');
 		this.UsernameField = this.myCreateInput('text', 'username', 'Enter your username');
 		this.PasswordField = this.myCreateInput('password', 'password', 'Enter your password');
-
-		if (this.isLoggedIn()) {
-			this.showLogoutButton(parent);
-		} else {
-			this.showLoginButton(parent);
-		}
-
+		new Button('Login', () => this.handleLogin(), this.box);
 		this.createLinks(parent);
 	}
 
-	private isLoggedIn(): boolean {
-		const token = sessionStorage.getItem("token");
-		return (token != null && token != "");
-	}
-	
-	private showLoginButton(parent:HTMLElement) {
-		if (this.logoutButton) {
-			this.logoutButton.destroy();
-			this.logoutButton = null;
-		}
-		this.loginButton = new Button('Login', () => this.handleLogin(parent), this.box);
-	}
-
-	private showLogoutButton(parent:HTMLElement) {
-		if (this.loginButton) {
-			this.loginButton.destroy();
-			this.loginButton = null;
-		}
-		this.logoutButton = new Button('Login', () => this.handleLogout(parent), this.box);
-	}
-
-	private async handleLogin(parent: HTMLElement) {
+	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
 		const password = this.PasswordField.value.trim();
-
-		if (!username || !password) {
-			alert("Please enter both username and password");
-			return;
-		}
 
 		const requestData = { login: username, password_hash: password };
 
@@ -76,31 +41,16 @@ export class LoginModal extends Modal {
 				return;
 			}
 			alert( 'You logged-in successfully! You can now play remotely, ' + authData.login);
-			
-			// Store JWT token, open socket 
+
+			// Store JWT token, Open websocket
 			sessionStorage.setItem("token", authData.token);
 			webSocket.open();
-
-			// Switch to logout button
-			this.showLogoutButton(parent);
-
-			this.UsernameField.value = '';
-			this.PasswordField.value = '';
+			this.destroy();
 
 		} catch (error) {
 			console.error('Login error:', error);
 		}
 	}
-
-
-	private async handleLogout(parent: HTMLElement) {
-		// Remove JWT token, close socket 
-		sessionStorage.removeItem("token");
-		webSocket.close();
-		alert( 'You have been logged out successfully!');
-		this.showLoginButton(parent);
-	}
-
 
 	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
 		const input = document.createElement('input');

@@ -1,7 +1,7 @@
 import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
-import { LoginButton } from '../misc/LoginButton';
+import { LoginButton } from '../misc/AuthComponent';
 import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
 import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';

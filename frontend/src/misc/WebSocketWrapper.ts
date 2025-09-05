@@ -38,7 +38,12 @@ export class WebSocketWrapper {
 	}
 
 	close(): void {
-		this.ws.removeEventListener("close", (event) => this.routeListener(event));
+		if (this.ws) {
+			this.ws.close();
+			this.ws = undefined;
+			alert("Websocket connection closed by client");
+
+		}
 
 	}
 
