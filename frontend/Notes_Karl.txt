@@ -233,14 +233,5 @@ Karl:
 - Restructure frontend files into screen groups?
 
 
-- Logout logic and Button
-- Better error handling on registration 
-   -> if login already exist
-   -> string validation in backend?
-
-Game: 
-- add a pause button? 
-- add a close button?
-- main screen: add a button for the rules?
 ATTENTION:
 If your name is Helene and you edit this file, you have to compensate Karl with 10 Croissants!
