@@ -40,16 +40,18 @@ export class LoginModal extends Modal {
 				alert("Login unsuccessful");
 				return;
 			}
-			alert( 'You logged-in successfully! You can now play remotely, ' + authData.login);
-
-			// Store JWT token, Open websocket
-			sessionStorage.setItem("token", authData.token);
-			webSocket.open();
+			this.login(authData.token);
 			this.destroy();
-
 		} catch (error) {
 			console.error('Login error:', error);
 		}
+	}
+
+	private login(token: string) {
+		sessionStorage.setItem("token", token);
+		webSocket.open();
+		document.dispatchEvent(new CustomEvent('login-success'));
+		alert( 'You have been logged in successfully!');
 	}
 
 	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {

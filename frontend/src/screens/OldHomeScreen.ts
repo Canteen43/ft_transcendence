@@ -1,10 +1,10 @@
-/*  import { Button } from '../components/Button';
+ import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
 import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
-import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
+import { Remote2PlayerModal } from '../modals/RemotePlayerModal';
 
 export let gameOptions: GameOptions | null = null;
 
@@ -143,7 +143,7 @@ import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
 import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
-import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
+import { Remote2PlayerModal } from '../modals/RemotePlayerModal';
 
 
 export let gameOptions: GameOptions | null = null;
@@ -259,4 +259,4 @@ export class HomeScreen extends Screen {
 				}));
 			},
 			buttonContainer
-		); */
+		);

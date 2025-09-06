@@ -162,8 +162,7 @@ import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
 import { AuthComponent } from '../misc/AuthComponent';
-import { PlaceholderModal } from '../modals/PlaceholderModal';
-import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
+import { Remote2PlayerModal, Remote3PlayerModal, Remote4PlayerModal } from '../modals/RemotePlayerModal';
 import { initParticles } from '../utils/particles';
 
 export let gameOptions: GameOptions | null = null;
@@ -173,14 +172,16 @@ export class HomeScreen extends Screen {
 
 	constructor() {
 		super();
-
-		
 		this.createUIElements();
-
-		requestAnimationFrame(() => {
-			void this.initParticlesAsync();
-		});
+		requestAnimationFrame(() => {void this.initParticlesAsync();});
 	}
+
+	// private createUIElements() {
+	// 	this.setupAppContainer();
+	// 	this.createAuthComponent();
+	// 	this.createHomeSection();
+	// 	this.createOptionsSection();
+	// }
 
 	private createParticlesContainer(homeScreen: HTMLDivElement) {
 		this.particlesContainer = document.createElement('div');
@@ -206,7 +207,7 @@ private createUIElements() {
 	// LOGIN BUTTON
 	////////////////////////////
 	const authContainer = document.createElement('div');
-	authContainer.className = 'fixed top-4 right-4 z-50';
+	authContainer.className = 'fixed top-4 right-4 z-50 scrollbar-hide';
 	void new AuthComponent(authContainer);
 	app.appendChild(authContainer);
 
@@ -242,7 +243,7 @@ private createUIElements() {
 	// Title
 	const optionsHeading = document.createElement('h2');
 	optionsHeading.textContent = 'CHOOSE YOUR MODE';
-	optionsHeading.className = 'text-4xl font-bold mt-12 mb-8 font-sigmar ';
+	optionsHeading.className = 'text-4xl font-bold mt-12 mb-8 font-sigmar color-off-white';
 	optionsHeading.style.color = 'var(--off-white)'; 
 	optionsScreen.appendChild(optionsHeading);
 
@@ -279,6 +280,12 @@ private createUIElements() {
 	remotePanel.appendChild(remoteTitle);
 	void new Button('2 players', () => {
 		void new Remote2PlayerModal(this.element);
+	}, remotePanel);
+	void new Button('3 players', () => {
+		void new Remote3PlayerModal(this.element);
+	}, remotePanel);
+	void new Button('4 players', () => {
+		void new Remote4PlayerModal(this.element);
 	}, remotePanel);
 	void new Button('Tournament', () => {
 		void new PlaceholderModal(this.element);
