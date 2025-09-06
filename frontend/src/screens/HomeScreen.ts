@@ -172,140 +172,156 @@ export class HomeScreen extends Screen {
 
 	constructor() {
 		super();
-		this.createUIElements();
+		this.setupAppContainer();
+		this.createAuthComponent();
+		this.createHomeSection();
+		this.createOptionsSection();
 		requestAnimationFrame(() => {void this.initParticlesAsync();});
 	}
 
-	// private createUIElements() {
-	// 	this.setupAppContainer();
-	// 	this.createAuthComponent();
-	// 	this.createHomeSection();
-	// 	this.createOptionsSection();
-	// }
-
-	private createParticlesContainer(homeScreen: HTMLDivElement) {
-		this.particlesContainer = document.createElement('div');
-		this.particlesContainer.id = "tsparticles";
-		this.particlesContainer.style.position = 'absolute';
-		this.particlesContainer.style.top = '0';
-		this.particlesContainer.style.left = '0';
-		this.particlesContainer.style.width = '100%';
-		this.particlesContainer.style.height = '100%';
-		this.particlesContainer.style.zIndex = '0';
-		this.particlesContainer.style.pointerEvents = 'none'; // prevent blocking clicks
-		homeScreen.insertBefore(this.particlesContainer, homeScreen.firstChild);
+	// Hide scrollbar but allow scrolling : not working
+	private setupAppContainer() {
+		this.element.className = 'relative w-screen overflow-x-hidden scrollbar-hide';
+		this.element.style.scrollBehavior = 'smooth';
 	}
 
-
-private createUIElements() {
-
-	const app = this.element;
-	app.className = 'relative w-screen';
-
-	
 	////////////////////////////
 	// LOGIN BUTTON
-	////////////////////////////
-	const authContainer = document.createElement('div');
-	authContainer.className = 'fixed top-4 right-4 z-50 scrollbar-hide';
-	void new AuthComponent(authContainer);
-	app.appendChild(authContainer);
-
+	private createAuthComponent() {
+		const authContainer = this.createElement('div', 'fixed top-4 right-4 z-50');
+		new AuthComponent(authContainer);
+		this.element.appendChild(authContainer);
+	}
 
 	////////////////////////////
 	// HOME ECRAN
-	////////////////////////////
-	const homeScreen = document.createElement('div');
-	homeScreen.className = 'relative z-10 flex flex-col items-center justify-start h-screen select-none';
-	this.createParticlesContainer(homeScreen);
-	app.appendChild(homeScreen);
+	private createHomeSection() {
+		const homeScreen = this.createElement('div', 
+			'relative z-10 flex flex-col items-center justify-center h-screen select-none'
+		);
+		
+		this.createParticlesContainer(homeScreen);
+		
+		// Title
+		const heading = this.createElement('h1', 'font-rubik text-[100px] text-center floating-title');
+		heading.textContent = 'TRANSCENDANCE';
+		heading.style.color = 'var(--pink-dark)';
+		homeScreen.appendChild(heading);
 
-	const heading = document.createElement('h1');
-	heading.textContent = 'TRANSCENDANCE';
-	heading.className = 'font-rubik text-[100px] text-center mt-80  floating-title';
-	heading.style.color = 'var(--pink-dark)'; 
-	homeScreen.appendChild(heading);
+		// Play button
+		const playBtn = this.createElement('button', 
+			'font-sigmar mt-8 px-16 py-6 text-5xl font-bold rounded-lg border-4 border-pink-dark bg-pink-dark hover:bg-pink-light transition-all duration-300 shadow-lg'
+		);
+		playBtn.textContent = 'PLAY';
+		playBtn.style.color = 'var(--pink-dark)';
+		playBtn.onclick = () => this.scrollToOptions();
+		homeScreen.appendChild(playBtn);
 
-	const playBtn = document.createElement('button');
-	playBtn.textContent = 'PLAY';
-	playBtn.className = 'font-sigmar mt-5 px-16 py-6 relative z-20 text-5xl font-bold rounded-lg border-4 border-pink-dark bg-pink-dark hover:bg-pink-light transition-all duration-300 shadow-lg';
-	playBtn.style.color = 'var(--pink-dark)'; // text color
-	homeScreen.appendChild(playBtn);
-
-
-	////////////////////////////
-	// OPTIONS
-	////////////////////////////
-	const optionsScreen = document.createElement('div');
-	optionsScreen.className = 'relative z-10 flex flex-col items-center justify-start h-screen w-full bg-pink-600 select-none';
-	app.appendChild(optionsScreen);
-
-	// Title
-	const optionsHeading = document.createElement('h2');
-	optionsHeading.textContent = 'CHOOSE YOUR MODE';
-	optionsHeading.className = 'text-4xl font-bold mt-12 mb-8 font-sigmar color-off-white';
-	optionsHeading.style.color = 'var(--off-white)'; 
-	optionsScreen.appendChild(optionsHeading);
-
-	// Two big panels side by side
-	const grid = document.createElement('div');
-	grid.className = 'grid grid-cols-2 gap-12 w-4/5 max-w-5xl h-3/4';
-	optionsScreen.appendChild(grid);
-
-	// Left panel: LOCAL
-	const localPanel = document.createElement('div');
-	localPanel.className = 'flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg p-8 hover:scale-105 transition-transform cursor-pointer';
-	const localTitle = document.createElement('h3');
-	localTitle.textContent = 'LOCAL';
-	localTitle.style.color = 'var(--pink-dark)'; 
-	localTitle.className = 'text-3xl font-bold mb-6 text-pink-600 font-sigmar';
-	localPanel.appendChild(localTitle);
-	void new Button('1 player', () => {
-		gameOptions = { type: 'local', playerCount: 1, thisPlayer: 1 };
-		location.hash = '#game';
-	}, localPanel);
-	void new Button('2 players', () => {
-		gameOptions = { type: 'local', playerCount: 2, thisPlayer: 1 };
-		location.hash = '#game';
-	}, localPanel);
-	grid.appendChild(localPanel);
-
-	// Right panel: REMOTE
-	const remotePanel = document.createElement('div');
-	remotePanel.className = 'font-sigmar flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg p-8 hover:scale-105 transition-transform cursor-pointer';
-	const remoteTitle = document.createElement('h3');
-	remoteTitle.textContent = 'REMOTE';
-	remoteTitle.style.color = 'var(--pink-dark)'; 
-	remoteTitle.className = 'text-3xl font-bold mb-6 text-pink-600';
-	remotePanel.appendChild(remoteTitle);
-	void new Button('2 players', () => {
-		void new Remote2PlayerModal(this.element);
-	}, remotePanel);
-	void new Button('3 players', () => {
-		void new Remote3PlayerModal(this.element);
-	}, remotePanel);
-	void new Button('4 players', () => {
-		void new Remote4PlayerModal(this.element);
-	}, remotePanel);
-	void new Button('Tournament', () => {
-		void new PlaceholderModal(this.element);
-	}, remotePanel);
-	grid.appendChild(remotePanel);
-
+		this.element.appendChild(homeScreen);
+	}
 
 
 	////////////////////////////
-	// Slide logic
+	// PLAY OPTIONS
+	private createOptionsSection() {
+		const optionsScreen = this.createElement('div', 
+			'relative z-10 flex flex-col items-center justify-start h-screen w-full bg-pink-600 select-none'
+		);
+
+		// Title
+		const heading = this.createElement('h2', 'text-4xl font-bold mt-12 mb-8 font-sigmar');
+		heading.textContent = 'CHOOSE YOUR MODE';
+		heading.style.color = 'var(--off-white)';
+		optionsScreen.appendChild(heading);
+
+		// Game modes grid
+		const grid = this.createElement('div', 'grid grid-cols-2 gap-12 w-4/5 max-w-5xl h-3/4');
+		
+		grid.appendChild(this.createLocalPanel());
+		grid.appendChild(this.createRemotePanel());
+		
+		optionsScreen.appendChild(grid);
+		this.element.appendChild(optionsScreen);
+	}
+
 	////////////////////////////
-	playBtn.addEventListener('click', () => {
+	// PLAY LOCAL
+	private createLocalPanel(): HTMLElement {
+		const panel = this.createElement('div', 
+			'flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg p-8 hover:scale-105 transition-transform'
+		);
+		
+		const title = this.createElement('h3', 'text-3xl font-bold mb-6 font-sigmar');
+		title.textContent = 'LOCAL';
+		title.style.color = 'var(--pink-dark)';
+		panel.appendChild(title);
+
+		// Local game buttons
+		this.createGameButton('1 player', { type: 'local', playerCount: 1, thisPlayer: 1 }, panel);
+		this.createGameButton('2 players', { type: 'local', playerCount: 2, thisPlayer: 1 }, panel);
+
+		return panel;
+	}
+
+	////////////////////////////
+	// PLAY REMOTE
+	private createRemotePanel(): HTMLElement {
+		const panel = this.createElement('div', 
+			'font-sigmar flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg p-8 hover:scale-105 transition-transform'
+		);
+		
+		const title = this.createElement('h3', 'text-3xl font-bold mb-6');
+		title.textContent = 'REMOTE';
+		title.style.color = 'var(--pink-dark)';
+		panel.appendChild(title);
+
+		// Remote game buttons
+		new Button('2 players', () => new Remote2PlayerModal(this.element), panel);
+		new Button('3 players', () => new Remote3PlayerModal(this.element), panel);
+		new Button('4 players', () => new Remote4PlayerModal(this.element), panel);
+		new Button('Tournament', () => new PlaceholderModal(this.element), panel);
+
+		return panel;
+	}
+
+	private createGameButton(text: string, options: GameOptions, parent: HTMLElement) {
+		new Button(text, () => {
+			gameOptions = options;
+			location.hash = '#game';
+		}, parent);
+	}
+
+
+	private createParticlesContainer(parent: HTMLElement) {
+		this.particlesContainer = this.createElement('div', '');
+		this.particlesContainer.id = "tsparticles";
+		
+		// Optimized particles styling
+		Object.assign(this.particlesContainer.style, {
+			position: 'absolute',
+			top: '0',
+			left: '0',
+			width: '100%',
+			height: '100%',
+			zIndex: '0',
+			pointerEvents: 'none'
+		});
+
+		parent.insertBefore(this.particlesContainer, parent.firstChild);
+	}
+
+	private createElement(tag: string, className: string): HTMLElement {
+		const element = document.createElement(tag);
+		element.className = className;
+		return element;
+	}
+
+	private scrollToOptions() {
 		window.scrollTo({
-			top: window.innerHeight, // scroll exactly one viewport
+			top: window.innerHeight,
 			behavior: 'smooth',
 		});
-	});
-
-}
-
+	}
 
 	private async initParticlesAsync() {
 		try {
@@ -316,9 +332,7 @@ private createUIElements() {
 	}
 
 	destroy() {
-		if (this.particlesContainer) {
-			this.particlesContainer.remove();
-		}
+		this.particlesContainer?.remove();
 		super.destroy?.();
 	}
 }
