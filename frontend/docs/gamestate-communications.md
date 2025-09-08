@@ -42,12 +42,12 @@ This is a design-only draft. No implementation code is included here. We'll iter
 ## Network Topology
 
 - Every participant (master + clients) maintains a single persistent WebSocket connection to the Relay Server.
-- Message routing pattern:
-  - Client -> Relay -> Master (paddle updates)
-  - Master -> Relay -> All Clients (authoritative snapshots and state events)
-  - Relay can mirror client messages to all participants if desired (but authoritative state always comes from master)
+- Message routing patterns:
+  - **Standard Authority Path**: Client -> Relay -> Master (paddle updates) -> Relay -> All Clients (authoritative snapshots)
+  - **Optimized Paddle Path**: Client -> Relay -> All Other Clients (direct paddle broadcasting for low latency)
+  - **Hybrid Approach**: Both paths run simultaneously - direct broadcasting for immediate visual feedback, master validation for authoritative state
 
-This setup preserves a single authoritative replica while keeping the relay server simple.
+This setup preserves a single authoritative replica while providing low-latency paddle updates and keeping the relay server simple.
 
 ---
 
@@ -63,7 +63,15 @@ This setup preserves a single authoritative replica while keeping the relay serv
    - Fields (conceptual): tick (authoritative tick counter), ball: {pos, vel, spin}, paddles: [{playerId, pos, vel, lastInputSeq}], scores, events (goals, resets), serverTimestamp.
    - Notes: snapshots can be delta-compressed or full. Send at a fixed tick rate (e.g., 20Hz) or at a multiple of the physics tick.
 
-3. Optional Relay/Peer Messages
+3. **OPTIMIZATION: Direct Paddle Broadcasting**
+   - Client -> Relay -> All Other Clients: PaddlePositionUpdate
+   - Purpose: low-latency paddle position sharing that bypasses master processing for immediate visual responsiveness.
+   - Fields (conceptual): playerId, position, velocity, timestamp, inputSeq.
+   - Benefits: Reduces paddle update latency from ~40ms (Client→Master→Clients) to ~20ms (Client→Clients direct)
+   - Implementation: Each client sends paddle updates to relay server, which immediately rebroadcasts to all other players (excluding sender). Master still receives these updates for authoritative validation.
+   - Notes: This creates a dual-path system - fast visual updates via direct broadcast, authoritative validation via master snapshots.
+
+4. Optional Relay/Peer Messages
    - Join/Leave, Ping/Pong, version/feature negotiation, and control messages (pause, resume).
 
 ---
@@ -107,13 +115,34 @@ This setup preserves a single authoritative replica while keeping the relay serv
    - Clients render remote paddles and the ball using interpolation based on recent authoritative snapshots (ex: keep 100–200ms render buffer and interpolate between known snapshot states).
    - Extrapolation may be used when latency spikes, but capped and decayed quickly.
 
+4. **Direct Paddle Broadcasting Optimization**
+   - **Problem**: Traditional Client→Master→Clients path for paddle updates introduces ~40ms latency (20ms up + 20ms down)
+   - **Solution**: Clients send paddle updates directly to relay server, which immediately rebroadcasts to all other players
+   - **Benefits**: 
+     - Reduces visual paddle update latency to ~20ms (single hop)
+     - Maintains responsive feel for all players' paddle movements
+     - Preserves authoritative validation through parallel master updates
+   - **Implementation**: 
+     - Dual message streams: fast visual updates + slower authoritative validation
+     - Clients prioritize direct paddle updates for rendering other players' paddles
+     - Master snapshots still provide reconciliation and validation
+     - Sequence numbers ensure proper ordering and duplicate detection
+
 ---
 
 ## Timing, Rates, and Bandwidth
 
-- Recommended authoritative tick / snapshot rate: 15–30Hz. Balance between bandwidth and responsiveness. For Pong, 20Hz is a reasonable starting point.
-- Paddle updates from clients: 15–60Hz depending on input frequency and available bandwidth; can be compressed by sending only changed values and using dead-reckoning.
-- Typical message sizes should be small (a few dozen bytes per update) — use JSON or lightweight binary format (CBOR/Protobuf) depending on final performance needs.
+- **Master Game Snapshots**: 15–30Hz recommended (20Hz starting point for Pong)
+  - Per snapshot: ~100-200 bytes (ball + 2-4 paddle states + game status)  
+  - 4-player game: ~20Hz × 150 bytes = ~3KB/s per client baseline
+
+- **Direct Paddle Updates** (optimization): 30–60Hz client input rate
+  - Per update: ~20-30 bytes (position + velocity + sequence number)
+  - 4-player game: 3 other paddles × 30Hz × 25 bytes = ~2.25KB/s additional bandwidth
+  - **Performance trade-off**: +2.25KB/s bandwidth for -20ms paddle latency (excellent trade-off)
+
+- **Total bandwidth per client**: ~5.25KB/s for optimized 4-player game
+- Message formats: JSON for development, consider CBOR/Protobuf for production optimization
 
 ---
 
