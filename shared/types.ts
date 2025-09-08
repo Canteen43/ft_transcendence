@@ -1,7 +1,6 @@
 import * as z from 'zod';
 import { UpdateMatch } from './schemas/match.js';
 import sanitizeHtml from "sanitize-html";
-import { EMPTY_UUID, MESSAGE_DECLINE, MESSAGE_GAME_STATE, MESSAGE_INITIATE_MATCH } from './constants.js';
 
 export type UUID = `${string}-${string}-${string}-${string}-${string}` & {
 	readonly length: 36;

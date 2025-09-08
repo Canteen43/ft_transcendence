@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { UUID } from '../../shared/types.js';
 import { GameService } from '../game/game_protocol.js';
 import { GameSocket } from '../types/interfaces.js';
+import { logger } from '../../shared/logger.js';
 
 export const connections: Map<UUID, GameSocket> = new Map(); // Links connectionId to socket
 export const userIdToConnectionMap: Map<UUID, GameSocket> = new Map(); // Links userId to socket
@@ -29,6 +30,7 @@ export function handleClose(event: CloseEvent) {
 }
 
 export function handleMessage(event: MessageEvent) {
+	logger.debug("Received WebSocket message");
 	const socket = event.target as GameSocket;
 	GameService.getInstance().handleMessage(socket.socketId, event.data);
 }

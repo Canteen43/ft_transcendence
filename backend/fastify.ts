@@ -40,7 +40,7 @@ export default async function fastifyInit(
 		...fastifyZodOpenApiTransformers,
 	});
 	await fastify.register(fastifySwaggerUI, {
-		routePrefix: '/docs',
+		routePrefix: '/docs'
 	});
 
 	// Set validators

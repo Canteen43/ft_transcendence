@@ -29,10 +29,11 @@ export default class UserService {
 		if (!user)
 			throw new AuthenticationFailedError(ERROR_INVALID_CREDENTIALS);
 		const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-				expiresIn: TOKEN_VALIDITY_PERIOD,
-			});
+			expiresIn: TOKEN_VALIDITY_PERIOD,
+		});
 		return AuthResponseSchema.parse({
 			login: user.login,
+			user_id: user.id,
 			token: token,
 		});
 	}

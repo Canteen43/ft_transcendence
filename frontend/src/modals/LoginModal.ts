@@ -1,14 +1,15 @@
-// import {
-// 	AuthRequest,
-// 	AuthResponse,
-// 	AuthResponseSchema,
-// } from '../../../shared/schemas/user.ts';
-
+import { AuthRequestSchema, AuthResponseSchema } from '../../../shared/schemas/user.ts';
+import { apiCall } from '../utils/apiCall';
+import { webSocket } from '../misc/WebSocketWrapper';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
-import { webSocket } from '../misc/WebSocketWrapper';
-// import { ForgottenModal } from './ForgottenModal';
+import { ForgottenModal } from './ForgottenModal';
+import { z } from "zod";
+
+
+// // Temporary export of JWT
+// export let TEMP_JWT: string | null = null;
 
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -25,8 +26,39 @@ export class LoginModal extends Modal {
 		this.createLinks(parent);
 	}
 
+	private async handleLogin() {
+		const username = this.UsernameField.value.trim();
+		const password = this.PasswordField.value.trim();
 
-	// helpers
+		const requestData = { login: username, password_hash: password };
+
+		const parseResult = AuthRequestSchema.safeParse(requestData);
+		if (!parseResult.success) {
+			alert("Invalid login format");
+			console.error("Request validation failed:", z.treeifyError(parseResult.error));
+			return;
+		}
+
+		try {
+			const authData = await apiCall("POST", "/users/auth", AuthResponseSchema, requestData);
+			if (!authData) {
+				alert("Login unsuccessful");
+				return;
+			}
+			alert( 'You logged-in successfully! You can now play remotely, ' + authData.login);
+
+			// Store JWT token
+			sessionStorage.setItem("token", authData.token);
+
+			// Open websocket
+			webSocket.open();
+
+			this.destroy();
+		} catch (error) {
+			console.error('Login error:', error);
+		}
+	}
+
 	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
@@ -38,61 +70,26 @@ export class LoginModal extends Modal {
 	}
 
 	private createLinks(parent: HTMLElement) {
-
 		// Create a password input
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
 		RegisterLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleRegister(parent);
 		this.box.appendChild(RegisterLink);
-
 		// Create a password input
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		this.box.appendChild(ForgotPasswordLink);
-
 	}
-
-
-	private async handleLogin() {
-		const username = this.UsernameField.value;
-		const password = this.PasswordField.value;
-
-		try {
-			const response = await fetch('http://localhost:8080/users/auth', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ login: username, password_hash: password }),
-			});
-
-			if (response.ok) {
-				const authData = await response.json();
-				console.log('Login successful:', authData);
-				// This belongs here
-				webSocket.open();
-				// This is just to test that the websocket is working
-				webSocket.addMessageListener((event) => {
-					alert('Message from server: ' + event.data);
-				});
-				webSocket.send("Test message!");
-				this.destroy();
-			} else {
-				console.error('Login unsuccessful');
-			}
-		} catch (error) {
-			console.error('Login error:', error);
-		}
-	}
-
-
+	
 	private handleRegister(parent: HTMLElement) {
 		this.destroy();
 		new RegisterModal(parent);
 	}
 
 	private handleForgot(parent: HTMLElement) {
-		// new ForgottenModal(parent);
+		new ForgottenModal(parent);
 	}
 }

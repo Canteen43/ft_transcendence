@@ -2,7 +2,9 @@ import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/LoginButton';
+import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
+import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
 
 export let gameOptions: GameOptions | null = null;
 
@@ -105,7 +107,7 @@ export class HomeScreen extends Screen {
 		void new Button(
 			'Remote 1v1',
 			() => {
-				void new PlaceholderModal(this.element);
+				void new Remote2PlayerModal(this.element);
 			},
 			buttonContainer
 		);
@@ -113,6 +115,16 @@ export class HomeScreen extends Screen {
 			'Tournament',
 			() => {
 				void new PlaceholderModal(this.element);
+			},
+			buttonContainer
+		);
+		void new Button(
+			'Test WebSocket',
+			() => {
+				webSocket.send(JSON.stringify({
+					t: 'test',
+					d: 'Test message!'
+				}));
 			},
 			buttonContainer
 		);

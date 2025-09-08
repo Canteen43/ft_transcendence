@@ -3,11 +3,13 @@ import z from 'zod';
 export function routeConfig({
 	response,
 	params,
+	querystring,
 	body,
 	code = 200,
 	secure = true,
 }: {
 	params?: z.ZodType;
+	querystring?: z.ZodType;
 	body?: z.ZodType;
 	code?: number;
 	response?: z.ZodType;
@@ -20,7 +22,10 @@ export function routeConfig({
 
 	if (params) schemaConfig.params = params;
 	if (body) schemaConfig.body = body;
+	if (querystring) schemaConfig.querystring = querystring;
 
-	if (!secure) return { schema: schemaConfig, preHandler: [] };
-	return { schema: schemaConfig };
+	return {
+		schema: schemaConfig,
+		config: { secure },
+	};
 }
