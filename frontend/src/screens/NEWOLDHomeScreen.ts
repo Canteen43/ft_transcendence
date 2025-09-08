@@ -4,7 +4,7 @@ import type { GameOptions } from '../misc/GameOptions';
 import { LoginButton } from '../misc/AuthComponent';
 import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
-import { Remote2PlayerModal } from '../modals/RemotePlayerModal';
+import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
 
 // Import the FIXED particles utility
 import { initParticles } from '../utils/particles';

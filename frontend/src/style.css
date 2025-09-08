@@ -50,10 +50,11 @@
 }
 
 :root {
-	--pink-light: #ffb6d9;
-	--pink-dark: #ff4da6;
-	--yellow-green: #f7fbc4;
-	--off-white: #f8f8f2;
+  --color1: #1a30f8;
+	--color2: #6ef85c;
+	--color3: #9af0fc;
+	--color4: #fafaea;
+  --color5: #f763b4;
 }
 
 /* ==============================
