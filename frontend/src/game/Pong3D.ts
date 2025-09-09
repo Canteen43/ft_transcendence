@@ -214,6 +214,9 @@ export class Pong3D {
 	private gameLoop: Pong3DGameLoop | null = null;
 	private ballMesh: BABYLON.Mesh | null = null;
 
+	// Resize handler reference for cleanup
+	private resizeHandler: (() => void) | null = null;
+
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
@@ -261,7 +264,10 @@ export class Pong3D {
 	private setupEventListeners(): void {
 		// Initialize input handler - it will manage keyboard and canvas events
 		this.inputHandler = new Pong3DInput(this.canvas);
-		window.addEventListener('resize', () => this.engine.resize());
+
+		// Store resize handler reference for proper cleanup
+		this.resizeHandler = () => this.engine.resize();
+		window.addEventListener('resize', this.resizeHandler);
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
@@ -2443,24 +2449,69 @@ export class Pong3D {
 		}
 	}
 
-	// Cleanup method
+	/**
+	 * Dispose of Babylon resources, stop render loop, remove event listeners, and clean up canvas.
+	 * Call this when destroying the game or navigating away to prevent memory leaks.
+	 */
 	public dispose(): void {
+		console.log('🧹 Disposing Pong3D instance...');
+
+		// Stop the render loop first
+		if (this.engine) {
+			this.engine.stopRenderLoop();
+			console.log('✅ Stopped render loop');
+		}
+
 		// Clean up game loop
 		if (this.gameLoop) {
 			this.gameLoop.stop();
 			this.gameLoop = null;
+			console.log('✅ Cleaned up game loop');
 		}
 
 		// Clean up input handler
 		if (this.inputHandler) {
 			this.inputHandler.cleanup();
 			this.inputHandler = null;
+			console.log('✅ Cleaned up input handler');
 		}
 
-		this.engine.dispose();
-		if (this.canvas.parentElement) {
-			this.canvas.parentElement.removeChild(this.canvas);
+		// Remove window resize listener
+		if (this.resizeHandler) {
+			window.removeEventListener('resize', this.resizeHandler);
+			this.resizeHandler = null;
+			console.log('✅ Removed resize event listener');
 		}
+
+		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
+		if (this.scene) {
+			this.scene.dispose();
+			console.log('✅ Disposed Babylon scene');
+		}
+
+		// Dispose of Babylon engine
+		if (this.engine) {
+			this.engine.dispose();
+			console.log('✅ Disposed Babylon engine');
+		}
+
+		// Remove canvas from DOM
+		if (this.canvas && this.canvas.parentNode) {
+			this.canvas.parentNode.removeChild(this.canvas);
+			console.log('✅ Removed canvas from DOM');
+		}
+
+		// Clear references to help with garbage collection
+		this.guiTexture = null;
+		this.ballMesh = null;
+		this.paddles = [null, null, null, null];
+		this.goalMeshes = [null, null, null, null];
+		this.scene = null as any;
+		this.engine = null as any;
+		this.canvas = null as any;
+		this.camera = null as any;
+
+		console.log('🎉 Pong3D disposal complete');
 	}
 }
 
