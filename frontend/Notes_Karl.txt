@@ -211,15 +211,9 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-
-- Add thing for simulating webSocket message
-- State variable
-	- add info about all tournament matches
-		- alternatively handle this with API request when window opens
 - Waiting Modal
-	- should display start button on 1v1 version after BE-event has been triggered
-		- How can I simulate BE-event?
 	- make 1v1 version and tournament version
+	- should display start button on 1v1 version after BE-event has been triggered
 - Start Button
 - Tournament Element
 	- should not be attached to a screen
@@ -233,14 +227,7 @@ TODO:
 	- on click:
 		- send signal to BE
 		- Show Loading Icon
-- Make game read player count correctly
-	- just read from state variable
-
-
-Wait for Helene:
-- Push
-- Check that stuff still works
-- Add logic to Remote Game creation modal
+- Add logic to Remote Game creation buttons
 
 
 - How to handle Backend WebSocket messages:
@@ -255,9 +242,16 @@ Wait for Helene:
 		- Use case: Fourth player joined tournament wait list
 		- Action: Go to tournament screen
 
+Commands to test WebSocket:
+webSocket.simulateMessage({ t: "t" });
 
+Ask Wouter:
+Will you send WS-Messages to update tournament standings?
+Or should we spam request?
+
+- Get rid of game options
 - Understand how particles are attached to Frontend
-- Get rid of all the debug warnings
+- Get rid of all the debug warnings that clutter chrome debugger
 - Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
 - Restructure frontend files into screen groups?
