@@ -1,5 +1,6 @@
 import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
+import { WaitingModal } from '../modals/WaitingModal';
 
 export class TournamentScreen extends Screen {
 	constructor() {
@@ -46,5 +47,7 @@ export class TournamentScreen extends Screen {
 			},
 			buttonContainer
 		);
+
+		void new WaitingModal(this.element);
 	}
 }

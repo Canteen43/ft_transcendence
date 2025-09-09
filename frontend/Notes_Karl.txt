@@ -212,10 +212,34 @@ LEARNED:
 
 TODO:
 
-- Create Tournament Screen
+- What events is each step listening for?
+- State variable
+	- add info about all tournament matches
+		- alternatively handle this with API request when window opens
+- Waiting Modal
+	- should display start button on 1v1 version after BE-event has been triggered
+		- How can I simulate BE-event?
+	- make 1v1 version and tournament version
+- Start Button
+- Tournament Element
+	- should not be attached to a screen
+	- should hold info about current Tournament
+- WS-Listening Hook
+	- should change hash to "tournament"
+	- should populate info about current tournament
+- Start Button
+	- should inherit from Button
+	- should say "start"
+	- on click:
+		- send signal to BE
+		- Show Loading Icon
+
+When Home Screen is ready:
+- Add player counting logic
 
 
-
+- Understand how particles are attached to Frontend
+- Get rid of all the debug warnings
 - Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
 - Restructure frontend files into screen groups?

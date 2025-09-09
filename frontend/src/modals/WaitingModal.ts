@@ -1,4 +1,5 @@
 import { Modal } from '../components/Modal';
+import { StartButton } from '../misc/StartButton';
 
 export class WaitingModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -9,5 +10,6 @@ export class WaitingModal extends Modal {
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s) ...';
 		this.box.appendChild(message);
+		new StartButton(this.box);
 	}
 }
