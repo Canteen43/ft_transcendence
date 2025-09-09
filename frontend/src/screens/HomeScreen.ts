@@ -152,12 +152,6 @@ export class HomeScreen extends Screen {
 		return element;
 	}
 
-	private scrollToOptions() {
-		window.scrollTo({
-			top: window.innerHeight,
-			behavior: 'smooth',
-		});
-	}
 
 	private async initParticlesAsync() {
 		try {
