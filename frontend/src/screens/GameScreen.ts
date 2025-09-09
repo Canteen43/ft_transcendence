@@ -7,10 +7,10 @@ export class GameScreen extends Screen {
 	constructor() {
 		super();
 
-		const video = document.getElementById(
-			'background-video'
-		) as HTMLVideoElement;
-		video.pause();
+		// const video = document.getElementById(
+		// 	'background-video'
+		// ) as HTMLVideoElement;
+		// video.pause();
 
 		// // Keep heading near top, not centered
 		// this.element.classList.remove('justify-center');

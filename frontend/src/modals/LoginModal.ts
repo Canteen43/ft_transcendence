@@ -1,20 +1,15 @@
 import { AuthRequestSchema, AuthResponseSchema } from '../../../shared/schemas/user.ts';
 import { apiCall } from '../utils/apiCall';
-import { webSocket } from '../misc/WebSocketWrapper';
+import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';
 import { ForgottenModal } from './ForgottenModal';
 import { z } from "zod";
 
-
-// // Temporary export of JWT
-// export let TEMP_JWT: string | null = null;
-
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
-
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -45,18 +40,18 @@ export class LoginModal extends Modal {
 				alert("Login unsuccessful");
 				return;
 			}
-			alert( 'You logged-in successfully! You can now play remotely, ' + authData.login);
-
-			// Store JWT token
-			sessionStorage.setItem("token", authData.token);
-
-			// Open websocket
-			webSocket.open();
-
+			this.login(authData.token);
 			this.destroy();
 		} catch (error) {
 			console.error('Login error:', error);
 		}
+	}
+
+	private login(token: string) {
+		sessionStorage.setItem("token", token);
+		webSocket.open();
+		document.dispatchEvent(new CustomEvent('login-success'));
+		alert( 'You have been logged in successfully!');
 	}
 
 	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
@@ -64,7 +59,7 @@ export class LoginModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-gray-300 rounded p-2';
+		input.className = 'border border-[var(--color1)] rounded p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -73,13 +68,13 @@ export class LoginModal extends Modal {
 		// Create a password input
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
-		RegisterLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
+		RegisterLink.className = 'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleRegister(parent);
 		this.box.appendChild(RegisterLink);
 		// Create a password input
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
-		ForgotPasswordLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
+		ForgotPasswordLink.className = 'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		this.box.appendChild(ForgotPasswordLink);
 	}

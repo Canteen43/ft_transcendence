@@ -83,3 +83,26 @@ sessionStorage vs localStorage vs  global variable
 - localStorage: persists even after closing/reopening the browser-> less secure
 - sessionStorage: resets once the tab/window is closed.
 - global variable: disappear when page is refreshed
+
+
+functions: getItem, setItem, removeItem
+
+
+TODO:
+
+- Logout logic and Button
+- Login: better error handling for username existent
+- Better error handling on registration 
+   -> if login already exist
+   -> string validation in backend?
+
+Game: 
+- add a pause button? 
+- add a close button?
+- add the rules button?
+
+Websocket:
+- what to do if the connection closes from the server side? Loop to connect again?
+
+
+https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9

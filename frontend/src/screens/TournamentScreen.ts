@@ -6,10 +6,10 @@ export class TournamentScreen extends Screen {
 	constructor() {
 		super();
 
-		const video = document.getElementById(
-			'background-video'
-		) as HTMLVideoElement;
-		video.play();
+		// const video = document.getElementById(
+		// 	'background-video'
+		// ) as HTMLVideoElement;
+		// video.play();
 
 		// Keep heading near top, not centered
 		this.element.classList.remove('justify-center');

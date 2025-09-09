@@ -9,7 +9,8 @@ export class Modal {
 		// outer overlay
 		this.overlay = document.createElement('div');
 		this.overlay.className =
-			'fixed inset-0 flex items-center justify-center backdrop-blur-sm';
+		'fixed inset-0 flex items-center justify-center bg-black/50 z-50';
+		
 
 		// inner modal box
 		this.box = document.createElement('div');

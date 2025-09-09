@@ -6,8 +6,7 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-import type { GameOptions } from '../misc/GameOptions';
-import { gameOptions } from '../screens/HomeScreen';
+import { gameOptions } from '../modals/LocalGameModal';
 import { Pong3DInput } from './Pong3DInput';
 import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CAMERA_SETTINGS } from './Pong3DPOV';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
