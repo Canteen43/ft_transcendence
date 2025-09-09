@@ -211,22 +211,6 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Waiting Modal
-	- make 1v1 version and tournament version
-	- should display start button on 1v1 version after BE-event has been triggered
-- Start Button
-- Tournament Element
-	- should not be attached to a screen
-	- should hold info about current Tournament
-- WS-Listening Hook
-	- should change hash to "tournament"
-	- should populate info about current tournament
-- Start Button
-	- should inherit from Button
-	- should say "start"
-	- on click:
-		- send signal to BE
-		- Show Loading Icon
 - Add logic to Remote Game creation buttons
 
 
