@@ -6,11 +6,16 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-
-import { gameOptions } from '../screens/HomeScreen';
-import { Pong3DInput } from './Pong3DInput';
-import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CAMERA_SETTINGS } from './Pong3DPOV';
+import { state } from '../misc/state';
+import { gameOptions } from '../modals/LocalGameModal';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
+import { Pong3DInput } from './Pong3DInput';
+import {
+	applyCameraPosition,
+	type CameraSettings,
+	DEFAULT_CAMERA_SETTINGS,
+	getCameraPosition,
+} from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
 
 // ============================================================================
@@ -24,8 +29,8 @@ import { createPong3DUI } from './Pong3DUI';
  * - 3 players → /pong3p.glb
  * - 4 players → /pong4p.glb
  */
-export const PLAYER_COUNT = 4;
-
+// export const PLAYER_COUNT: 2 | 3 | 4 = 2;
+export const OVERWRITE_PLAYER_COUNT: 0 | 2 | 3 | 4 = 0;
 
 /**
  * Set the default player POV (perspective) for the camera
@@ -117,7 +122,7 @@ export class Pong3D {
 			defaultRadius: this.DEFAULT_CAMERA_RADIUS,
 			defaultBeta: this.DEFAULT_CAMERA_BETA,
 			defaultTargetY: this.DEFAULT_CAMERA_TARGET_Y,
-			useGLBOrigin: this.useGLBOrigin
+			useGLBOrigin: this.useGLBOrigin,
 		};
 	}
 
@@ -133,24 +138,23 @@ export class Pong3D {
 	private Player1Info: GUI.TextBlock | null = null;
 	private Player2Info: GUI.TextBlock | null = null;
 
-
 	// Extended multi-player UI handles (when UI module is used)
 	private uiPlayerNameTexts: GUI.TextBlock[] | null = null;
 	private uiPlayerScoreTexts: GUI.TextBlock[] | null = null;
 	private uiPlayerStacks: GUI.StackPanel[] | null = null;
-	private uiMovePlayerTo: ((i: number, pos: 'top' | 'bottom' | 'left' | 'right') => void) | null = null;
+	private uiMovePlayerTo:
+		| ((i: number, pos: 'top' | 'bottom' | 'left' | 'right') => void)
+		| null = null;
 
 	// Player data - simplified to arrays for uniform handling
 	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helen'];
 	private playerScores: number[] = [0, 0, 0, 0];
-	private activePlayerCount: number = PLAYER_COUNT; // Can be 2, 3, or 4
-	private initialPlayerCount: number = PLAYER_COUNT; // Set at initialization, cannot be exceeded
+	private activePlayerCount: number = state.playerCount; // Can be 2, 3, or 4
+	private initialPlayerCount: number = state.playerCount; // Set at initialization, cannot be exceeded
 	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
 
-
 	// === GAME PHYSICS CONFIGURATION ===
-
 
 	// Ball settings
 	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
@@ -225,27 +229,42 @@ export class Pong3D {
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
-	private onGoalCallback: ((scoringPlayer: number, goalPlayer: number) => void) | null = null;
+	private onGoalCallback:
+		| ((scoringPlayer: number, goalPlayer: number) => void)
+		| null = null;
 	private lastGoalTime: number = 0; // Prevent multiple goal triggers
 	private readonly GOAL_COOLDOWN_MS = 2000; // 2 seconds between goals
 	private goalScored: boolean = false; // Track when goal is scored but ball should continue moving
-	private pendingGoalData: { scoringPlayer: number, goalPlayer: number } | null = null; // Store goal data for delayed reset
+	private pendingGoalData: {
+		scoringPlayer: number;
+		goalPlayer: number;
+	} | null = null; // Store goal data for delayed reset
 
 	/** Get the appropriate GLB model URL based on player count */
 	private getModelUrlForPlayerCount(playerCount: number): string {
 		switch (playerCount) {
-			case 2: return '/pong2p.glb';
-			case 3: return '/pong3p.glb';
-			case 4: return '/pong4p.glb';
+			case 2:
+				return '/pong2p.glb';
+			case 3:
+				return '/pong3p.glb';
+			case 4:
+				return '/pong4p.glb';
 			default:
-				console.warn(`Invalid player count ${playerCount}, defaulting to 2 players`);
+				console.warn(
+					`Invalid player count ${playerCount}, defaulting to 2 players`
+				);
 				return '/pong2p.glb';
 		}
 	}
 
 	/** Initialize camera based on current player POV */
 	private setupCamera(): void {
-		const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings(), this.local);
+		const cameraPos = getCameraPosition(
+			this.thisPlayer,
+			this.activePlayerCount,
+			this.getCameraSettings(),
+			this.local
+		);
 
 		this.camera = new BABYLON.ArcRotateCamera(
 			'cam',
@@ -254,7 +273,8 @@ export class Pong3D {
 			cameraPos.radius,
 			cameraPos.target,
 			this.scene
-		); this.camera.attachControl(this.canvas, true);
+		);
+		this.camera.attachControl(this.canvas, true);
 		this.camera.wheelPrecision = 50;
 
 		// Disable camera keyboard controls so arrow keys can be used for gameplay
@@ -263,7 +283,9 @@ export class Pong3D {
 		this.camera.keysLeft = [];
 		this.camera.keysRight = [];
 
-		console.log(`Camera set for Player ${this.thisPlayer} POV: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}`);
+		console.log(
+			`Camera set for Player ${this.thisPlayer} POV: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}`
+		);
 	}
 
 	private setupEventListeners(): void {
@@ -276,17 +298,23 @@ export class Pong3D {
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
-		// Set player count and determine model URL
-		this.activePlayerCount = options?.playerCount || PLAYER_COUNT;
-		this.initialPlayerCount = this.activePlayerCount; // Store initial count
+		// Overwrite player count if specified
+		if (OVERWRITE_PLAYER_COUNT) {
+			this.activePlayerCount = OVERWRITE_PLAYER_COUNT;
+			this.initialPlayerCount = OVERWRITE_PLAYER_COUNT;
+		}
 		this.thisPlayer = options?.thisPlayer || THIS_PLAYER; // Set POV player (default from constant)
 		this.local = options?.local ?? LOCAL_MODE; // Set local mode (default from constant)
 		if (options?.outOfBoundsDistance !== undefined) {
 			this.outOfBoundsDistance = options.outOfBoundsDistance; // Override default if provided
 		}
-		const modelUrl = options?.modelUrlOverride || this.getModelUrlForPlayerCount(this.activePlayerCount);
+		const modelUrl =
+			options?.modelUrlOverride ||
+			this.getModelUrlForPlayerCount(this.activePlayerCount);
 
-		this.debugLog(`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}, Local: ${this.local}`);
+		this.debugLog(
+			`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}, Local: ${this.local}`
+		);
 
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
@@ -304,7 +332,6 @@ export class Pong3D {
 		this.scene = new BABYLON.Scene(this.engine);
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
-
 
 		// Apply provided options
 		if (options) {
@@ -324,11 +351,11 @@ export class Pong3D {
 		if (gameOptions) {
 			alert(
 				'Player Count: ' +
-				gameOptions.playerCount +
-				', This Player: ' +
-				gameOptions.thisPlayer +
-				', Game Type: ' +
-				gameOptions.type
+					gameOptions.playerCount +
+					', This Player: ' +
+					gameOptions.thisPlayer +
+					', Game Type: ' +
+					gameOptions.type
 			);
 		}
 	}
@@ -363,13 +390,19 @@ export class Pong3D {
 			// Choose camera target: either GLB origin or calculated mesh center
 			if (this.useGLBOrigin) {
 				// GLB origin mode - let the POV module handle the target, don't override it
-				console.log('Using GLB origin mode - POV module controls target:', this.camera.target);
+				console.log(
+					'Using GLB origin mode - POV module controls target:',
+					this.camera.target
+				);
 			} else {
 				// Use calculated mesh center with vertical offset
 				const targetWithY = center.clone();
 				targetWithY.y += this.DEFAULT_CAMERA_TARGET_Y;
 				this.camera.setTarget(targetWithY);
-				console.log('Using calculated mesh center for camera target:', targetWithY);
+				console.log(
+					'Using calculated mesh center for camera target:',
+					targetWithY
+				);
 			}
 
 			// Don't override radius - let getCameraPosition control it
@@ -403,15 +436,21 @@ export class Pong3D {
 
 		// Reduce intensity of imported lights
 		try {
-			console.log(`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`);
+			console.log(
+				`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`
+			);
 
 			scene.lights.forEach((light, index) => {
 				console.log(`Light ${index + 1}:`, {
 					name: light.name,
 					type: light.getClassName(),
 					intensity: (light as any).intensity,
-					position: light instanceof BABYLON.DirectionalLight || light instanceof BABYLON.SpotLight ? (light as any).position : 'N/A',
-					enabled: light.isEnabled()
+					position:
+						light instanceof BABYLON.DirectionalLight ||
+						light instanceof BABYLON.SpotLight
+							? (light as any).position
+							: 'N/A',
+					enabled: light.isEnabled(),
 				});
 
 				if (light && typeof (light as any).intensity === 'number') {
@@ -434,7 +473,7 @@ export class Pong3D {
 
 		// Auto-start the game loop after everything is loaded
 		if (this.gameLoop) {
-			console.log("🚀 Auto-starting game loop...");
+			console.log('🚀 Auto-starting game loop...');
 			this.gameLoop.start();
 		}
 	}
@@ -463,7 +502,11 @@ export class Pong3D {
 			// Lock ball movement to X-Z plane (no Y movement)
 			if (this.ballMesh.physicsImpostor.physicsBody) {
 				if (this.ballMesh.physicsImpostor.physicsBody.linearFactor) {
-					this.ballMesh.physicsImpostor.physicsBody.linearFactor.set(1, 0, 1); // X and Z only, no Y
+					this.ballMesh.physicsImpostor.physicsBody.linearFactor.set(
+						1,
+						0,
+						1
+					); // X and Z only, no Y
 				}
 				// Remove any damping from ball so it doesn't slow down
 				this.ballMesh.physicsImpostor.physicsBody.linearDamping = 0;
@@ -478,43 +521,70 @@ export class Pong3D {
 			if (this.paddles[i]) {
 				const paddle = this.paddles[i]!;
 				this.debugLog(`=== Paddle ${i + 1} DEBUG INFO ===`);
-				this.debugLog(`  - Local position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`);
-				this.debugLog(`  - World position: x=${paddle.absolutePosition.x}, y=${paddle.absolutePosition.y}, z=${paddle.absolutePosition.z}`);
-				this.debugLog(`  - Parent: ${paddle.parent ? paddle.parent.name : 'none'}`);
+				this.debugLog(
+					`  - Local position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`
+				);
+				this.debugLog(
+					`  - World position: x=${paddle.absolutePosition.x}, y=${paddle.absolutePosition.y}, z=${paddle.absolutePosition.z}`
+				);
+				this.debugLog(
+					`  - Parent: ${paddle.parent ? paddle.parent.name : 'none'}`
+				);
 
 				// Check the raw transform data
-				this.debugLog(`  - Transform matrix elements [12,13,14]: [${paddle.getWorldMatrix().m[12]}, ${paddle.getWorldMatrix().m[13]}, ${paddle.getWorldMatrix().m[14]}]`);
+				this.debugLog(
+					`  - Transform matrix elements [12,13,14]: [${paddle.getWorldMatrix().m[12]}, ${paddle.getWorldMatrix().m[13]}, ${paddle.getWorldMatrix().m[14]}]`
+				);
 
 				// Check mesh bounding box
 				if (paddle.getBoundingInfo) {
 					const bbox = paddle.getBoundingInfo().boundingBox;
-					this.debugLog(`  - Bounding box min: (${bbox.minimum.x}, ${bbox.minimum.y}, ${bbox.minimum.z})`);
-					this.debugLog(`  - Bounding box max: (${bbox.maximum.x}, ${bbox.maximum.y}, ${bbox.maximum.z})`);
-					this.debugLog(`  - Bounding box center: (${bbox.center.x}, ${bbox.center.y}, ${bbox.center.z})`);
+					this.debugLog(
+						`  - Bounding box min: (${bbox.minimum.x}, ${bbox.minimum.y}, ${bbox.minimum.z})`
+					);
+					this.debugLog(
+						`  - Bounding box max: (${bbox.maximum.x}, ${bbox.maximum.y}, ${bbox.maximum.z})`
+					);
+					this.debugLog(
+						`  - Bounding box center: (${bbox.center.x}, ${bbox.center.y}, ${bbox.center.z})`
+					);
 				}
 
 				// Check if this is a mesh with geometry
 				if (paddle instanceof BABYLON.Mesh) {
 					const mesh = paddle as BABYLON.Mesh;
-					console.log(`  - Is Mesh: true, hasVertexData: ${mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind) !== null}`);
+					console.log(
+						`  - Is Mesh: true, hasVertexData: ${mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind) !== null}`
+					);
 
 					// Check if vertices are positioned relative to origin
-					const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+					const positions = mesh.getVerticesData(
+						BABYLON.VertexBuffer.PositionKind
+					);
 					if (positions && positions.length >= 6) {
-						console.log(`  - First vertex: (${positions[0]}, ${positions[1]}, ${positions[2]})`);
-						console.log(`  - Second vertex: (${positions[3]}, ${positions[4]}, ${positions[5]})`);
+						console.log(
+							`  - First vertex: (${positions[0]}, ${positions[1]}, ${positions[2]})`
+						);
+						console.log(
+							`  - Second vertex: (${positions[3]}, ${positions[4]}, ${positions[5]})`
+						);
 					}
-				};
+				}
 
 				// Check if there are any transforms in the parent hierarchy
 				if (paddle.parent) {
-					console.log(`  - Checking parent hierarchy for transforms...`);
+					console.log(
+						`  - Checking parent hierarchy for transforms...`
+					);
 					let currentParent: BABYLON.Node | null = paddle.parent;
 					let level = 0;
 					while (currentParent && level < 3) {
 						if (currentParent instanceof BABYLON.TransformNode) {
-							const transform = currentParent as BABYLON.TransformNode;
-							console.log(`    Parent ${level} (${currentParent.name}): pos(${transform.position.x}, ${transform.position.y}, ${transform.position.z})`);
+							const transform =
+								currentParent as BABYLON.TransformNode;
+							console.log(
+								`    Parent ${level} (${currentParent.name}): pos(${transform.position.x}, ${transform.position.y}, ${transform.position.z})`
+							);
 						}
 						currentParent = currentParent.parent;
 						level++;
@@ -524,10 +594,12 @@ export class Pong3D {
 				// Store the WORLD positions (which have the correct transforms)
 				// Note: The GLB has paddles on Z-axis, but we need them on X-axis for the game
 				this.originalGLBPositions[i] = {
-					x: paddle.absolutePosition.x, // Keep X as X 
-					z: paddle.absolutePosition.z  // Keep Z as Z
+					x: paddle.absolutePosition.x, // Keep X as X
+					z: paddle.absolutePosition.z, // Keep Z as Z
 				};
-				console.log(`  - Stored for game: x=${this.originalGLBPositions[i].x}, z=${this.originalGLBPositions[i].z}`);
+				console.log(
+					`  - Stored for game: x=${this.originalGLBPositions[i].x}, z=${this.originalGLBPositions[i].z}`
+				);
 			}
 		}
 
@@ -541,7 +613,7 @@ export class Pong3D {
 				const scaling = new BABYLON.Vector3();
 				worldMatrix.decompose(scaling, rotationQuaternion, position);
 
-				// Simple de-parenting 
+				// Simple de-parenting
 				if (paddle.parent) {
 					paddle.parent = null;
 				}
@@ -554,12 +626,18 @@ export class Pong3D {
 				// Fix rotation for paddle 1 - rotate 180 degrees around Y-axis to face correct direction
 				// Paddle 2 is assumed to be correctly oriented in the GLB model.
 				if (paddleIndex === 0) {
-					const yRotation = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), Math.PI);
-					paddle.rotationQuaternion = paddle.rotationQuaternion!.multiply(yRotation);
+					const yRotation = BABYLON.Quaternion.RotationAxis(
+						BABYLON.Vector3.Up(),
+						Math.PI
+					);
+					paddle.rotationQuaternion =
+						paddle.rotationQuaternion!.multiply(yRotation);
 				}
 
 				console.log(`Paddle ${paddleIndex + 1} AFTER positioning:`);
-				console.log(`  - Game position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`);
+				console.log(
+					`  - Game position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`
+				);
 
 				paddle.physicsImpostor = new BABYLON.PhysicsImpostor(
 					paddle,
@@ -573,8 +651,8 @@ export class Pong3D {
 				);
 				// Set physics properties and lock rotation - NO DAMPING for pure force-based physics
 				if (paddle.physicsImpostor.physicsBody) {
-					paddle.physicsImpostor.physicsBody.linearDamping = 0;  // No damping - pure force-based physics
-					paddle.physicsImpostor.physicsBody.angularDamping = 1.0;  // Maximum angular damping
+					paddle.physicsImpostor.physicsBody.linearDamping = 0; // No damping - pure force-based physics
+					paddle.physicsImpostor.physicsBody.angularDamping = 1.0; // Maximum angular damping
 					paddle.physicsImpostor.physicsBody.fixedRotation = true; // Lock all rotation
 
 					// Set movement constraints based on player count and paddle index
@@ -583,15 +661,34 @@ export class Pong3D {
 							// 3-player mode: All paddles move along rotated axes (X and Z components)
 							// Player 1: 0° (X-axis), Player 2: 120° (X,Z), Player 3: 240° (X,Z)
 							// Allow movement in the X-Z plane for all 3-player paddles
-							paddle.physicsImpostor.physicsBody.linearFactor.set(1, 0, 1); // X and Z axes
-						} else if (this.activePlayerCount === 4 && paddleIndex >= 2) {
-							paddle.physicsImpostor.physicsBody.linearFactor.set(0, 0, 1); // Z-axis only for players 3-4
+							paddle.physicsImpostor.physicsBody.linearFactor.set(
+								1,
+								0,
+								1
+							); // X and Z axes
+						} else if (
+							this.activePlayerCount === 4 &&
+							paddleIndex >= 2
+						) {
+							paddle.physicsImpostor.physicsBody.linearFactor.set(
+								0,
+								0,
+								1
+							); // Z-axis only for players 3-4
 						} else {
-							paddle.physicsImpostor.physicsBody.linearFactor.set(1, 0, 0); // X-axis only for default/2-player
+							paddle.physicsImpostor.physicsBody.linearFactor.set(
+								1,
+								0,
+								0
+							); // X-axis only for default/2-player
 						}
 					}
 					if (paddle.physicsImpostor.physicsBody.angularFactor) {
-						paddle.physicsImpostor.physicsBody.angularFactor.set(0, 0, 0); // No rotation at all
+						paddle.physicsImpostor.physicsBody.angularFactor.set(
+							0,
+							0,
+							0
+						); // No rotation at all
 					}
 				}
 
@@ -602,17 +699,25 @@ export class Pong3D {
 		// Walls (only create physics for actual wall collision geometry)
 		scene.meshes.forEach(mesh => {
 			// Only create physics for meshes that are specifically walls, not court surfaces
-			if (mesh && mesh.name &&
+			if (
+				mesh &&
+				mesh.name &&
 				!/ball/i.test(mesh.name) &&
 				!/paddle/i.test(mesh.name) &&
-				!/court/i.test(mesh.name) &&    // Exclude court surface meshes
-				/wall/i.test(mesh.name) &&      // Only include wall meshes
+				!/court/i.test(mesh.name) && // Exclude court surface meshes
+				/wall/i.test(mesh.name) && // Only include wall meshes
 				mesh.isVisible &&
-				mesh.getTotalVertices() > 0) {
-
-				console.log(`Creating physics for wall mesh: ${mesh.name} (parent: ${mesh.parent ? mesh.parent.name : 'none'})`);
-				console.log(`  - Position: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`);
-				console.log(`  - World position: x=${mesh.absolutePosition.x}, y=${mesh.absolutePosition.y}, z=${mesh.absolutePosition.z}`);
+				mesh.getTotalVertices() > 0
+			) {
+				console.log(
+					`Creating physics for wall mesh: ${mesh.name} (parent: ${mesh.parent ? mesh.parent.name : 'none'})`
+				);
+				console.log(
+					`  - Position: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`
+				);
+				console.log(
+					`  - World position: x=${mesh.absolutePosition.x}, y=${mesh.absolutePosition.y}, z=${mesh.absolutePosition.z}`
+				);
 
 				// De-parent wall meshes to fix physics collision detection
 				if (mesh.parent) {
@@ -620,23 +725,31 @@ export class Pong3D {
 					const position = new BABYLON.Vector3();
 					const rotationQuaternion = new BABYLON.Quaternion();
 					const scaling = new BABYLON.Vector3();
-					worldMatrix.decompose(scaling, rotationQuaternion, position);
+					worldMatrix.decompose(
+						scaling,
+						rotationQuaternion,
+						position
+					);
 
 					mesh.parent = null;
 					mesh.position = position;
 					mesh.rotationQuaternion = rotationQuaternion;
 					mesh.scaling = scaling;
 
-					console.log(`  - De-parented and repositioned to: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`);
+					console.log(
+						`  - De-parented and repositioned to: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`
+					);
 				}
 
 				mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
 					mesh,
-					BABYLON.PhysicsImpostor.MeshImpostor,  // Use exact mesh shape instead of box
+					BABYLON.PhysicsImpostor.MeshImpostor, // Use exact mesh shape instead of box
 					{ mass: 0, restitution: 1.0, friction: 0 },
 					this.scene
 				);
-				console.log(`Created static MeshImpostor for wall: ${mesh.name}`);
+				console.log(
+					`Created static MeshImpostor for wall: ${mesh.name}`
+				);
 			}
 		});
 
@@ -647,22 +760,38 @@ export class Pong3D {
 				.map(p => p!.physicsImpostor!);
 
 			if (paddleImpostors.length > 0) {
-				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(paddleImpostors, (main, collided) => {
-					this.handleBallPaddleCollision(main, collided);
-				});
-				console.log(`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`);
+				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
+					paddleImpostors,
+					(main, collided) => {
+						this.handleBallPaddleCollision(main, collided);
+					}
+				);
+				console.log(
+					`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`
+				);
 			}
 
 			// Set up wall collision detection for spin handling
 			const wallImpostors = this.scene.meshes
-				.filter(mesh => mesh && mesh.name && /wall/i.test(mesh.name) && mesh.physicsImpostor)
+				.filter(
+					mesh =>
+						mesh &&
+						mesh.name &&
+						/wall/i.test(mesh.name) &&
+						mesh.physicsImpostor
+				)
 				.map(mesh => mesh.physicsImpostor!);
 
 			if (wallImpostors.length > 0) {
-				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(wallImpostors, (main, collided) => {
-					this.handleBallWallCollision(main, collided);
-				});
-				console.log(`Set up ball-wall collision detection for ${wallImpostors.length} walls`);
+				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
+					wallImpostors,
+					(main, collided) => {
+						this.handleBallWallCollision(main, collided);
+					}
+				);
+				console.log(
+					`Set up ball-wall collision detection for ${wallImpostors.length} walls`
+				);
 			}
 
 			// Set up manual goal detection
@@ -674,7 +803,10 @@ export class Pong3D {
 	 * Handle ball-paddle collision to implement velocity-based ball control
 	 * The paddle's velocity influences the ball's reflection angle
 	 */
-	private handleBallPaddleCollision(ballImpostor: BABYLON.PhysicsImpostor, paddleImpostor: BABYLON.PhysicsImpostor): void {
+	private handleBallPaddleCollision(
+		ballImpostor: BABYLON.PhysicsImpostor,
+		paddleImpostor: BABYLON.PhysicsImpostor
+	): void {
 		// TEMPORARILY DISABLED: Collision debouncing to test stability
 		// const currentTime = Date.now();
 		// if (currentTime - this.lastCollisionTime < this.COLLISION_DEBOUNCE_MS) {
@@ -698,29 +830,46 @@ export class Pong3D {
 		// Track which player last hit the ball
 		console.log(`🏓 Ball hit by Player ${paddleIndex + 1}`);
 		this.lastPlayerToHitBall = paddleIndex;
-		console.log(`Last player to hit ball updated to: ${this.lastPlayerToHitBall}`);
+		console.log(
+			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}`
+		);
 
 		const paddle = this.paddles[paddleIndex]!;
 		if (!paddle.physicsImpostor?.physicsBody) return;
 
 		// Get the collision normal from Cannon.js physics engine
-		let paddleNormal = this.getCollisionNormal(ballImpostor, paddleImpostor);
+		let paddleNormal = this.getCollisionNormal(
+			ballImpostor,
+			paddleImpostor
+		);
 		if (!paddleNormal) {
-			console.warn(`Could not get collision normal from Cannon.js, using geometric fallback`);
+			console.warn(
+				`Could not get collision normal from Cannon.js, using geometric fallback`
+			);
 			// Fallback to geometric calculation
 			paddleNormal = this.getPaddleNormal(paddle, paddleIndex);
 			if (!paddleNormal) {
 				// Final fallback to hardcoded normals
 				if (this.activePlayerCount === 2) {
-					paddleNormal = paddleIndex === 0 ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(0, 0, -1);
+					paddleNormal =
+						paddleIndex === 0
+							? new BABYLON.Vector3(0, 0, 1)
+							: new BABYLON.Vector3(0, 0, -1);
 				} else if (this.activePlayerCount === 3) {
-					const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
+					const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 					const angle = angles[paddleIndex];
-					paddleNormal = new BABYLON.Vector3(-Math.cos(angle), 0, -Math.sin(angle)).normalize();
+					paddleNormal = new BABYLON.Vector3(
+						-Math.cos(angle),
+						0,
+						-Math.sin(angle)
+					).normalize();
 				} else if (this.activePlayerCount === 4) {
-					if (paddleIndex === 0) paddleNormal = new BABYLON.Vector3(0, 0, 1);
-					else if (paddleIndex === 1) paddleNormal = new BABYLON.Vector3(0, 0, -1);
-					else if (paddleIndex === 2) paddleNormal = new BABYLON.Vector3(-1, 0, 0);
+					if (paddleIndex === 0)
+						paddleNormal = new BABYLON.Vector3(0, 0, 1);
+					else if (paddleIndex === 1)
+						paddleNormal = new BABYLON.Vector3(0, 0, -1);
+					else if (paddleIndex === 2)
+						paddleNormal = new BABYLON.Vector3(-1, 0, 0);
 					else paddleNormal = new BABYLON.Vector3(1, 0, 0);
 				} else {
 					paddleNormal = new BABYLON.Vector3(0, 0, 1); // Default
@@ -728,7 +877,9 @@ export class Pong3D {
 			}
 		}
 
-		console.log(`🎯 Using final normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`);
+		console.log(
+			`🎯 Using final normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
+		);
 
 		// Validate collision point to avoid edge collisions
 		const ballPosition = this.ballMesh.position;
@@ -742,15 +893,20 @@ export class Pong3D {
 		const ballDirection = relativePos.normalize();
 		if (BABYLON.Vector3.Dot(paddleNormal, ballDirection) < 0) {
 			paddleNormal = paddleNormal.negate();
-			console.log(`🔄 Flipped normal to point toward ball: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`);
+			console.log(
+				`🔄 Flipped normal to point toward ball: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
+			);
 		}
 
 		// For 2-player mode, check if collision is near the paddle face (not edges)
 		if (this.activePlayerCount === 2) {
 			// Players 1,2 move on X-axis, paddle faces are on Z-axis
-			const maxXOffset = (paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
+			const maxXOffset =
+				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
 			if (Math.abs(relativePos.x) > maxXOffset) {
-				console.log(`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`);
+				console.log(
+					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`
+				);
 				return; // Ignore edge collisions
 			}
 		} else if (this.activePlayerCount === 4) {
@@ -768,12 +924,13 @@ export class Pong3D {
 		const ballVelocity = ballImpostor.getLinearVelocity();
 		const paddleVelocity = paddle.physicsImpostor.getLinearVelocity();
 
-		if (!ballVelocity || !paddleVelocity) return;		// Determine movement axis for this paddle
+		if (!ballVelocity || !paddleVelocity) return; // Determine movement axis for this paddle
 		let paddleAxis = new BABYLON.Vector3(1, 0, 0); // Default for 2-player
 		if (this.activePlayerCount === 2) {
 			// Handle paddle 2's 180° rotation in Blender
 			// Paddle 2 was rotated 180° to face the opposite direction, so its local X-axis is flipped
-			if (paddleIndex === 1) { // Paddle 2 (index 1)
+			if (paddleIndex === 1) {
+				// Paddle 2 (index 1)
 				paddleAxis = new BABYLON.Vector3(-1, 0, 0); // Flipped X-axis due to 180° rotation
 			}
 		} else if (this.activePlayerCount === 3) {
@@ -799,23 +956,35 @@ export class Pong3D {
 		paddleAxis = paddleAxis.normalize();
 
 		// Get paddle velocity along its movement axis
-		const paddleVelAlongAxis = BABYLON.Vector3.Dot(paddleVelocity, paddleAxis);
+		const paddleVelAlongAxis = BABYLON.Vector3.Dot(
+			paddleVelocity,
+			paddleAxis
+		);
 
 		// Define a threshold for "significant" paddle velocity
 		// Lower threshold for 3P mode to make effects more visible
 		const VELOCITY_THRESHOLD = this.activePlayerCount === 3 ? 0.05 : 0.1;
 		const hasPaddleVelocity = Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
 
-		console.log(`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`);
-		console.log(`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`);
+		console.log(
+			`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`
+		);
+		console.log(
+			`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`
+		);
 
 		let axisNote = '';
-		if (this.activePlayerCount === 2 && paddleIndex === 1) axisNote = '[180° rotation]';
+		if (this.activePlayerCount === 2 && paddleIndex === 1)
+			axisNote = '[180° rotation]';
 		else if (this.activePlayerCount === 3) axisNote = '[Facing center]';
 		else if (this.activePlayerCount === 4) axisNote = '[P3/P4 side paddles]';
 
-		console.log(`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`);
-		console.log(`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlongAxis).toFixed(3)}`);
+		console.log(
+			`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
+		);
+		console.log(
+			`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlongAxis).toFixed(3)}`
+		);
 
 		// 🚨 DEBUG: Extra logging for 4P mode paddle detection
 		if (this.activePlayerCount === 4) {
@@ -848,14 +1017,25 @@ export class Pong3D {
 			let velocityBasedAngle = -velocityRatio * this.ANGULAR_RETURN_LIMIT; // NEGATED to correct direction
 
 			// 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
-			velocityBasedAngle = Math.max(-this.ANGULAR_RETURN_LIMIT, Math.min(this.ANGULAR_RETURN_LIMIT, velocityBasedAngle));
+			velocityBasedAngle = Math.max(
+				-this.ANGULAR_RETURN_LIMIT,
+				Math.min(this.ANGULAR_RETURN_LIMIT, velocityBasedAngle)
+			);
 
 			console.log(`🚨 velocityBasedAngle = ${(velocityBasedAngle * 180 / Math.PI).toFixed(1)}° (after clamping)`);
 			console.log(`🎯 MOVING PADDLE ANGULAR EFFECT:`);
-			console.log(`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`);
-			console.log(`  - Ball deflects IN SAME DIRECTION as paddle movement`);
-			console.log(`  - Return angle: ${(velocityBasedAngle * 180 / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`);
-			console.log(`  - Angular return limit: ±${(this.ANGULAR_RETURN_LIMIT * 180 / Math.PI).toFixed(1)}°`);
+			console.log(
+				`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
+			);
+			console.log(
+				`  - Ball deflects IN SAME DIRECTION as paddle movement`
+			);
+			console.log(
+				`  - Return angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`
+			);
+			console.log(
+				`  - Angular return limit: ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+			);
 
 			// 🚨 DEBUG: Extra logging for 4P mode
 			if (this.activePlayerCount === 4) {
@@ -919,22 +1099,42 @@ export class Pong3D {
 		} else {
 			// STATIONARY PADDLE: Physics-based reflection with angular limit
 			const ballVelNormalized = ballVelocity.normalize();
-			const dotProduct = BABYLON.Vector3.Dot(ballVelNormalized, paddleNormal);
+			const dotProduct = BABYLON.Vector3.Dot(
+				ballVelNormalized,
+				paddleNormal
+			);
 
 			// Calculate perfect physics reflection
-			const perfectReflection = ballVelNormalized.subtract(paddleNormal.scale(2 * dotProduct));
+			const perfectReflection = ballVelNormalized.subtract(
+				paddleNormal.scale(2 * dotProduct)
+			);
 
 			console.log(`🎯 STATIONARY PADDLE REFLECTION:`);
-			console.log(`  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`);
-			console.log(`  - Paddle normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`);
-			console.log(`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`);
-			console.log(`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`);
+			console.log(
+				`  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`
+			);
+			console.log(
+				`  - Paddle normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
+			);
+			console.log(
+				`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
+			);
+			console.log(
+				`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
+			);
 			// Check the OUTGOING angle (reflection angle from normal)
-			const reflectionDot = BABYLON.Vector3.Dot(perfectReflection, paddleNormal);
+			const reflectionDot = BABYLON.Vector3.Dot(
+				perfectReflection,
+				paddleNormal
+			);
 			const outgoingAngleFromNormal = Math.acos(Math.abs(reflectionDot));
 
-			console.log(`  - Perfect reflection angle from normal: ${(outgoingAngleFromNormal * 180 / Math.PI).toFixed(1)}°`);
-			console.log(`  - Angular return limit: ${(this.ANGULAR_RETURN_LIMIT * 180 / Math.PI).toFixed(1)}°`);
+			console.log(
+				`  - Perfect reflection angle from normal: ${((outgoingAngleFromNormal * 180) / Math.PI).toFixed(1)}°`
+			);
+			console.log(
+				`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+			);
 
 			// === STANDARD REFLECTION LOGIC (works for all modes) ===
 			if (outgoingAngleFromNormal <= this.ANGULAR_RETURN_LIMIT) {
@@ -943,11 +1143,16 @@ export class Pong3D {
 				finalDirection = perfectReflection.normalize();
 			} else {
 				// Perfect reflection exceeds angular limit - clamp it
-				console.log(`🔒 Clamping reflection: ${(outgoingAngleFromNormal * 180 / Math.PI).toFixed(1)}° → ${(this.ANGULAR_RETURN_LIMIT * 180 / Math.PI).toFixed(1)}°`);
+				console.log(
+					`🔒 Clamping reflection: ${((outgoingAngleFromNormal * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+				);
 
 				// Determine which side of the normal the reflection should be on
 				// Use the cross product to determine the rotation axis and direction
-				const rotationAxis = BABYLON.Vector3.Cross(paddleNormal, perfectReflection);
+				const rotationAxis = BABYLON.Vector3.Cross(
+					paddleNormal,
+					perfectReflection
+				);
 
 				if (rotationAxis.length() < 1e-6) {
 					// Perfect reflection is parallel to normal (head-on collision) - return along normal
@@ -955,26 +1160,50 @@ export class Pong3D {
 				} else {
 					// Rotate the normal by exactly the angular limit toward the reflection
 					const normalizedRotAxis = rotationAxis.normalize();
-					const rotationMatrix = BABYLON.Matrix.RotationAxis(normalizedRotAxis, this.ANGULAR_RETURN_LIMIT);
-					finalDirection = BABYLON.Vector3.TransformCoordinates(paddleNormal, rotationMatrix).normalize();
+					const rotationMatrix = BABYLON.Matrix.RotationAxis(
+						normalizedRotAxis,
+						this.ANGULAR_RETURN_LIMIT
+					);
+					finalDirection = BABYLON.Vector3.TransformCoordinates(
+						paddleNormal,
+						rotationMatrix
+					).normalize();
 				}
 
-				const clampedAngle = Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal)));
-				console.log(`🔒 Actual clamped angle: ${(clampedAngle * 180 / Math.PI).toFixed(1)}°`);
+				const clampedAngle = Math.acos(
+					Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))
+				);
+				console.log(
+					`🔒 Actual clamped angle: ${((clampedAngle * 180) / Math.PI).toFixed(1)}°`
+				);
 			}
 		}
 
-		console.log(`🎯 Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`);
-		console.log(`🎯 Final angle from normal: ${(Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))) * 180 / Math.PI).toFixed(1)}°`);
+		console.log(
+			`🎯 Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+		);
+		console.log(
+			`🎯 Final angle from normal: ${((Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))) * 180) / Math.PI).toFixed(1)}°`
+		);
 
 		// Increment rally speed - ball gets faster with each paddle hit during rally
 		this.rallyHitCount++;
-		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT * (1 + (this.rallyHitCount - 1) * this.RALLY_SPEED_INCREMENT_PERCENT / 100);
+		this.currentBallSpeed =
+			this.BALL_VELOCITY_CONSTANT *
+			(1 +
+				((this.rallyHitCount - 1) *
+					this.RALLY_SPEED_INCREMENT_PERCENT) /
+					100);
 
 		// Apply maximum speed limit to prevent tunneling
-		this.currentBallSpeed = Math.min(this.currentBallSpeed, this.MAX_BALL_SPEED);
+		this.currentBallSpeed = Math.min(
+			this.currentBallSpeed,
+			this.MAX_BALL_SPEED
+		);
 
-		console.log(`🚀 Rally hit #${this.rallyHitCount}: Speed ${this.currentBallSpeed === this.MAX_BALL_SPEED ? 'capped at' : 'increased to'} ${this.currentBallSpeed.toFixed(1)} (${((this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100).toFixed(1)}% faster)`);
+		console.log(
+			`🚀 Rally hit #${this.rallyHitCount}: Speed ${this.currentBallSpeed === this.MAX_BALL_SPEED ? 'capped at' : 'increased to'} ${this.currentBallSpeed.toFixed(1)} (${((this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100).toFixed(1)}% faster)`
+		);
 
 		// Apply the new velocity with rally-adjusted speed
 		const newVelocity = finalDirection.scale(this.currentBallSpeed);
@@ -995,7 +1224,9 @@ export class Pong3D {
 		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.05; // Smaller buffer for stability
 
 		// Gentle position correction - only if ball is too close
-		const currentDistance = Math.abs(BABYLON.Vector3.Dot(paddleToBall, paddleNormal));
+		const currentDistance = Math.abs(
+			BABYLON.Vector3.Dot(paddleToBall, paddleNormal)
+		);
 		if (currentDistance < minSeparation) {
 			const correctionDistance = minSeparation - currentDistance + 0.02; // Small additional buffer
 			const correction = paddleNormal.scale(correctionDistance);
@@ -1010,14 +1241,21 @@ export class Pong3D {
 				);
 			}
 
-			console.log(`🔧 Position correction applied: ${correctionDistance.toFixed(3)} units along normal`);
-			console.log(`🔧 Ball moved from (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)}) to (${this.ballMesh.position.x.toFixed(3)}, ${this.ballMesh.position.y.toFixed(3)}, ${this.ballMesh.position.z.toFixed(3)})`);
+			console.log(
+				`🔧 Position correction applied: ${correctionDistance.toFixed(3)} units along normal`
+			);
+			console.log(
+				`🔧 Ball moved from (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)}) to (${this.ballMesh.position.x.toFixed(3)}, ${this.ballMesh.position.y.toFixed(3)}, ${this.ballMesh.position.z.toFixed(3)})`
+			);
 		} else {
-			console.log(`🔧 No position correction needed - current distance: ${currentDistance.toFixed(3)}, minimum: ${minSeparation.toFixed(3)}`);
+			console.log(
+				`🔧 No position correction needed - current distance: ${currentDistance.toFixed(3)}, minimum: ${minSeparation.toFixed(3)}`
+			);
 		}
 		if (hasPaddleVelocity) {
 			// Spin is proportional to paddle velocity, just like the angle influence
-			const spinInfluence = paddleVelAlongAxis * this.SPIN_TRANSFER_FACTOR;
+			const spinInfluence =
+				paddleVelAlongAxis * this.SPIN_TRANSFER_FACTOR;
 
 			// Choose spin axis based on player mode and paddle orientation
 			let spinAxis: BABYLON.Vector3;
@@ -1044,23 +1282,39 @@ export class Pong3D {
 		} if (this.debugPaddleLogging || this.activePlayerCount === 3) {
 			console.log(`Ball-Paddle Collision: Player ${paddleIndex + 1} (${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle)`);
 			if (this.activePlayerCount === 3) {
-				const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
-				console.log(`  - Paddle angle: ${(angles[paddleIndex] * 180 / Math.PI).toFixed(1)}°`);
-				console.log(`  - Paddle normal: (${paddleNormal.x.toFixed(2)}, ${paddleNormal.z.toFixed(2)})`);
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+				console.log(
+					`  - Paddle angle: ${((angles[paddleIndex] * 180) / Math.PI).toFixed(1)}°`
+				);
+				console.log(
+					`  - Paddle normal: (${paddleNormal.x.toFixed(2)}, ${paddleNormal.z.toFixed(2)})`
+				);
 			}
-			console.log(`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`);
+			console.log(
+				`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`
+			);
 			if (hasPaddleVelocity) {
-				const velocityBasedAngle = velocityRatio * this.ANGULAR_RETURN_LIMIT;
-				console.log(`  - Velocity-based angle: ${(velocityBasedAngle * 180 / Math.PI).toFixed(1)}°`);
+				const velocityBasedAngle =
+					velocityRatio * this.ANGULAR_RETURN_LIMIT;
+				console.log(
+					`  - Velocity-based angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
+				);
 			} else {
 				console.log(`  - Using reflection with angular limit`);
 			}
-			console.log(`  - Final direction: (${finalDirection.x.toFixed(2)}, ${finalDirection.z.toFixed(2)})`);
-			console.log(`  - New velocity: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`);
+			console.log(
+				`  - Final direction: (${finalDirection.x.toFixed(2)}, ${finalDirection.z.toFixed(2)})`
+			);
+			console.log(
+				`  - New velocity: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`
+			);
 		}
 	}
 
-	private handleBallWallCollision(_ballImpostor: BABYLON.PhysicsImpostor, _wallImpostor: BABYLON.PhysicsImpostor): void {
+	private handleBallWallCollision(
+		_ballImpostor: BABYLON.PhysicsImpostor,
+		_wallImpostor: BABYLON.PhysicsImpostor
+	): void {
 		console.log(`🧱 Ball-Wall Collision detected`);
 
 		// When ball hits wall, spin is preserved but may be modified by friction
@@ -1068,7 +1322,9 @@ export class Pong3D {
 		const spinFrictionFactor = 0.8; // 20% spin loss on wall collision
 		this.ballSpin.scaleInPlace(spinFrictionFactor);
 
-		console.log(`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballSpin.y.toFixed(2)}`);
+		console.log(
+			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballSpin.y.toFixed(2)}`
+		);
 	}
 
 	private handleGoalCollision(goalIndex: number): void {
@@ -1093,9 +1349,11 @@ export class Pong3D {
 		if (scoringPlayer === -1) {
 			console.warn('Goal detected but no player has hit the ball yet');
 			return;
-		}		// Prevent scoring against yourself (in case of weird physics)
+		} // Prevent scoring against yourself (in case of weird physics)
 		if (scoringPlayer === goalPlayer) {
-			console.warn(`Player ${scoringPlayer + 1} hit their own goal - no score`);
+			console.warn(
+				`Player ${scoringPlayer + 1} hit their own goal - no score`
+			);
 			return;
 		}
 
@@ -1104,8 +1362,12 @@ export class Pong3D {
 		this.playerScores[scoringPlayer]++;
 		console.log(`New scores after goal:`, this.playerScores);
 
-		console.log(`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`);
-		console.log(`Score: ${this.playerScores.map((score, i) => `P${i + 1}: ${score}`).join(', ')}`);
+		console.log(
+			`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`
+		);
+		console.log(
+			`Score: ${this.playerScores.map((score, i) => `P${i + 1}: ${score}`).join(', ')}`
+		);
 
 		// Update the UI
 		console.log(`Updating UI display...`);
@@ -1125,7 +1387,9 @@ export class Pong3D {
 		this.goalScored = true;
 		this.pendingGoalData = { scoringPlayer, goalPlayer };
 
-		console.log(`🚀 Goal scored! Ball will continue to boundary before reset...`);
+		console.log(
+			`🚀 Goal scored! Ball will continue to boundary before reset...`
+		);
 
 		// Reset the last player tracker and set cooldown
 		this.lastPlayerToHitBall = -1;
@@ -1159,21 +1423,28 @@ export class Pong3D {
 			// Debug: Show how many goals we're checking
 			const activeGoals = this.goalMeshes.filter(g => g !== null);
 			if (activeGoals.length !== this.activePlayerCount) {
-				console.warn(`🚨 Goal count mismatch: Expected ${this.activePlayerCount} goals, but have ${activeGoals.length} active goals`);
+				console.warn(
+					`🚨 Goal count mismatch: Expected ${this.activePlayerCount} goals, but have ${activeGoals.length} active goals`
+				);
 			}
 
 			this.goalMeshes.forEach((goal, index) => {
 				if (!goal) {
 					// Debug: Show missing goals
 					if (index < this.activePlayerCount) {
-						console.warn(`🚨 Goal ${index + 1} is missing for ${this.activePlayerCount}-player mode`);
+						console.warn(
+							`🚨 Goal ${index + 1} is missing for ${this.activePlayerCount}-player mode`
+						);
 					}
 					return;
 				}
 
 				// Debug: Periodically log goal checking (every 60 frames ~ 1 second)
-				if (Math.random() < 0.016) { // ~1/60 chance
-					console.log(`🔍 Checking goal ${index + 1} (${goal.name}) for ball collision...`);
+				if (Math.random() < 0.016) {
+					// ~1/60 chance
+					console.log(
+						`🔍 Checking goal ${index + 1} (${goal.name}) for ball collision...`
+					);
 				}
 
 				// Get goal bounding box
@@ -1183,12 +1454,17 @@ export class Pong3D {
 
 				// Check if ball is inside goal bounds
 				const isInside =
-					ballPosition.x >= goalMin.x && ballPosition.x <= goalMax.x &&
-					ballPosition.y >= goalMin.y && ballPosition.y <= goalMax.y &&
-					ballPosition.z >= goalMin.z && ballPosition.z <= goalMax.z;
+					ballPosition.x >= goalMin.x &&
+					ballPosition.x <= goalMax.x &&
+					ballPosition.y >= goalMin.y &&
+					ballPosition.y <= goalMax.y &&
+					ballPosition.z >= goalMin.z &&
+					ballPosition.z <= goalMax.z;
 
 				if (isInside) {
-					console.log(`🎯 Manual goal detection: Ball inside Goal ${index + 1} (${goal.name})!`);
+					console.log(
+						`🎯 Manual goal detection: Ball inside Goal ${index + 1} (${goal.name})!`
+					);
 					this.handleGoalCollision(index);
 				}
 			});
@@ -1202,7 +1478,9 @@ export class Pong3D {
 			Math.abs(ballPosition.z) > this.outOfBoundsDistance;
 
 		if (isOutOfBounds) {
-			console.log(`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`);
+			console.log(
+				`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
+			);
 
 			// Reset ball immediately for general out of bounds
 			if (this.gameLoop) {
@@ -1221,7 +1499,10 @@ export class Pong3D {
 
 			console.log(`⚡ Ball reset due to out of bounds`);
 		}
-	} private checkBoundaryCollisionAfterGoal(ballPosition: BABYLON.Vector3): void {
+	}
+	private checkBoundaryCollisionAfterGoal(
+		ballPosition: BABYLON.Vector3
+	): void {
 		// Get scene boundaries
 		if (this.boundsXMin === null || this.boundsXMax === null) {
 			this.updateBounds();
@@ -1231,11 +1512,13 @@ export class Pong3D {
 		// Check if ball has reached the boundary (add small margin for detection)
 		const margin = 0.5;
 		const hitBoundary =
-			ballPosition.x <= (this.boundsXMin + margin) ||
-			ballPosition.x >= (this.boundsXMax - margin);
+			ballPosition.x <= this.boundsXMin + margin ||
+			ballPosition.x >= this.boundsXMax - margin;
 
 		if (hitBoundary) {
-			console.log(`🎯 Ball reached boundary after goal! Resetting ball...`);
+			console.log(
+				`🎯 Ball reached boundary after goal! Resetting ball...`
+			);
 
 			// Now reset the ball
 			if (this.gameLoop) {
@@ -1260,45 +1543,66 @@ export class Pong3D {
 		console.log('🌟 Setting up shadow system...');
 
 		try {
-			console.log(`🔍 Shadow Debug: Total lights in scene: ${scene.lights.length}`);
+			console.log(
+				`🔍 Shadow Debug: Total lights in scene: ${scene.lights.length}`
+			);
 
 			// Debug: Show all lights and their names
 			scene.lights.forEach((light, index) => {
-				console.log(`Light ${index + 1}: "${light.name}" (${light.getClassName()})`);
+				console.log(
+					`Light ${index + 1}: "${light.name}" (${light.getClassName()})`
+				);
 			});
 
 			// Find lights with "light" in their name (Light, Light.001, Light.002, etc.)
 			const shadowCastingLights = scene.lights.filter(light => {
 				const name = light.name.toLowerCase();
 				const hasLight = name.includes('light');
-				const isValidType = light instanceof BABYLON.DirectionalLight || light instanceof BABYLON.SpotLight;
+				const isValidType =
+					light instanceof BABYLON.DirectionalLight ||
+					light instanceof BABYLON.SpotLight;
 
-				console.log(`🔍 Checking light "${light.name}": hasLight=${hasLight}, isValidType=${isValidType} (${light.getClassName()})`);
+				console.log(
+					`🔍 Checking light "${light.name}": hasLight=${hasLight}, isValidType=${isValidType} (${light.getClassName()})`
+				);
 
 				return hasLight && isValidType;
 			});
 
-			console.log(`🔍 Found ${shadowCastingLights.length} suitable lights for shadows`);
+			console.log(
+				`🔍 Found ${shadowCastingLights.length} suitable lights for shadows`
+			);
 
 			if (shadowCastingLights.length === 0) {
 				console.warn('❌ No suitable lights found for shadow casting');
-				console.log('💡 Make sure your GLB has lights with "light" in the name and they are SpotLight or DirectionalLight type');
+				console.log(
+					'💡 Make sure your GLB has lights with "light" in the name and they are SpotLight or DirectionalLight type'
+				);
 				return;
 			}
 
 			// Setup shadow generators for each light
-			shadowCastingLights.forEach((light) => {
-				console.log(`✅ Setting up shadow generator for light: ${light.name} (${light.getClassName()})`);
+			shadowCastingLights.forEach(light => {
+				console.log(
+					`✅ Setting up shadow generator for light: ${light.name} (${light.getClassName()})`
+				);
 
 				// Create shadow generator
-				const shadowGenerator = new BABYLON.ShadowGenerator(1024, light as BABYLON.DirectionalLight | BABYLON.SpotLight);
+				const shadowGenerator = new BABYLON.ShadowGenerator(
+					1024,
+					light as BABYLON.DirectionalLight | BABYLON.SpotLight
+				);
 
 				// Add ball as shadow caster
 				if (this.ballMesh) {
 					shadowGenerator.addShadowCaster(this.ballMesh);
-					console.log(`✅ Added ball as shadow caster for ${light.name}`);
+					console.log(
+						`✅ Added ball as shadow caster for ${light.name}`
+					);
 				} else {
-					console.warn(`⚠️ Ball mesh not available for shadow casting`);
+					console.warn(
+						`⚠️ Ball mesh not available for shadow casting`
+					);
 				}
 
 				// Configure shadow quality
@@ -1312,18 +1616,22 @@ export class Pong3D {
 				return name.includes('court') || name.includes('wall');
 			});
 
-			console.log(`🔍 Found ${shadowReceivers.length} shadow receiver meshes:`);
+			console.log(
+				`🔍 Found ${shadowReceivers.length} shadow receiver meshes:`
+			);
 			shadowReceivers.forEach(mesh => {
 				mesh.receiveShadows = true;
 				console.log(`✅ Enabled shadow receiving for: ${mesh.name}`);
 			});
 
-			console.log(`🎉 Shadow system setup complete: ${shadowCastingLights.length} lights, ${shadowReceivers.length} receivers`);
-
+			console.log(
+				`🎉 Shadow system setup complete: ${shadowCastingLights.length} lights, ${shadowReceivers.length} receivers`
+			);
 		} catch (error) {
 			console.error('❌ Error setting up shadow system:', error);
 		}
-	} private computeSceneBoundingInfo(
+	}
+	private computeSceneBoundingInfo(
 		meshes: BABYLON.AbstractMesh[]
 	): BoundingInfo | null {
 		if (!meshes || meshes.length === 0) return null;
@@ -1363,8 +1671,14 @@ export class Pong3D {
 		for (let i = 0; i < this.activePlayerCount; i++) {
 			const paddleNumber = i + 1;
 			// Look for specific numbered paddle names first
-			let paddle = paddleMeshes.find(m =>
-				m && m.name && new RegExp(`paddle${paddleNumber}|player${paddleNumber}|p${paddleNumber}`, 'i').test(m.name)
+			let paddle = paddleMeshes.find(
+				m =>
+					m &&
+					m.name &&
+					new RegExp(
+						`paddle${paddleNumber}|player${paddleNumber}|p${paddleNumber}`,
+						'i'
+					).test(m.name)
 			) as BABYLON.Mesh | undefined;
 
 			// If no specific numbered paddle found, take the next available paddle
@@ -1426,9 +1740,10 @@ export class Pong3D {
 		const meshes = scene.meshes;
 
 		// Find ball mesh using case-insensitive name search
-		this.ballMesh = meshes.find(
-			m => m && m.name && /ball/i.test(m.name)
-		) as BABYLON.Mesh | undefined || null;
+		this.ballMesh =
+			(meshes.find(m => m && m.name && /ball/i.test(m.name)) as
+				| BABYLON.Mesh
+				| undefined) || null;
 
 		if (this.ballMesh) {
 			console.log(`Found ball mesh: ${this.ballMesh.name}`);
@@ -1445,10 +1760,17 @@ export class Pong3D {
 
 	private createDefaultBall(): void {
 		// Create a simple sphere as a fallback ball
-		this.ballMesh = BABYLON.MeshBuilder.CreateSphere('defaultBall', { diameter: 0.2 }, this.scene);
+		this.ballMesh = BABYLON.MeshBuilder.CreateSphere(
+			'defaultBall',
+			{ diameter: 0.2 },
+			this.scene
+		);
 
 		// Create a simple material
-		const ballMaterial = new BABYLON.StandardMaterial('ballMaterial', this.scene);
+		const ballMaterial = new BABYLON.StandardMaterial(
+			'ballMaterial',
+			this.scene
+		);
 		ballMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1); // White ball
 		ballMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Slight glow
 		this.ballMesh.material = ballMaterial;
@@ -1464,7 +1786,9 @@ export class Pong3D {
 	private findGoals(scene: BABYLON.Scene): void {
 		const meshes = scene.meshes;
 
-		console.log(`🔍 Looking for goals in ${this.activePlayerCount}-player mode...`);
+		console.log(
+			`🔍 Looking for goals in ${this.activePlayerCount}-player mode...`
+		);
 		console.log(`🔍 Initial/Max player count: ${this.initialPlayerCount}`);
 		console.log(`🔍 Active player count: ${this.activePlayerCount}`);
 
@@ -1473,7 +1797,10 @@ export class Pong3D {
 			m => m && m.name && /goal/i.test(m.name)
 		);
 
-		console.log(`🔍 Found ${goalMeshes.length} meshes with "goal" in name:`, goalMeshes.map(m => m.name));
+		console.log(
+			`🔍 Found ${goalMeshes.length} meshes with "goal" in name:`,
+			goalMeshes.map(m => m.name)
+		);
 
 		// Try to identify goals by numbered names for the expected number of players
 		for (let i = 0; i < this.activePlayerCount; i++) {
@@ -1481,8 +1808,13 @@ export class Pong3D {
 			console.log(`🔍 Looking for goal${goalNumber}...`);
 
 			// Look for specific numbered goal names first
-			let goal = goalMeshes.find(m =>
-				m && m.name && new RegExp(`goal${goalNumber}|g${goalNumber}`, 'i').test(m.name)
+			let goal = goalMeshes.find(
+				m =>
+					m &&
+					m.name &&
+					new RegExp(`goal${goalNumber}|g${goalNumber}`, 'i').test(
+						m.name
+					)
 			) as BABYLON.Mesh | undefined;
 
 			if (goal) {
@@ -1492,7 +1824,9 @@ export class Pong3D {
 				// If no specific numbered goal found, take the next available goal
 				if (i < goalMeshes.length) {
 					goal = goalMeshes[i] as BABYLON.Mesh;
-					console.log(`📋 Fallback: Using ${goal?.name} as goal${goalNumber}`);
+					console.log(
+						`📋 Fallback: Using ${goal?.name} as goal${goalNumber}`
+					);
 				}
 			}
 
@@ -1506,15 +1840,22 @@ export class Pong3D {
 
 		// Log what we found
 		const foundGoals = this.goalMeshes.filter(g => g !== null);
-		console.log(`Found ${foundGoals.length}/${this.activePlayerCount} expected goals:`, foundGoals.map(g => g?.name));
+		console.log(
+			`Found ${foundGoals.length}/${this.activePlayerCount} expected goals:`,
+			foundGoals.map(g => g?.name)
+		);
 
 		if (foundGoals.length === 0) {
-			console.warn('No goal meshes found in the scene! Add meshes named "goal1", "goal2", etc. for score detection');
+			console.warn(
+				'No goal meshes found in the scene! Add meshes named "goal1", "goal2", etc. for score detection'
+			);
 			return;
 		}
 
 		if (foundGoals.length < this.activePlayerCount) {
-			console.warn(`Expected ${this.activePlayerCount} goals but only found ${foundGoals.length}`);
+			console.warn(
+				`Expected ${this.activePlayerCount} goals but only found ${foundGoals.length}`
+			);
 		}
 
 		// Make goal meshes invisible and collision-only
@@ -1522,7 +1863,9 @@ export class Pong3D {
 			if (goal) {
 				goal.isVisible = false; // Make completely invisible
 				goal.checkCollisions = true; // Enable collision detection
-				console.log(`Goal ${index + 1} (${goal.name}): Made invisible for collision-only detection`);
+				console.log(
+					`Goal ${index + 1} (${goal.name}): Made invisible for collision-only detection`
+				);
 			}
 		});
 	}
@@ -1642,29 +1985,50 @@ export class Pong3D {
 		// Place player info blocks relative to the current POV (`thisPlayer`).
 		// 'rel' is the player index relative to thisPlayer: 0 => bottom, then
 		// next positions depend on active player count.
-		const povOffset = (typeof this.thisPlayer === 'number' ? (this.thisPlayer - 1) : 0);
+		const povOffset =
+			typeof this.thisPlayer === 'number' ? this.thisPlayer - 1 : 0;
 		for (let i = 0; i < this.activePlayerCount; i++) {
 			// Special-case mappings for certain 4-player POVs
 			// - when thisPlayer === 2 => P1=top, P2=bottom, P3=left, P4=right
 			// - when thisPlayer === 4 => P1=right, P2=left, P3=top,  P4=bottom (viewer)
 			let position: 'top' | 'bottom' | 'left' | 'right' = 'bottom';
 			if (this.activePlayerCount === 4 && this.thisPlayer === 2) {
-				const specialMap: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'bottom', 'left', 'right'];
+				const specialMap: ('top' | 'bottom' | 'left' | 'right')[] = [
+					'top',
+					'bottom',
+					'left',
+					'right',
+				];
 				position = specialMap[i] || 'bottom';
 			} else if (this.activePlayerCount === 4 && this.thisPlayer === 4) {
 				// User requested mapping when viewing as Player 4
 				// P1 -> right, P2 -> left, P3 -> top, P4 -> bottom (viewer)
-				const specialMap: ('top' | 'bottom' | 'left' | 'right')[] = ['right', 'left', 'top', 'bottom'];
+				const specialMap: ('top' | 'bottom' | 'left' | 'right')[] = [
+					'right',
+					'left',
+					'top',
+					'bottom',
+				];
 				position = specialMap[i] || 'bottom';
 			} else {
-				const rel = (i - povOffset + this.activePlayerCount) % this.activePlayerCount;
+				const rel =
+					(i - povOffset + this.activePlayerCount) %
+					this.activePlayerCount;
 				if (this.activePlayerCount === 2) {
-					position = (rel === 0) ? 'bottom' : 'top';
+					position = rel === 0 ? 'bottom' : 'top';
 				} else if (this.activePlayerCount === 3) {
-					position = (rel === 0) ? 'bottom' : (rel === 1 ? 'right' : 'left');
+					position =
+						rel === 0 ? 'bottom' : rel === 1 ? 'right' : 'left';
 				} else if (this.activePlayerCount === 4) {
 					// Order when POV is player 1: [bottom, top, right, left]
-					position = (rel === 0) ? 'bottom' : (rel === 1 ? 'top' : (rel === 2 ? 'right' : 'left'));
+					position =
+						rel === 0
+							? 'bottom'
+							: rel === 1
+								? 'top'
+								: rel === 2
+									? 'right'
+									: 'left';
 				}
 			}
 			// Special-case: in 4-player mode when viewing as Player 3, swap left/right blocks
@@ -1696,10 +2060,20 @@ export class Pong3D {
 		// If extended UI is present, update arrays
 		if (this.uiPlayerNameTexts && this.uiPlayerScoreTexts) {
 			console.log(`Using extended UI arrays`);
-			for (let i = 0; i < Math.min(this.uiPlayerNameTexts.length, this.playerNames.length); i++) {
+			for (
+				let i = 0;
+				i <
+				Math.min(
+					this.uiPlayerNameTexts.length,
+					this.playerNames.length
+				);
+				i++
+			) {
 				this.uiPlayerNameTexts[i].text = this.playerNames[i];
 				this.uiPlayerScoreTexts[i].text = String(this.playerScores[i]);
-				console.log(`Set Player ${i + 1}: ${this.playerNames[i]} - ${this.playerScores[i]}`);
+				console.log(
+					`Set Player ${i + 1}: ${this.playerNames[i]} - ${this.playerScores[i]}`
+				);
 			}
 			return;
 		}
@@ -1772,7 +2146,10 @@ export class Pong3D {
 	}
 
 	/** Move a player's UI block to a named position: 'top'|'bottom'|'left'|'right' */
-	public setPlayerUIPosition(playerIndex: number, position: 'top' | 'bottom' | 'left' | 'right') {
+	public setPlayerUIPosition(
+		playerIndex: number,
+		position: 'top' | 'bottom' | 'left' | 'right'
+	) {
 		if (this.uiMovePlayerTo) this.uiMovePlayerTo(playerIndex, position);
 	}
 
@@ -1782,7 +2159,12 @@ export class Pong3D {
 
 		// Update camera position if camera is already initialized
 		if (this.camera) {
-			const cameraPos = getCameraPosition(this.thisPlayer, this.activePlayerCount, this.getCameraSettings(), this.local);
+			const cameraPos = getCameraPosition(
+				this.thisPlayer,
+				this.activePlayerCount,
+				this.getCameraSettings(),
+				this.local
+			);
 			applyCameraPosition(this.camera, cameraPos, this.thisPlayer);
 		}
 	}
@@ -1796,13 +2178,16 @@ export class Pong3D {
 	private resetRallySpeed(): void {
 		this.rallyHitCount = 0;
 		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
-		console.log(`🔄 Rally reset: Speed back to base ${this.currentBallSpeed}`);
+		console.log(
+			`🔄 Rally reset: Speed back to base ${this.currentBallSpeed}`
+		);
 	}
 
 	private maintainConstantBallVelocity(): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 
-		const currentVelocity = this.ballMesh.physicsImpostor.getLinearVelocity();
+		const currentVelocity =
+			this.ballMesh.physicsImpostor.getLinearVelocity();
 		if (!currentVelocity) return;
 
 		// Apply Magnus force from spin (ball curving effect)
@@ -1812,10 +2197,16 @@ export class Pong3D {
 		this.ballSpin.scaleInPlace(this.SPIN_DECAY_FACTOR);
 
 		// Calculate current speed (magnitude) in X-Z plane only
-		const currentSpeed = Math.sqrt(currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z);
+		const currentSpeed = Math.sqrt(
+			currentVelocity.x * currentVelocity.x +
+				currentVelocity.z * currentVelocity.z
+		);
 
 		// Only adjust if ball is moving and speed differs significantly from target
-		if (currentSpeed > 0.1 && Math.abs(currentSpeed - this.currentBallSpeed) > 0.5) {
+		if (
+			currentSpeed > 0.1 &&
+			Math.abs(currentSpeed - this.currentBallSpeed) > 0.5
+		) {
 			// Normalize the X-Z velocity and scale to current rally speed
 			const scale = this.currentBallSpeed / currentSpeed;
 			const correctedVelocity = new BABYLON.Vector3(
@@ -1840,7 +2231,9 @@ export class Pong3D {
 			// Spin delay period - no Magnus force yet
 			if (!this.spinDelayActive && this.spinActivationTime > 0) {
 				this.spinDelayActive = true;
-				console.log(`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`);
+				console.log(
+					`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`
+				);
 			}
 			return;
 		}
@@ -1871,7 +2264,10 @@ export class Pong3D {
 		magnusForce.scaleInPlace(impulseScale);
 
 		// Apply the impulse to curve the ball's path
-		this.ballMesh.physicsImpostor.applyImpulse(magnusForce, this.ballMesh.position);
+		this.ballMesh.physicsImpostor.applyImpulse(
+			magnusForce,
+			this.ballMesh.position
+		);
 	}
 
 	private updateBounds(): void {
@@ -1896,10 +2292,14 @@ export class Pong3D {
 
 		// Get current key state from input handler
 		const keyState = this.inputHandler?.getKeyState() || {
-			p1Left: false, p1Right: false,
-			p2Left: false, p2Right: false,
-			p3Left: false, p3Right: false,
-			p4Left: false, p4Right: false,
+			p1Left: false,
+			p1Right: false,
+			p2Left: false,
+			p2Right: false,
+			p3Left: false,
+			p3Right: false,
+			p4Left: false,
+			p4Right: false,
 		};
 
 		// Key state arrays for easy iteration
@@ -1925,20 +2325,40 @@ export class Pong3D {
 			let axis = new BABYLON.Vector3(1, 0, 0);
 			if (this.activePlayerCount === 3) {
 				// Player 1: 0°, Player 2: 120°, Player 3: 240°
-				const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
-				axis = new BABYLON.Vector3(Math.cos(angles[i]), 0, Math.sin(angles[i]));
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+				axis = new BABYLON.Vector3(
+					Math.cos(angles[i]),
+					0,
+					Math.sin(angles[i])
+				);
 			} else if (this.activePlayerCount === 4) {
-				axis = (i >= 2) ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(1, 0, 0);
+				axis =
+					i >= 2
+						? new BABYLON.Vector3(0, 0, 1)
+						: new BABYLON.Vector3(1, 0, 0);
 			}
 			const axisNorm = axis.normalize();
 
 			// --- AXIS CONSTRAINT: Snap to axis before any movement or rendering ---
-			if (this.activePlayerCount === 3 && paddle && paddle.physicsImpostor) {
+			if (
+				this.activePlayerCount === 3 &&
+				paddle &&
+				paddle.physicsImpostor
+			) {
 				const paddleMesh = paddle as BABYLON.Mesh;
-				const impostor = paddleMesh.physicsImpostor as BABYLON.PhysicsImpostor;
+				const impostor =
+					paddleMesh.physicsImpostor as BABYLON.PhysicsImpostor;
 				const originalPos = this.originalGLBPositions[i];
-				const posVec = new BABYLON.Vector3(paddleMesh.position.x, 0, paddleMesh.position.z);
-				const originVec = new BABYLON.Vector3(originalPos.x, 0, originalPos.z);
+				const posVec = new BABYLON.Vector3(
+					paddleMesh.position.x,
+					0,
+					paddleMesh.position.z
+				);
+				const originVec = new BABYLON.Vector3(
+					originalPos.x,
+					0,
+					originalPos.z
+				);
 				const relPos = posVec.subtract(originVec);
 				const projLen = BABYLON.Vector3.Dot(relPos, axisNorm);
 				const projVec = axisNorm.scale(projLen);
@@ -1964,10 +2384,14 @@ export class Pong3D {
 
 			// Check bounds
 			const posAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
-			const originAlongAxis = BABYLON.Vector3.Dot(new BABYLON.Vector3(originalPos.x, 0, originalPos.z), axisNorm);
+			const originAlongAxis = BABYLON.Vector3.Dot(
+				new BABYLON.Vector3(originalPos.x, 0, originalPos.z),
+				axisNorm
+			);
 			const minBound = originAlongAxis - this.PADDLE_RANGE;
 			const maxBound = originAlongAxis + this.PADDLE_RANGE;
-			const isOutOfBounds = posAlongAxis < minBound || posAlongAxis > maxBound;
+			const isOutOfBounds =
+				posAlongAxis < minBound || posAlongAxis > maxBound;
 
 			// Get player input
 			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
@@ -1975,22 +2399,32 @@ export class Pong3D {
 			// GRADUAL BRAKING: Apply braking force instead of instant stop
 			if (inputDir === 0 && !isOutOfBounds) {
 				// Apply braking force proportional to current velocity
-				const brakedVelocity = currentVelocity.scale(this.PADDLE_BRAKING_FACTOR);
+				const brakedVelocity = currentVelocity.scale(
+					this.PADDLE_BRAKING_FACTOR
+				);
 
 				// Only apply braking if velocity is above a minimum threshold
 				if (brakedVelocity.length() > 0.05) {
 					paddle.physicsImpostor.setLinearVelocity(brakedVelocity);
 				} else {
 					// Complete stop only when velocity is very small
-					paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+					paddle.physicsImpostor.setLinearVelocity(
+						BABYLON.Vector3.Zero()
+					);
 				}
 				continue; // Skip all other logic when braking
-			}			// ANTI-DRIFT: Clamp maximum velocity to prevent runaway acceleration
+			} // ANTI-DRIFT: Clamp maximum velocity to prevent runaway acceleration
 			if (speedAlong > this.PADDLE_MAX_VELOCITY) {
-				const clampedVel = axisNorm.scale(Math.sign(velAlong) * this.PADDLE_MAX_VELOCITY);
+				const clampedVel = axisNorm.scale(
+					Math.sign(velAlong) * this.PADDLE_MAX_VELOCITY
+				);
 				// Preserve non-movement-axis velocity components (should be zero anyway)
-				const perpVel = currentVelocity.subtract(axisNorm.scale(velAlong));
-				paddle.physicsImpostor.setLinearVelocity(clampedVel.add(perpVel));
+				const perpVel = currentVelocity.subtract(
+					axisNorm.scale(velAlong)
+				);
+				paddle.physicsImpostor.setLinearVelocity(
+					clampedVel.add(perpVel)
+				);
 			}
 
 			// State machine: Only apply forces when needed
@@ -1998,26 +2432,40 @@ export class Pong3D {
 				// PRIORITY 1: Hit boundary - stop and clamp position to prevent overshoot
 				if (!this.paddleStoppedAtBoundary[i]) {
 					// First time hitting boundary - stop the paddle
-					paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+					paddle.physicsImpostor.setLinearVelocity(
+						BABYLON.Vector3.Zero()
+					);
 					this.paddleStoppedAtBoundary[i] = true;
 				}
 
 				// Clamp position to boundary to prevent overshoot
-				const clampedPosAlongAxis = Math.max(minBound, Math.min(maxBound, posAlongAxis));
-				const clampedPos = new BABYLON.Vector3(originalPos.x, paddle.position.y, originalPos.z)
-					.add(axisNorm.scale(clampedPosAlongAxis - originAlongAxis));
+				const clampedPosAlongAxis = Math.max(
+					minBound,
+					Math.min(maxBound, posAlongAxis)
+				);
+				const clampedPos = new BABYLON.Vector3(
+					originalPos.x,
+					paddle.position.y,
+					originalPos.z
+				).add(axisNorm.scale(clampedPosAlongAxis - originAlongAxis));
 				paddle.position = clampedPos;
 
 				// Allow movement back toward valid area (any inward direction)
 				if (inputDir !== 0) {
 					const wantedDirection = Math.sign(inputDir);
-					const isMovingInward = (posAlongAxis < minBound && wantedDirection > 0) ||
+					const isMovingInward =
+						(posAlongAxis < minBound && wantedDirection > 0) ||
 						(posAlongAxis > maxBound && wantedDirection < 0);
 
 					// Allow any movement that brings paddle back inward
 					if (isMovingInward) {
-						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
-						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+						const impulse = axisNorm.scale(
+							wantedDirection * this.PADDLE_FORCE
+						);
+						paddle.physicsImpostor.applyImpulse(
+							impulse,
+							paddle.getAbsolutePosition()
+						);
 						this.paddleStoppedAtBoundary[i] = false; // Reset boundary stop flag
 					}
 				}
@@ -2030,22 +2478,45 @@ export class Pong3D {
 					const wantedDirection = Math.sign(inputDir);
 					const currentDirection = Math.sign(velAlong);
 
-					if (currentDirection !== 0 && wantedDirection !== currentDirection) {
+					if (
+						currentDirection !== 0 &&
+						wantedDirection !== currentDirection
+					) {
 						// Need to change direction - stop first, then apply new force
-						paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
-						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
-						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+						paddle.physicsImpostor.setLinearVelocity(
+							BABYLON.Vector3.Zero()
+						);
+						const impulse = axisNorm.scale(
+							wantedDirection * this.PADDLE_FORCE
+						);
+						paddle.physicsImpostor.applyImpulse(
+							impulse,
+							paddle.getAbsolutePosition()
+						);
 					} else {
 						// Same direction or starting from rest - accelerate
-						const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
-						paddle.physicsImpostor.applyImpulse(impulse, paddle.getAbsolutePosition());
+						const impulse = axisNorm.scale(
+							wantedDirection * this.PADDLE_FORCE
+						);
+						paddle.physicsImpostor.applyImpulse(
+							impulse,
+							paddle.getAbsolutePosition()
+						);
 					}
 				}
 
 				// --- SOFT AXIS CONSTRAINT: Only correct off-axis drift if it exceeds epsilon ---
 				if (this.activePlayerCount === 3) {
-					const posVec = new BABYLON.Vector3(paddle.position.x, 0, paddle.position.z);
-					const originVec = new BABYLON.Vector3(originalPos.x, 0, originalPos.z);
+					const posVec = new BABYLON.Vector3(
+						paddle.position.x,
+						0,
+						paddle.position.z
+					);
+					const originVec = new BABYLON.Vector3(
+						originalPos.x,
+						0,
+						originalPos.z
+					);
 					const relPos = posVec.subtract(originVec);
 					const projLen = BABYLON.Vector3.Dot(relPos, axisNorm);
 					const projVec = axisNorm.scale(projLen);
@@ -2066,7 +2537,9 @@ export class Pong3D {
 						const offAxisVel = vel.subtract(velAlongVec);
 						if (offAxisVel.length() > AXIS_EPSILON) {
 							// Only zero out the off-axis velocity
-							paddle.physicsImpostor.setLinearVelocity(velAlongVec);
+							paddle.physicsImpostor.setLinearVelocity(
+								velAlongVec
+							);
 						}
 					}
 				}
@@ -2140,7 +2613,9 @@ export class Pong3D {
 		console.log('BALL_VELOCITY_CONSTANT ->', this.BALL_VELOCITY_CONSTANT);
 	}
 
-	public setOnGoalCallback(callback: (scoringPlayer: number, goalPlayer: number) => void): void {
+	public setOnGoalCallback(
+		callback: (scoringPlayer: number, goalPlayer: number) => void
+	): void {
 		this.onGoalCallback = callback;
 		console.log('Goal callback set');
 	}
@@ -2171,7 +2646,7 @@ export class Pong3D {
 			} else if (this.activePlayerCount === 3) {
 				// 3-player mode: Position represents movement along rotated axis
 				// Player 1: 0°, Player 2: 120°, Player 3: 240°
-				const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 				const angle = angles[index];
 				const cos = Math.cos(angle);
 				const sin = Math.sin(angle);
@@ -2204,7 +2679,7 @@ export class Pong3D {
 		} else if (this.activePlayerCount === 3) {
 			// For 3-player mode, return the position along the rotated axis
 			// Player 1: 0°, Player 2: 120°, Player 3: 240°
-			const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
+			const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 			const angle = angles[index];
 			const cos = Math.cos(angle);
 			const sin = Math.sin(angle);
@@ -2227,7 +2702,7 @@ export class Pong3D {
 			} else if (this.activePlayerCount === 3) {
 				// For 3-player mode, return position along rotated axis
 				// Player 1: 0°, Player 2: 120°, Player 3: 240°
-				const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 				const angle = angles[i];
 				const cos = Math.cos(angle);
 				const sin = Math.sin(angle);
@@ -2253,7 +2728,7 @@ export class Pong3D {
 				} else if (this.activePlayerCount === 3) {
 					// For 3-player mode, position represents movement along rotated axis
 					// Player 1: 0°, Player 2: 120°, Player 3: 240°
-					const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
+					const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 					const angle = angles[i];
 					const cos = Math.cos(angle);
 					const sin = Math.sin(angle);
@@ -2386,24 +2861,39 @@ export class Pong3D {
 
 	/** Set rally speed increment percentage */
 	public setRallySpeedIncrement(percentage: number): void {
-		this.RALLY_SPEED_INCREMENT_PERCENT = Math.max(0, Math.min(50, percentage)); // Clamp between 0-50%
-		console.log(`🚀 Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`);
+		this.RALLY_SPEED_INCREMENT_PERCENT = Math.max(
+			0,
+			Math.min(50, percentage)
+		); // Clamp between 0-50%
+		console.log(
+			`🚀 Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`
+		);
 	}
 
 	/** Set maximum ball speed to prevent tunneling */
 	public setMaxBallSpeed(maxSpeed: number): void {
-		this.MAX_BALL_SPEED = Math.max(this.BALL_VELOCITY_CONSTANT, Math.min(100, maxSpeed)); // Clamp between base speed and 100
+		this.MAX_BALL_SPEED = Math.max(
+			this.BALL_VELOCITY_CONSTANT,
+			Math.min(100, maxSpeed)
+		); // Clamp between base speed and 100
 		console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
 	}
 
 	/** Get current rally information */
-	public getRallyInfo(): { hitCount: number, currentSpeed: number, baseSpeed: number, speedIncrease: number, maxSpeed: number } {
+	public getRallyInfo(): {
+		hitCount: number;
+		currentSpeed: number;
+		baseSpeed: number;
+		speedIncrease: number;
+		maxSpeed: number;
+	} {
 		return {
 			hitCount: this.rallyHitCount,
 			currentSpeed: this.currentBallSpeed,
 			baseSpeed: this.BALL_VELOCITY_CONSTANT,
-			speedIncrease: ((this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100),
-			maxSpeed: this.MAX_BALL_SPEED
+			speedIncrease:
+				(this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100,
+			maxSpeed: this.MAX_BALL_SPEED,
 		};
 	}
 
@@ -2423,7 +2913,10 @@ export class Pong3D {
 	 * Get the collision normal from Cannon.js collision event
 	 * This provides the actual surface normal at the collision point
 	 */
-	private getCollisionNormal(ballImpostor: BABYLON.PhysicsImpostor, paddleImpostor: BABYLON.PhysicsImpostor): BABYLON.Vector3 | null {
+	private getCollisionNormal(
+		ballImpostor: BABYLON.PhysicsImpostor,
+		paddleImpostor: BABYLON.PhysicsImpostor
+	): BABYLON.Vector3 | null {
 		try {
 			// Get the physics bodies
 			const ballBody = ballImpostor.physicsBody;
@@ -2439,8 +2932,10 @@ export class Pong3D {
 			let contact = null;
 			for (let i = 0; i < world.contacts.length; i++) {
 				const c = world.contacts[i];
-				if ((c.bi === ballBody && c.bj === paddleBody) ||
-					(c.bi === paddleBody && c.bj === ballBody)) {
+				if (
+					(c.bi === ballBody && c.bj === paddleBody) ||
+					(c.bi === paddleBody && c.bj === ballBody)
+				) {
 					contact = c;
 					break;
 				}
@@ -2455,58 +2950,95 @@ export class Pong3D {
 			// The normal always points from body i to body j
 			let normal = contact.ni.clone();
 
-			console.log(`🔧 Raw Cannon.js contact normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
-			console.log(`🔧 Contact: body i = ${contact.bi === ballBody ? 'ball' : 'paddle'}, body j = ${contact.bj === ballBody ? 'ball' : 'paddle'}`);
+			console.log(
+				`🔧 Raw Cannon.js contact normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
+			);
+			console.log(
+				`🔧 Contact: body i = ${contact.bi === ballBody ? 'ball' : 'paddle'}, body j = ${contact.bj === ballBody ? 'ball' : 'paddle'}`
+			);
 
 			// If ball is body j, we need to flip the normal to point from paddle to ball
 			if (contact.bj === ballBody) {
 				normal.negate();
-				console.log(`🔧 Flipped normal (ball is body j): (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
+				console.log(
+					`🔧 Flipped normal (ball is body j): (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
+				);
 			}
 
 			// Convert from Cannon Vector3 to Babylon Vector3
-			const babylonNormal = new BABYLON.Vector3(normal.x, normal.y, normal.z);
+			const babylonNormal = new BABYLON.Vector3(
+				normal.x,
+				normal.y,
+				normal.z
+			);
 
-			console.log(`🔧 Final collision normal: (${babylonNormal.x.toFixed(3)}, ${babylonNormal.y.toFixed(3)}, ${babylonNormal.z.toFixed(3)})`);
+			console.log(
+				`🔧 Final collision normal: (${babylonNormal.x.toFixed(3)}, ${babylonNormal.y.toFixed(3)}, ${babylonNormal.z.toFixed(3)})`
+			);
 
 			// 🚨 CRITICAL: Ensure normal points AWAY from paddle surface (for proper reflection)
 			// For correct physics reflection: normal should point into the space where ball reflects
 			// Check if ball velocity and normal have same direction (both positive or both negative)
-			const ballVelocity = this.ballMesh!.physicsImpostor!.getLinearVelocity()!;
+			const ballVelocity =
+				this.ballMesh!.physicsImpostor!.getLinearVelocity()!;
 			const normalizedVelocity = ballVelocity.normalize();
 			const normalizedNormal = babylonNormal.normalize();
-			const dotProduct = BABYLON.Vector3.Dot(normalizedVelocity, normalizedNormal);
+			const dotProduct = BABYLON.Vector3.Dot(
+				normalizedVelocity,
+				normalizedNormal
+			);
 
-			console.log(`🔧 Ball velocity direction: (${normalizedVelocity.x.toFixed(3)}, ${normalizedVelocity.y.toFixed(3)}, ${normalizedVelocity.z.toFixed(3)})`);
-			console.log(`🔧 Dot product (velocity·normal): ${dotProduct.toFixed(3)}`);
+			console.log(
+				`🔧 Ball velocity direction: (${normalizedVelocity.x.toFixed(3)}, ${normalizedVelocity.y.toFixed(3)}, ${normalizedVelocity.z.toFixed(3)})`
+			);
+			console.log(
+				`🔧 Dot product (velocity·normal): ${dotProduct.toFixed(3)}`
+			);
 
 			let correctedNormal = normalizedNormal;
 			if (dotProduct > 0.1) {
 				// Ball moving toward normal means normal points AWAY from surface - this is CORRECT for reflection
-				console.log('🔧 Normal correctly points away from paddle surface');
+				console.log(
+					'🔧 Normal correctly points away from paddle surface'
+				);
 			} else if (dotProduct < -0.1) {
 				// Ball moving away from normal means normal points wrong way - flip it
 				correctedNormal = normalizedNormal.negate();
-				console.log('🔧 CORRECTED: Flipped normal to point away from paddle surface');
-				console.log(`🔧 Corrected normal: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`);
+				console.log(
+					'🔧 CORRECTED: Flipped normal to point away from paddle surface'
+				);
+				console.log(
+					`🔧 Corrected normal: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
+				);
 			}
 
 			// Validate the normal direction - it should point roughly toward the center
 			// For a 2-player game, paddle normals should be roughly ±Z direction
 			// Since Y movement is constrained, project the normal to X-Z plane
-			const normalXZ = new BABYLON.Vector3(correctedNormal.x, 0, correctedNormal.z);
+			const normalXZ = new BABYLON.Vector3(
+				correctedNormal.x,
+				0,
+				correctedNormal.z
+			);
 			if (normalXZ.length() > 0.1) {
 				// Use the projected normal if it's significant
 				correctedNormal = normalXZ.normalize();
-				console.log(`� Projected normal to X-Z plane: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`);
+				console.log(
+					`� Projected normal to X-Z plane: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
+				);
 			} else {
 				// If X-Z components are too small, this might be a top/bottom collision
-				console.warn(`🚨 Normal has minimal X-Z components: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`);
+				console.warn(
+					`🚨 Normal has minimal X-Z components: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
+				);
 			}
 
 			return correctedNormal;
 		} catch (error) {
-			console.warn('Failed to get collision normal from Cannon.js:', error);
+			console.warn(
+				'Failed to get collision normal from Cannon.js:',
+				error
+			);
 			return null;
 		}
 	}
@@ -2515,7 +3047,10 @@ export class Pong3D {
 	 * Calculate the actual surface normal of a paddle mesh
 	 * This uses the mesh geometry to determine the true normal direction
 	 */
-	private getPaddleNormal(paddle: BABYLON.Mesh, paddleIndex: number): BABYLON.Vector3 | null {
+	private getPaddleNormal(
+		paddle: BABYLON.Mesh,
+		paddleIndex: number
+	): BABYLON.Vector3 | null {
 		try {
 			// Get the paddle's bounding box to understand its orientation
 			const boundingInfo = paddle.getBoundingInfo();
@@ -2524,9 +3059,21 @@ export class Pong3D {
 			// For a paddle, the smallest dimension should be the thickness (normal direction)
 			// The largest dimensions are the width and height of the paddle face
 			const dimensions = [
-				{ axis: 'x', size: Math.abs(size.x), vector: new BABYLON.Vector3(1, 0, 0) },
-				{ axis: 'y', size: Math.abs(size.y), vector: new BABYLON.Vector3(0, 1, 0) },
-				{ axis: 'z', size: Math.abs(size.z), vector: new BABYLON.Vector3(0, 0, 1) }
+				{
+					axis: 'x',
+					size: Math.abs(size.x),
+					vector: new BABYLON.Vector3(1, 0, 0),
+				},
+				{
+					axis: 'y',
+					size: Math.abs(size.y),
+					vector: new BABYLON.Vector3(0, 1, 0),
+				},
+				{
+					axis: 'z',
+					size: Math.abs(size.z),
+					vector: new BABYLON.Vector3(0, 0, 1),
+				},
 			];
 
 			// Sort by size - smallest should be the thickness (normal direction)
@@ -2537,17 +3084,34 @@ export class Pong3D {
 
 			// Apply the paddle's world transformation to the normal
 			if (paddle.rotationQuaternion) {
-				normal = BABYLON.Vector3.TransformCoordinates(normal, paddle.getWorldMatrix());
-			} else if (paddle.rotation && (paddle.rotation.x !== 0 || paddle.rotation.y !== 0 || paddle.rotation.z !== 0)) {
-				const rotationMatrix = BABYLON.Matrix.RotationYawPitchRoll(paddle.rotation.y, paddle.rotation.x, paddle.rotation.z);
-				normal = BABYLON.Vector3.TransformCoordinates(normal, rotationMatrix);
+				normal = BABYLON.Vector3.TransformCoordinates(
+					normal,
+					paddle.getWorldMatrix()
+				);
+			} else if (
+				paddle.rotation &&
+				(paddle.rotation.x !== 0 ||
+					paddle.rotation.y !== 0 ||
+					paddle.rotation.z !== 0)
+			) {
+				const rotationMatrix = BABYLON.Matrix.RotationYawPitchRoll(
+					paddle.rotation.y,
+					paddle.rotation.x,
+					paddle.rotation.z
+				);
+				normal = BABYLON.Vector3.TransformCoordinates(
+					normal,
+					rotationMatrix
+				);
 			}
 
 			normal = normal.normalize();
 
 			// Ensure the normal points toward the center of the play area (inward)
 			// Calculate vector from paddle to center (0,0,0)
-			const paddleToCenter = new BABYLON.Vector3(0, 0, 0).subtract(paddle.position);
+			const paddleToCenter = new BABYLON.Vector3(0, 0, 0).subtract(
+				paddle.position
+			);
 			paddleToCenter.normalize();
 
 			// If normal points away from center, flip it
@@ -2555,12 +3119,19 @@ export class Pong3D {
 				normal.scaleInPlace(-1);
 			}
 
-			console.log(`🎯 Paddle ${paddleIndex + 1} calculated normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
-			console.log(`🎯 Paddle ${paddleIndex + 1} dimensions: x=${size.x.toFixed(3)}, y=${size.y.toFixed(3)}, z=${size.z.toFixed(3)}`);
+			console.log(
+				`🎯 Paddle ${paddleIndex + 1} calculated normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
+			);
+			console.log(
+				`🎯 Paddle ${paddleIndex + 1} dimensions: x=${size.x.toFixed(3)}, y=${size.y.toFixed(3)}, z=${size.z.toFixed(3)}`
+			);
 
 			return normal;
 		} catch (error) {
-			console.warn(`Failed to calculate paddle normal for paddle ${paddleIndex + 1}:`, error);
+			console.warn(
+				`Failed to calculate paddle normal for paddle ${paddleIndex + 1}:`,
+				error
+			);
 			return null;
 		}
 	}
@@ -2639,10 +3210,13 @@ export class Pong3D {
  * Create a Pong3D instance with the default player count configuration
  * This is a shorthand for: new Pong3D(container, { playerCount: PLAYER_COUNT })
  */
-export function createPong3D(container: HTMLElement, options?: Omit<Pong3DOptions, 'playerCount'>): Pong3D {
+export function createPong3D(
+	container: HTMLElement,
+	options?: Omit<Pong3DOptions, 'playerCount'>
+): Pong3D {
 	return new Pong3D(container, {
-		playerCount: PLAYER_COUNT,
-		thisPlayer: THIS_PLAYER,
-		...options
+		playerCount: state.playerCount,
+		thisPlayer: state.thisPlayer,
+		...options,
 	});
 }

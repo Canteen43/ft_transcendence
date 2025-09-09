@@ -211,32 +211,53 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-Helene:
-	- Make API Wrapper work
-		- supports different request types
-		- checks if request was successful
-		- checks if Zod type is correct
-		- adds JWT to all requests
-	- Reorganize home page
 
-Karl:
-- Make shortcut for running frontend + backend tasks
-	- use keybindings.json
-	- Doesn't work at all so far
-- Invite player to 1v1 via Modal
+- Add thing for simulating webSocket message
+- State variable
+	- add info about all tournament matches
+		- alternatively handle this with API request when window opens
+- Waiting Modal
+	- should display start button on 1v1 version after BE-event has been triggered
+		- How can I simulate BE-event?
+	- make 1v1 version and tournament version
+- Start Button
+- Tournament Element
+	- should not be attached to a screen
+	- should hold info about current Tournament
+- WS-Listening Hook
+	- should change hash to "tournament"
+	- should populate info about current tournament
+- Start Button
+	- should inherit from Button
+	- should say "start"
+	- on click:
+		- send signal to BE
+		- Show Loading Icon
+- Make game read player count correctly
+	- just read from state variable
 
 
+Wait for Helene:
+- Push
+- Check that stuff still works
+- Add logic to Remote Game creation modal
+
+
+- How to handle Backend WebSocket messages:
+	- "Start Game"
+		- Use case: Start button clicked by both parties
+		- Action: Go to game screen
+	- "Invite / Game Created"
+		- Use case: Second player joined waiting list, Game is ready
+		- Action: Edit WaitingModal to display StartButton
+			- this is harder because Modal will have to be access out of global scope
+	- "Tournament Created"
+		- Use case: Fourth player joined tournament wait list
+		- Action: Go to tournament screen
+
+
+- Understand how particles are attached to Frontend
+- Get rid of all the debug warnings
 - Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
 - Restructure frontend files into screen groups?
-
-
-
-
-- Logout logic and Button
-- Better error handling on registration 
-   -> if login already exist
-   -> string validation in backend?
-
-ATTENTION:
-If your name is Helene and you edit this file, you have to compensate Karl with 10 Croissants!
