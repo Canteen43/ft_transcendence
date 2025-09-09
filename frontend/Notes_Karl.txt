@@ -212,7 +212,7 @@ LEARNED:
 
 TODO:
 
-- What events is each step listening for?
+- Can I fake backend websocket messages for Testing?
 - State variable
 	- add info about all tournament matches
 		- alternatively handle this with API request when window opens
@@ -233,6 +233,20 @@ TODO:
 	- on click:
 		- send signal to BE
 		- Show Loading Icon
+
+
+- How to handle Backend WebSocket messages:
+	- "Start Game"
+		- Use case: Start button clicked by both parties
+		- Action: Go to game screen
+	- "Invite / Game Created"
+		- Use case: Second player joined waiting list, Game is ready
+		- Action: Edit WaitingModal to display StartButton
+			- this is harder because Modal will have to be access out of global scope
+	- "Tournament Created"
+		- Use case: Fourth player joined tournament wait list
+		- Action: Go to tournament screen
+
 
 When Home Screen is ready:
 - Add player counting logic
