@@ -212,7 +212,7 @@ LEARNED:
 
 TODO:
 
-- Can I fake backend websocket messages for Testing?
+- Add thing for simulating webSocket message
 - State variable
 	- add info about all tournament matches
 		- alternatively handle this with API request when window opens
@@ -233,6 +233,14 @@ TODO:
 	- on click:
 		- send signal to BE
 		- Show Loading Icon
+- Make game read player count correctly
+	- just read from state variable
+
+
+Wait for Helene:
+- Push
+- Check that stuff still works
+- Add logic to Remote Game creation modal
 
 
 - How to handle Backend WebSocket messages:
@@ -246,10 +254,6 @@ TODO:
 	- "Tournament Created"
 		- Use case: Fourth player joined tournament wait list
 		- Action: Go to tournament screen
-
-
-When Home Screen is ready:
-- Add player counting logic
 
 
 - Understand how particles are attached to Frontend

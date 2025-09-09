@@ -1,8 +1,12 @@
 // Add variables that need global access here
 export const state = {
-	tournament_ongoing: false,
+	tournamentOngoing: false,
+	gameOngoing: false,
+	gameMode: 'local',
+	playerCount: 0,
+	thisPlayer: 0,
 
 	// debug variables
-	normal_game_ready: false,
-	started_button_pressed: false,
+	normalGameReady: false,
+	startedButtonPressed: false,
 };
