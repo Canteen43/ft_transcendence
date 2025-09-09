@@ -147,7 +147,7 @@ export class Pong3D {
 		| null = null;
 
 	// Player data - simplified to arrays for uniform handling
-	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helen'];
+	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helene'];
 	private playerScores: number[] = [0, 0, 0, 0];
 	private activePlayerCount: number = state.playerCount; // Can be 2, 3, or 4
 	private initialPlayerCount: number = state.playerCount; // Set at initialization, cannot be exceeded
