@@ -21,9 +21,10 @@ export const UserSchema = z.object({
 	first_name: z.string().nullable(),
 	last_name: z.string().nullable(),
 	email: z.string().nullable(),
+	settings_id: zUUID,
 });
 
-export const CreateUserSchema = UserSchema.omit({ id: true }).extend({
+export const CreateUserSchema = z.object({
 	login: z.string().pipe(loginSchema),
 	first_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
 	last_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
