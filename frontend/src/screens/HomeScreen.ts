@@ -6,7 +6,7 @@ import { webSocket } from '../misc/WebSocketWrapper';
 import { PlaceholderModal } from '../modals/PlaceholderModal';
 import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
 
-export let gameOptions: GameOptions | null = null;
+export let gameOptions: GameOptions | null ;
 
 export class HomeScreen extends Screen {
 	constructor() {
@@ -90,7 +90,7 @@ export class HomeScreen extends Screen {
 			() => {
 				gameOptions = {
 					type: 'local',
-					playerCount: 2,
+					playerCount: 3,
 					thisPlayer: 1,
 				};
 				location.hash = '#game';
