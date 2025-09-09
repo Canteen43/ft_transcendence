@@ -7,7 +7,6 @@ import * as CANNON from 'cannon-es';
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
 import { state } from '../misc/state';
-import { gameOptions } from '../modals/LocalGameModal';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import { Pong3DInput } from './Pong3DInput';
 import {
@@ -346,18 +345,6 @@ export class Pong3D {
 		this.gameLoop = new Pong3DGameLoop(this.scene);
 
 		this.loadModel(modelUrl);
-
-		// TODO: Remove this block. Its purpose was to showcase that gameOptions are accessible
-		if (gameOptions) {
-			alert(
-				'Player Count: ' +
-					gameOptions.playerCount +
-					', This Player: ' +
-					gameOptions.thisPlayer +
-					', Game Type: ' +
-					gameOptions.type
-			);
-		}
 	}
 
 	private loadModel(modelUrl: string): void {
