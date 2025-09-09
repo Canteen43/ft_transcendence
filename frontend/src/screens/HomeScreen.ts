@@ -2,6 +2,7 @@ import { Screen } from '../components/Screen';
 import { RemoteGameModal} from '../modals/RemoteGameModal';
 import { LocalGameModal} from '../modals/LocalGameModal';
 import { initParticles } from '../misc/Particles';
+import { isLoggedIn } from '../misc/AuthComponent';
 
 export class HomeScreen extends Screen {
 	private particlesContainer: HTMLDivElement | null = null;
@@ -34,12 +35,20 @@ export class HomeScreen extends Screen {
 		localBtn.onclick = () => new LocalGameModal(this.element);
 		mainButtonContainer.appendChild(localBtn);
 
-		// REMOTE Play button  
+		// REMOTE Play button 
 		const remoteBtn = document.createElement('button');
 		remoteBtn.textContent = 'REMOTE GAME';
 		remoteBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:bg-[var(--color3)] transition-all duration-300 shadow-lg';
-		remoteBtn.onclick = () => new RemoteGameModal(this.element);
+		remoteBtn.onclick = () => this.remoteLogic();
 		mainButtonContainer.appendChild(remoteBtn);
+	}
+
+	private remoteLogic() {
+		if (!isLoggedIn()) {
+			alert("You must be logged-in to access the remote game");
+			return;
+		}
+		new RemoteGameModal(this.element);
 	}
 
 	private createParticlesBackground() {
