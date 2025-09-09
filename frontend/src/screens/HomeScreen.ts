@@ -1,5 +1,4 @@
 import { Screen } from '../components/Screen';
-import type { GameOptions } from '../misc/GameOptions';
 import { RemoteGameModal} from '../modals/RemoteGameModal';
 import { LocalGameModal} from '../modals/LocalGameModal';
 import { initParticles } from '../misc/Particles';
