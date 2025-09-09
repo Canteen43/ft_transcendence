@@ -49,6 +49,9 @@ export class LocalGameModal extends Modal {
 			playerCount: 4,
 			thisPlayer: 1,
 		};
+
+		state.playerCount = 4;
+		state.thisPlayer = 1;
 		location.hash = '#game';
 	}
 }
