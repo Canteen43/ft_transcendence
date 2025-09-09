@@ -152,7 +152,11 @@ export class Pong3D {
 
 
 	// Ball settings
-	private BALL_VELOCITY_CONSTANT = 12; // Constant ball speed
+	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
+	public RALLY_SPEED_INCREMENT_PERCENT = 10; // Percentage speed increase per paddle hit during rally
+	public MAX_BALL_SPEED = 24; // Maximum ball speed to prevent tunneling
+	private currentBallSpeed = 12; // Current ball speed (starts at base speed)
+	private rallyHitCount = 0; // Number of paddle hits in current rally
 	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Ball control settings - velocity-based reflection angle modification
@@ -917,8 +921,17 @@ export class Pong3D {
 		console.log(`🎯 Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`);
 		console.log(`🎯 Final angle from normal: ${(Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))) * 180 / Math.PI).toFixed(1)}°`);
 
-		// Apply the new velocity while maintaining constant speed
-		const newVelocity = finalDirection.scale(this.BALL_VELOCITY_CONSTANT);
+		// Increment rally speed - ball gets faster with each paddle hit during rally
+		this.rallyHitCount++;
+		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT * (1 + (this.rallyHitCount - 1) * this.RALLY_SPEED_INCREMENT_PERCENT / 100);
+
+		// Apply maximum speed limit to prevent tunneling
+		this.currentBallSpeed = Math.min(this.currentBallSpeed, this.MAX_BALL_SPEED);
+
+		console.log(`🚀 Rally hit #${this.rallyHitCount}: Speed ${this.currentBallSpeed === this.MAX_BALL_SPEED ? 'capped at' : 'increased to'} ${this.currentBallSpeed.toFixed(1)} (${((this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100).toFixed(1)}% faster)`);
+
+		// Apply the new velocity with rally-adjusted speed
+		const newVelocity = finalDirection.scale(this.currentBallSpeed);
 
 		// Ensure Y component stays zero (2D movement only)
 		newVelocity.y = 0;
@@ -1145,6 +1158,9 @@ export class Pong3D {
 				this.gameLoop.resetBall();
 			}
 
+			// Reset rally speed system - new rally starts
+			this.resetRallySpeed();
+
 			// Clear any pending goal state if ball went truly out of bounds
 			this.goalScored = false;
 			this.pendingGoalData = null;
@@ -1172,6 +1188,9 @@ export class Pong3D {
 			if (this.gameLoop) {
 				this.gameLoop.resetBall();
 			}
+
+			// Reset rally speed system - new rally starts
+			this.resetRallySpeed();
 
 			// Clear the goal state and reset spin
 			this.goalScored = false;
@@ -1720,6 +1739,13 @@ export class Pong3D {
 		if (this.Player1Info) this.Player1Info.text = text;
 	}
 
+	/** Reset the rally speed system - called when a new rally starts */
+	private resetRallySpeed(): void {
+		this.rallyHitCount = 0;
+		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
+		console.log(`🔄 Rally reset: Speed back to base ${this.currentBallSpeed}`);
+	}
+
 	private maintainConstantBallVelocity(): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 
@@ -1736,9 +1762,9 @@ export class Pong3D {
 		const currentSpeed = Math.sqrt(currentVelocity.x * currentVelocity.x + currentVelocity.z * currentVelocity.z);
 
 		// Only adjust if ball is moving and speed differs significantly from target
-		if (currentSpeed > 0.1 && Math.abs(currentSpeed - this.BALL_VELOCITY_CONSTANT) > 0.5) {
-			// Normalize the X-Z velocity and scale to constant speed
-			const scale = this.BALL_VELOCITY_CONSTANT / currentSpeed;
+		if (currentSpeed > 0.1 && Math.abs(currentSpeed - this.currentBallSpeed) > 0.5) {
+			// Normalize the X-Z velocity and scale to current rally speed
+			const scale = this.currentBallSpeed / currentSpeed;
 			const correctedVelocity = new BABYLON.Vector3(
 				currentVelocity.x * scale,
 				0, // Keep Y locked to 0
@@ -2289,6 +2315,31 @@ export class Pong3D {
 		if (this.gameLoop) {
 			this.gameLoop.resetBall();
 		}
+		// Reset rally speed when ball is manually reset
+		this.resetRallySpeed();
+	}
+
+	/** Set rally speed increment percentage */
+	public setRallySpeedIncrement(percentage: number): void {
+		this.RALLY_SPEED_INCREMENT_PERCENT = Math.max(0, Math.min(50, percentage)); // Clamp between 0-50%
+		console.log(`🚀 Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`);
+	}
+
+	/** Set maximum ball speed to prevent tunneling */
+	public setMaxBallSpeed(maxSpeed: number): void {
+		this.MAX_BALL_SPEED = Math.max(this.BALL_VELOCITY_CONSTANT, Math.min(100, maxSpeed)); // Clamp between base speed and 100
+		console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+	}
+
+	/** Get current rally information */
+	public getRallyInfo(): { hitCount: number, currentSpeed: number, baseSpeed: number, speedIncrease: number, maxSpeed: number } {
+		return {
+			hitCount: this.rallyHitCount,
+			currentSpeed: this.currentBallSpeed,
+			baseSpeed: this.BALL_VELOCITY_CONSTANT,
+			speedIncrease: ((this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100),
+			maxSpeed: this.MAX_BALL_SPEED
+		};
 	}
 
 	/** Set ball velocity (for testing different speeds) */
