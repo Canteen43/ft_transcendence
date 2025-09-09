@@ -43,16 +43,15 @@ export class HomeScreen extends Screen {
 		this.createParticlesContainer(homeScreen);
 		
 		// Title
-		const heading = this.createElement('h1', 'font-rubik text-[100px]-[var(--color1)] text-center floating-title');
+		const heading = this.createElement('h1', 'font-rubik text-[100px] text-[var(--color1)] text-center floating-title');
 		heading.textContent = 'TRANSCENDANCE';
 		homeScreen.appendChild(heading);
 
 		// Play button
 		const playBtn = this.createElement('button', 
-			'font-sigmar mt-8 px-16 py-6 text-5xl font-bold rounded-lg border-4 border-pink-dark bg-pink-dark hover:bg-pink-light transition-all duration-300 shadow-lg'
+			'z-10 font-sigmar mt-8 px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)]  hover:bg-[var(--color3)] transition-all duration-300 shadow-lg'
 		);
 		playBtn.textContent = 'PLAY';
-		playBtn.style.color = 'var(--pink-dark)';
 		playBtn.onclick = () => this.scrollToOptions();
 		homeScreen.appendChild(playBtn);
 
@@ -106,12 +105,11 @@ export class HomeScreen extends Screen {
 	// PLAY REMOTE
 	private createRemotePanel(): HTMLElement {
 		const panel = this.createElement('div', 
-			'font-sigmar flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg p-8 hover:scale-105 transition-transform'
+			'font-sigmar flex flex-col items-center justify-center bg-[var(--color1)] rounded-2xl shadow-lg p-8 hover:scale-105 transition-transform'
 		);
 		
-		const title = this.createElement('h3', 'text-3xl font-bold mb-6');
+		const title = this.createElement('h3', 'text-3xl text-[var(--color2)] font-bold mb-6');
 		title.textContent = 'REMOTE';
-		title.style.color = 'var(--pink-dark)';
 		panel.appendChild(title);
 
 		// Remote game buttons

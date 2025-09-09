@@ -84,7 +84,7 @@ export class RegisterModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-gray-300 rounded p-2';
+		input.className = 'border border-[var(--color1)] rounded p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -92,7 +92,7 @@ export class RegisterModal extends Modal {
 	private createLinks(parent: HTMLElement) {
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'Go back to log-in';
-		RegisterLink.className = 'text-pink-500 hover:text-pink-700 underline cursor-pointer text-sm';
+		RegisterLink.className = 'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleGoBack(parent);
 		this.box.appendChild(RegisterLink);
 

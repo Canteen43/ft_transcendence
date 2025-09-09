@@ -24,7 +24,7 @@ import { createPong3DUI } from './Pong3DUI';
  * - 3 players → /pong3p.glb
  * - 4 players → /pong4p.glb
  */
-export const PLAYER_COUNT: 2 | 3 | 4 = 2;
+export const PLAYER_COUNT: 2 | 3 | 4 = 3;
 
 /**
  * Set the default player POV (perspective) for the camera
