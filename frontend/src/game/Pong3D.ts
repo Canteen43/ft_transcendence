@@ -6,8 +6,7 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-import type { GameOptions } from '../misc/GameOptions';
-import { gameOptions } from '../screens/HomeScreen';
+import { gameOptions } from '../modals/LocalGameModal';
 import { Pong3DInput } from './Pong3DInput';
 import { getCameraPosition, applyCameraPosition, type CameraSettings, DEFAULT_CAMERA_SETTINGS } from './Pong3DPOV';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
@@ -24,7 +23,7 @@ import { createPong3DUI } from './Pong3DUI';
  * - 3 players → /pong3p.glb
  * - 4 players → /pong4p.glb
  */
-export const PLAYER_COUNT: 2 | 3 | 4 = 3;
+export const PLAYER_COUNT: 2 | 3 | 4 = 2;
 
 /**
  * Set the default player POV (perspective) for the camera
@@ -149,6 +148,8 @@ export class Pong3D {
 
 
 	// === GAME PHYSICS CONFIGURATION ===
+
+
 	// Ball settings
 	private BALL_VELOCITY_CONSTANT = 12; // Constant ball speed
 	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
@@ -160,19 +161,22 @@ export class Pong3D {
 	// (in radians). If a computed outgoing direction would exceed this, it will be
 	// clamped toward the paddle normal so the ball cannot be returned at an
 	// extreme grazing/perpendicular angle which causes excessive wall bounces.
-	private ANGULAR_RETURN_LIMIT = Math.PI / 6; // 30 degrees
+	private ANGULAR_RETURN_LIMIT = Math.PI / 4; // 60 degrees
 
 	// Ball spin physics settings
 	private SPIN_TRANSFER_FACTOR = 1.0; // How much paddle velocity becomes spin
-	private MAGNUS_COEFFICIENT = 0.1; // Strength of Magnus force effect
+	private MAGNUS_COEFFICIENT = 0.15; // Strength of Magnus force effect
 	private SPIN_DECAY_FACTOR = 0.98; // Spin decay per frame (0.99 = slow decay)
+	private SPIN_DELAY = 200; // Delay in milliseconds before spin effect activates
 	private ballSpin: BABYLON.Vector3 = new BABYLON.Vector3(0, 0, 0); // Current ball spin
+	private spinActivationTime: number = 0; // Timestamp when spin was applied
 
 	// Paddle physics settings
 	private PADDLE_MASS = 3; // Paddle mass for collision response
 	private PADDLE_FORCE = 15; // Force applied when moving
 	private PADDLE_RANGE = 5; // Movement range from center
 	private PADDLE_MAX_VELOCITY = 12; // Maximum paddle speed
+	private PADDLE_BRAKING_FACTOR = 0.8; // Velocity multiplier per frame when no input (0.92 = 8% reduction per frame)
 
 	// === END CONFIGURATION ===
 
@@ -183,6 +187,10 @@ export class Pong3D {
 
 	// Track boundary stop state to avoid repeated velocity zeroing
 	private paddleStoppedAtBoundary: boolean[] = [false, false, false, false];
+
+	// Collision debouncing to prevent rapid-fire collisions
+	private lastCollisionTime = 0;
+	private readonly COLLISION_DEBOUNCE_MS = 50; // Minimum time between collisions
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
@@ -204,6 +212,9 @@ export class Pong3D {
 	// Game loop
 	private gameLoop: Pong3DGameLoop | null = null;
 	private ballMesh: BABYLON.Mesh | null = null;
+
+	// Resize handler reference for cleanup
+	private resizeHandler: (() => void) | null = null;
 
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
@@ -252,7 +263,10 @@ export class Pong3D {
 	private setupEventListeners(): void {
 		// Initialize input handler - it will manage keyboard and canvas events
 		this.inputHandler = new Pong3DInput(this.canvas);
-		window.addEventListener('resize', () => this.engine.resize());
+
+		// Store resize handler reference for proper cleanup
+		this.resizeHandler = () => this.engine.resize();
+		window.addEventListener('resize', this.resizeHandler);
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
@@ -304,11 +318,11 @@ export class Pong3D {
 		if (gameOptions) {
 			alert(
 				'Player Count: ' +
-					gameOptions.playerCount +
-					', This Player: ' +
-					gameOptions.thisPlayer +
-					', Game Type: ' +
-					gameOptions.type
+				gameOptions.playerCount +
+				', This Player: ' +
+				gameOptions.thisPlayer +
+				', Game Type: ' +
+				gameOptions.type
 			);
 		}
 	}
@@ -655,6 +669,13 @@ export class Pong3D {
 	 * The paddle's velocity influences the ball's reflection angle
 	 */
 	private handleBallPaddleCollision(ballImpostor: BABYLON.PhysicsImpostor, paddleImpostor: BABYLON.PhysicsImpostor): void {
+		// TEMPORARILY DISABLED: Collision debouncing to test stability
+		// const currentTime = Date.now();
+		// if (currentTime - this.lastCollisionTime < this.COLLISION_DEBOUNCE_MS) {
+		// 	console.log(`🚫 Collision debounced - too soon after last collision`);
+		// 	return;
+		// }
+		// this.lastCollisionTime = currentTime;
 		if (!this.ballMesh || !ballImpostor.physicsBody) return;
 
 		// Find which paddle was hit
@@ -676,6 +697,33 @@ export class Pong3D {
 		const paddle = this.paddles[paddleIndex]!;
 		if (!paddle.physicsImpostor?.physicsBody) return;
 
+		// Get the collision normal from Cannon.js physics engine
+		let paddleNormal = this.getCollisionNormal(ballImpostor, paddleImpostor);
+		if (!paddleNormal) {
+			console.warn(`Could not get collision normal from Cannon.js, using geometric fallback`);
+			// Fallback to geometric calculation
+			paddleNormal = this.getPaddleNormal(paddle, paddleIndex);
+			if (!paddleNormal) {
+				// Final fallback to hardcoded normals
+				if (this.activePlayerCount === 2) {
+					paddleNormal = paddleIndex === 0 ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(0, 0, -1);
+				} else if (this.activePlayerCount === 3) {
+					const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
+					const angle = angles[paddleIndex];
+					paddleNormal = new BABYLON.Vector3(-Math.cos(angle), 0, -Math.sin(angle)).normalize();
+				} else if (this.activePlayerCount === 4) {
+					if (paddleIndex === 0) paddleNormal = new BABYLON.Vector3(0, 0, 1);
+					else if (paddleIndex === 1) paddleNormal = new BABYLON.Vector3(0, 0, -1);
+					else if (paddleIndex === 2) paddleNormal = new BABYLON.Vector3(-1, 0, 0);
+					else paddleNormal = new BABYLON.Vector3(1, 0, 0);
+				} else {
+					paddleNormal = new BABYLON.Vector3(0, 0, 1); // Default
+				}
+			}
+		}
+
+		console.log(`🎯 Using final normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`);
+
 		// Validate collision point to avoid edge collisions
 		const ballPosition = this.ballMesh.position;
 		const paddlePosition = paddle.position;
@@ -684,12 +732,19 @@ export class Pong3D {
 		// Calculate relative position of ball to paddle center
 		const relativePos = ballPosition.subtract(paddlePosition);
 
+		// CRITICAL: Ensure normal always points toward the ball (away from paddle)
+		const ballDirection = relativePos.normalize();
+		if (BABYLON.Vector3.Dot(paddleNormal, ballDirection) < 0) {
+			paddleNormal = paddleNormal.negate();
+			console.log(`🔄 Flipped normal to point toward ball: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`);
+		}
+
 		// For 2-player mode, check if collision is near the paddle face (not edges)
 		if (this.activePlayerCount === 2) {
 			// Players 1,2 move on X-axis, paddle faces are on Z-axis
-			const maxXOffset = (paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.4; // Allow 80% of paddle width
+			const maxXOffset = (paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
 			if (Math.abs(relativePos.x) > maxXOffset) {
-				console.log(`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring`);
+				console.log(`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`);
 				return; // Ignore edge collisions
 			}
 		} else if (this.activePlayerCount === 4) {
@@ -715,16 +770,32 @@ export class Pong3D {
 		const ballVelocity = ballImpostor.getLinearVelocity();
 		const paddleVelocity = paddle.physicsImpostor.getLinearVelocity();
 
-		if (!ballVelocity || !paddleVelocity) return;
-
-		// Determine movement axis for this paddle
+		if (!ballVelocity || !paddleVelocity) return;		// Determine movement axis for this paddle
 		let paddleAxis = new BABYLON.Vector3(1, 0, 0); // Default for 2-player
-		if (this.activePlayerCount === 3) {
+		if (this.activePlayerCount === 2) {
+			// Handle paddle 2's 180° rotation in Blender
+			// Paddle 2 was rotated 180° to face the opposite direction, so its local X-axis is flipped
+			if (paddleIndex === 1) { // Paddle 2 (index 1)
+				paddleAxis = new BABYLON.Vector3(-1, 0, 0); // Flipped X-axis due to 180° rotation
+			}
+		} else if (this.activePlayerCount === 3) {
 			// Player 1: 0°, Player 2: 120°, Player 3: 240°
+			// All paddles are rotated to face center, so their movement axes are adjusted
 			const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
-			paddleAxis = new BABYLON.Vector3(Math.cos(angles[paddleIndex]), 0, Math.sin(angles[paddleIndex]));
-		} else if (this.activePlayerCount === 4 && paddleIndex >= 2) {
-			paddleAxis = new BABYLON.Vector3(0, 0, 1); // Z-axis for players 3-4
+			const paddleAngle = angles[paddleIndex];
+			// Movement axis is perpendicular to the paddle's facing direction (90° rotated)
+			paddleAxis = new BABYLON.Vector3(-Math.sin(paddleAngle), 0, Math.cos(paddleAngle));
+		} else if (this.activePlayerCount === 4) {
+			// All 4 paddles are rotated to face center
+			if (paddleIndex === 0) { // Bottom paddle (0°)
+				paddleAxis = new BABYLON.Vector3(1, 0, 0); // Moves left-right
+			} else if (paddleIndex === 1) { // Top paddle (180°)
+				paddleAxis = new BABYLON.Vector3(-1, 0, 0); // Flipped due to 180° rotation
+			} else if (paddleIndex === 2) { // Right paddle (270°)
+				paddleAxis = new BABYLON.Vector3(0, 0, -1); // Moves up-down in Z
+			} else if (paddleIndex === 3) { // Left paddle (90°)
+				paddleAxis = new BABYLON.Vector3(0, 0, 1); // Moves up-down in Z
+			}
 		}
 		paddleAxis = paddleAxis.normalize();
 
@@ -736,6 +807,15 @@ export class Pong3D {
 		const hasPaddleVelocity = Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
 
 		console.log(`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`);
+		console.log(`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`);
+
+		let axisNote = '';
+		if (this.activePlayerCount === 2 && paddleIndex === 1) axisNote = '[180° rotation]';
+		else if (this.activePlayerCount === 3) axisNote = '[Facing center]';
+		else if (this.activePlayerCount === 4) axisNote = '[Facing center]';
+
+		console.log(`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`);
+		console.log(`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlongAxis).toFixed(3)}`);
 
 		// Calculate velocity ratio (0.0 = stationary, ±1.0 = max velocity)
 		const velocityRatio = Math.max(-1.0, Math.min(1.0, paddleVelAlongAxis / this.PADDLE_MAX_VELOCITY));
@@ -747,34 +827,25 @@ export class Pong3D {
 		// No inversion needed - the physics reflection handles orientation correctly
 
 		// Calculate proper reflection direction first
-		// For 2-player mode: paddles face along Z-axis, normal is Z direction
-		// For 3/4-player modes: calculate normal based on paddle orientation
-		let paddleNormal = new BABYLON.Vector3(0, 0, 1); // Default for player 1 (faces +Z)
-
-		if (this.activePlayerCount === 2) {
-			// 2-player: Player 1 faces +Z, Player 2 faces -Z
-			paddleNormal = paddleIndex === 0 ? new BABYLON.Vector3(0, 0, 1) : new BABYLON.Vector3(0, 0, -1);
-		} else if (this.activePlayerCount === 3) {
-			// 3-player: Calculate normal based on paddle position (inward facing)
-			// Player 1: 0°, Player 2: 120°, Player 3: 240°
-			const angles = [0, 2 * Math.PI / 3, 4 * Math.PI / 3];
-			const angle = angles[paddleIndex];
-			// Normal points toward center of triangle (opposite of paddle position)
-			paddleNormal = new BABYLON.Vector3(-Math.cos(angle), 0, -Math.sin(angle)).normalize();
-		} else if (this.activePlayerCount === 4) {
-			// 4-player: Players 1,2 face Z, Players 3,4 face X
-			if (paddleIndex === 0) paddleNormal = new BABYLON.Vector3(0, 0, 1);
-			else if (paddleIndex === 1) paddleNormal = new BABYLON.Vector3(0, 0, -1);
-			else if (paddleIndex === 2) paddleNormal = new BABYLON.Vector3(-1, 0, 0);
-			else paddleNormal = new BABYLON.Vector3(1, 0, 0);
-		}
+		// We already have the collision normal from Cannon.js above
 
 		let finalDirection: BABYLON.Vector3;
 
 		if (hasPaddleVelocity) {
-			// MOVING PADDLE: Directly set return angle based on velocity
-			// Max velocity = max angular return limit, linear relationship
-			const velocityBasedAngle = velocityRatio * this.ANGULAR_RETURN_LIMIT;
+			// MOVING PADDLE: Return angle directly proportional to velocity
+			// Ball deflects IN THE SAME DIRECTION as paddle movement
+			// Moving left at max velocity → ball deflects left at max angle
+			// Moving right at max velocity → ball deflects right at max angle
+			let velocityBasedAngle = -velocityRatio * this.ANGULAR_RETURN_LIMIT; // NEGATED to correct direction
+
+			// 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
+			velocityBasedAngle = Math.max(-this.ANGULAR_RETURN_LIMIT, Math.min(this.ANGULAR_RETURN_LIMIT, velocityBasedAngle));
+
+			console.log(`🎯 MOVING PADDLE ANGULAR EFFECT:`);
+			console.log(`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`);
+			console.log(`  - Ball deflects IN SAME DIRECTION as paddle movement`);
+			console.log(`  - Return angle: ${(velocityBasedAngle * 180 / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`);
+			console.log(`  - Angular return limit: ±${(this.ANGULAR_RETURN_LIMIT * 180 / Math.PI).toFixed(1)}°`);
 
 			// Determine rotation axis for applying velocity-based angle
 			let rotationAxis = BABYLON.Vector3.Up(); // Default Y-axis rotation
@@ -786,42 +857,64 @@ export class Pong3D {
 				}
 			}
 
-			// Individual player control: flip angle direction for player 2 in 2-player mode
+			// Individual player control: physics should now be consistent across players
 			let actualAngle = velocityBasedAngle;
-			if (this.activePlayerCount === 2 && paddleIndex === 1) {
-				actualAngle = -actualAngle;
-			}
+			// Note: No player-specific flipping needed since we fixed the base physics direction
+
+			console.log(`  - Final applied angle: ${(actualAngle * 180 / Math.PI).toFixed(1)}°`);
 
 			// Create return direction by rotating paddle normal by the velocity-based angle
 			const rotationMatrix = BABYLON.Matrix.RotationAxis(rotationAxis, actualAngle);
 			finalDirection = BABYLON.Vector3.TransformCoordinates(paddleNormal, rotationMatrix).normalize();
 		} else {
-			// STATIONARY PADDLE: True reflection with angular limit
+			// STATIONARY PADDLE: Physics-based reflection with angular limit
 			const ballVelNormalized = ballVelocity.normalize();
 			const dotProduct = BABYLON.Vector3.Dot(ballVelNormalized, paddleNormal);
+
+			// Calculate perfect physics reflection
 			const perfectReflection = ballVelNormalized.subtract(paddleNormal.scale(2 * dotProduct));
 
-			// Check if perfect reflection exceeds angular limit
-			const dot = BABYLON.Vector3.Dot(perfectReflection, paddleNormal);
-			const cosAngle = Math.max(-1, Math.min(1, dot));
-			const angleBetween = Math.acos(cosAngle);
+			console.log(`🎯 STATIONARY PADDLE REFLECTION:`);
+			console.log(`  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`);
+			console.log(`  - Paddle normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`);
+			console.log(`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`);
+			console.log(`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`);
+			// Check the OUTGOING angle (reflection angle from normal)
+			const reflectionDot = BABYLON.Vector3.Dot(perfectReflection, paddleNormal);
+			const outgoingAngleFromNormal = Math.acos(Math.abs(reflectionDot));
 
-			if (angleBetween > this.ANGULAR_RETURN_LIMIT) {
-				// Clamp to angular limit: rotate paddle normal by limit angle toward reflection
-				let rotAxisForClamp = BABYLON.Vector3.Cross(paddleNormal, perfectReflection);
-				if (rotAxisForClamp.length() < 1e-4) {
-					// Vectors nearly parallel - use paddle normal
+			console.log(`  - Perfect reflection angle from normal: ${(outgoingAngleFromNormal * 180 / Math.PI).toFixed(1)}°`);
+			console.log(`  - Angular return limit: ${(this.ANGULAR_RETURN_LIMIT * 180 / Math.PI).toFixed(1)}°`);
+
+			if (outgoingAngleFromNormal <= this.ANGULAR_RETURN_LIMIT) {
+				// Perfect reflection is within angular limits - use it
+				console.log(`✅ Using perfect reflection (within limits)`);
+				finalDirection = perfectReflection.normalize();
+			} else {
+				// Perfect reflection exceeds angular limit - clamp it
+				console.log(`🔒 Clamping reflection: ${(outgoingAngleFromNormal * 180 / Math.PI).toFixed(1)}° → ${(this.ANGULAR_RETURN_LIMIT * 180 / Math.PI).toFixed(1)}°`);
+
+				// Determine which side of the normal the reflection should be on
+				// Use the cross product to determine the rotation axis and direction
+				const rotationAxis = BABYLON.Vector3.Cross(paddleNormal, perfectReflection);
+
+				if (rotationAxis.length() < 1e-6) {
+					// Perfect reflection is parallel to normal (head-on collision) - return along normal
 					finalDirection = paddleNormal.clone();
 				} else {
-					rotAxisForClamp = rotAxisForClamp.normalize();
-					const clampMatrix = BABYLON.Matrix.RotationAxis(rotAxisForClamp, this.ANGULAR_RETURN_LIMIT);
-					finalDirection = BABYLON.Vector3.TransformCoordinates(paddleNormal, clampMatrix).normalize();
+					// Rotate the normal by exactly the angular limit toward the reflection
+					const normalizedRotAxis = rotationAxis.normalize();
+					const rotationMatrix = BABYLON.Matrix.RotationAxis(normalizedRotAxis, this.ANGULAR_RETURN_LIMIT);
+					finalDirection = BABYLON.Vector3.TransformCoordinates(paddleNormal, rotationMatrix).normalize();
 				}
-			} else {
-				// Perfect reflection is within limits
-				finalDirection = perfectReflection.normalize();
+
+				const clampedAngle = Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal)));
+				console.log(`🔒 Actual clamped angle: ${(clampedAngle * 180 / Math.PI).toFixed(1)}°`);
 			}
 		}
+
+		console.log(`🎯 Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`);
+		console.log(`🎯 Final angle from normal: ${(Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))) * 180 / Math.PI).toFixed(1)}°`);
 
 		// Apply the new velocity while maintaining constant speed
 		const newVelocity = finalDirection.scale(this.BALL_VELOCITY_CONSTANT);
@@ -837,18 +930,31 @@ export class Pong3D {
 		const paddleToBall = ballPosition.subtract(paddlePosition);
 
 		// Project onto paddle normal to get distance from paddle face
-		const distanceFromFace = BABYLON.Vector3.Dot(paddleToBall, paddleNormal);
 		const ballRadius = 0.1; // Approximate ball radius (adjust based on your ball size)
 		const paddleThickness = 0.2; // Approximate paddle thickness
-		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.05; // Small buffer
+		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.05; // Smaller buffer for stability
 
-		// If ball is too close or inside paddle, push it out
-		if (Math.abs(distanceFromFace) < minSeparation) {
-			const correctionDistance = minSeparation - Math.abs(distanceFromFace);
-			const correction = paddleNormal.scale(Math.sign(distanceFromFace) * correctionDistance);
+		// Gentle position correction - only if ball is too close
+		const currentDistance = Math.abs(BABYLON.Vector3.Dot(paddleToBall, paddleNormal));
+		if (currentDistance < minSeparation) {
+			const correctionDistance = minSeparation - currentDistance + 0.02; // Small additional buffer
+			const correction = paddleNormal.scale(correctionDistance);
 			this.ballMesh.position = ballPosition.add(correction);
+
+			// Also update physics impostor position to sync with visual position
+			if (this.ballMesh.physicsImpostor) {
+				this.ballMesh.physicsImpostor.physicsBody.position.set(
+					this.ballMesh.position.x,
+					this.ballMesh.position.y,
+					this.ballMesh.position.z
+				);
+			}
+
 			console.log(`🔧 Position correction applied: ${correctionDistance.toFixed(3)} units along normal`);
-		}		// Add spin physics: paddle velocity creates spin (only for moving paddles)
+			console.log(`🔧 Ball moved from (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)}) to (${this.ballMesh.position.x.toFixed(3)}, ${this.ballMesh.position.y.toFixed(3)}, ${this.ballMesh.position.z.toFixed(3)})`);
+		} else {
+			console.log(`🔧 No position correction needed - current distance: ${currentDistance.toFixed(3)}, minimum: ${minSeparation.toFixed(3)}`);
+		}
 		if (hasPaddleVelocity) {
 			// Spin is proportional to paddle velocity, just like the angle influence
 			const spinInfluence = paddleVelAlongAxis * this.SPIN_TRANSFER_FACTOR;
@@ -859,14 +965,12 @@ export class Pong3D {
 			const spinAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis for vertical spin
 			const newSpin = spinAxis.scale(spinInfluence);
 
-			// Individual player control: only flip player 2 spin direction in 2-player mode
-			if (this.activePlayerCount === 2 && paddleIndex === 1) {
-				newSpin.scaleInPlace(-1);
-			}
+			// No additional player-specific flipping needed since paddle axes are already corrected
 
 			// Set the new spin (replace any existing spin)
 			this.ballSpin = newSpin.clone();
-			console.log(`🌪️ Ball spin applied: ${this.ballSpin.y.toFixed(2)} (from paddle velocity: ${paddleVelAlongAxis.toFixed(2)})`);
+			this.spinActivationTime = Date.now(); // Record when spin was applied
+			console.log(`🌪️ Ball spin applied: ${this.ballSpin.y.toFixed(2)} (from paddle velocity: ${paddleVelAlongAxis.toFixed(2)}) - delayed ${this.SPIN_DELAY}ms`);
 		} else {
 			// Stationary paddle - no new spin added, but preserve existing spin
 			console.log(`🌪️ Stationary paddle - preserving existing spin: ${this.ballSpin.y.toFixed(2)}`);
@@ -1072,6 +1176,8 @@ export class Pong3D {
 			this.goalScored = false;
 			this.pendingGoalData = null;
 			this.ballSpin.set(0, 0, 0); // Reset spin to zero
+			this.spinActivationTime = 0; // Reset spin activation timer
+			this.spinDelayActive = false; // Reset delay flag
 
 			console.log(`⚡ Ball reset completed after boundary collision`);
 		}
@@ -1641,8 +1747,32 @@ export class Pong3D {
 		}
 	}
 
+	private spinDelayActive: boolean = false; // Track if we're still in delay period
+
 	private applyMagnusForce(): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
+
+		// Check if spin delay has elapsed
+		const currentTime = Date.now();
+		const timeSinceSpinApplied = currentTime - this.spinActivationTime;
+
+		if (timeSinceSpinApplied < this.SPIN_DELAY) {
+			// Spin delay period - no Magnus force yet
+			if (!this.spinDelayActive && this.spinActivationTime > 0) {
+				this.spinDelayActive = true;
+				console.log(`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`);
+			}
+			return;
+		}
+
+		// Check if there's any spin to apply
+		if (this.ballSpin.length() < 0.001) return;
+
+		// Log when spin delay period ends (one-time)
+		if (this.spinDelayActive) {
+			this.spinDelayActive = false;
+			console.log(`🌪️ Spin delay ended - Magnus effect now active!`);
+		}
 
 		// Get current ball velocity
 		const velocity = this.ballMesh.physicsImpostor.getLinearVelocity();
@@ -1762,14 +1892,20 @@ export class Pong3D {
 			// Get player input
 			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
 
-			// ANTI-DRIFT: Aggressively stop any velocity when no input
+			// GRADUAL BRAKING: Apply braking force instead of instant stop
 			if (inputDir === 0 && !isOutOfBounds) {
-				// Force complete stop - no gradual braking to prevent drift
-				paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
-				continue; // Skip all other logic when stopping
-			}
+				// Apply braking force proportional to current velocity
+				const brakedVelocity = currentVelocity.scale(this.PADDLE_BRAKING_FACTOR);
 
-			// ANTI-DRIFT: Clamp maximum velocity to prevent runaway acceleration
+				// Only apply braking if velocity is above a minimum threshold
+				if (brakedVelocity.length() > 0.05) {
+					paddle.physicsImpostor.setLinearVelocity(brakedVelocity);
+				} else {
+					// Complete stop only when velocity is very small
+					paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+				}
+				continue; // Skip all other logic when braking
+			}			// ANTI-DRIFT: Clamp maximum velocity to prevent runaway acceleration
 			if (speedAlong > this.PADDLE_MAX_VELOCITY) {
 				const clampedVel = axisNorm.scale(Math.sign(velAlong) * this.PADDLE_MAX_VELOCITY);
 				// Preserve non-movement-axis velocity components (should be zero anyway)
@@ -2166,24 +2302,215 @@ export class Pong3D {
 		return this.gameLoop ? this.gameLoop.getGameState() : null;
 	}
 
-	// Cleanup method
+	/**
+	 * Get the collision normal from Cannon.js collision event
+	 * This provides the actual surface normal at the collision point
+	 */
+	private getCollisionNormal(ballImpostor: BABYLON.PhysicsImpostor, paddleImpostor: BABYLON.PhysicsImpostor): BABYLON.Vector3 | null {
+		try {
+			// Get the physics bodies
+			const ballBody = ballImpostor.physicsBody;
+			const paddleBody = paddleImpostor.physicsBody;
+
+			if (!ballBody || !paddleBody) return null;
+
+			// Access the Cannon.js world to get contact information
+			const world = ballBody.world;
+			if (!world) return null;
+
+			// Find the contact between these two bodies
+			let contact = null;
+			for (let i = 0; i < world.contacts.length; i++) {
+				const c = world.contacts[i];
+				if ((c.bi === ballBody && c.bj === paddleBody) ||
+					(c.bi === paddleBody && c.bj === ballBody)) {
+					contact = c;
+					break;
+				}
+			}
+
+			if (!contact) {
+				console.warn('No contact found between ball and paddle');
+				return null;
+			}
+
+			// Get the contact normal
+			// The normal always points from body i to body j
+			let normal = contact.ni.clone();
+
+			console.log(`🔧 Raw Cannon.js contact normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
+			console.log(`🔧 Contact: body i = ${contact.bi === ballBody ? 'ball' : 'paddle'}, body j = ${contact.bj === ballBody ? 'ball' : 'paddle'}`);
+
+			// If ball is body j, we need to flip the normal to point from paddle to ball
+			if (contact.bj === ballBody) {
+				normal.negate();
+				console.log(`🔧 Flipped normal (ball is body j): (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
+			}
+
+			// Convert from Cannon Vector3 to Babylon Vector3
+			const babylonNormal = new BABYLON.Vector3(normal.x, normal.y, normal.z);
+
+			console.log(`🔧 Final collision normal: (${babylonNormal.x.toFixed(3)}, ${babylonNormal.y.toFixed(3)}, ${babylonNormal.z.toFixed(3)})`);
+
+			// 🚨 CRITICAL: Ensure normal points AWAY from paddle surface (for proper reflection)
+			// For correct physics reflection: normal should point into the space where ball reflects
+			// Check if ball velocity and normal have same direction (both positive or both negative)
+			const ballVelocity = this.ballMesh!.physicsImpostor!.getLinearVelocity()!;
+			const normalizedVelocity = ballVelocity.normalize();
+			const normalizedNormal = babylonNormal.normalize();
+			const dotProduct = BABYLON.Vector3.Dot(normalizedVelocity, normalizedNormal);
+
+			console.log(`🔧 Ball velocity direction: (${normalizedVelocity.x.toFixed(3)}, ${normalizedVelocity.y.toFixed(3)}, ${normalizedVelocity.z.toFixed(3)})`);
+			console.log(`🔧 Dot product (velocity·normal): ${dotProduct.toFixed(3)}`);
+
+			let correctedNormal = normalizedNormal;
+			if (dotProduct > 0.1) {
+				// Ball moving toward normal means normal points AWAY from surface - this is CORRECT for reflection
+				console.log('🔧 Normal correctly points away from paddle surface');
+			} else if (dotProduct < -0.1) {
+				// Ball moving away from normal means normal points wrong way - flip it
+				correctedNormal = normalizedNormal.negate();
+				console.log('🔧 CORRECTED: Flipped normal to point away from paddle surface');
+				console.log(`🔧 Corrected normal: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`);
+			}
+
+			// Validate the normal direction - it should point roughly toward the center
+			// For a 2-player game, paddle normals should be roughly ±Z direction
+			// Since Y movement is constrained, project the normal to X-Z plane
+			const normalXZ = new BABYLON.Vector3(correctedNormal.x, 0, correctedNormal.z);
+			if (normalXZ.length() > 0.1) {
+				// Use the projected normal if it's significant
+				correctedNormal = normalXZ.normalize();
+				console.log(`� Projected normal to X-Z plane: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`);
+			} else {
+				// If X-Z components are too small, this might be a top/bottom collision
+				console.warn(`🚨 Normal has minimal X-Z components: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`);
+			}
+
+			return correctedNormal;
+		} catch (error) {
+			console.warn('Failed to get collision normal from Cannon.js:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Calculate the actual surface normal of a paddle mesh
+	 * This uses the mesh geometry to determine the true normal direction
+	 */
+	private getPaddleNormal(paddle: BABYLON.Mesh, paddleIndex: number): BABYLON.Vector3 | null {
+		try {
+			// Get the paddle's bounding box to understand its orientation
+			const boundingInfo = paddle.getBoundingInfo();
+			const size = boundingInfo.maximum.subtract(boundingInfo.minimum);
+
+			// For a paddle, the smallest dimension should be the thickness (normal direction)
+			// The largest dimensions are the width and height of the paddle face
+			const dimensions = [
+				{ axis: 'x', size: Math.abs(size.x), vector: new BABYLON.Vector3(1, 0, 0) },
+				{ axis: 'y', size: Math.abs(size.y), vector: new BABYLON.Vector3(0, 1, 0) },
+				{ axis: 'z', size: Math.abs(size.z), vector: new BABYLON.Vector3(0, 0, 1) }
+			];
+
+			// Sort by size - smallest should be the thickness (normal direction)
+			dimensions.sort((a, b) => a.size - b.size);
+
+			// The normal should be along the axis with the smallest dimension
+			let normal = dimensions[0].vector.clone();
+
+			// Apply the paddle's world transformation to the normal
+			if (paddle.rotationQuaternion) {
+				normal = BABYLON.Vector3.TransformCoordinates(normal, paddle.getWorldMatrix());
+			} else if (paddle.rotation && (paddle.rotation.x !== 0 || paddle.rotation.y !== 0 || paddle.rotation.z !== 0)) {
+				const rotationMatrix = BABYLON.Matrix.RotationYawPitchRoll(paddle.rotation.y, paddle.rotation.x, paddle.rotation.z);
+				normal = BABYLON.Vector3.TransformCoordinates(normal, rotationMatrix);
+			}
+
+			normal = normal.normalize();
+
+			// Ensure the normal points toward the center of the play area (inward)
+			// Calculate vector from paddle to center (0,0,0)
+			const paddleToCenter = new BABYLON.Vector3(0, 0, 0).subtract(paddle.position);
+			paddleToCenter.normalize();
+
+			// If normal points away from center, flip it
+			if (BABYLON.Vector3.Dot(normal, paddleToCenter) < 0) {
+				normal.scaleInPlace(-1);
+			}
+
+			console.log(`🎯 Paddle ${paddleIndex + 1} calculated normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`);
+			console.log(`🎯 Paddle ${paddleIndex + 1} dimensions: x=${size.x.toFixed(3)}, y=${size.y.toFixed(3)}, z=${size.z.toFixed(3)}`);
+
+			return normal;
+		} catch (error) {
+			console.warn(`Failed to calculate paddle normal for paddle ${paddleIndex + 1}:`, error);
+			return null;
+		}
+	}
+
+	/**
+	 * Dispose of Babylon resources, stop render loop, remove event listeners, and clean up canvas.
+	 * Call this when destroying the game or navigating away to prevent memory leaks.
+	 */
 	public dispose(): void {
+		console.log('🧹 Disposing Pong3D instance...');
+
+		// Stop the render loop first
+		if (this.engine) {
+			this.engine.stopRenderLoop();
+			console.log('✅ Stopped render loop');
+		}
+
 		// Clean up game loop
 		if (this.gameLoop) {
 			this.gameLoop.stop();
 			this.gameLoop = null;
+			console.log('✅ Cleaned up game loop');
 		}
 
 		// Clean up input handler
 		if (this.inputHandler) {
 			this.inputHandler.cleanup();
 			this.inputHandler = null;
+			console.log('✅ Cleaned up input handler');
 		}
 
-		this.engine.dispose();
-		if (this.canvas.parentElement) {
-			this.canvas.parentElement.removeChild(this.canvas);
+		// Remove window resize listener
+		if (this.resizeHandler) {
+			window.removeEventListener('resize', this.resizeHandler);
+			this.resizeHandler = null;
+			console.log('✅ Removed resize event listener');
 		}
+
+		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
+		if (this.scene) {
+			this.scene.dispose();
+			console.log('✅ Disposed Babylon scene');
+		}
+
+		// Dispose of Babylon engine
+		if (this.engine) {
+			this.engine.dispose();
+			console.log('✅ Disposed Babylon engine');
+		}
+
+		// Remove canvas from DOM
+		if (this.canvas && this.canvas.parentNode) {
+			this.canvas.parentNode.removeChild(this.canvas);
+			console.log('✅ Removed canvas from DOM');
+		}
+
+		// Clear references to help with garbage collection
+		this.guiTexture = null;
+		this.ballMesh = null;
+		this.paddles = [null, null, null, null];
+		this.goalMeshes = [null, null, null, null];
+		this.scene = null as any;
+		this.engine = null as any;
+		this.canvas = null as any;
+		this.camera = null as any;
+
+		console.log('🎉 Pong3D disposal complete');
 	}
 }
 

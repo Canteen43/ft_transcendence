@@ -1,6 +1,6 @@
 import { AuthRequestSchema, AuthResponseSchema } from '../../../shared/schemas/user.ts';
 import { apiCall } from '../utils/apiCall';
-import { webSocket } from '../misc/WebSocketWrapper';
+import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { RegisterModal } from './RegisterModal';

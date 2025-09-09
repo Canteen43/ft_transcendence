@@ -12,8 +12,8 @@ export async function initParticles() {
 			fullScreen: { enable: false, zIndex: 0 }, // stays inside container
 			fpsLimit: 60,
 			particles: {
-				number: { value: 3, density: { enable: true, area: 800 } },
-				color: { value: "#006f9bff" },
+				number: { value: 3, density: { enable: true } },
+				color: { value: "#83dcffff" },
 				shape: { type: "circle" },
 				opacity: { value: 0.8 },
 				size: { value: { min: 20, max: 50 } },
