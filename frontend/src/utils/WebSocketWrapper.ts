@@ -24,9 +24,8 @@ export class WebSocketWrapper {
 		this.address += `?token=${token}`;
 		this.ws = new WebSocket(this.address);
 		this.ws.addEventListener('message', event => this.routeListener(event));
-		// This is for debugging
 		this.ws.addEventListener('close', () => {
-			alert('WebSocket connection closed');
+			console.info('WebSocket connection closed');
 		});
 	}
 
@@ -34,7 +33,6 @@ export class WebSocketWrapper {
 		if (this.ws) {
 			this.ws.close();
 			this.ws = undefined;
-			alert('Websocket connection closed by client');
 		}
 	}
 

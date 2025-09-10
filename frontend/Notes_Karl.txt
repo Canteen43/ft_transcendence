@@ -211,9 +211,13 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
+- Print session storage
 - Add logic to Remote Game creation buttons
-	- API call that joins waiting list (maybe use other API call for now)
+	- API call that joins waiting list
+		- Use get user until the API is ready
 	- logic that checks return
+		- use fake logic for now
+		- if return meets condition: send tournament creation request
 	- already connected to waiting modal
 - Design tournament screen
 	- add text that says match 1, 2, 3
