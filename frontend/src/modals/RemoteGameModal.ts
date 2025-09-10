@@ -1,6 +1,7 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import type { GameOptions } from '../misc/GameOptions';
+import { WaitingModal } from './WaitingModal';
 import { WaitingModal1v1 } from './WaitingModal1v1';
 
 export let gameOptions: GameOptions | null = null;
@@ -25,6 +26,6 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private _tournament() {
-		location.hash = '#tournament';
+		new WaitingModal(this.box);
 	}
 }
