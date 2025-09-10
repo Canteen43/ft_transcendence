@@ -7,7 +7,7 @@ export const state = {
 	thisPlayer: 0,
 	player1Name: 'Rufus',
 	player2Name: 'Karl',
-	player3Name: 'Helen',
+	player3Name: 'Helene',
 	player4Name: 'Wouter',
 
 

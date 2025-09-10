@@ -30,7 +30,7 @@ import { createPong3DUI } from './Pong3DUI';
  * - 4 players → /pong4p.glb
  */
 // export const PLAYER_COUNT: 2 | 3 | 4 = 2;
-export const DEFAULT_PLAYER_COUNT: 0 | 2 | 3 | 4 = 2;
+export const DEFAULT_PLAYER_COUNT: 0 | 2 | 3 | 4 = 3;
 
 /**
  * Set the default player POV (perspective) for the camera
@@ -207,7 +207,7 @@ export class Pong3D {
 
 	// Collision debouncing to prevent rapid-fire collisions
 	private lastCollisionTime = 0;
-	private readonly COLLISION_DEBOUNCE_MS = 50; // Minimum time between collisions
+	private readonly COLLISION_DEBOUNCE_MS = 20; // Minimum time between collisions
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
