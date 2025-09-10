@@ -29,7 +29,7 @@ import { createPong3DUI } from './Pong3DUI';
  * - 4 players → /pong4p.glb
  */
 // export const PLAYER_COUNT: 2 | 3 | 4 = 2;
-export const OVERWRITE_PLAYER_COUNT: 0 | 2 | 3 | 4 = 0;
+export const DEFAULT_PLAYER_COUNT: 0 | 2 | 3 | 4 = 3;
 
 /**
  * Set the default player POV (perspective) for the camera
@@ -144,14 +144,20 @@ export class Pong3D {
 	private uiMovePlayerTo:
 		| ((i: number, pos: 'top' | 'bottom' | 'left' | 'right') => void)
 		| null = null;
+	private uiHandles: any = null; // Store full UI handles for winner display
 
 	// Player data - simplified to arrays for uniform handling
-	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helene'];
+	private playerNames: string[] = [state.player1Name, state.player2Name, state.player3Name, state.player4Name];
 	private playerScores: number[] = [0, 0, 0, 0];
-	private activePlayerCount: number = state.playerCount; // Can be 2, 3, or 4
-	private initialPlayerCount: number = state.playerCount; // Set at initialization, cannot be exceeded
+	private playerCount: number = state.playerCount; // Can be 2, 3, or 4
 	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
+	private gameEnded: boolean = false; // Flag to track if game has ended (winner declared)
+
+
+
+
+
 
 	// === GAME PHYSICS CONFIGURATION ===
 
@@ -159,6 +165,7 @@ export class Pong3D {
 	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
 	public RALLY_SPEED_INCREMENT_PERCENT = 10; // Percentage speed increase per paddle hit during rally
 	public MAX_BALL_SPEED = 24; // Maximum ball speed to prevent tunneling
+	public WINNING_SCORE = 10; // Points needed to win the game
 	private currentBallSpeed = 12; // Current ball speed (starts at base speed)
 	private rallyHitCount = 0; // Number of paddle hits in current rally
 	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
@@ -199,7 +206,7 @@ export class Pong3D {
 
 	// Collision debouncing to prevent rapid-fire collisions
 	private lastCollisionTime = 0;
-	private readonly COLLISION_DEBOUNCE_MS = 50; // Minimum time between collisions
+	private readonly COLLISION_DEBOUNCE_MS = 20; // Minimum time between collisions
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
@@ -260,7 +267,7 @@ export class Pong3D {
 	private setupCamera(): void {
 		const cameraPos = getCameraPosition(
 			this.thisPlayer,
-			this.activePlayerCount,
+			this.playerCount,
 			this.getCameraSettings(),
 			this.local
 		);
@@ -298,9 +305,8 @@ export class Pong3D {
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
 		// Overwrite player count if specified
-		if (OVERWRITE_PLAYER_COUNT) {
-			this.activePlayerCount = OVERWRITE_PLAYER_COUNT;
-			this.initialPlayerCount = OVERWRITE_PLAYER_COUNT;
+		if (!state.playerCount) {
+			this.playerCount = DEFAULT_PLAYER_COUNT;
 		}
 		this.thisPlayer = options?.thisPlayer || THIS_PLAYER; // Set POV player (default from constant)
 		this.local = options?.local ?? LOCAL_MODE; // Set local mode (default from constant)
@@ -309,10 +315,10 @@ export class Pong3D {
 		}
 		const modelUrl =
 			options?.modelUrlOverride ||
-			this.getModelUrlForPlayerCount(this.activePlayerCount);
+			this.getModelUrlForPlayerCount(this.playerCount);
 
 		this.debugLog(
-			`Initializing Pong3D for ${this.activePlayerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}, Local: ${this.local}`
+			`Initializing Pong3D for ${this.playerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}, Local: ${this.local}`
 		);
 
 		// Create canvas inside container
@@ -504,7 +510,7 @@ export class Pong3D {
 		}
 
 		// Capture original paddle positions BEFORE any de-parenting operations
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			if (this.paddles[i]) {
 				const paddle = this.paddles[i]!;
 				this.debugLog(`=== Paddle ${i + 1} DEBUG INFO ===`);
@@ -644,7 +650,7 @@ export class Pong3D {
 
 					// Set movement constraints based on player count and paddle index
 					if (paddle.physicsImpostor.physicsBody.linearFactor) {
-						if (this.activePlayerCount === 3) {
+						if (this.playerCount === 3) {
 							// 3-player mode: All paddles move along rotated axes (X and Z components)
 							// Player 1: 0° (X-axis), Player 2: 120° (X,Z), Player 3: 240° (X,Z)
 							// Allow movement in the X-Z plane for all 3-player paddles
@@ -654,7 +660,7 @@ export class Pong3D {
 								1
 							); // X and Z axes
 						} else if (
-							this.activePlayerCount === 4 &&
+							this.playerCount === 4 &&
 							paddleIndex >= 2
 						) {
 							paddle.physicsImpostor.physicsBody.linearFactor.set(
@@ -805,7 +811,7 @@ export class Pong3D {
 
 		// Find which paddle was hit
 		let paddleIndex = -1;
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
 				paddleIndex = i;
 				break;
@@ -837,12 +843,12 @@ export class Pong3D {
 			paddleNormal = this.getPaddleNormal(paddle, paddleIndex);
 			if (!paddleNormal) {
 				// Final fallback to hardcoded normals
-				if (this.activePlayerCount === 2) {
+				if (this.playerCount === 2) {
 					paddleNormal =
 						paddleIndex === 0
 							? new BABYLON.Vector3(0, 0, 1)
 							: new BABYLON.Vector3(0, 0, -1);
-				} else if (this.activePlayerCount === 3) {
+				} else if (this.playerCount === 3) {
 					const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 					const angle = angles[paddleIndex];
 					paddleNormal = new BABYLON.Vector3(
@@ -850,7 +856,7 @@ export class Pong3D {
 						0,
 						-Math.sin(angle)
 					).normalize();
-				} else if (this.activePlayerCount === 4) {
+				} else if (this.playerCount === 4) {
 					if (paddleIndex === 0)
 						paddleNormal = new BABYLON.Vector3(0, 0, 1);
 					else if (paddleIndex === 1)
@@ -886,7 +892,7 @@ export class Pong3D {
 		}
 
 		// For 2-player mode, check if collision is near the paddle face (not edges)
-		if (this.activePlayerCount === 2) {
+		if (this.playerCount === 2) {
 			// Players 1,2 move on X-axis, paddle faces are on Z-axis
 			const maxXOffset =
 				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
@@ -896,7 +902,7 @@ export class Pong3D {
 				);
 				return; // Ignore edge collisions
 			}
-		} else if (this.activePlayerCount === 4) {
+		} else if (this.playerCount === 4) {
 			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles)
 			// P3 and P4 use Z-axis edge collision detection
 			const maxZOffset =
@@ -916,14 +922,14 @@ export class Pong3D {
 
 		if (!ballVelocity || !paddleVelocity) return; // Determine movement axis for this paddle
 		let paddleAxis = new BABYLON.Vector3(1, 0, 0); // Default for 2-player
-		if (this.activePlayerCount === 2) {
+		if (this.playerCount === 2) {
 			// Handle paddle 2's 180° rotation in Blender
 			// Paddle 2 was rotated 180° to face the opposite direction, so its local X-axis is flipped
 			if (paddleIndex === 1) {
 				// Paddle 2 (index 1)
 				paddleAxis = new BABYLON.Vector3(-1, 0, 0); // Flipped X-axis due to 180° rotation
 			}
-		} else if (this.activePlayerCount === 3) {
+		} else if (this.playerCount === 3) {
 			// Player 1: 0°, Player 2: 120°, Player 3: 240°
 			// All paddles are rotated to face center, so their movement axes are adjusted
 			if (paddleIndex === 0) {
@@ -936,10 +942,8 @@ export class Pong3D {
 				// Player 3 (240°) - upper right
 				paddleAxis = new BABYLON.Vector3(-0.5, 0, 0.866); // Perpendicular to facing direction
 			}
-			console.log(
-				`🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`
-			);
-		} else if (this.activePlayerCount === 4) {
+			console.log(`🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`);
+		} else if (this.playerCount === 4) {
 			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles at 90° and 270°)
 			if (paddleIndex === 2) {
 				// P3 - Right paddle (270°)
@@ -960,9 +964,8 @@ export class Pong3D {
 
 		// Define a threshold for "significant" paddle velocity
 		// Lower threshold for 3P mode to make effects more visible
-		const VELOCITY_THRESHOLD = this.activePlayerCount === 3 ? 0.05 : 0.1;
-		const hasPaddleVelocity =
-			Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
+		const VELOCITY_THRESHOLD = this.playerCount === 3 ? 0.05 : 0.1;
+		const hasPaddleVelocity = Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
 
 		console.log(
 			`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`
@@ -972,11 +975,10 @@ export class Pong3D {
 		);
 
 		let axisNote = '';
-		if (this.activePlayerCount === 2 && paddleIndex === 1)
+		if (this.playerCount === 2 && paddleIndex === 1)
 			axisNote = '[180° rotation]';
-		else if (this.activePlayerCount === 3) axisNote = '[Facing center]';
-		else if (this.activePlayerCount === 4)
-			axisNote = '[P3/P4 side paddles]';
+		else if (this.playerCount === 3) axisNote = '[Facing center]';
+		else if (this.playerCount === 4) axisNote = '[P3/P4 side paddles]';
 
 		console.log(
 			`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
@@ -986,16 +988,10 @@ export class Pong3D {
 		);
 
 		// 🚨 DEBUG: Extra logging for 4P mode paddle detection
-		if (this.activePlayerCount === 4) {
-			console.log(
-				`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`
-			);
-			console.log(
-				`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlongAxis.toFixed(3)}`
-			);
-			console.log(
-				`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`
-			);
+		if (this.playerCount === 4) {
+			console.log(`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`);
+			console.log(`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlongAxis.toFixed(3)}`);
+			console.log(`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`);
 		}
 		const velocityRatio = Math.max(
 			-1.0,
@@ -1014,12 +1010,8 @@ export class Pong3D {
 		let finalDirection: BABYLON.Vector3;
 
 		// ====== DEBUG: Verify we're detecting the right mode ======
-		console.log(
-			`🚨 COLLISION DEBUG: activePlayerCount = ${this.activePlayerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
-		);
-		console.log(
-			`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`
-		);
+		console.log(`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`);
+		console.log(`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`);
 
 		if (hasPaddleVelocity) {
 			// MOVING PADDLE: Return angle directly proportional to velocity
@@ -1052,7 +1044,7 @@ export class Pong3D {
 			);
 
 			// 🚨 DEBUG: Extra logging for 4P mode
-			if (this.activePlayerCount === 4) {
+			if (this.playerCount === 4) {
 				console.log(`🚨🚨🚨 4P MODE MOVING PADDLE DETECTED! 🚨🚨🚨`);
 				console.log(
 					`🚨 Player ${paddleIndex + 1} velocity: ${paddleVelAlongAxis.toFixed(3)}`
@@ -1064,7 +1056,7 @@ export class Pong3D {
 			}
 
 			// === SEPARATE PHYSICS FOR 2P vs 3P MODE ===
-			if (this.activePlayerCount === 2) {
+			if (this.playerCount === 2) {
 				// 2-PLAYER MODE: Standard Y-axis rotation
 				const rotationAxis = BABYLON.Vector3.Up();
 				const rotationMatrix = BABYLON.Matrix.RotationAxis(
@@ -1076,7 +1068,7 @@ export class Pong3D {
 					rotationMatrix
 				).normalize();
 				console.log(`🎯 2P Mode: Y-axis rotation applied`);
-			} else if (this.activePlayerCount === 3) {
+			} else if (this.playerCount === 3) {
 				// 3-PLAYER MODE: Use same Y-axis rotation as 2P mode but adjust angle for paddle orientation
 				console.log(
 					`🚨🚨🚨 3P Mode: EXECUTING 3P PHYSICS CODE PATH! 🚨🚨🚨`
@@ -1105,17 +1097,11 @@ export class Pong3D {
 					rotationMatrix
 				).normalize();
 
-				console.log(
-					`🚨 3P Mode: Y-axis rotation applied - angle: ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
-				);
-				console.log(
-					`🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
-				);
-				console.log(
-					`🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`
-				);
-			} else if (this.activePlayerCount === 4) {
-				// 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation
+				console.log(`🚨 3P Mode: Y-axis rotation applied - angle: ${(adjustedAngle * 180 / Math.PI).toFixed(1)}°`);
+				console.log(`🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`);
+				console.log(`🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`);
+			} else if (this.playerCount === 4) {
+				// 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation  
 				// Side paddles deflect ball along Z-axis using X-axis rotation (same effect as 2P Y-axis rotation)
 				console.log(`🚨🚨🚨 4P MODE ANGULAR EFFECTS EXECUTING! 🚨🚨🚨`);
 				console.log(
@@ -1151,17 +1137,9 @@ export class Pong3D {
 			} else {
 				// FALLBACK: Default to 2P behavior for unknown player counts
 				const rotationAxis = BABYLON.Vector3.Up();
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(
-					rotationAxis,
-					velocityBasedAngle
-				);
-				finalDirection = BABYLON.Vector3.TransformCoordinates(
-					paddleNormal,
-					rotationMatrix
-				).normalize();
-				console.log(
-					`🎯 ${this.activePlayerCount}P Mode: Using 2P physics (fallback)`
-				);
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(rotationAxis, velocityBasedAngle);
+				finalDirection = BABYLON.Vector3.TransformCoordinates(paddleNormal, rotationMatrix).normalize();
+				console.log(`🎯 ${this.playerCount}P Mode: Using 2P physics (fallback)`);
 			}
 		} else {
 			// STATIONARY PADDLE: Physics-based reflection with angular limit
@@ -1326,7 +1304,7 @@ export class Pong3D {
 
 			// Choose spin axis based on player mode and paddle orientation
 			let spinAxis: BABYLON.Vector3;
-			if (this.activePlayerCount === 4) {
+			if (this.playerCount === 4) {
 				// 4P Mode: P1/P2 walled off, P3/P4 (side paddles) use Y-axis spin (same as 2P)
 				spinAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis spin keeps ball in XZ plane
 				console.log(
@@ -1349,15 +1327,10 @@ export class Pong3D {
 			);
 		} else {
 			// Stationary paddle - no new spin added, but preserve existing spin
-			console.log(
-				`🌪️ Stationary paddle - preserving existing spin: (${this.ballSpin.x.toFixed(2)}, ${this.ballSpin.y.toFixed(2)}, ${this.ballSpin.z.toFixed(2)})`
-			);
-		}
-		if (this.debugPaddleLogging || this.activePlayerCount === 3) {
-			console.log(
-				`Ball-Paddle Collision: Player ${paddleIndex + 1} (${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle)`
-			);
-			if (this.activePlayerCount === 3) {
+			console.log(`🌪️ Stationary paddle - preserving existing spin: (${this.ballSpin.x.toFixed(2)}, ${this.ballSpin.y.toFixed(2)}, ${this.ballSpin.z.toFixed(2)})`);
+		} if (this.debugPaddleLogging || this.playerCount === 3) {
+			console.log(`Ball-Paddle Collision: Player ${paddleIndex + 1} (${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle)`);
+			if (this.playerCount === 3) {
 				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 				console.log(
 					`  - Paddle angle: ${((angles[paddleIndex] * 180) / Math.PI).toFixed(1)}°`
@@ -1438,6 +1411,38 @@ export class Pong3D {
 		this.playerScores[scoringPlayer]++;
 		console.log(`New scores after goal:`, this.playerScores);
 
+		// Check if player has won (configurable winning score)
+		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
+			// Game over! Player wins
+			const playerName = this.playerNames[scoringPlayer] || `Player ${scoringPlayer + 1}`;
+			console.log(`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`);
+			
+			// Show winner UI
+			if (this.uiHandles) {
+				this.uiHandles.showWinner(scoringPlayer, playerName);
+			}
+			
+			// Mark game as ended - ball will continue and exit naturally
+			this.gameEnded = true;
+			
+			// Update the UI with final scores
+			this.updatePlayerInfoDisplay();
+			
+			// Call the goal callback for any additional handling
+			if (this.onGoalCallback) {
+				console.log(`Calling goal callback for game end...`);
+				this.onGoalCallback(scoringPlayer, goalPlayer);
+			}
+			
+			// Reset cooldown and last player tracker - game is over
+			this.lastPlayerToHitBall = -1;
+			this.lastGoalTime = performance.now();
+			
+			// Let the ball continue its natural trajectory and exit bounds
+			console.log(`🏀 Ball will continue and exit naturally - no respawn`);
+			return;
+		}
+
 		console.log(
 			`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`
 		);
@@ -1498,18 +1503,18 @@ export class Pong3D {
 		if (!this.goalScored) {
 			// Debug: Show how many goals we're checking
 			const activeGoals = this.goalMeshes.filter(g => g !== null);
-			if (activeGoals.length !== this.activePlayerCount) {
+			if (activeGoals.length !== this.playerCount) {
 				console.warn(
-					`🚨 Goal count mismatch: Expected ${this.activePlayerCount} goals, but have ${activeGoals.length} active goals`
+					`🚨 Goal count mismatch: Expected ${this.playerCount} goals, but have ${activeGoals.length} active goals`
 				);
 			}
 
 			this.goalMeshes.forEach((goal, index) => {
 				if (!goal) {
 					// Debug: Show missing goals
-					if (index < this.activePlayerCount) {
+					if (index < this.playerCount) {
 						console.warn(
-							`🚨 Goal ${index + 1} is missing for ${this.activePlayerCount}-player mode`
+							`🚨 Goal ${index + 1} is missing for ${this.playerCount}-player mode`
 						);
 					}
 					return;
@@ -1558,7 +1563,16 @@ export class Pong3D {
 				`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
 			);
 
-			// Reset ball immediately for general out of bounds
+			// Check if game has ended - if so, stop the game loop instead of respawning
+			if (this.gameEnded) {
+				console.log(`🏆 Game ended - stopping game loop, ball will not respawn`);
+				if (this.gameLoop) {
+					this.gameLoop.stop();
+				}
+				return; // Exit without resetting ball
+			}
+
+			// Reset ball immediately for general out of bounds (normal gameplay)
 			if (this.gameLoop) {
 				this.gameLoop.resetBall();
 			}
@@ -1593,16 +1607,30 @@ export class Pong3D {
 
 		if (hitBoundary) {
 			console.log(
-				`🎯 Ball reached boundary after goal! Resetting ball...`
+				`🎯 Ball reached boundary after goal!`
 			);
 
-			// Now reset the ball
+			// Check if game has ended - if so, stop the game loop instead of respawning
+			if (this.gameEnded) {
+				console.log(`🏆 Game ended - stopping game loop, ball will not respawn`);
+				if (this.gameLoop) {
+					this.gameLoop.stop();
+				}
+				return; // Exit without resetting ball
+			}
+
+			console.log(`🔄 Resetting ball for new rally...`);
+
+			// Now reset the ball (normal gameplay)
 			if (this.gameLoop) {
 				this.gameLoop.resetBall();
 			}
 
 			// Reset rally speed system - new rally starts
 			this.resetRallySpeed();
+
+			// Reset last player to hit ball - new rally starts
+			this.lastPlayerToHitBall = -1;
 
 			// Clear the goal state and reset spin
 			this.goalScored = false;
@@ -1744,7 +1772,7 @@ export class Pong3D {
 		);
 
 		// Try to identify paddles by numbered names for the expected number of players
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			const paddleNumber = i + 1;
 			// Look for specific numbered paddle names first
 			let paddle = paddleMeshes.find(
@@ -1766,14 +1794,14 @@ export class Pong3D {
 		}
 
 		// Clear unused paddle slots
-		for (let i = this.activePlayerCount; i < 4; i++) {
+		for (let i = this.playerCount; i < 4; i++) {
 			this.paddles[i] = null;
 		}
 
 		// Log what we found
 		const foundPaddles = this.paddles.filter(p => p !== null);
 		console.log(
-			`Found ${foundPaddles.length}/${this.activePlayerCount} expected paddles:`,
+			`Found ${foundPaddles.length}/${this.playerCount} expected paddles:`,
 			foundPaddles.map(p => p?.name)
 		);
 
@@ -1782,14 +1810,14 @@ export class Pong3D {
 			return;
 		}
 
-		if (foundPaddles.length < this.activePlayerCount) {
+		if (foundPaddles.length < this.playerCount) {
 			console.warn(
-				`Expected ${this.activePlayerCount} paddles but only found ${foundPaddles.length}`
+				`Expected ${this.playerCount} paddles but only found ${foundPaddles.length}`
 			);
 		}
 
 		// Initialize paddle positions from their mesh positions
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			if (this.paddles[i]) {
 				// Initialize gameState as displacement from GLB position (starting at 0)
 				this.gameState.paddlePositionsX[i] = 0;
@@ -1802,7 +1830,7 @@ export class Pong3D {
 		}
 
 		// Sync mesh positions with the original GLB positions (since gameState starts at 0 displacement)
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			if (this.paddles[i]) {
 				this.paddles[i]!.position.x = this.originalGLBPositions[i].x;
 				this.paddles[i]!.position.z = this.originalGLBPositions[i].z;
@@ -1863,10 +1891,10 @@ export class Pong3D {
 		const meshes = scene.meshes;
 
 		console.log(
-			`🔍 Looking for goals in ${this.activePlayerCount}-player mode...`
+			`🔍 Looking for goals in ${this.playerCount}-player mode...`
 		);
-		console.log(`🔍 Initial/Max player count: ${this.initialPlayerCount}`);
-		console.log(`🔍 Active player count: ${this.activePlayerCount}`);
+		console.log(`🔍 Player count: ${this.playerCount}`);
+		console.log(`🔍 Active player count: ${this.playerCount}`);
 
 		// Find goal meshes using case-insensitive name search
 		const goalMeshes = meshes.filter(
@@ -1879,7 +1907,7 @@ export class Pong3D {
 		);
 
 		// Try to identify goals by numbered names for the expected number of players
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			const goalNumber = i + 1;
 			console.log(`🔍 Looking for goal${goalNumber}...`);
 
@@ -1910,14 +1938,14 @@ export class Pong3D {
 		}
 
 		// Clear unused goal slots
-		for (let i = this.activePlayerCount; i < 4; i++) {
+		for (let i = this.playerCount; i < 4; i++) {
 			this.goalMeshes[i] = null;
 		}
 
 		// Log what we found
 		const foundGoals = this.goalMeshes.filter(g => g !== null);
 		console.log(
-			`Found ${foundGoals.length}/${this.activePlayerCount} expected goals:`,
+			`Found ${foundGoals.length}/${this.playerCount} expected goals:`,
 			foundGoals.map(g => g?.name)
 		);
 
@@ -1928,9 +1956,9 @@ export class Pong3D {
 			return;
 		}
 
-		if (foundGoals.length < this.activePlayerCount) {
+		if (foundGoals.length < this.playerCount) {
 			console.warn(
-				`Expected ${this.activePlayerCount} goals but only found ${foundGoals.length}`
+				`Expected ${this.playerCount} goals but only found ${foundGoals.length}`
 			);
 		}
 
@@ -2019,6 +2047,8 @@ export class Pong3D {
 		this.uiPlayerScoreTexts = handles.playerScoreTexts;
 		this.uiPlayerStacks = handles.playerStacks;
 		this.uiMovePlayerTo = handles.movePlayerTo;
+		// Store full handles for winner display
+		this.uiHandles = handles;
 
 		// Position player info blocks based on active player count and court layout
 		this.positionPlayerInfoBlocks();
@@ -2063,12 +2093,12 @@ export class Pong3D {
 		// next positions depend on active player count.
 		const povOffset =
 			typeof this.thisPlayer === 'number' ? this.thisPlayer - 1 : 0;
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			// Special-case mappings for certain 4-player POVs
 			// - when thisPlayer === 2 => P1=top, P2=bottom, P3=left, P4=right
 			// - when thisPlayer === 4 => P1=right, P2=left, P3=top,  P4=bottom (viewer)
 			let position: 'top' | 'bottom' | 'left' | 'right' = 'bottom';
-			if (this.activePlayerCount === 4 && this.thisPlayer === 2) {
+			if (this.playerCount === 4 && this.thisPlayer === 2) {
 				const specialMap: ('top' | 'bottom' | 'left' | 'right')[] = [
 					'top',
 					'bottom',
@@ -2076,7 +2106,7 @@ export class Pong3D {
 					'right',
 				];
 				position = specialMap[i] || 'bottom';
-			} else if (this.activePlayerCount === 4 && this.thisPlayer === 4) {
+			} else if (this.playerCount === 4 && this.thisPlayer === 4) {
 				// User requested mapping when viewing as Player 4
 				// P1 -> right, P2 -> left, P3 -> top, P4 -> bottom (viewer)
 				const specialMap: ('top' | 'bottom' | 'left' | 'right')[] = [
@@ -2088,14 +2118,14 @@ export class Pong3D {
 				position = specialMap[i] || 'bottom';
 			} else {
 				const rel =
-					(i - povOffset + this.activePlayerCount) %
-					this.activePlayerCount;
-				if (this.activePlayerCount === 2) {
+					(i - povOffset + this.playerCount) %
+					this.playerCount;
+				if (this.playerCount === 2) {
 					position = rel === 0 ? 'bottom' : 'top';
-				} else if (this.activePlayerCount === 3) {
+				} else if (this.playerCount === 3) {
 					position =
 						rel === 0 ? 'bottom' : rel === 1 ? 'right' : 'left';
-				} else if (this.activePlayerCount === 4) {
+				} else if (this.playerCount === 4) {
 					// Order when POV is player 1: [bottom, top, right, left]
 					position =
 						rel === 0
@@ -2108,7 +2138,7 @@ export class Pong3D {
 				}
 			}
 			// Special-case: in 4-player mode when viewing as Player 3, swap left/right blocks
-			if (this.activePlayerCount === 4 && this.thisPlayer === 3) {
+			if (this.playerCount === 4 && this.thisPlayer === 3) {
 				if (position === 'left') position = 'right';
 				else if (position === 'right') position = 'left';
 			}
@@ -2189,22 +2219,11 @@ export class Pong3D {
 	}
 
 	/** Set active player count (2, 3, or 4) - cannot exceed initial player count */
-	public setActivePlayerCount(count: number): void {
-		const newCount = Math.max(2, Math.min(4, count));
-
-		// Don't allow increasing beyond what was initialized
-		if (newCount > this.initialPlayerCount) {
-			console.warn(
-				`Cannot set active player count to ${newCount}, initialized for ${this.initialPlayerCount} players only`
-			);
-			return;
-		}
-
-		this.activePlayerCount = newCount;
-		console.log('Active player count set to:', this.activePlayerCount);
-
-		// Update UI positioning and visibility for new player count
-		this.positionPlayerInfoBlocks();
+	public setActivePlayerCount(_count: number): void {
+		// Since playerCount determines the court layout, we can't change it after initialization
+		console.warn(
+			`Cannot change player count after initialization. Current player count: ${this.playerCount}`
+		);
 	}
 
 	/** Set player scores and update display */
@@ -2237,7 +2256,7 @@ export class Pong3D {
 		if (this.camera) {
 			const cameraPos = getCameraPosition(
 				this.thisPlayer,
-				this.activePlayerCount,
+				this.playerCount,
 				this.getCameraSettings(),
 				this.local
 			);
@@ -2393,13 +2412,13 @@ export class Pong3D {
 		];
 
 		// Update only active paddles with anti-drift force-based physics
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			const paddle = this.paddles[i];
 			if (!paddle || !paddle.physicsImpostor) continue;
 
 			// Determine movement axis
 			let axis = new BABYLON.Vector3(1, 0, 0);
-			if (this.activePlayerCount === 3) {
+			if (this.playerCount === 3) {
 				// Player 1: 0°, Player 2: 120°, Player 3: 240°
 				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 				axis = new BABYLON.Vector3(
@@ -2407,7 +2426,7 @@ export class Pong3D {
 					0,
 					Math.sin(angles[i])
 				);
-			} else if (this.activePlayerCount === 4) {
+			} else if (this.playerCount === 4) {
 				axis =
 					i >= 2
 						? new BABYLON.Vector3(0, 0, 1)
@@ -2417,7 +2436,7 @@ export class Pong3D {
 
 			// --- AXIS CONSTRAINT: Snap to axis before any movement or rendering ---
 			if (
-				this.activePlayerCount === 3 &&
+				this.playerCount === 3 &&
 				paddle &&
 				paddle.physicsImpostor
 			) {
@@ -2582,7 +2601,7 @@ export class Pong3D {
 				}
 
 				// --- SOFT AXIS CONSTRAINT: Only correct off-axis drift if it exceeds epsilon ---
-				if (this.activePlayerCount === 3) {
+				if (this.playerCount === 3) {
 					const posVec = new BABYLON.Vector3(
 						paddle.position.x,
 						0,
@@ -2632,11 +2651,11 @@ export class Pong3D {
 		this.lastPaddleLog = now;
 		const activePositionsX = this.gameState.paddlePositionsX.slice(
 			0,
-			this.activePlayerCount
+			this.playerCount
 		);
 		const activePositionsY = this.gameState.paddlePositionsY.slice(
 			0,
-			this.activePlayerCount
+			this.playerCount
 		);
 		console.log(
 			'Active paddle positions X:',
@@ -2713,13 +2732,13 @@ export class Pong3D {
 				Math.min(this.PADDLE_RANGE, position)
 			);
 
-			if (this.activePlayerCount === 4 && index >= 2) {
+			if (this.playerCount === 4 && index >= 2) {
 				// 4-player mode: Players 3-4 move on Y-axis
 				this.gameState.paddlePositionsY[index] = clampedPosition;
 				if (this.paddles[index]) {
 					this.paddles[index]!.position.z = clampedPosition;
 				}
-			} else if (this.activePlayerCount === 3) {
+			} else if (this.playerCount === 3) {
 				// 3-player mode: Position represents movement along rotated axis
 				// Player 1: 0°, Player 2: 120°, Player 3: 240°
 				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
@@ -2750,9 +2769,9 @@ export class Pong3D {
 	/** Get individual paddle position */
 	public getPaddlePosition(index: number): number {
 		// Return position from appropriate axis based on player index and mode
-		if (this.activePlayerCount === 4 && index >= 2) {
+		if (this.playerCount === 4 && index >= 2) {
 			return this.gameState.paddlePositionsY[index] || 0;
-		} else if (this.activePlayerCount === 3) {
+		} else if (this.playerCount === 3) {
 			// For 3-player mode, return the position along the rotated axis
 			// Player 1: 0°, Player 2: 120°, Player 3: 240°
 			const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
@@ -2773,9 +2792,9 @@ export class Pong3D {
 	public getPaddlePositions(): number[] {
 		const positions: number[] = [];
 		for (let i = 0; i < 4; i++) {
-			if (this.activePlayerCount === 4 && i >= 2) {
+			if (this.playerCount === 4 && i >= 2) {
 				positions[i] = this.gameState.paddlePositionsY[i];
-			} else if (this.activePlayerCount === 3) {
+			} else if (this.playerCount === 3) {
 				// For 3-player mode, return position along rotated axis
 				// Player 1: 0°, Player 2: 120°, Player 3: 240°
 				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
@@ -2796,12 +2815,12 @@ export class Pong3D {
 		if (positions) {
 			for (
 				let i = 0;
-				i < Math.min(positions.length, this.activePlayerCount);
+				i < Math.min(positions.length, this.playerCount);
 				i++
 			) {
-				if (this.activePlayerCount === 4 && i >= 2) {
+				if (this.playerCount === 4 && i >= 2) {
 					this.gameState.paddlePositionsY[i] = positions[i];
-				} else if (this.activePlayerCount === 3) {
+				} else if (this.playerCount === 3) {
 					// For 3-player mode, position represents movement along rotated axis
 					// Player 1: 0°, Player 2: 120°, Player 3: 240°
 					const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
@@ -2816,19 +2835,19 @@ export class Pong3D {
 			}
 		} else {
 			// Reset active players to center
-			for (let i = 0; i < this.activePlayerCount; i++) {
+			for (let i = 0; i < this.playerCount; i++) {
 				this.gameState.paddlePositionsX[i] = 0;
 				this.gameState.paddlePositionsY[i] = 0;
 			}
 		}
 
 		// Update mesh positions for active players
-		for (let i = 0; i < this.activePlayerCount; i++) {
+		for (let i = 0; i < this.playerCount; i++) {
 			if (this.paddles[i]) {
-				if (this.activePlayerCount === 4 && i >= 2) {
+				if (this.playerCount === 4 && i >= 2) {
 					this.paddles[i]!.position.z =
 						this.gameState.paddlePositionsY[i];
-				} else if (this.activePlayerCount === 3) {
+				} else if (this.playerCount === 3) {
 					this.paddles[i]!.position.x =
 						this.gameState.paddlePositionsX[i];
 					this.paddles[i]!.position.z =
@@ -2878,12 +2897,12 @@ export class Pong3D {
 
 	/** Get active player count */
 	public getActivePlayerCount(): number {
-		return this.activePlayerCount;
+		return this.playerCount;
 	}
 
 	/** Get initial player count (max possible) */
 	public getInitialPlayerCount(): number {
-		return this.initialPlayerCount;
+		return this.playerCount;
 	}
 
 	/** Check if game is in local 2-player mode */
@@ -2893,7 +2912,7 @@ export class Pong3D {
 
 	/** Check if a player index is active */
 	public isPlayerActive(index: number): boolean {
-		return index >= 0 && index < this.activePlayerCount;
+		return index >= 0 && index < this.playerCount;
 	}
 
 	// ============================================================================
@@ -2928,6 +2947,9 @@ export class Pong3D {
 		// Reset rally speed when ball is manually reset
 		this.resetRallySpeed();
 
+		// Reset last player to hit ball
+		this.lastPlayerToHitBall = -1;
+
 		// IMPORTANT: Reset spin to zero on all ball resets
 		this.ballSpin.set(0, 0, 0);
 		this.spinActivationTime = 0;
@@ -2953,6 +2975,12 @@ export class Pong3D {
 			Math.min(100, maxSpeed)
 		); // Clamp between base speed and 100
 		console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+	}
+
+	/** Set winning score needed to end the game */
+	public setWinningScore(score: number): void {
+		this.WINNING_SCORE = Math.max(1, Math.min(100, score)); // Clamp between 1 and 100
+		console.log(`🏆 Winning score set to ${this.WINNING_SCORE} points`);
 	}
 
 	/** Get current rally information */
@@ -3291,8 +3319,8 @@ export function createPong3D(
 	options?: Omit<Pong3DOptions, 'playerCount'>
 ): Pong3D {
 	return new Pong3D(container, {
-		playerCount: state.playerCount,
-		thisPlayer: state.thisPlayer,
+		playerCount: state.playerCount as 2 | 3 | 4,
+		thisPlayer: state.thisPlayer as 1 | 2 | 3 | 4,
 		...options,
 	});
 }
