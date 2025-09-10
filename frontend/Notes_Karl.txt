@@ -212,12 +212,7 @@ LEARNED:
 
 TODO:
 - Add logic to Remote Game creation buttons
-	- API call that joins waiting list
-		- Use get user until the API is ready
-	- logic that checks return
-		- use fake logic for now
-		- if return meets condition: send tournament creation request
-	- already connected to waiting modal
+	- Make second API request API
 - Design tournament screen
 	- add text that says match 1, 2, 3
 	- add scores to each match
@@ -245,6 +240,7 @@ Ask Wouter:
 Will you send WS-Messages to update tournament standings?
 Or should we spam request?
 
+- Install auto format for Helene
 - Add home button for every screen
 - Understand how particles are attached to Frontend
 - Get rid of all the debug warnings that clutter chrome debugger
