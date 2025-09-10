@@ -211,7 +211,6 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Print session storage
 - Add logic to Remote Game creation buttons
 	- API call that joins waiting list
 		- Use get user until the API is ready
@@ -247,7 +246,6 @@ Will you send WS-Messages to update tournament standings?
 Or should we spam request?
 
 - Add home button for every screen
-- Get rid of game options
 - Understand how particles are attached to Frontend
 - Get rid of all the debug warnings that clutter chrome debugger
 - Use function pointers instead of switch statement for WebSocket-Messages
