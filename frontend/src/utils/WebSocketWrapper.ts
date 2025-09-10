@@ -1,13 +1,5 @@
 import {
-	MESSAGE_ACCEPT,
-	MESSAGE_DECLINE,
-	MESSAGE_GAME_STATE,
 	MESSAGE_INITIATE_MATCH,
-	MESSAGE_INITIATE_TOURNAMENT,
-	MESSAGE_MOVE,
-	MESSAGE_PAUSE,
-	MESSAGE_POINT,
-	MESSAGE_QUIT,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -32,9 +24,8 @@ export class WebSocketWrapper {
 		this.address += `?token=${token}`;
 		this.ws = new WebSocket(this.address);
 		this.ws.addEventListener('message', event => this.routeListener(event));
-		// This is for debugging
 		this.ws.addEventListener('close', () => {
-			alert('WebSocket connection closed');
+			console.info('WebSocket connection closed');
 		});
 	}
 
@@ -42,7 +33,6 @@ export class WebSocketWrapper {
 		if (this.ws) {
 			this.ws.close();
 			this.ws = undefined;
-			alert('Websocket connection closed by client');
 		}
 	}
 
@@ -78,52 +68,23 @@ export class WebSocketWrapper {
 			const msg: Message = MessageSchema.parse(raw);
 
 			switch (msg.t) {
-				case MESSAGE_INITIATE_TOURNAMENT:
-					alert('Initiate Tournament: ' + JSON.stringify(msg));
-					break;
-
 				case MESSAGE_INITIATE_MATCH:
-					alert('Initiate Match: ' + JSON.stringify(msg));
+					console.info('Received initiate match message:', msg);
+					document.dispatchEvent(new Event('gameReady'));
 					break;
 
 				case MESSAGE_START_TOURNAMENT:
-					alert('Start Tournament: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_ACCEPT:
-					alert('Accept: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_DECLINE:
-					alert('Decline: ' + JSON.stringify(msg));
+					console.info('Received start tournament message:', msg);
+					location.hash = '#tournament';
 					break;
 
 				case MESSAGE_START:
-					alert('Start: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_PAUSE:
-					alert('Pause: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_QUIT:
-					alert('Quit: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_MOVE:
-					alert('Move: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_GAME_STATE:
-					alert('Game State: ' + JSON.stringify(msg));
-					break;
-
-				case MESSAGE_POINT:
-					alert('Point: ' + JSON.stringify(msg));
+					console.info('Received start message:', msg);
+					location.hash = '#game';
 					break;
 
 				default:
-					console.warn('Unknown message type:', msg);
+					console.warn('Unexpected websocket message received:', msg);
 			}
 		} catch (err) {
 			console.error('Invalid message received:', event.data, err);

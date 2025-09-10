@@ -47,7 +47,5 @@ export class TournamentScreen extends Screen {
 			},
 			buttonContainer
 		);
-
-		void new WaitingModal(this.element);
 	}
 }
