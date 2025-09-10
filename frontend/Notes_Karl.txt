@@ -211,8 +211,6 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Add logic to Remote Game creation buttons
-	- Make second API request API
 - Design tournament screen
 	- add text that says match 1, 2, 3
 	- add scores to each match
@@ -240,6 +238,7 @@ Ask Wouter:
 Will you send WS-Messages to update tournament standings?
 Or should we spam request?
 
+- Make sure there is an easy, consistent strategy for closing and freeing resources
 - Install auto format for Helene
 - Add home button for every screen
 - Understand how particles are attached to Frontend
