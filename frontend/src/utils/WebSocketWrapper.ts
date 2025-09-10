@@ -44,12 +44,12 @@ export class WebSocketWrapper {
 		}
 	}
 
-	send(message: string): void {
+	send(message: Message): void {
 		if (!this.ws) {
 			console.warn('Websocket not opened. Message not sent.');
 			return;
 		}
-		this.ws.send(message);
+		this.ws.send(JSON.stringify(message));
 	}
 
 	public simulateMessage(msg: Message) {

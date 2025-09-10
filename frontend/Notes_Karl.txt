@@ -211,12 +211,7 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Design tournament screen
-	- add text that says match 1, 2, 3
-	- add scores to each match
-	- add start button
-- Make Start Button do something meaningful
-	- probably send message accept via websocket
+- Understand how particles are attached to Frontend
 
 
 Commands to test WebSocket:
@@ -233,19 +228,3 @@ Starting Tournament:
 webSocket.simulateMessage({ t: "st" });
 		- Use case: Fourth player joined tournament wait list
 		- Action: Go to tournament screen
-
-Ask Wouter:
-Will you send WS-Messages to update tournament standings?
-Or should we spam request?
-
-- Make sure there is an easy, consistent strategy for closing and freeing resources
-- Install auto format for Helene
-- Add home button for every screen
-- Understand how particles are attached to Frontend
-- Get rid of all the debug warnings that clutter chrome debugger
-- Use function pointers instead of switch statement for WebSocket-Messages
-- put Macros in shared/constants
-- Restructure frontend files into screen groups?
-- Move global variables to session storage?
-- Ensure proper clean up
-- Make sure vite build works

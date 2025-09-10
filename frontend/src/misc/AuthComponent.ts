@@ -37,6 +37,7 @@ export class AuthComponent {
 
 	private logout() {
 		sessionStorage.removeItem('token');
+		sessionStorage.removeItem('username');
 		webSocket.close();
 		document.dispatchEvent(new CustomEvent('logout-success'));
 		console.info('Logout successful');

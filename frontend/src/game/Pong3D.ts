@@ -148,9 +148,13 @@ export class Pong3D {
 	// Player data - simplified to arrays for uniform handling
 	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helene'];
 	private playerScores: number[] = [0, 0, 0, 0];
-	private activePlayerCount: number = state.playerCount; // Can be 2, 3, or 4
-	private initialPlayerCount: number = state.playerCount; // Set at initialization, cannot be exceeded
-	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
+	private activePlayerCount: number = Number(
+		sessionStorage.getItem('playerCount')
+	); // Can be 2, 3, or 4
+	private initialPlayerCount: number = this.activePlayerCount; // Set at initialization, cannot be exceeded
+	private thisPlayer: number = Number(
+		sessionStorage.getItem('thisPlayer')
+	);
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
 
 	// === GAME PHYSICS CONFIGURATION ===
@@ -3291,8 +3295,8 @@ export function createPong3D(
 	options?: Omit<Pong3DOptions, 'playerCount'>
 ): Pong3D {
 	return new Pong3D(container, {
-		playerCount: state.playerCount,
-		thisPlayer: state.thisPlayer,
+		playerCount: Number(sessionStorage.getItem('PLAYER_COUNT')),
+		thisPlayer: Number(sessionStorage.getItem('THIS_PLAYER')),
 		...options,
 	});
 }
