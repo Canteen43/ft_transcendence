@@ -10,7 +10,6 @@ export const state = {
 	player3Name: 'Helene',
 	player4Name: 'Wouter',
 
-
 	// debug variables
 	normalGameReady: false,
 	startedButtonPressed: false,
