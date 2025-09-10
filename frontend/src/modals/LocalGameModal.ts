@@ -1,9 +1,7 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
-import type { GameOptions } from '../misc/GameOptions';
 import { state } from '../misc/state';
 
-export let gameOptions: GameOptions | null = null;
 
 export class LocalGameModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -22,33 +20,20 @@ export class LocalGameModal extends Modal {
 	}
 
 	private _2_players() {
-		gameOptions = {
-			type: 'local',
-			playerCount: 2,
-			thisPlayer: 1,
-		};
 		state.playerCount = 2;
 		state.thisPlayer = 1;
 		location.hash = '#game';
 	}
 
 	private _3_players() {
-		gameOptions = {
-			type: 'local',
-			playerCount: 3,
-			thisPlayer: 1,
-		};
 		state.playerCount = 3;
 		state.thisPlayer = 1;
 		location.hash = '#game';
 	}
 
 	private _4_players() {
-		gameOptions = {
-			type: 'local',
-			playerCount: 4,
-			thisPlayer: 1,
-		};
+		state.playerCount = 4;
+		state.thisPlayer = 1;
 		location.hash = '#game';
 	}
 }
