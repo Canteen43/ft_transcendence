@@ -31,14 +31,14 @@ export class HomeScreen extends Screen {
 		// LOCAL Play button
 		const localBtn = document.createElement('button');
 		localBtn.textContent = 'LOCAL GAME';
-		localBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:bg-[var(--color3)] transition-all duration-300 shadow-lg';
+		localBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:text-[var(--color1bis)]  hover:border-[var(--color1bis)] transition-all duration-300 shadow-lg';
 		localBtn.onclick = () => new LocalGameModal(this.element);
 		mainButtonContainer.appendChild(localBtn);
 
 		// REMOTE Play button 
 		const remoteBtn = document.createElement('button');
 		remoteBtn.textContent = 'REMOTE GAME';
-		remoteBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:bg-[var(--color3)] transition-all duration-300 shadow-lg';
+		remoteBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:text-[var(--color1bis)] hover:border-[var(--color1bis)] transition-all duration-300 shadow-lg';
 		remoteBtn.onclick = () => this.remoteLogic();
 		mainButtonContainer.appendChild(remoteBtn);
 	}
@@ -54,8 +54,7 @@ export class HomeScreen extends Screen {
 	private createParticlesBackground() {
 		this.particlesContainer = document.createElement('div');
 		this.particlesContainer.id = "tsparticles";
-		
-		// Full viewport particles styling - behind everything
+
 		Object.assign(this.particlesContainer.style, {
 			position: 'fixed',
 			top: '0',

@@ -1,11 +1,14 @@
-import { AuthRequestSchema, AuthResponseSchema } from '../../../shared/schemas/user.ts';
-import { apiCall } from '../utils/apiCall';
-import { webSocket } from '../utils/WebSocketWrapper.ts';
+import { z } from 'zod';
+import {
+	AuthRequestSchema,
+	AuthResponseSchema,
+} from '../../../shared/schemas/user.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
-import { RegisterModal } from './RegisterModal';
+import { apiCall } from '../utils/apiCall';
+import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { ForgottenModal } from './ForgottenModal';
-import { z } from "zod";
+import { RegisterModal } from './RegisterModal';
 
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -14,9 +17,24 @@ export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add('flex', 'flex-col', 'items-center', 'justify-center', 'gap-2', 'p-4');
-		this.UsernameField = this.myCreateInput('text', 'username', 'Enter your username');
-		this.PasswordField = this.myCreateInput('password', 'password', 'Enter your password');
+		this.box.classList.add(
+			'flex',
+			'flex-col',
+			'items-center',
+			'justify-center',
+			'gap-2',
+			'p-4'
+		);
+		this.UsernameField = this.myCreateInput(
+			'text',
+			'username',
+			'Enter your username'
+		);
+		this.PasswordField = this.myCreateInput(
+			'password',
+			'password',
+			'Enter your password'
+		);
 		new Button('Login', () => this.handleLogin(), this.box);
 		this.createLinks(parent);
 	}
@@ -29,15 +47,23 @@ export class LoginModal extends Modal {
 
 		const parseResult = AuthRequestSchema.safeParse(requestData);
 		if (!parseResult.success) {
-			alert("Invalid login format");
-			console.error("Request validation failed:", z.treeifyError(parseResult.error));
+			alert('Invalid login format');
+			console.error(
+				'Request validation failed:',
+				z.treeifyError(parseResult.error)
+			);
 			return;
 		}
 
 		try {
-			const authData = await apiCall("POST", "/users/auth", AuthResponseSchema, requestData);
+			const authData = await apiCall(
+				'POST',
+				'/users/auth',
+				AuthResponseSchema,
+				requestData
+			);
 			if (!authData) {
-				alert("Login unsuccessful");
+				alert('Login unsuccessful');
 				return;
 			}
 			this.login(authData.token);
@@ -45,16 +71,22 @@ export class LoginModal extends Modal {
 		} catch (error) {
 			console.error('Login error:', error);
 		}
+		sessionStorage.setItem('username', username);
+		// TODO: Remove try catch. We already have a try catch inside apiCall
 	}
 
 	private login(token: string) {
-		sessionStorage.setItem("token", token);
+		sessionStorage.setItem('token', token);
 		webSocket.open();
 		document.dispatchEvent(new CustomEvent('login-success'));
-		alert( 'You have been logged in successfully!');
+		console.info('Login successful');
 	}
 
-	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
+	private myCreateInput(
+		type: string,
+		id: string,
+		placeholder: string
+	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
 		input.id = id;
@@ -68,17 +100,19 @@ export class LoginModal extends Modal {
 		// Create a password input
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
-		RegisterLink.className = 'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
+		RegisterLink.className =
+			'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleRegister(parent);
 		this.box.appendChild(RegisterLink);
 		// Create a password input
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
-		ForgotPasswordLink.className = 'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
+		ForgotPasswordLink.className =
+			'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		this.box.appendChild(ForgotPasswordLink);
 	}
-	
+
 	private handleRegister(parent: HTMLElement) {
 		this.destroy();
 		new RegisterModal(parent);

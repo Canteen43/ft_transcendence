@@ -3,8 +3,8 @@ import { LoginModal } from '../modals/LoginModal';
 import { webSocket } from '../utils/WebSocketWrapper';
 
 export function isLoggedIn(): boolean {
-	const token = sessionStorage.getItem("token");
-	return (token != null && token != "");
+	const token = sessionStorage.getItem('token');
+	return token != null && token != '';
 }
 
 export class AuthComponent {
@@ -23,18 +23,23 @@ export class AuthComponent {
 		const userIsLoggedIn = isLoggedIn();
 
 		this.button = new Button(
-			userIsLoggedIn? 'Logout' : 'Login',
-			userIsLoggedIn? () => this.logout() : () => this.showLoginModal() ,
+			userIsLoggedIn ? 'Logout' : 'Login',
+			userIsLoggedIn ? () => this.logout() : () => this.showLoginModal(),
 			this.parent
 		);
-		this.button.element.classList.add('absolute', 'top-4', 'right-4', 'fixed');
+		this.button.element.classList.add(
+			'absolute',
+			'top-4',
+			'right-4',
+			'fixed'
+		);
 	}
 
 	private logout() {
-		sessionStorage.removeItem("token");
+		sessionStorage.removeItem('token');
 		webSocket.close();
 		document.dispatchEvent(new CustomEvent('logout-success'));
-		alert( 'You have been logged out successfully!');
+		console.info('Logout successful');
 	}
 
 	private showLoginModal() {

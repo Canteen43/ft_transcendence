@@ -211,53 +211,46 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-
-- Add thing for simulating webSocket message
-- State variable
-	- add info about all tournament matches
-		- alternatively handle this with API request when window opens
-- Waiting Modal
-	- should display start button on 1v1 version after BE-event has been triggered
-		- How can I simulate BE-event?
-	- make 1v1 version and tournament version
-- Start Button
-- Tournament Element
-	- should not be attached to a screen
-	- should hold info about current Tournament
-- WS-Listening Hook
-	- should change hash to "tournament"
-	- should populate info about current tournament
-- Start Button
-	- should inherit from Button
-	- should say "start"
-	- on click:
-		- send signal to BE
-		- Show Loading Icon
-- Make game read player count correctly
-	- just read from state variable
+- Add logic to Remote Game creation buttons
+	- API call that joins waiting list
+		- Use get user until the API is ready
+	- logic that checks return
+		- use fake logic for now
+		- if return meets condition: send tournament creation request
+	- already connected to waiting modal
+- Design tournament screen
+	- add text that says match 1, 2, 3
+	- add scores to each match
+	- add start button
+- Make Start Button do something meaningful
+	- probably send message accept via websocket
 
 
-Wait for Helene:
-- Push
-- Check that stuff still works
-- Add logic to Remote Game creation modal
-
-
-- How to handle Backend WebSocket messages:
-	- "Start Game"
+Commands to test WebSocket:
+Game Ready:
+webSocket.simulateMessage({ t: "i" });
 		- Use case: Start button clicked by both parties
 		- Action: Go to game screen
-	- "Invite / Game Created"
+Starting Game:
+webSocket.simulateMessage({ t: "s" });
 		- Use case: Second player joined waiting list, Game is ready
 		- Action: Edit WaitingModal to display StartButton
 			- this is harder because Modal will have to be access out of global scope
-	- "Tournament Created"
+Starting Tournament:
+webSocket.simulateMessage({ t: "st" });
 		- Use case: Fourth player joined tournament wait list
 		- Action: Go to tournament screen
 
+Ask Wouter:
+Will you send WS-Messages to update tournament standings?
+Or should we spam request?
 
+- Add home button for every screen
 - Understand how particles are attached to Frontend
-- Get rid of all the debug warnings
+- Get rid of all the debug warnings that clutter chrome debugger
 - Use function pointers instead of switch statement for WebSocket-Messages
 - put Macros in shared/constants
 - Restructure frontend files into screen groups?
+- Move global variables to session storage?
+- Ensure proper clean up
+- Make sure vite build works
