@@ -30,7 +30,7 @@ import { createPong3DUI } from './Pong3DUI';
  * - 4 players → /pong4p.glb
  */
 // export const PLAYER_COUNT: 2 | 3 | 4 = 2;
-export const OVERWRITE_PLAYER_COUNT: 0 | 2 | 3 | 4 = 0;
+export const DEFAULT_PLAYER_COUNT: 0 | 2 | 3 | 4 = 2;
 
 /**
  * Set the default player POV (perspective) for the camera
@@ -145,13 +145,20 @@ export class Pong3D {
 	private uiMovePlayerTo:
 		| ((i: number, pos: 'top' | 'bottom' | 'left' | 'right') => void)
 		| null = null;
+	private uiHandles: any = null; // Store full UI handles for winner display
 
 	// Player data - simplified to arrays for uniform handling
-	private playerNames: string[] = ['Rufus', 'Karl', 'Wouter', 'Helen'];
+	private playerNames: string[] = [state.player1Name, state.player2Name, state.player3Name, state.player4Name];
 	private playerScores: number[] = [0, 0, 0, 0];
 	private playerCount: number = state.playerCount; // Can be 2, 3, or 4
 	private thisPlayer: 1 | 2 | 3 | 4 = 1; // Current player's POV (1 = default camera position)
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
+	private gameEnded: boolean = false; // Flag to track if game has ended (winner declared)
+
+
+
+
+
 
 	// === GAME PHYSICS CONFIGURATION ===
 
@@ -159,6 +166,7 @@ export class Pong3D {
 	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
 	public RALLY_SPEED_INCREMENT_PERCENT = 10; // Percentage speed increase per paddle hit during rally
 	public MAX_BALL_SPEED = 24; // Maximum ball speed to prevent tunneling
+	public WINNING_SCORE = 10; // Points needed to win the game
 	private currentBallSpeed = 12; // Current ball speed (starts at base speed)
 	private rallyHitCount = 0; // Number of paddle hits in current rally
 	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
@@ -298,8 +306,8 @@ export class Pong3D {
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
 		// Overwrite player count if specified
-		if (OVERWRITE_PLAYER_COUNT) {
-			this.playerCount = OVERWRITE_PLAYER_COUNT;
+		if (!state.playerCount) {
+			this.playerCount = DEFAULT_PLAYER_COUNT;
 		}
 		this.thisPlayer = options?.thisPlayer || THIS_PLAYER; // Set POV player (default from constant)
 		this.local = options?.local ?? LOCAL_MODE; // Set local mode (default from constant)
@@ -1360,6 +1368,38 @@ export class Pong3D {
 		this.playerScores[scoringPlayer]++;
 		console.log(`New scores after goal:`, this.playerScores);
 
+		// Check if player has won (configurable winning score)
+		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
+			// Game over! Player wins
+			const playerName = this.playerNames[scoringPlayer] || `Player ${scoringPlayer + 1}`;
+			console.log(`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`);
+			
+			// Show winner UI
+			if (this.uiHandles) {
+				this.uiHandles.showWinner(scoringPlayer, playerName);
+			}
+			
+			// Mark game as ended - ball will continue and exit naturally
+			this.gameEnded = true;
+			
+			// Update the UI with final scores
+			this.updatePlayerInfoDisplay();
+			
+			// Call the goal callback for any additional handling
+			if (this.onGoalCallback) {
+				console.log(`Calling goal callback for game end...`);
+				this.onGoalCallback(scoringPlayer, goalPlayer);
+			}
+			
+			// Reset cooldown and last player tracker - game is over
+			this.lastPlayerToHitBall = -1;
+			this.lastGoalTime = performance.now();
+			
+			// Let the ball continue its natural trajectory and exit bounds
+			console.log(`🏀 Ball will continue and exit naturally - no respawn`);
+			return;
+		}
+
 		console.log(
 			`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`
 		);
@@ -1480,7 +1520,16 @@ export class Pong3D {
 				`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
 			);
 
-			// Reset ball immediately for general out of bounds
+			// Check if game has ended - if so, stop the game loop instead of respawning
+			if (this.gameEnded) {
+				console.log(`🏆 Game ended - stopping game loop, ball will not respawn`);
+				if (this.gameLoop) {
+					this.gameLoop.stop();
+				}
+				return; // Exit without resetting ball
+			}
+
+			// Reset ball immediately for general out of bounds (normal gameplay)
 			if (this.gameLoop) {
 				this.gameLoop.resetBall();
 			}
@@ -1515,16 +1564,30 @@ export class Pong3D {
 
 		if (hitBoundary) {
 			console.log(
-				`🎯 Ball reached boundary after goal! Resetting ball...`
+				`🎯 Ball reached boundary after goal!`
 			);
 
-			// Now reset the ball
+			// Check if game has ended - if so, stop the game loop instead of respawning
+			if (this.gameEnded) {
+				console.log(`🏆 Game ended - stopping game loop, ball will not respawn`);
+				if (this.gameLoop) {
+					this.gameLoop.stop();
+				}
+				return; // Exit without resetting ball
+			}
+
+			console.log(`🔄 Resetting ball for new rally...`);
+
+			// Now reset the ball (normal gameplay)
 			if (this.gameLoop) {
 				this.gameLoop.resetBall();
 			}
 
 			// Reset rally speed system - new rally starts
 			this.resetRallySpeed();
+
+			// Reset last player to hit ball - new rally starts
+			this.lastPlayerToHitBall = -1;
 
 			// Clear the goal state and reset spin
 			this.goalScored = false;
@@ -1941,6 +2004,8 @@ export class Pong3D {
 		this.uiPlayerScoreTexts = handles.playerScoreTexts;
 		this.uiPlayerStacks = handles.playerStacks;
 		this.uiMovePlayerTo = handles.movePlayerTo;
+		// Store full handles for winner display
+		this.uiHandles = handles;
 
 		// Position player info blocks based on active player count and court layout
 		this.positionPlayerInfoBlocks();
@@ -2839,6 +2904,9 @@ export class Pong3D {
 		// Reset rally speed when ball is manually reset
 		this.resetRallySpeed();
 
+		// Reset last player to hit ball
+		this.lastPlayerToHitBall = -1;
+
 		// IMPORTANT: Reset spin to zero on all ball resets
 		this.ballSpin.set(0, 0, 0);
 		this.spinActivationTime = 0;
@@ -2864,6 +2932,12 @@ export class Pong3D {
 			Math.min(100, maxSpeed)
 		); // Clamp between base speed and 100
 		console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+	}
+
+	/** Set winning score needed to end the game */
+	public setWinningScore(score: number): void {
+		this.WINNING_SCORE = Math.max(1, Math.min(100, score)); // Clamp between 1 and 100
+		console.log(`🏆 Winning score set to ${this.WINNING_SCORE} points`);
 	}
 
 	/** Get current rally information */
