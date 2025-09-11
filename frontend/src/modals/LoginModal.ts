@@ -55,24 +55,19 @@ export class LoginModal extends Modal {
 			return;
 		}
 
-		try {
-			const authData = await apiCall(
-				'POST',
-				'/users/auth',
-				AuthResponseSchema,
-				requestData
-			);
-			if (!authData) {
-				alert('Login unsuccessful');
-				return;
-			}
-			this.login(authData.token);
-			this.destroy();
-		} catch (error) {
-			console.error('Login error:', error);
+		const authData = await apiCall(
+			'POST',
+			'/users/auth',
+			AuthResponseSchema,
+			requestData
+		);
+		if (!authData) {
+			alert('Login unsuccessful');
+			return;
 		}
+		this.login(authData.token);
 		sessionStorage.setItem('username', username);
-		// TODO: Remove try catch. We already have a try catch inside apiCall
+		this.destroy();
 	}
 
 	private login(token: string) {
