@@ -68,3 +68,17 @@ export class AuthenticationFailedError extends Error {
 		this.name = 'DatabaseError';
 	}
 }
+
+export class UserAlreadyQueuedError extends Error {
+	constructor(userId: string) {
+		super(`User already in queue: ${userId}`);
+		this.name = 'UserAlreadyQueuedError';
+	}
+}
+
+export class UserNotQueuedError extends Error {
+	constructor(userId: string) {
+		super(`User not in queue: ${userId}`);
+		this.name = 'UserNotQueuedError';
+	}
+}

@@ -7,12 +7,17 @@ import {
 	CreateTournamentApiSchema,
 	FullTournament,
 	FullTournamentSchema,
+	JoinTournament,
+	JoinTournamentSchema,
 	Tournament,
+	TournamentQueue,
+	TournamentQueueSchema,
 	TournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import { UUID, zUUID } from '../../shared/types.js';
 import TournamentService from '../services/tournament_service.js';
 import { routeConfig } from '../utils/http_utils.js';
+import { getAuthData } from '../utils/utils.js';
 
 async function createTournament(
 	request: FastifyRequest<{ Body: CreateTournamentApi }>
@@ -50,6 +55,14 @@ async function getTournament(
 	return result;
 }
 
+async function joinTournament(
+	request: FastifyRequest<{ Body: JoinTournament }>
+): Promise<TournamentQueue> {
+	const authRequest = getAuthData(request);
+	TournamentService.joinQueue(request.body.size, authRequest.user.userId);
+	return TournamentService.getQueue(request.body.size);
+}
+
 export default async function tournamentRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
@@ -62,7 +75,6 @@ export default async function tournamentRoutes(
 		}),
 		getTournament
 	);
-
 	fastify.post(
 		'/',
 		routeConfig({
@@ -70,5 +82,13 @@ export default async function tournamentRoutes(
 			response: TournamentSchema,
 		}),
 		createTournament
+	);
+	fastify.post(
+		'/join',
+		routeConfig({
+			body: JoinTournamentSchema,
+			response: TournamentQueueSchema,
+		}),
+		joinTournament
 	);
 }

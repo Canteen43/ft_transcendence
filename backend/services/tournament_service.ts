@@ -5,6 +5,8 @@ import {
 	DatabaseError,
 	SettingsNotFoundError,
 	TournamentNotFoundError,
+	UserAlreadyQueuedError,
+	UserNotQueuedError,
 } from '../../shared/exceptions.js';
 import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
 import {
@@ -16,6 +18,7 @@ import {
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
+	TournamentQueue,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import { randomInt } from '../../shared/utils.js';
@@ -26,6 +29,29 @@ import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 
 export default class TournamentService {
+	private static tournamentQueues: Map<number, Set<UUID>> = new Map();
+
+	static joinQueue(size: number, userId: UUID) {
+		let queue = this.tournamentQueues.get(size);
+		if (!queue) {
+			queue = new Set<UUID>();
+			this.tournamentQueues.set(size, queue);
+		}
+		if (queue.has(userId)) throw new UserAlreadyQueuedError(userId);
+		queue.add(userId);
+	}
+
+	static leaveQueue(size: number, userId: UUID) {
+		const queue = this.tournamentQueues.get(size);
+		if (!queue || !queue.has(userId)) throw new UserNotQueuedError(userId);
+		queue.delete(userId);
+	}
+
+	static getQueue(size: number): TournamentQueue {
+		const result = this.tournamentQueues.get(size) || new Set();
+		return { queue: [...result] };
+	}
+
 	static getFullTournament(id: UUID): FullTournament | null {
 		const tournament = TournamentRepository.getTournament(id);
 		if (!tournament) throw new TournamentNotFoundError(id);
@@ -64,12 +90,15 @@ export default class TournamentService {
 
 		const createParticipants = this.createParticipants(users);
 		const createMatches = this.createTournamentMatches(users);
-		const { tournament, participants } = TournamentRepository.createFullTournament(
-			createTournament,
-			createParticipants,
-			createMatches
+		const { tournament, participants } =
+			TournamentRepository.createFullTournament(
+				createTournament,
+				createParticipants,
+				createMatches
+			);
+		GameProtocol.getInstance().sendTournamentInvites(
+			participants.filter(p => p.user_id !== creator)
 		);
-		GameProtocol.getInstance().sendTournamentInvites(participants.filter(p => p.user_id !== creator));
 		return tournament;
 	}
 
@@ -86,9 +115,7 @@ export default class TournamentService {
 		return participant;
 	}
 
-	private static createParticipants(
-		users: UUID[]
-	): CreateParticipant[] {
+	private static createParticipants(users: UUID[]): CreateParticipant[] {
 		return users.map(p =>
 			CreateParticipantSchema.parse({
 				user_id: p,
