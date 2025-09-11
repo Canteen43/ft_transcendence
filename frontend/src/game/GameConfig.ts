@@ -7,7 +7,11 @@ export class GameConfig {
 	// Default values
 	private static readonly DEFAULT_PLAYER_COUNT = 2;
 	private static readonly DEFAULT_THIS_PLAYER = 1;
-	private static readonly DEFAULT_GAME_MODE = 'local'; // Team convention: string values
+	private static readonly DEFAULT_GAME_MODE = 'remote'; // Team convention: string values
+
+	// Debug/Logging controls
+	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
+	private static readonly DEFAULT_GAMESTATE_LOGGING = true; // Show gamestate updates even when debug is off
 
 	/**
 	 * Get the global player count from sessionStorage
@@ -122,7 +126,35 @@ export class GameConfig {
 				this.getPlayerName(3),
 				this.getPlayerName(4),
 			],
+			debugLogging: this.isDebugLoggingEnabled(),
+			gamestateLogging: this.isGamestateLoggingEnabled(),
 		};
+	}
+
+	/**
+	 * Debug/Logging control methods
+	 */
+	static isDebugLoggingEnabled(): boolean {
+		const stored = sessionStorage.getItem('debugLogging');
+		return stored === 'true' ? true : this.DEFAULT_DEBUG_LOGGING;
+	}
+
+	static setDebugLogging(enabled: boolean): void {
+		sessionStorage.setItem('debugLogging', enabled.toString());
+		// Only log this change if we're enabling logging or if it was already enabled
+		if (enabled || this.isDebugLoggingEnabled()) {
+			console.log(`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
+		}
+	}
+
+	static isGamestateLoggingEnabled(): boolean {
+		const stored = sessionStorage.getItem('gamestateLogging');
+		return stored === 'false' ? false : this.DEFAULT_GAMESTATE_LOGGING;
+	}
+
+	static setGamestateLogging(enabled: boolean): void {
+		sessionStorage.setItem('gamestateLogging', enabled.toString());
+		console.log(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
 	}
 
 	/**
@@ -137,6 +169,12 @@ export class GameConfig {
 		}
 		if (!sessionStorage.getItem('gameMode')) {
 			this.setGameMode(this.DEFAULT_GAME_MODE);
+		}
+		if (!sessionStorage.getItem('debugLogging')) {
+			this.setDebugLogging(this.DEFAULT_DEBUG_LOGGING);
+		}
+		if (!sessionStorage.getItem('gamestateLogging')) {
+			this.setGamestateLogging(this.DEFAULT_GAMESTATE_LOGGING);
 		}
 
 		console.log('🎮 GameConfig initialized:', this.getGameConfig());
@@ -153,6 +191,8 @@ export class GameConfig {
 		sessionStorage.removeItem('player2Name');
 		sessionStorage.removeItem('player3Name');
 		sessionStorage.removeItem('player4Name');
+		sessionStorage.removeItem('debugLogging');
+		sessionStorage.removeItem('gamestateLogging');
 		console.log('🎮 GameConfig cleared from sessionStorage');
 	}
 }

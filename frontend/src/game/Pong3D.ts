@@ -9,6 +9,8 @@ import * as GUI from '@babylonjs/gui';
 import { GameConfig } from './GameConfig';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
+import { Pong3DGameLoopClient } from './Pong3DGameLoopClient';
+import { Pong3DGameLoopMaster } from './Pong3DGameLoopMaster';
 import { Pong3DInput } from './Pong3DInput';
 import {
 	applyCameraPosition,
@@ -62,10 +64,29 @@ export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
 	private static readonly DEBUG_ENABLED = false;
 
-	// Debug helper method
+	// Debug helper method - now uses GameConfig
 	private debugLog(...args: any[]): void {
-		if (Pong3D.DEBUG_ENABLED) {
+		if (GameConfig.isDebugLoggingEnabled()) {
 			console.log(...args);
+		}
+	}
+
+	// Conditional console methods that respect GameConfig
+	private conditionalLog(...args: any[]): void {
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(...args);
+		}
+	}
+
+	private conditionalWarn(...args: any[]): void {
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.warn(...args);
+		}
+	}
+
+	private conditionalError(...args: any[]): void {
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.error(...args);
 		}
 	}
 
@@ -93,6 +114,20 @@ export class Pong3D {
 			defaultTargetY: this.DEFAULT_CAMERA_TARGET_Y,
 			useGLBOrigin: this.useGLBOrigin,
 		};
+	}
+
+	/** Determine game mode based on GameConfig settings */
+	private getGameMode(): 'local' | 'master' | 'client' {
+		if (GameConfig.isLocalMode()) {
+			return 'local'; // Traditional local multiplayer
+		} else if (GameConfig.isRemoteMode()) {
+			if (GameConfig.getThisPlayer() === 1) {
+				return 'master'; // Player 1 = authoritative server
+			} else {
+				return 'client'; // Players 2-4 = clients
+			}
+		}
+		return 'local'; // Fallback
 	}
 
 	// Lighting configuration (can be overridden via constructor options or setters)
@@ -188,8 +223,13 @@ export class Pong3D {
 	// Input handler
 	private inputHandler: Pong3DInput | null = null;
 
-	// Game loop
-	private gameLoop: Pong3DGameLoop | null = null;
+	// Game loop (different types for local/master/client modes)
+	private gameLoop:
+		| Pong3DGameLoop
+		| Pong3DGameLoopMaster
+		| Pong3DGameLoopClient
+		| null = null;
+	private gameMode: 'local' | 'master' | 'client' = 'local';
 
 	// Ball effects system
 	private ballEffects: Pong3DBallEffects;
@@ -223,7 +263,7 @@ export class Pong3D {
 			case 4:
 				return '/pong4p.glb';
 			default:
-				console.warn(
+				this.conditionalWarn(
 					`Invalid player count ${playerCount}, defaulting to 2 players`
 				);
 				return '/pong2p.glb';
@@ -256,9 +296,11 @@ export class Pong3D {
 		this.camera.keysLeft = [];
 		this.camera.keysRight = [];
 
-		console.log(
-			`Camera set for Player ${this.thisPlayer} POV: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`Camera set for Player ${this.thisPlayer} POV: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}`
+			);
+		}
 	}
 
 	private setupEventListeners(): void {
@@ -316,8 +358,34 @@ export class Pong3D {
 		this.setupCamera();
 		this.setupEventListeners();
 
-		// Initialize game loop
-		this.gameLoop = new Pong3DGameLoop(this.scene);
+		// Determine game mode based on GameConfig
+		this.gameMode = this.getGameMode();
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🎮 Game mode detected: ${this.gameMode} (Player ${this.thisPlayer}, ${GameConfig.getPlayerCount()} players)`
+			);
+		}
+
+		// Initialize appropriate game loop based on mode
+		if (this.gameMode === 'local') {
+			this.gameLoop = new Pong3DGameLoop(this.scene);
+		} else if (this.gameMode === 'master') {
+			this.gameLoop = new Pong3DGameLoopMaster(
+				this.scene,
+				gameState => {
+					this.sendGameStateToClients(gameState);
+				},
+				this
+			);
+		} else if (this.gameMode === 'client') {
+			this.gameLoop = new Pong3DGameLoopClient(
+				this.scene,
+				this.thisPlayer,
+				input => {
+					this.sendInputToMaster(input);
+				}
+			);
+		}
 
 		this.loadModel(modelUrl);
 	}
@@ -332,7 +400,9 @@ export class Pong3D {
 				this.startRenderLoop();
 			},
 			null,
-			(_scene, message) => console.error('Error loading model:', message)
+			(_scene, message) => {
+				this.conditionalError('Error loading model:', message);
+			}
 		);
 	}
 
@@ -352,19 +422,23 @@ export class Pong3D {
 			// Choose camera target: either GLB origin or calculated mesh center
 			if (this.useGLBOrigin) {
 				// GLB origin mode - let the POV module handle the target, don't override it
-				console.log(
-					'Using GLB origin mode - POV module controls target:',
-					this.camera.target
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						'Using GLB origin mode - POV module controls target:',
+						this.camera.target
+					);
+				}
 			} else {
 				// Use calculated mesh center with vertical offset
 				const targetWithY = center.clone();
 				targetWithY.y += this.DEFAULT_CAMERA_TARGET_Y;
 				this.camera.setTarget(targetWithY);
-				console.log(
-					'Using calculated mesh center for camera target:',
-					targetWithY
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						'Using calculated mesh center for camera target:',
+						targetWithY
+					);
+				}
 			}
 
 			// Don't override radius - let getCameraPosition control it
@@ -373,15 +447,17 @@ export class Pong3D {
 			const chosen = Math.max(computedRadius, this.DEFAULT_CAMERA_RADIUS);
 			// this.camera.radius = chosen; // Commented out to allow custom radius per POV
 
-			console.log(
-				'Computed radius:',
-				computedRadius,
-				'Available radius:',
-				chosen,
-				'Using POV radius from getCameraPosition',
-				'Camera target:',
-				this.camera.target
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					'Computed radius:',
+					computedRadius,
+					'Available radius:',
+					chosen,
+					'Using POV radius from getCameraPosition',
+					'Camera target:',
+					this.camera.target
+				);
+			}
 		}
 
 		this.findPaddles(scene);
@@ -393,39 +469,41 @@ export class Pong3D {
 		try {
 			this.setupGui();
 		} catch (e) {
-			console.warn('GUI setup failed:', e);
+			this.conditionalWarn('GUI setup failed:', e);
 		}
 
 		// Reduce intensity of imported lights
 		try {
-			console.log(
-				`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`
-			);
+			// Reduced logging for lights setup
+			// this.conditionalLog(`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`);
 
 			scene.lights.forEach((light, index) => {
-				console.log(`Light ${index + 1}:`, {
-					name: light.name,
-					type: light.getClassName(),
-					intensity: (light as any).intensity,
-					position:
-						light instanceof BABYLON.DirectionalLight ||
-						light instanceof BABYLON.SpotLight
-							? (light as any).position
-							: 'N/A',
-					enabled: light.isEnabled(),
-				});
+				// Reduced light debugging - only log on errors
+				// this.conditionalLog(`Light ${index + 1}:`, {
+				// 	name: light.name,
+				// 	type: light.getClassName(),
+				// 	intensity: (light as any).intensity,
+				// 	position:
+				// 		light instanceof BABYLON.DirectionalLight ||
+				// 		light instanceof BABYLON.SpotLight
+				// 			? (light as any).position
+				// 			: 'N/A',
+				// 	enabled: light.isEnabled(),
+				// });
 
 				if (light && typeof (light as any).intensity === 'number') {
 					(light as any).intensity =
 						(light as any).intensity * this.importedLightScale;
 				}
 			});
-			console.log(
-				'Adjusted imported light intensities by factor',
-				this.importedLightScale
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					'Adjusted imported light intensities by factor',
+					this.importedLightScale
+				);
+			}
 		} catch (e) {
-			console.warn('Could not adjust light intensities:', e);
+			this.conditionalWarn('Could not adjust light intensities:', e);
 		}
 
 		// Setup shadows after lights are adjusted
@@ -435,7 +513,11 @@ export class Pong3D {
 
 		// Auto-start the game loop after everything is loaded
 		if (this.gameLoop) {
-			console.log('🚀 Auto-starting game loop...');
+			if (GameConfig.isDebugLoggingEnabled()) {
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog('🚀 Auto-starting game loop...');
+				}
+			}
 			this.gameLoop.start();
 		}
 	}
@@ -448,8 +530,11 @@ export class Pong3D {
 		const physicsPlugin = new CannonJSPlugin(true, 10, CANNON);
 		this.scene.enablePhysics(gravityVector, physicsPlugin);
 
-		// Ball impostor
-		if (this.ballMesh) {
+		// Ball impostor (for local and master modes - both need physics)
+		if (
+			this.ballMesh &&
+			(this.gameMode === 'local' || this.gameMode === 'master')
+		) {
 			// Simple de-parenting without world transform preservation
 			if (this.ballMesh.parent) {
 				this.ballMesh.parent = null;
@@ -475,7 +560,15 @@ export class Pong3D {
 				this.ballMesh.physicsImpostor.physicsBody.angularDamping = 0;
 			}
 
-			console.log(`Created SphereImpostor for: ${this.ballMesh.name}`);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`Created SphereImpostor for: ${this.ballMesh.name}`
+				);
+			}
+		} else if (this.ballMesh) {
+			this.conditionalLog(
+				`🏐 Skipped physics impostor for ball in ${this.gameMode} mode - using custom physics`
+			);
 		}
 
 		// Capture original paddle positions BEFORE any de-parenting operations
@@ -515,38 +608,46 @@ export class Pong3D {
 				// Check if this is a mesh with geometry
 				if (paddle instanceof BABYLON.Mesh) {
 					const mesh = paddle as BABYLON.Mesh;
-					console.log(
-						`  - Is Mesh: true, hasVertexData: ${mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind) !== null}`
-					);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`  - Is Mesh: true, hasVertexData: ${mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind) !== null}`
+						);
+					}
 
 					// Check if vertices are positioned relative to origin
 					const positions = mesh.getVerticesData(
 						BABYLON.VertexBuffer.PositionKind
 					);
 					if (positions && positions.length >= 6) {
-						console.log(
-							`  - First vertex: (${positions[0]}, ${positions[1]}, ${positions[2]})`
-						);
-						console.log(
-							`  - Second vertex: (${positions[3]}, ${positions[4]}, ${positions[5]})`
-						);
+						if (GameConfig.isDebugLoggingEnabled()) {
+							this.conditionalLog(
+								`  - First vertex: (${positions[0]}, ${positions[1]}, ${positions[2]})`
+							);
+							this.conditionalLog(
+								`  - Second vertex: (${positions[3]}, ${positions[4]}, ${positions[5]})`
+							);
+						}
 					}
 				}
 
 				// Check if there are any transforms in the parent hierarchy
 				if (paddle.parent) {
-					console.log(
-						`  - Checking parent hierarchy for transforms...`
-					);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`  - Checking parent hierarchy for transforms...`
+						);
+					}
 					let currentParent: BABYLON.Node | null = paddle.parent;
 					let level = 0;
 					while (currentParent && level < 3) {
 						if (currentParent instanceof BABYLON.TransformNode) {
 							const transform =
 								currentParent as BABYLON.TransformNode;
-							console.log(
-								`    Parent ${level} (${currentParent.name}): pos(${transform.position.x}, ${transform.position.y}, ${transform.position.z})`
-							);
+							if (GameConfig.isDebugLoggingEnabled()) {
+								this.conditionalLog(
+									`    Parent ${level} (${currentParent.name}): pos(${transform.position.x}, ${transform.position.y}, ${transform.position.z})`
+								);
+							}
 						}
 						currentParent = currentParent.parent;
 						level++;
@@ -559,9 +660,11 @@ export class Pong3D {
 					x: paddle.absolutePosition.x, // Keep X as X
 					z: paddle.absolutePosition.z, // Keep Z as Z
 				};
-				console.log(
-					`  - Stored for game: x=${this.originalGLBPositions[i].x}, z=${this.originalGLBPositions[i].z}`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`  - Stored for game: x=${this.originalGLBPositions[i].x}, z=${this.originalGLBPositions[i].z}`
+					);
+				}
 			}
 		}
 
@@ -596,10 +699,16 @@ export class Pong3D {
 						paddle.rotationQuaternion!.multiply(yRotation);
 				}
 
-				console.log(`Paddle ${paddleIndex + 1} AFTER positioning:`);
-				console.log(
-					`  - Game position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`Paddle ${paddleIndex + 1} AFTER positioning:`
+						);
+					}
+					this.conditionalLog(
+						`  - Game position: x=${paddle.position.x}, y=${paddle.position.y}, z=${paddle.position.z}`
+					);
+				}
 
 				paddle.physicsImpostor = new BABYLON.PhysicsImpostor(
 					paddle,
@@ -651,7 +760,11 @@ export class Pong3D {
 					}
 				}
 
-				console.log(`Created DYNAMIC BoxImpostor for: ${paddle.name}`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`Created DYNAMIC BoxImpostor for: ${paddle.name}`
+					);
+				}
 			}
 		});
 
@@ -668,13 +781,13 @@ export class Pong3D {
 				mesh.isVisible &&
 				mesh.getTotalVertices() > 0
 			) {
-				console.log(
+				this.conditionalLog(
 					`Creating physics for wall mesh: ${mesh.name} (parent: ${mesh.parent ? mesh.parent.name : 'none'})`
 				);
-				console.log(
+				this.conditionalLog(
 					`  - Position: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`
 				);
-				console.log(
+				this.conditionalLog(
 					`  - World position: x=${mesh.absolutePosition.x}, y=${mesh.absolutePosition.y}, z=${mesh.absolutePosition.z}`
 				);
 
@@ -695,7 +808,7 @@ export class Pong3D {
 					mesh.rotationQuaternion = rotationQuaternion;
 					mesh.scaling = scaling;
 
-					console.log(
+					this.conditionalLog(
 						`  - De-parented and repositioned to: x=${mesh.position.x}, y=${mesh.position.y}, z=${mesh.position.z}`
 					);
 				}
@@ -706,14 +819,17 @@ export class Pong3D {
 					{ mass: 0, restitution: 0.95, friction: 0.1 }, // Slightly reduce restitution and add minimal friction
 					this.scene
 				);
-				console.log(
+				this.conditionalLog(
 					`Created static MeshImpostor for wall: ${mesh.name}`
 				);
 			}
 		});
 
-		// Set up goal collision detection AFTER all impostors are created
-		if (this.ballMesh?.physicsImpostor) {
+		// Set up collision detection for local AND master modes (both need full game logic)
+		if (
+			this.ballMesh?.physicsImpostor &&
+			(this.gameMode === 'local' || this.gameMode === 'master')
+		) {
 			const paddleImpostors = this.paddles
 				.filter(p => p && p.physicsImpostor)
 				.map(p => p!.physicsImpostor!);
@@ -725,7 +841,7 @@ export class Pong3D {
 						this.handleBallPaddleCollision(main, collided);
 					}
 				);
-				console.log(
+				this.conditionalLog(
 					`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`
 				);
 			}
@@ -748,13 +864,17 @@ export class Pong3D {
 						this.handleBallWallCollision(main, collided);
 					}
 				);
-				console.log(
+				this.conditionalLog(
 					`Set up ball-wall collision detection for ${wallImpostors.length} walls`
 				);
 			}
 
 			// Set up manual goal detection
 			this.setupManualGoalDetection();
+		} else if (this.gameMode !== 'local') {
+			this.conditionalLog(
+				`🎮 Skipped collision detection setup in ${this.gameMode} mode - using custom physics`
+			);
 		}
 	}
 
@@ -769,7 +889,7 @@ export class Pong3D {
 		// TEMPORARILY DISABLED: Collision debouncing to test stability
 		// const currentTime = Date.now();
 		// if (currentTime - this.lastCollisionTime < this.COLLISION_DEBOUNCE_MS) {
-		// 	console.log(`🚫 Collision debounced - too soon after last collision`);
+		// 	this.conditionalLog(`🚫 Collision debounced - too soon after last collision`);
 		// 	return;
 		// }
 		// this.lastCollisionTime = currentTime;
@@ -787,9 +907,11 @@ export class Pong3D {
 		if (paddleIndex === -1) return; // Unknown paddle
 
 		// Track which player last hit the ball
-		console.log(`🏓 Ball hit by Player ${paddleIndex + 1}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(`🏓 Ball hit by Player ${paddleIndex + 1}`);
+		}
 		this.lastPlayerToHitBall = paddleIndex;
-		console.log(
+		this.conditionalLog(
 			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}`
 		);
 
@@ -836,7 +958,7 @@ export class Pong3D {
 			}
 		}
 
-		console.log(
+		this.conditionalLog(
 			`🎯 Using final normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
 		);
 
@@ -852,7 +974,7 @@ export class Pong3D {
 		const ballDirection = relativePos.normalize();
 		if (BABYLON.Vector3.Dot(paddleNormal, ballDirection) < 0) {
 			paddleNormal = paddleNormal.negate();
-			console.log(
+			this.conditionalLog(
 				`🔄 Flipped normal to point toward ball: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
 			);
 		}
@@ -863,7 +985,7 @@ export class Pong3D {
 			const maxXOffset =
 				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
 			if (Math.abs(relativePos.x) > maxXOffset) {
-				console.log(
+				this.conditionalLog(
 					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`
 				);
 				return; // Ignore edge collisions
@@ -874,7 +996,7 @@ export class Pong3D {
 			const maxZOffset =
 				(paddleBounds.maximum.z - paddleBounds.minimum.z) * 0.6; // Same as 2P X-offset
 			if (Math.abs(relativePos.z) > maxZOffset) {
-				console.log(
+				this.conditionalLog(
 					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (4P Z-axis check)`
 				);
 				return; // Ignore edge collisions
@@ -908,7 +1030,7 @@ export class Pong3D {
 				// Player 3 (240°) - upper right
 				paddleAxis = new BABYLON.Vector3(-0.5, 0, 0.866); // Perpendicular to facing direction
 			}
-			console.log(
+			this.conditionalLog(
 				`🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`
 			);
 		} else if (this.playerCount === 4) {
@@ -936,12 +1058,14 @@ export class Pong3D {
 		const hasPaddleVelocity =
 			Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
 
-		console.log(
-			`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`
-		);
-		console.log(
-			`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`
+			);
+			this.conditionalLog(
+				`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`
+			);
+		}
 
 		let axisNote = '';
 		if (this.playerCount === 2 && paddleIndex === 1)
@@ -949,22 +1073,24 @@ export class Pong3D {
 		else if (this.playerCount === 3) axisNote = '[Facing center]';
 		else if (this.playerCount === 4) axisNote = '[P3/P4 side paddles]';
 
-		console.log(
-			`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
-		);
-		console.log(
-			`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlongAxis).toFixed(3)}`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
+			);
+			this.conditionalLog(
+				`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlongAxis).toFixed(3)}`
+			);
+		}
 
 		// 🚨 DEBUG: Extra logging for 4P mode paddle detection
 		if (this.playerCount === 4) {
-			console.log(
+			this.conditionalLog(
 				`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`
 			);
-			console.log(
+			this.conditionalLog(
 				`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlongAxis.toFixed(3)}`
 			);
-			console.log(
+			this.conditionalLog(
 				`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`
 			);
 		}
@@ -985,12 +1111,14 @@ export class Pong3D {
 		let finalDirection: BABYLON.Vector3;
 
 		// ====== DEBUG: Verify we're detecting the right mode ======
-		console.log(
-			`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
-		);
-		console.log(
-			`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
+			);
+			this.conditionalLog(
+				`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`
+			);
+		}
 
 		if (hasPaddleVelocity) {
 			// MOVING PADDLE: Return angle directly proportional to velocity
@@ -1005,31 +1133,47 @@ export class Pong3D {
 				Math.min(this.ANGULAR_RETURN_LIMIT, velocityBasedAngle)
 			);
 
-			console.log(
-				`🚨 velocityBasedAngle = ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° (after clamping)`
-			);
-			console.log(`🎯 MOVING PADDLE ANGULAR EFFECT:`);
-			console.log(
-				`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
-			);
-			console.log(
-				`  - Ball deflects IN SAME DIRECTION as paddle movement`
-			);
-			console.log(
-				`  - Return angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`
-			);
-			console.log(
-				`  - Angular return limit: ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🚨 velocityBasedAngle = ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° (after clamping)`
+				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(`🎯 MOVING PADDLE ANGULAR EFFECT:`);
+					}
+				}
+				this.conditionalLog(
+					`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
+				);
+			}
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`  - Ball deflects IN SAME DIRECTION as paddle movement`
+				);
+				this.conditionalLog(
+					`  - Return angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`
+				);
+				this.conditionalLog(
+					`  - Angular return limit: ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+				);
+			}
 
 			// 🚨 DEBUG: Extra logging for 4P mode
 			if (this.playerCount === 4) {
-				console.log(`🚨🚨🚨 4P MODE MOVING PADDLE DETECTED! 🚨🚨🚨`);
-				console.log(
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚨🚨🚨 4P MODE MOVING PADDLE DETECTED! 🚨🚨🚨`
+					);
+				}
+				this.conditionalLog(
 					`🚨 Player ${paddleIndex + 1} velocity: ${paddleVelAlongAxis.toFixed(3)}`
 				);
-				console.log(`🚨 Velocity ratio: ${velocityRatio.toFixed(3)}`);
-				console.log(
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚨 Velocity ratio: ${velocityRatio.toFixed(3)}`
+					);
+				}
+				this.conditionalLog(
 					`🚨 Calculated angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
 				);
 			}
@@ -1046,13 +1190,19 @@ export class Pong3D {
 					paddleNormal,
 					rotationMatrix
 				).normalize();
-				console.log(`🎯 2P Mode: Y-axis rotation applied`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`🎯 2P Mode: Y-axis rotation applied`
+						);
+					}
+				}
 			} else if (this.playerCount === 3) {
 				// 3-PLAYER MODE: Use same Y-axis rotation as 2P mode but adjust angle for paddle orientation
-				console.log(
+				this.conditionalLog(
 					`🚨🚨🚨 3P Mode: EXECUTING 3P PHYSICS CODE PATH! 🚨🚨🚨`
 				);
-				console.log(
+				this.conditionalLog(
 					`🎯 3P Mode: Paddle ${paddleIndex + 1} at ${paddleIndex * 120}° - using proven 2P physics`
 				);
 
@@ -1061,7 +1211,7 @@ export class Pong3D {
 				if (paddleIndex === 1 || paddleIndex === 2) {
 					// Players 2 and 3
 					adjustedAngle = -velocityBasedAngle; // Flip the angle direction
-					console.log(
+					this.conditionalLog(
 						`🔄 3P Mode: Flipped angle for Player ${paddleIndex + 1} from ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° to ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
 					);
 				}
@@ -1076,26 +1226,30 @@ export class Pong3D {
 					rotationMatrix
 				).normalize();
 
-				console.log(
+				this.conditionalLog(
 					`🚨 3P Mode: Y-axis rotation applied - angle: ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
 				);
-				console.log(
+				this.conditionalLog(
 					`🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
 				);
-				console.log(
+				this.conditionalLog(
 					`🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`
 				);
 			} else if (this.playerCount === 4) {
 				// 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation
 				// Side paddles deflect ball along Z-axis using X-axis rotation (same effect as 2P Y-axis rotation)
-				console.log(`🚨🚨🚨 4P MODE ANGULAR EFFECTS EXECUTING! 🚨🚨🚨`);
-				console.log(
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚨🚨🚨 4P MODE ANGULAR EFFECTS EXECUTING! 🚨🚨🚨`
+					);
+				}
+				this.conditionalLog(
 					`🚨 Player ${paddleIndex + 1}, original velocityBasedAngle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
 				);
 
 				// Flip the angle direction for side paddles to correct the direction
 				const flippedAngle = -velocityBasedAngle;
-				console.log(
+				this.conditionalLog(
 					`🔄 4P Mode: Flipped angle for side paddle from ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° to ${((flippedAngle * 180) / Math.PI).toFixed(1)}°`
 				);
 
@@ -1109,16 +1263,20 @@ export class Pong3D {
 					rotationMatrix
 				).normalize();
 
-				console.log(
+				this.conditionalLog(
 					`🎯 4P Mode: Y-axis rotation applied for side paddles P3/P4 (keeps ball in XZ plane)`
 				);
-				console.log(
+				this.conditionalLog(
 					`🚨 Paddle normal before: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
 				);
-				console.log(
+				this.conditionalLog(
 					`🚨 Final direction after: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
 				);
-				console.log(`🚨🚨🚨 4P MODE ANGULAR EFFECTS COMPLETE! 🚨🚨🚨`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚨🚨🚨 4P MODE ANGULAR EFFECTS COMPLETE! 🚨🚨🚨`
+					);
+				}
 			} else {
 				// FALLBACK: Default to 2P behavior for unknown player counts
 				const rotationAxis = BABYLON.Vector3.Up();
@@ -1130,7 +1288,7 @@ export class Pong3D {
 					paddleNormal,
 					rotationMatrix
 				).normalize();
-				console.log(
+				this.conditionalLog(
 					`🎯 ${this.playerCount}P Mode: Using 2P physics (fallback)`
 				);
 			}
@@ -1147,17 +1305,23 @@ export class Pong3D {
 				paddleNormal.scale(2 * dotProduct)
 			);
 
-			console.log(`🎯 STATIONARY PADDLE REFLECTION:`);
-			console.log(
+			if (GameConfig.isDebugLoggingEnabled()) {
+				if (GameConfig.isDebugLoggingEnabled()) {
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(`🎯 STATIONARY PADDLE REFLECTION:`);
+					}
+				}
+			}
+			this.conditionalLog(
 				`  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`
 			);
-			console.log(
+			this.conditionalLog(
 				`  - Paddle normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
 			);
-			console.log(
+			this.conditionalLog(
 				`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
 			);
-			console.log(
+			this.conditionalLog(
 				`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
 			);
 			// Check the OUTGOING angle (reflection angle from normal)
@@ -1167,21 +1331,25 @@ export class Pong3D {
 			);
 			const outgoingAngleFromNormal = Math.acos(Math.abs(reflectionDot));
 
-			console.log(
+			this.conditionalLog(
 				`  - Perfect reflection angle from normal: ${((outgoingAngleFromNormal * 180) / Math.PI).toFixed(1)}°`
 			);
-			console.log(
+			this.conditionalLog(
 				`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
 			);
 
 			// === STANDARD REFLECTION LOGIC (works for all modes) ===
 			if (outgoingAngleFromNormal <= this.ANGULAR_RETURN_LIMIT) {
 				// Perfect reflection is within angular limits - use it
-				console.log(`✅ Using perfect reflection (within limits)`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`✅ Using perfect reflection (within limits)`
+					);
+				}
 				finalDirection = perfectReflection.normalize();
 			} else {
 				// Perfect reflection exceeds angular limit - clamp it
-				console.log(
+				this.conditionalLog(
 					`🔒 Clamping reflection: ${((outgoingAngleFromNormal * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
 				);
 
@@ -1211,16 +1379,16 @@ export class Pong3D {
 				const clampedAngle = Math.acos(
 					Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))
 				);
-				console.log(
+				this.conditionalLog(
 					`🔒 Actual clamped angle: ${((clampedAngle * 180) / Math.PI).toFixed(1)}°`
 				);
 			}
 		}
 
-		console.log(
+		this.conditionalLog(
 			`🎯 Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
 		);
-		console.log(
+		this.conditionalLog(
 			`🎯 Final angle from normal: ${((Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))) * 180) / Math.PI).toFixed(1)}°`
 		);
 
@@ -1265,14 +1433,14 @@ export class Pong3D {
 				);
 			}
 
-			console.log(
+			this.conditionalLog(
 				`🔧 Position correction applied: ${correctionDistance.toFixed(3)} units along normal`
 			);
-			console.log(
+			this.conditionalLog(
 				`🔧 Ball moved from (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)}) to (${this.ballMesh.position.x.toFixed(3)}, ${this.ballMesh.position.y.toFixed(3)}, ${this.ballMesh.position.z.toFixed(3)})`
 			);
 		} else {
-			console.log(
+			this.conditionalLog(
 				`🔧 No position correction needed - current distance: ${currentDistance.toFixed(3)}, minimum: ${minSeparation.toFixed(3)}`
 			);
 		}
@@ -1281,37 +1449,45 @@ export class Pong3D {
 			this.ballEffects.applySpinFromPaddle(paddleVelocity);
 		} else {
 			// Stationary paddle - no new spin added, but preserve existing spin
-			console.log(`🌪️ Stationary paddle - preserving existing spin`);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🌪️ Stationary paddle - preserving existing spin`
+				);
+			}
 		}
 		if (this.debugPaddleLogging || this.playerCount === 3) {
-			console.log(
+			this.conditionalLog(
 				`Ball-Paddle Collision: Player ${paddleIndex + 1} (${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle)`
 			);
 			if (this.playerCount === 3) {
 				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
-				console.log(
+				this.conditionalLog(
 					`  - Paddle angle: ${((angles[paddleIndex] * 180) / Math.PI).toFixed(1)}°`
 				);
-				console.log(
+				this.conditionalLog(
 					`  - Paddle normal: (${paddleNormal.x.toFixed(2)}, ${paddleNormal.z.toFixed(2)})`
 				);
 			}
-			console.log(
+			this.conditionalLog(
 				`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`
 			);
 			if (hasPaddleVelocity) {
 				const velocityBasedAngle =
 					velocityRatio * this.ANGULAR_RETURN_LIMIT;
-				console.log(
+				this.conditionalLog(
 					`  - Velocity-based angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
 				);
 			} else {
-				console.log(`  - Using reflection with angular limit`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`  - Using reflection with angular limit`
+					);
+				}
 			}
-			console.log(
+			this.conditionalLog(
 				`  - Final direction: (${finalDirection.x.toFixed(2)}, ${finalDirection.z.toFixed(2)})`
 			);
-			console.log(
+			this.conditionalLog(
 				`  - New velocity: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`
 			);
 		}
@@ -1340,7 +1516,7 @@ export class Pong3D {
 
 		this.lastWallCollisionTime = currentTime;
 
-		console.log(
+		this.conditionalLog(
 			`🧱 Ball-Wall Collision detected (count: ${this.wallCollisionCount})`
 		);
 
@@ -1360,7 +1536,7 @@ export class Pong3D {
 
 				// If too many rapid wall collisions, apply velocity damping
 				if (this.wallCollisionCount > 3) {
-					console.log(
+					this.conditionalLog(
 						`🚫 Rapid wall collisions detected - applying velocity damping`
 					);
 					const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
@@ -1373,18 +1549,22 @@ export class Pong3D {
 		// For realistic physics, some spin energy is lost
 		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
 
-		console.log(
+		this.conditionalLog(
 			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballEffects.getBallSpin().y.toFixed(2)}`
 		);
 	}
 
 	private handleGoalCollision(goalIndex: number): void {
-		console.log(`🏆 GOAL COLLISION DETECTED! Goal index: ${goalIndex}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🏆 GOAL COLLISION DETECTED! Goal index: ${goalIndex}`
+			);
+		}
 
 		// Check cooldown to prevent multiple triggers
 		const currentTime = performance.now();
 		if (currentTime - this.lastGoalTime < this.GOAL_COOLDOWN_MS) {
-			console.log(`Goal on cooldown, ignoring collision`);
+			this.conditionalLog(`Goal on cooldown, ignoring collision`);
 			return;
 		}
 
@@ -1393,25 +1573,27 @@ export class Pong3D {
 		const scoringPlayer = this.lastPlayerToHitBall;
 		const goalPlayer = goalIndex;
 
-		console.log(`Last player to hit ball: ${scoringPlayer}`);
-		console.log(`Goal player (conceding): ${goalPlayer}`);
-		console.log(`Current scores before goal:`, this.playerScores);
+		this.conditionalLog(`Last player to hit ball: ${scoringPlayer}`);
+		this.conditionalLog(`Goal player (conceding): ${goalPlayer}`);
+		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
 		if (scoringPlayer === -1) {
-			console.warn('Goal detected but no player has hit the ball yet');
+			this.conditionalWarn(
+				'Goal detected but no player has hit the ball yet'
+			);
 			return;
 		} // Prevent scoring against yourself (in case of weird physics)
 		if (scoringPlayer === goalPlayer) {
-			console.warn(
+			this.conditionalWarn(
 				`Player ${scoringPlayer + 1} hit their own goal - no score`
 			);
 			return;
 		}
 
 		// Award point to the scoring player
-		console.log(`Awarding point to player ${scoringPlayer}...`);
+		this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
 		this.playerScores[scoringPlayer]++;
-		console.log(`New scores after goal:`, this.playerScores);
+		this.conditionalLog(`New scores after goal:`, this.playerScores);
 
 		// Check if player has won (configurable winning score)
 		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
@@ -1419,7 +1601,7 @@ export class Pong3D {
 			const playerName =
 				this.playerNames[scoringPlayer] ||
 				`Player ${scoringPlayer + 1}`;
-			console.log(
+			this.conditionalLog(
 				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
 			);
 
@@ -1436,7 +1618,7 @@ export class Pong3D {
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
-				console.log(`Calling goal callback for game end...`);
+				this.conditionalLog(`Calling goal callback for game end...`);
 				this.onGoalCallback(scoringPlayer, goalPlayer);
 			}
 
@@ -1445,30 +1627,30 @@ export class Pong3D {
 			this.lastGoalTime = performance.now();
 
 			// Let the ball continue its natural trajectory and exit bounds
-			console.log(
+			this.conditionalLog(
 				`🏀 Ball will continue and exit naturally - no respawn`
 			);
 			return;
 		}
 
-		console.log(
+		this.conditionalLog(
 			`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`
 		);
-		console.log(
+		this.conditionalLog(
 			`Score: ${this.playerScores.map((score, i) => `P${i + 1}: ${score}`).join(', ')}`
 		);
 
 		// Update the UI
-		console.log(`Updating UI display...`);
+		this.conditionalLog(`Updating UI display...`);
 		this.updatePlayerInfoDisplay();
-		console.log(`UI update completed`);
+		this.conditionalLog(`UI update completed`);
 
 		// Call the goal callback if set
 		if (this.onGoalCallback) {
-			console.log(`Calling goal callback...`);
+			this.conditionalLog(`Calling goal callback...`);
 			this.onGoalCallback(scoringPlayer, goalPlayer);
 		} else {
-			console.log(`No goal callback set`);
+			this.conditionalLog(`No goal callback set`);
 		}
 
 		// Instead of immediately resetting the ball, let it continue to the boundary
@@ -1476,7 +1658,7 @@ export class Pong3D {
 		this.goalScored = true;
 		this.pendingGoalData = { scoringPlayer, goalPlayer };
 
-		console.log(
+		this.conditionalLog(
 			`🚀 Goal scored! Ball will continue to boundary before reset...`
 		);
 
@@ -1486,7 +1668,11 @@ export class Pong3D {
 	}
 
 	private setupManualGoalDetection(): void {
-		console.log(`🔧 Setting up manual goal detection as backup...`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🔧 Setting up manual goal detection as backup...`
+			);
+		}
 
 		// This will be called every frame to check for goal collisions manually
 		this.scene.registerBeforeRender(() => {
@@ -1494,7 +1680,7 @@ export class Pong3D {
 		});
 	}
 
-	private checkManualGoalCollisions(): void {
+	public checkManualGoalCollisions(): void {
 		if (!this.ballMesh) return;
 
 		const ballPosition = this.ballMesh.position;
@@ -1531,9 +1717,11 @@ export class Pong3D {
 				// Debug: Periodically log goal checking (every 60 frames ~ 1 second)
 				if (Math.random() < 0.016) {
 					// ~1/60 chance
-					console.log(
-						`🔍 Checking goal ${index + 1} (${goal.name}) for ball collision...`
-					);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`🔍 Checking goal ${index + 1} (${goal.name}) for ball collision...`
+						);
+					}
 				}
 
 				// Get goal bounding box
@@ -1551,9 +1739,11 @@ export class Pong3D {
 					ballPosition.z <= goalMax.z;
 
 				if (isInside) {
-					console.log(
-						`🎯 Manual goal detection: Ball inside Goal ${index + 1} (${goal.name})!`
-					);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`🎯 Manual goal detection: Ball inside Goal ${index + 1} (${goal.name})!`
+						);
+					}
 					this.handleGoalCollision(index);
 				}
 			});
@@ -1567,13 +1757,13 @@ export class Pong3D {
 			Math.abs(ballPosition.z) > this.outOfBoundsDistance;
 
 		if (isOutOfBounds) {
-			console.log(
+			this.conditionalLog(
 				`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
 			);
 
 			// Check if game has ended - if so, stop the game loop instead of respawning
 			if (this.gameEnded) {
-				console.log(
+				this.conditionalLog(
 					`🏆 Game ended - stopping game loop, ball will not respawn`
 				);
 				if (this.gameLoop) {
@@ -1594,7 +1784,7 @@ export class Pong3D {
 			this.goalScored = false;
 			this.pendingGoalData = null;
 
-			console.log(`⚡ Ball reset due to out of bounds`);
+			this.conditionalLog(`⚡ Ball reset due to out of bounds`);
 		}
 	}
 	private checkBoundaryCollisionAfterGoal(
@@ -1613,11 +1803,13 @@ export class Pong3D {
 			ballPosition.x >= this.boundsXMax - margin;
 
 		if (hitBoundary) {
-			console.log(`🎯 Ball reached boundary after goal!`);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(`🎯 Ball reached boundary after goal!`);
+			}
 
 			// Check if game has ended - if so, stop the game loop instead of respawning
 			if (this.gameEnded) {
-				console.log(
+				this.conditionalLog(
 					`🏆 Game ended - stopping game loop, ball will not respawn`
 				);
 				if (this.gameLoop) {
@@ -1626,7 +1818,7 @@ export class Pong3D {
 				return; // Exit without resetting ball
 			}
 
-			console.log(`🔄 Resetting ball for new rally...`);
+			this.conditionalLog(`🔄 Resetting ball for new rally...`);
 
 			// Now reset the ball (normal gameplay)
 			if (this.gameLoop) {
@@ -1644,24 +1836,24 @@ export class Pong3D {
 			this.pendingGoalData = null;
 			this.ballEffects.resetAllEffects();
 
-			console.log(`⚡ Ball reset completed after boundary collision`);
+			this.conditionalLog(
+				`⚡ Ball reset completed after boundary collision`
+			);
 		}
 	}
 
 	private setupShadowSystem(scene: BABYLON.Scene): void {
-		console.log('🌟 Setting up shadow system...');
+		// Reduced logging for shadow system setup
+		// this.conditionalLog('🌟 Setting up shadow system...');
 
 		try {
-			console.log(
-				`🔍 Shadow Debug: Total lights in scene: ${scene.lights.length}`
-			);
+			// Reduced shadow debug logging
+			// this.conditionalLog(`🔍 Shadow Debug: Total lights in scene: ${scene.lights.length}`);
 
-			// Debug: Show all lights and their names
-			scene.lights.forEach((light, index) => {
-				console.log(
-					`Light ${index + 1}: "${light.name}" (${light.getClassName()})`
-				);
-			});
+			// Debug: Show all lights and their names - commented out for performance
+			// scene.lights.forEach((light, index) => {
+			// 	this.conditionalLog(`Light ${index + 1}: "${light.name}" (${light.getClassName()})`);
+			// });
 
 			// Find lights with "light" in their name (Light, Light.001, Light.002, etc.)
 			const shadowCastingLights = scene.lights.filter(light => {
@@ -1671,20 +1863,20 @@ export class Pong3D {
 					light instanceof BABYLON.DirectionalLight ||
 					light instanceof BABYLON.SpotLight;
 
-				console.log(
+				this.conditionalLog(
 					`🔍 Checking light "${light.name}": hasLight=${hasLight}, isValidType=${isValidType} (${light.getClassName()})`
 				);
 
 				return hasLight && isValidType;
 			});
 
-			console.log(
+			this.conditionalLog(
 				`🔍 Found ${shadowCastingLights.length} suitable lights for shadows`
 			);
 
 			if (shadowCastingLights.length === 0) {
 				console.warn('❌ No suitable lights found for shadow casting');
-				console.log(
+				this.conditionalLog(
 					'💡 Make sure your GLB has lights with "light" in the name and they are SpotLight or DirectionalLight type'
 				);
 				return;
@@ -1692,7 +1884,7 @@ export class Pong3D {
 
 			// Setup shadow generators for each light
 			shadowCastingLights.forEach(light => {
-				console.log(
+				this.conditionalLog(
 					`✅ Setting up shadow generator for light: ${light.name} (${light.getClassName()})`
 				);
 
@@ -1705,7 +1897,7 @@ export class Pong3D {
 				// Add ball as shadow caster
 				if (this.ballMesh) {
 					shadowGenerator.addShadowCaster(this.ballMesh);
-					console.log(
+					this.conditionalLog(
 						`✅ Added ball as shadow caster for ${light.name}`
 					);
 				} else {
@@ -1725,15 +1917,17 @@ export class Pong3D {
 				return name.includes('court') || name.includes('wall');
 			});
 
-			console.log(
+			this.conditionalLog(
 				`🔍 Found ${shadowReceivers.length} shadow receiver meshes:`
 			);
 			shadowReceivers.forEach(mesh => {
 				mesh.receiveShadows = true;
-				console.log(`✅ Enabled shadow receiving for: ${mesh.name}`);
+				this.conditionalLog(
+					`✅ Enabled shadow receiving for: ${mesh.name}`
+				);
 			});
 
-			console.log(
+			this.conditionalLog(
 				`🎉 Shadow system setup complete: ${shadowCastingLights.length} lights, ${shadowReceivers.length} receivers`
 			);
 		} catch (error) {
@@ -1805,13 +1999,15 @@ export class Pong3D {
 
 		// Log what we found
 		const foundPaddles = this.paddles.filter(p => p !== null);
-		console.log(
-			`Found ${foundPaddles.length}/${this.playerCount} expected paddles:`,
-			foundPaddles.map(p => p?.name)
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`Found ${foundPaddles.length}/${this.playerCount} expected paddles:`,
+				foundPaddles.map(p => p?.name)
+			);
+		}
 
 		if (foundPaddles.length === 0) {
-			console.warn('No paddle meshes found in the scene!');
+			this.conditionalWarn('No paddle meshes found in the scene!');
 			return;
 		}
 
@@ -1855,14 +2051,14 @@ export class Pong3D {
 				| undefined) || null;
 
 		if (this.ballMesh) {
-			console.log(`Found ball mesh: ${this.ballMesh.name}`);
+			this.conditionalLog(`Found ball mesh: ${this.ballMesh.name}`);
 			// Set the ball mesh in the game loop and ball effects
 			if (this.gameLoop) {
 				this.gameLoop.setBallMesh(this.ballMesh);
 			}
 			this.ballEffects.setBallMesh(this.ballMesh);
 		} else {
-			console.warn('No ball mesh found in the scene!');
+			this.conditionalWarn('No ball mesh found in the scene!');
 			// Create a simple ball if none exists
 			this.createDefaultBall();
 		}
@@ -1885,7 +2081,7 @@ export class Pong3D {
 		ballMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Slight glow
 		this.ballMesh.material = ballMaterial;
 
-		console.log('Created default ball mesh');
+		this.conditionalLog('Created default ball mesh');
 
 		// Set the ball mesh in the game loop
 		if (this.gameLoop) {
@@ -1896,26 +2092,27 @@ export class Pong3D {
 	private findGoals(scene: BABYLON.Scene): void {
 		const meshes = scene.meshes;
 
-		console.log(
-			`🔍 Looking for goals in ${this.playerCount}-player mode...`
-		);
-		console.log(`🔍 Player count: ${this.playerCount}`);
-		console.log(`🔍 Active player count: ${this.playerCount}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🔍 Looking for goals in ${this.playerCount}-player mode...`
+			);
+		}
+		// Reduced goal debugging logging
+		// this.conditionalLog(`🔍 Player count: ${this.playerCount}`);
+		// this.conditionalLog(`🔍 Active player count: ${this.playerCount}`);
 
 		// Find goal meshes using case-insensitive name search
 		const goalMeshes = meshes.filter(
 			m => m && m.name && /goal/i.test(m.name)
 		);
 
-		console.log(
-			`🔍 Found ${goalMeshes.length} meshes with "goal" in name:`,
-			goalMeshes.map(m => m.name)
-		);
+		// Reduced goal mesh debugging
+		// this.conditionalLog(`🔍 Found ${goalMeshes.length} meshes with "goal" in name:`, goalMeshes.map(m => m.name));
 
 		// Try to identify goals by numbered names for the expected number of players
 		for (let i = 0; i < this.playerCount; i++) {
 			const goalNumber = i + 1;
-			console.log(`🔍 Looking for goal${goalNumber}...`);
+			// this.conditionalLog(`🔍 Looking for goal${goalNumber}...`);
 
 			// Look for specific numbered goal names first
 			let goal = goalMeshes.find(
@@ -1928,15 +2125,23 @@ export class Pong3D {
 			) as BABYLON.Mesh | undefined;
 
 			if (goal) {
-				console.log(`✅ Found goal${goalNumber}: ${goal.name}`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`✅ Found goal${goalNumber}: ${goal.name}`
+					);
+				}
 			} else {
-				console.log(`❌ Could not find goal${goalNumber}`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(`❌ Could not find goal${goalNumber}`);
+				}
 				// If no specific numbered goal found, take the next available goal
 				if (i < goalMeshes.length) {
 					goal = goalMeshes[i] as BABYLON.Mesh;
-					console.log(
-						`📋 Fallback: Using ${goal?.name} as goal${goalNumber}`
-					);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`📋 Fallback: Using ${goal?.name} as goal${goalNumber}`
+						);
+					}
 				}
 			}
 
@@ -1950,7 +2155,7 @@ export class Pong3D {
 
 		// Log what we found
 		const foundGoals = this.goalMeshes.filter(g => g !== null);
-		console.log(
+		this.conditionalLog(
 			`Found ${foundGoals.length}/${this.playerCount} expected goals:`,
 			foundGoals.map(g => g?.name)
 		);
@@ -1973,7 +2178,7 @@ export class Pong3D {
 			if (goal) {
 				goal.isVisible = false; // Make completely invisible
 				goal.checkCollisions = true; // Enable collision detection
-				console.log(
+				this.conditionalLog(
 					`Goal ${index + 1} (${goal.name}): Made invisible for collision-only detection`
 				);
 			}
@@ -2019,7 +2224,7 @@ export class Pong3D {
 			});
 
 			if (hidden.length) {
-				console.log('Hidden duplicate paddle meshes:', hidden);
+				this.conditionalLog('Hidden duplicate paddle meshes:', hidden);
 			}
 		} catch (err) {
 			console.warn('Error while hiding duplicate paddles:', err);
@@ -2166,11 +2371,11 @@ export class Pong3D {
 
 	/** Update the on-screen Player info using current name/score fields */
 	private updatePlayerInfoDisplay(): void {
-		console.log(`📊 Updating UI with scores:`, this.playerScores);
+		this.conditionalLog(`📊 Updating UI with scores:`, this.playerScores);
 
 		// If extended UI is present, update arrays
 		if (this.uiPlayerNameTexts && this.uiPlayerScoreTexts) {
-			console.log(`Using extended UI arrays`);
+			this.conditionalLog(`Using extended UI arrays`);
 			for (
 				let i = 0;
 				i <
@@ -2182,7 +2387,7 @@ export class Pong3D {
 			) {
 				this.uiPlayerNameTexts[i].text = this.playerNames[i];
 				this.uiPlayerScoreTexts[i].text = String(this.playerScores[i]);
-				console.log(
+				this.conditionalLog(
 					`Set Player ${i + 1}: ${this.playerNames[i]} - ${this.playerScores[i]}`
 				);
 			}
@@ -2190,22 +2395,22 @@ export class Pong3D {
 		}
 
 		// Backwards compatibility for single player fields
-		console.log(`Using backwards compatibility UI`);
+		this.conditionalLog(`Using backwards compatibility UI`);
 		if (this.Player1Info) {
 			this.Player1Info.text = this.playerNames[0];
-			console.log(`Set Player1Info to: ${this.playerNames[0]}`);
+			this.conditionalLog(`Set Player1Info to: ${this.playerNames[0]}`);
 		}
 		if (this.score1Text) {
 			this.score1Text.text = String(this.playerScores[0]);
-			console.log(`Set score1Text to: ${this.playerScores[0]}`);
+			this.conditionalLog(`Set score1Text to: ${this.playerScores[0]}`);
 		}
 		if (this.Player2Info) {
 			this.Player2Info.text = this.playerNames[1];
-			console.log(`Set Player2Info to: ${this.playerNames[1]}`);
+			this.conditionalLog(`Set Player2Info to: ${this.playerNames[1]}`);
 		}
 		if (this.score2Text) {
 			this.score2Text.text = String(this.playerScores[1]);
-			console.log(`Set score2Text to: ${this.playerScores[1]}`);
+			this.conditionalLog(`Set score2Text to: ${this.playerScores[1]}`);
 		}
 	}
 
@@ -2278,7 +2483,9 @@ export class Pong3D {
 	private resetRallySpeed(): void {
 		this.ballEffects.resetRallySpeed();
 		const currentSpeed = this.ballEffects.getCurrentBallSpeed();
-		console.log(`🔄 Rally reset: Speed back to base ${currentSpeed}`);
+		this.conditionalLog(
+			`🔄 Rally reset: Speed back to base ${currentSpeed}`
+		);
 	}
 
 	private maintainConstantBallVelocity(): void {
@@ -2610,7 +2817,7 @@ export class Pong3D {
 			0,
 			this.playerCount
 		);
-		console.log(
+		this.conditionalLog(
 			'Active paddle positions X:',
 			activePositionsX,
 			'Y:',
@@ -2621,51 +2828,60 @@ export class Pong3D {
 	// Public configuration methods
 	public setDefaultCameraRadius(value: number): void {
 		this.DEFAULT_CAMERA_RADIUS = value;
-		console.log('DEFAULT_CAMERA_RADIUS ->', this.DEFAULT_CAMERA_RADIUS);
+		this.conditionalLog(
+			'DEFAULT_CAMERA_RADIUS ->',
+			this.DEFAULT_CAMERA_RADIUS
+		);
 	}
 
 	public setDefaultCameraBeta(value: number): void {
 		this.DEFAULT_CAMERA_BETA = value;
-		console.log('DEFAULT_CAMERA_BETA ->', this.DEFAULT_CAMERA_BETA);
+		this.conditionalLog('DEFAULT_CAMERA_BETA ->', this.DEFAULT_CAMERA_BETA);
 	}
 
 	public setDefaultCameraTargetY(value: number): void {
 		this.DEFAULT_CAMERA_TARGET_Y = value;
-		console.log('DEFAULT_CAMERA_TARGET_Y ->', this.DEFAULT_CAMERA_TARGET_Y);
+		this.conditionalLog(
+			'DEFAULT_CAMERA_TARGET_Y ->',
+			this.DEFAULT_CAMERA_TARGET_Y
+		);
 	}
 
 	public setUseGLBOrigin(value: boolean): void {
 		this.useGLBOrigin = value;
-		console.log('useGLBOrigin ->', this.useGLBOrigin);
+		this.conditionalLog('useGLBOrigin ->', this.useGLBOrigin);
 		// Immediately apply the new setting by refreshing the camera POV
 		this.setPlayerPOV(this.thisPlayer);
 	}
 
 	public setPaddleRange(value: number): void {
 		this.PADDLE_RANGE = value;
-		console.log('PADDLE_RANGE ->', this.PADDLE_RANGE);
+		this.conditionalLog('PADDLE_RANGE ->', this.PADDLE_RANGE);
 	}
 
 	public setPaddleSpeed(value: number): void {
 		this.PADDLE_FORCE = value;
-		console.log('PADDLE_FORCE (speed) ->', this.PADDLE_FORCE);
+		this.conditionalLog('PADDLE_FORCE (speed) ->', this.PADDLE_FORCE);
 	}
 
 	public setBallAngleMultiplier(multiplier: number): void {
 		this.BALL_ANGLE_MULTIPLIER = Math.max(0, Math.min(2, multiplier)); // Clamp between 0-2
-		console.log('BALL_ANGLE_MULTIPLIER ->', this.BALL_ANGLE_MULTIPLIER);
+		this.conditionalLog(
+			'BALL_ANGLE_MULTIPLIER ->',
+			this.BALL_ANGLE_MULTIPLIER
+		);
 	}
 
 	public setBallVelocityConstant(speed: number): void {
 		this.ballEffects.setBallVelocityConstant(speed);
-		console.log('BALL_VELOCITY_CONSTANT ->', speed);
+		this.conditionalLog('BALL_VELOCITY_CONSTANT ->', speed);
 	}
 
 	public setOnGoalCallback(
 		callback: (scoringPlayer: number, goalPlayer: number) => void
 	): void {
 		this.onGoalCallback = callback;
-		console.log('Goal callback set');
+		this.conditionalLog('Goal callback set');
 	}
 
 	public togglePaddleLogging(enabled?: boolean): void {
@@ -2674,7 +2890,7 @@ export class Pong3D {
 		} else {
 			this.debugPaddleLogging = !this.debugPaddleLogging;
 		}
-		console.log('debugPaddleLogging ->', this.debugPaddleLogging);
+		this.conditionalLog('debugPaddleLogging ->', this.debugPaddleLogging);
 	}
 
 	/** Set individual paddle position */
@@ -2818,7 +3034,10 @@ export class Pong3D {
 	public setImportedLightScale(factor: number): void {
 		if (typeof factor === 'number' && factor >= 0) {
 			this.importedLightScale = factor;
-			console.log('importedLightScale ->', this.importedLightScale);
+			this.conditionalLog(
+				'importedLightScale ->',
+				this.importedLightScale
+			);
 		}
 	}
 
@@ -2880,7 +3099,7 @@ export class Pong3D {
 
 		// Ensure ball effects start fresh when game begins
 		this.ballEffects.resetAllEffects();
-		console.log(`🎮 Game started: Ball effects initialized`);
+		this.conditionalLog(`🎮 Game started: Ball effects initialized`);
 	}
 
 	/** Stop the game loop */
@@ -2903,25 +3122,29 @@ export class Pong3D {
 
 		// IMPORTANT: Reset all ball effects on manual reset
 		this.ballEffects.resetAllEffects();
-		console.log(`🔄 Manual ball reset: All effects cleared`);
+		this.conditionalLog(`🔄 Manual ball reset: All effects cleared`);
 	}
 
 	/** Set rally speed increment percentage */
 	public setRallySpeedIncrement(percentage: number): void {
 		this.ballEffects.setRallySpeedIncrement(percentage);
-		console.log(`🚀 Rally speed increment set to ${percentage}%`);
+		this.conditionalLog(`🚀 Rally speed increment set to ${percentage}%`);
 	}
 
 	/** Set maximum ball speed to prevent tunneling */
 	public setMaxBallSpeed(maxSpeed: number): void {
 		this.ballEffects.setMaxBallSpeed(maxSpeed);
-		console.log(`🏎️ Maximum ball speed set to ${maxSpeed}`);
+		this.conditionalLog(`🏎️ Maximum ball speed set to ${maxSpeed}`);
 	}
 
 	/** Set winning score needed to end the game */
 	public setWinningScore(score: number): void {
 		this.WINNING_SCORE = Math.max(1, Math.min(100, score)); // Clamp between 1 and 100
-		console.log(`🏆 Winning score set to ${this.WINNING_SCORE} points`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🏆 Winning score set to ${this.WINNING_SCORE} points`
+			);
+		}
 	}
 
 	/** Get current rally information */
@@ -2988,19 +3211,23 @@ export class Pong3D {
 			// The normal always points from body i to body j
 			let normal = contact.ni.clone();
 
-			console.log(
-				`🔧 Raw Cannon.js contact normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
-			);
-			console.log(
-				`🔧 Contact: body i = ${contact.bi === ballBody ? 'ball' : 'paddle'}, body j = ${contact.bj === ballBody ? 'ball' : 'paddle'}`
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🔧 Raw Cannon.js contact normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
+				);
+				this.conditionalLog(
+					`🔧 Contact: body i = ${contact.bi === ballBody ? 'ball' : 'paddle'}, body j = ${contact.bj === ballBody ? 'ball' : 'paddle'}`
+				);
+			}
 
 			// If ball is body j, we need to flip the normal to point from paddle to ball
 			if (contact.bj === ballBody) {
 				normal.negate();
-				console.log(
-					`🔧 Flipped normal (ball is body j): (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🔧 Flipped normal (ball is body j): (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
+					);
+				}
 			}
 
 			// Convert from Cannon Vector3 to Babylon Vector3
@@ -3010,9 +3237,11 @@ export class Pong3D {
 				normal.z
 			);
 
-			console.log(
-				`🔧 Final collision normal: (${babylonNormal.x.toFixed(3)}, ${babylonNormal.y.toFixed(3)}, ${babylonNormal.z.toFixed(3)})`
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🔧 Final collision normal: (${babylonNormal.x.toFixed(3)}, ${babylonNormal.y.toFixed(3)}, ${babylonNormal.z.toFixed(3)})`
+				);
+			}
 
 			// 🚨 CRITICAL: Ensure normal points AWAY from paddle surface (for proper reflection)
 			// For correct physics reflection: normal should point into the space where ball reflects
@@ -3026,28 +3255,34 @@ export class Pong3D {
 				normalizedNormal
 			);
 
-			console.log(
-				`🔧 Ball velocity direction: (${normalizedVelocity.x.toFixed(3)}, ${normalizedVelocity.y.toFixed(3)}, ${normalizedVelocity.z.toFixed(3)})`
-			);
-			console.log(
-				`🔧 Dot product (velocity·normal): ${dotProduct.toFixed(3)}`
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🔧 Ball velocity direction: (${normalizedVelocity.x.toFixed(3)}, ${normalizedVelocity.y.toFixed(3)}, ${normalizedVelocity.z.toFixed(3)})`
+				);
+				this.conditionalLog(
+					`🔧 Dot product (velocity·normal): ${dotProduct.toFixed(3)}`
+				);
+			}
 
 			let correctedNormal = normalizedNormal;
 			if (dotProduct > 0.1) {
 				// Ball moving toward normal means normal points AWAY from surface - this is CORRECT for reflection
-				console.log(
-					'🔧 Normal correctly points away from paddle surface'
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						'🔧 Normal correctly points away from paddle surface'
+					);
+				}
 			} else if (dotProduct < -0.1) {
 				// Ball moving away from normal means normal points wrong way - flip it
 				correctedNormal = normalizedNormal.negate();
-				console.log(
-					'🔧 CORRECTED: Flipped normal to point away from paddle surface'
-				);
-				console.log(
-					`🔧 Corrected normal: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						'🔧 CORRECTED: Flipped normal to point away from paddle surface'
+					);
+					this.conditionalLog(
+						`🔧 Corrected normal: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
+					);
+				}
 			}
 
 			// Validate the normal direction - it should point roughly toward the center
@@ -3061,9 +3296,11 @@ export class Pong3D {
 			if (normalXZ.length() > 0.1) {
 				// Use the projected normal if it's significant
 				correctedNormal = normalXZ.normalize();
-				console.log(
-					`� Projected normal to X-Z plane: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🔧 Projected normal to X-Z plane: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
+					);
+				}
 			} else {
 				// If X-Z components are too small, this might be a top/bottom collision
 				console.warn(
@@ -3157,10 +3394,10 @@ export class Pong3D {
 				normal.scaleInPlace(-1);
 			}
 
-			console.log(
+			this.conditionalLog(
 				`🎯 Paddle ${paddleIndex + 1} calculated normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
 			);
-			console.log(
+			this.conditionalLog(
 				`🎯 Paddle ${paddleIndex + 1} dimensions: x=${size.x.toFixed(3)}, y=${size.y.toFixed(3)}, z=${size.z.toFixed(3)}`
 			);
 
@@ -3179,51 +3416,51 @@ export class Pong3D {
 	 * Call this when destroying the game or navigating away to prevent memory leaks.
 	 */
 	public dispose(): void {
-		console.log('🧹 Disposing Pong3D instance...');
+		this.conditionalLog('🧹 Disposing Pong3D instance...');
 
 		// Stop the render loop first
 		if (this.engine) {
 			this.engine.stopRenderLoop();
-			console.log('✅ Stopped render loop');
+			this.conditionalLog('✅ Stopped render loop');
 		}
 
 		// Clean up game loop
 		if (this.gameLoop) {
 			this.gameLoop.stop();
 			this.gameLoop = null;
-			console.log('✅ Cleaned up game loop');
+			this.conditionalLog('✅ Cleaned up game loop');
 		}
 
 		// Clean up input handler
 		if (this.inputHandler) {
 			this.inputHandler.cleanup();
 			this.inputHandler = null;
-			console.log('✅ Cleaned up input handler');
+			this.conditionalLog('✅ Cleaned up input handler');
 		}
 
 		// Remove window resize listener
 		if (this.resizeHandler) {
 			window.removeEventListener('resize', this.resizeHandler);
 			this.resizeHandler = null;
-			console.log('✅ Removed resize event listener');
+			this.conditionalLog('✅ Removed resize event listener');
 		}
 
 		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
 		if (this.scene) {
 			this.scene.dispose();
-			console.log('✅ Disposed Babylon scene');
+			this.conditionalLog('✅ Disposed Babylon scene');
 		}
 
 		// Dispose of Babylon engine
 		if (this.engine) {
 			this.engine.dispose();
-			console.log('✅ Disposed Babylon engine');
+			this.conditionalLog('✅ Disposed Babylon engine');
 		}
 
 		// Remove canvas from DOM
 		if (this.canvas && this.canvas.parentNode) {
 			this.canvas.parentNode.removeChild(this.canvas);
-			console.log('✅ Removed canvas from DOM');
+			this.conditionalLog('✅ Removed canvas from DOM');
 		}
 
 		// Clear references to help with garbage collection
@@ -3236,7 +3473,63 @@ export class Pong3D {
 		this.canvas = null as any;
 		this.camera = null as any;
 
-		console.log('🎉 Pong3D disposal complete');
+		this.conditionalLog('🎉 Pong3D disposal complete');
+	}
+
+	/**
+	 * Send game state to all clients (Master mode only)
+	 */
+	private sendGameStateToClients(gameState: any): void {
+		// Reduced logging - only log structure occasionally, not every call
+		// this.conditionalLog('📡 Master sending game state to clients:', gameState);
+		// TODO: Send via WebSocket using team's message format
+		// const message = {
+		// 	t: 'g', // MESSAGE_GAME_STATE
+		// 	d: JSON.stringify(gameState),
+		// };
+		// Only log the WebSocket message structure occasionally for debugging
+		// this.conditionalLog('📡 WebSocket message (GAME_STATE):', message);
+	}
+
+	/**
+	 * Send input to master (Client mode only)
+	 */
+	private sendInputToMaster(input: { k: number }): void {
+		// Reduced logging for input - only log occasionally
+		// this.conditionalLog(`📡 Player ${this.thisPlayer} sending input to master:`, input);
+		// TODO: Send via WebSocket using team's message format
+		// const message = {
+		// 	t: 'm', // MESSAGE_MOVE
+		// 	d: JSON.stringify(input),
+		// };
+		// Only log the WebSocket message structure occasionally for debugging
+		// this.conditionalLog('📡 WebSocket message (MOVE):', message);
+	}
+
+	/**
+	 * TEST METHOD: Simulate sending game state (for testing JSON messages)
+	 */
+	public testSendGameState(): void {
+		if (this.gameMode === 'master') {
+			const testGameState = {
+				b: [1.23, -2.45], // Ball position
+				pd: [
+					[-2.0, 0],
+					[2.0, 0],
+				], // Paddle positions
+			};
+			this.sendGameStateToClients(testGameState);
+		}
+	}
+
+	/**
+	 * TEST METHOD: Simulate sending input (for testing JSON messages)
+	 */
+	public testSendInput(): void {
+		if (this.gameMode === 'client') {
+			const testInput = { k: 1 }; // Move left/up
+			this.sendInputToMaster(testInput);
+		}
 	}
 }
 
@@ -3258,3 +3551,10 @@ export function createPong3D(
 		...options,
 	});
 }
+
+// ============================================================================
+// LOGGING CONTROL FUNCTIONS
+// ============================================================================
+
+// Console helper functions removed per user request
+// Debug logging is controlled via GameConfig.setDebugLogging() and GameConfig.setGamestateLogging()

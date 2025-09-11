@@ -1,24 +1,24 @@
 import * as z from 'zod';
 import { UpdateMatch } from './schemas/match.js';
-import sanitizeHtml from "sanitize-html";
+// import sanitizeHtml from "sanitize-html";
 
 export type UUID = `${string}-${string}-${string}-${string}-${string}` & {
 	readonly length: 36;
 	readonly __brand: 'UUID';
 };
 
-export const zUUID: z.ZodType<UUID> = z.uuid()
+export const zUUID: z.ZodType<UUID> = z
+	.uuid()
 	.refine((val): val is UUID => val.length === 36, {
 		message: 'Invalid UUID',
 	}) as unknown as z.ZodType<UUID>;
 
-export const sanitizedString = z.string()
-	.transform((val) =>
-		sanitizeHtml(val, {
-			allowedTags: ['b', 'i', 'em', 'strong', 'a'],
-			allowedAttributes: { a: ['href'] },
-		})
-	);
+// Simple string sanitization without external dependencies
+// export const sanitizedString = z.string()
+// 	.transform((val) => {
+// 		// Basic HTML tag removal - replace with simple string sanitization
+// 		return val.replace(/<[^>]*>/g, '').trim();
+// 	});
 
 type UpdateMatchEntry = {
 	id: UUID;

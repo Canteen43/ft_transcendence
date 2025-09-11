@@ -28,7 +28,7 @@ export const CreateUserSchema = z.object({
 	login: z.string().pipe(loginSchema),
 	first_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
 	last_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
-	email: z.email().pipe(sanitizedString).nullable(),
+	email: z.email().nullable(),
 	password_hash: z.string().min(8).max(128),
 });
 
