@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-import { state } from '../misc/state';
+import { GameConfig } from './GameConfig';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import { Pong3DInput } from './Pong3DInput';
@@ -17,37 +17,6 @@ import {
 	getCameraPosition,
 } from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
-
-// ============================================================================
-// CONFIGURATION - Easily adjustable settings
-// ============================================================================
-
-/**
- * Set the number of players for the game (2, 3, or 4)
- * This will automatically load the appropriate model:
- * - 2 players → /pong2p.glb
- * - 3 players → /pong3p.glb
- * - 4 players → /pong4p.glb
- */
-// export const PLAYER_COUNT: 2 | 3 | 4 = 2;
-export const DEFAULT_PLAYER_COUNT: 0 | 2 | 3 | 4 = 3;
-
-/**
- * Set the default player POV (perspective) for the camera
- * - 1 = Player 1's perspective (bottom view)
- * - 2 = Player 2's perspective (varies by mode)
- * - 3 = Player 3's perspective (side view)
- * - 4 = Player 4's perspective (side view)
- */
-export const THIS_PLAYER: 1 | 2 | 3 | 4 = 1;
-
-/**
- * Set default game mode
- * - true = Local 2-player mode (both players on same screen/keyboard)
- * - false = Network play mode (players on different devices)
- * Note: Local mode only applies when playerCount = 2
- */
-export const LOCAL_MODE: boolean = true;
 
 // ============================================================================
 
@@ -149,19 +118,18 @@ export class Pong3D {
 
 	// Player data - simplified to arrays for uniform handling
 	private playerNames: string[] = [
-		state.player1Name,
-		state.player2Name,
-		state.player3Name,
-		state.player4Name,
+		GameConfig.getPlayerName(1),
+		GameConfig.getPlayerName(2),
+		GameConfig.getPlayerName(3),
+		GameConfig.getPlayerName(4),
 	];
 	private playerScores: number[] = [0, 0, 0, 0];
-	private activePlayerCount: number = Number(
-		sessionStorage.getItem('playerCount')
-	); // Can be 2, 3, or 4
-	private initialPlayerCount: number = this.activePlayerCount; // Set at initialization, cannot be exceeded
-	private thisPlayer: number = Number(
-		sessionStorage.getItem('thisPlayer')
-	);
+	private playerCount: number = GameConfig.getPlayerCount();
+	private thisPlayer: 1 | 2 | 3 | 4 = GameConfig.getThisPlayer() as
+		| 1
+		| 2
+		| 3
+		| 4;
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
 	private gameEnded: boolean = false; // Flag to track if game has ended (winner declared)
 
@@ -303,12 +271,11 @@ export class Pong3D {
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
-		// Overwrite player count if specified
-		if (!state.playerCount) {
-			this.playerCount = DEFAULT_PLAYER_COUNT;
-		}
-		this.thisPlayer = options?.thisPlayer || THIS_PLAYER; // Set POV player (default from constant)
-		this.local = options?.local ?? LOCAL_MODE; // Set local mode (default from constant)
+		// Player count comes from GameConfig, set by frontend when players are ready
+		this.thisPlayer =
+			options?.thisPlayer ||
+			(GameConfig.getThisPlayer() as 1 | 2 | 3 | 4); // Set POV player (default from GameConfig)
+		this.local = options?.local ?? GameConfig.isLocalMode(); // Set local mode (default from GameConfig)
 		if (options?.outOfBoundsDistance !== undefined) {
 			this.outOfBoundsDistance = options.outOfBoundsDistance; // Override default if provided
 		}
@@ -3286,8 +3253,8 @@ export function createPong3D(
 	options?: Omit<Pong3DOptions, 'playerCount'>
 ): Pong3D {
 	return new Pong3D(container, {
-		playerCount: Number(sessionStorage.getItem('PLAYER_COUNT')),
-		thisPlayer: Number(sessionStorage.getItem('THIS_PLAYER')),
+		playerCount: GameConfig.getPlayerCount() as 2 | 3 | 4,
+		thisPlayer: GameConfig.getThisPlayer() as 1 | 2 | 3 | 4,
 		...options,
 	});
 }
