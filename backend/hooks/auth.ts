@@ -1,16 +1,12 @@
-import { FastifyRequest, RouteGenericInterface } from 'fastify';
+import { FastifyRequest } from 'fastify';
 import { FastifyReply } from 'fastify/types/reply.js';
 import {
 	ERROR_AUTHENTICATION_FAILED,
 	ERROR_MALFORMED_TOKEN,
 	ERROR_NO_TOKEN,
 } from '../../shared/constants.js';
-import {
-	AuthenticationError,
-	AuthenticationFailedError,
-} from '../../shared/exceptions.js';
+import { AuthenticationFailedError } from '../../shared/exceptions.js';
 import UserService from '../services/user_service.js';
-import { AuthenticatedRequest } from '../types/interfaces.js';
 
 export function authenticateRequest(request: FastifyRequest) {
 	try {

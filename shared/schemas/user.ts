@@ -1,19 +1,28 @@
 import * as z from 'zod';
 import { sanitizedString, zUUID } from '../types.js';
 
-const passwordSchema = z.string()
-	.min(8, "Password must be at least 8 characters")
-	.max(128, "Password must be at most 128 characters");
+const passwordSchema = z
+	.string()
+	.min(8, 'Password must be at least 8 characters')
+	.max(128, 'Password must be at most 128 characters');
 
-const loginSchema = z.string()
-	.min(3, "Login must be at least 3 characters")
-	.max(20, "Login must be at most 20 characters")
-	.regex(/^[a-zA-Z0-9_-]+$/, "Login can contain only letters, numbers, _ or -")
+const loginSchema = z
+	.string()
+	.min(3, 'Login must be at least 3 characters')
+	.max(20, 'Login must be at most 20 characters')
+	.regex(
+		/^[a-zA-Z0-9_-]+$/,
+		'Login can contain only letters, numbers, _ or -'
+	);
 
-const nameSchema = z.string()
-	.min(2, "First and last name must be at least 2 characters")
-	.max(128, "First and last name must be at most 128 characters")
-	.regex(/^[a-zA-Z-\.\s]+$/, "Name can contain only letters, numbers, - or .")
+const nameSchema = z
+	.string()
+	.min(2, 'First and last name must be at least 2 characters')
+	.max(128, 'First and last name must be at most 128 characters')
+	.regex(
+		/^[a-zA-Z-\.\s]+$/,
+		'Name can contain only letters, numbers, - or .'
+	);
 
 export const UserSchema = z.object({
 	id: zUUID,
@@ -43,8 +52,12 @@ export const AuthResponseSchema = z.object({
 	token: z.string(),
 });
 
+export const AuthenticateUserSchema = UserSchema.extend({
+	password_hash: z.string(),
+});
+
 export type User = z.infer<typeof UserSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateUser = z.infer<typeof CreateUserSchema>;
-
+export type AuthenticateUser = z.infer<typeof AuthenticateUserSchema>;
