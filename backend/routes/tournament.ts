@@ -63,6 +63,11 @@ async function joinTournament(
 	return TournamentService.getQueue(request.body.size);
 }
 
+async function leaveQueue(request: FastifyRequest) {
+	const authRequest = getAuthData(request);
+	TournamentService.leaveQueue(authRequest.user.userId);
+}
+
 export default async function tournamentRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
@@ -91,4 +96,5 @@ export default async function tournamentRoutes(
 		}),
 		joinTournament
 	);
+	fastify.post('/leave', leaveQueue);
 }

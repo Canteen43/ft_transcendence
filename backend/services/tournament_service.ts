@@ -41,10 +41,10 @@ export default class TournamentService {
 		queue.add(userId);
 	}
 
-	static leaveQueue(size: number, userId: UUID) {
-		const queue = this.tournamentQueues.get(size);
-		if (!queue || !queue.has(userId)) throw new UserNotQueuedError(userId);
-		queue.delete(userId);
+	static leaveQueue(userId: UUID) {
+		for (const [size, queue] of this.tournamentQueues) {
+			if (queue.has(userId)) queue.delete(userId);
+		}
 	}
 
 	static getQueue(size: number): TournamentQueue {
