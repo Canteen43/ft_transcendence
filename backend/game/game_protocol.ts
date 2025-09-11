@@ -8,11 +8,11 @@ import {
 	MESSAGE_ACCEPT,
 	MESSAGE_DECLINE,
 	MESSAGE_GAME_STATE,
-	MESSAGE_INITIATE_MATCH,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
+	MESSAGE_SHOW_START_BUTTON,
 	TOURNAMENT_START_MESSAGE,
 } from '../../shared/constants.js';
 import {
@@ -32,6 +32,7 @@ import {
 	Match as MatchFromSchema,
 	UpdateMatchSchema,
 } from '../../shared/schemas/match.js';
+import { Message } from '../../shared/schemas/message.js';
 import {
 	Participant,
 	UpdateParticipantSchema,
@@ -40,7 +41,6 @@ import {
 	Tournament,
 	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
-import { Message } from '../../shared/schemas/message.js'
 import { UUID } from '../../shared/types.js';
 import {
 	connections,
@@ -51,17 +51,17 @@ import ParticipantRepository from '../repositories/participant_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
-import { Match } from './match.js';
 import { formatError } from '../utils/utils.js';
+import { Match } from './match.js';
 
 export class GameProtocol {
 	private static instance: GameProtocol;
 	private matches = new Map<UUID, Match>(); // Links connectionId to match
 
-	private constructor() { }
+	private constructor() {}
 
 	private readonly protocolFunctionMap = {
-		[MESSAGE_INITIATE_MATCH]: this.handleInitiate,
+		[MESSAGE_SHOW_START_BUTTON]: this.handleInitiate,
 		[MESSAGE_ACCEPT]: this.handleAccept,
 		[MESSAGE_DECLINE]: this.handleDecline,
 		[MESSAGE_MOVE]: this.handleMove,
@@ -82,19 +82,23 @@ export class GameProtocol {
 		const json = JSON.parse(message);
 		const handler =
 			this.protocolFunctionMap[
-			json.type as keyof typeof this.protocolFunctionMap
+				json.type as keyof typeof this.protocolFunctionMap
 			];
 		if (handler) {
 			try {
 				handler.call(this, connectionId, json);
 			} catch (error) {
-				logger.warn(`Error while handling websocket message: ${formatError(error)}`);
+				logger.warn(
+					`Error while handling websocket message: ${formatError(error)}`
+				);
 				const match = this.matches.get(connectionId);
 				if (match) {
 					try {
 						this.endMatch(match);
 					} catch (error) {
-						logger.warn(`Error while trying to end match: ${formatError(error)}`);
+						logger.warn(
+							`Error while trying to end match: ${formatError(error)}`
+						);
 					}
 				}
 			}

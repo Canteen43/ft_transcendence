@@ -57,8 +57,11 @@ export const EMPTY_PLAYER: Player = {
 	status: ParticipantStatus.Pending,
 };
 
-export const MESSAGE_INITIATE_TOURNAMENT = 't';
-export const MESSAGE_INITIATE_MATCH = 'i';
+// export const MESSAGE_INITIATE_TOURNAMENT = 't';
+// export const MESSAGE_INITIATE_MATCH = 'i';
+export const MESSAGE_ENOUGH_PLAYER = 't';
+export const MESSAGE_SHOW_START_BUTTON = 'i';
+
 export const MESSAGE_START_TOURNAMENT = 'st';
 export const MESSAGE_ACCEPT = 'a';
 export const MESSAGE_DECLINE = 'd';
@@ -71,9 +74,9 @@ export const MESSAGE_GAME_STATE = 'g';
 export const MESSAGE_POINT = 'x';
 
 export const TOURNAMENT_INVITATION_MESSAGE: Message = {
-	t: MESSAGE_INITIATE_TOURNAMENT,
+	t: MESSAGE_ENOUGH_PLAYER,
 };
-export const INVITATION_MESSAGE: Message = { t: MESSAGE_INITIATE_MATCH };
+export const INVITATION_MESSAGE: Message = { t: MESSAGE_SHOW_START_BUTTON };
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_START_MESSAGE: Message = {
 	t: MESSAGE_START_TOURNAMENT,
