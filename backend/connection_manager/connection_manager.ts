@@ -1,11 +1,13 @@
 import { randomUUID } from 'crypto';
+import { ERROR_USER_CONNECTION_NOT_FOUND } from '../../shared/constants.js';
+import { ConnectionError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import { UUID } from '../../shared/types.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import { GameSocket } from '../types/interfaces.js';
 
-export const connections: Map<UUID, GameSocket> = new Map(); // Links connectionId to socket
-export const userIdToConnectionMap: Map<UUID, GameSocket> = new Map(); // Links userId to socket
+const connections: Map<UUID, GameSocket> = new Map(); // Links connectionId to socket
+const userIdToConnectionMap: Map<UUID, GameSocket> = new Map(); // Links userId to socket
 
 function generateId(): UUID {
 	let id: UUID;
@@ -13,6 +15,18 @@ function generateId(): UUID {
 		id = randomUUID() as UUID;
 	} while (connections.has(id)); // Collision check
 	return id;
+}
+
+export function getConnection(connectionId: UUID) {
+	const socket = connections.get(connectionId);
+	if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
+	return socket;
+}
+
+export function getConnectionByUserId(userId: UUID) {
+	const socket = userIdToConnectionMap.get(userId);
+	if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
+	return socket;
 }
 
 export function addConnection(user_id: UUID, socket: GameSocket): UUID {

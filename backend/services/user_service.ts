@@ -20,14 +20,16 @@ import UserRepository from '../repositories/user_repository.js';
 import { AuthPayload } from '../types/interfaces.js';
 
 export default class UserService {
-	static authenticate(authRequest: AuthRequest): AuthResponse {
+	static async authenticate(authRequest: AuthRequest): Promise<AuthResponse> {
 		if (!process.env.JWT_SECRET)
 			throw new AuthenticationError(
 				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
 			);
-		const user: User | null = UserRepository.authenticateUser(authRequest);
+		const user: User | null =
+			await UserRepository.authenticateUser(authRequest);
 		if (!user)
 			throw new AuthenticationFailedError(ERROR_INVALID_CREDENTIALS);
+
 		const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
 			expiresIn: TOKEN_VALIDITY_PERIOD,
 		});

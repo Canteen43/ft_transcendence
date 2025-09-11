@@ -78,9 +78,6 @@ export const TOURNAMENT_INVITATION_MESSAGE: Message = {
 };
 export const INVITATION_MESSAGE: Message = { t: MESSAGE_SHOW_START_BUTTON };
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
-export const TOURNAMENT_START_MESSAGE: Message = {
-	t: MESSAGE_START_TOURNAMENT,
-};
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 

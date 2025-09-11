@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import { GameConfig } from './GameConfig';
 
 /**
  * Pong3DAudio - Handles all game audio including sound effects and background music
@@ -39,7 +40,9 @@ export class Pong3DAudio {
 	/** Load all game audio assets */
 	public async loadAudioAssets(): Promise<void> {
 		if (!this.scene) {
-			console.warn('🔊 Cannot load audio: scene not set');
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.warn('🔊 Cannot load audio: scene not set');
+			}
 			return;
 		}
 
@@ -54,9 +57,13 @@ export class Pong3DAudio {
 			// Load background music
 			await this.loadBackgroundMusic('/audio/background_music.mp3');
 
-			console.log('🔊 Audio assets loaded successfully');
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.log('🔊 Audio assets loaded successfully');
+			}
 		} catch (error) {
-			console.warn('🔊 Audio loading failed:', error);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.warn('🔊 Audio loading failed:', error);
+			}
 		}
 	}
 
@@ -81,7 +88,9 @@ export class Pong3DAudio {
 			// Handle loading errors
 			setTimeout(() => {
 				if (!this.sounds.has(name)) {
-					console.warn(`🔊 Failed to load sound: ${name}`);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						console.warn(`🔊 Failed to load sound: ${name}`);
+					}
 					reject(new Error(`Failed to load ${name}`));
 				}
 			}, 5000); // 5 second timeout
@@ -109,7 +118,9 @@ export class Pong3DAudio {
 			// Handle loading errors with timeout
 			setTimeout(() => {
 				if (!this.backgroundMusic || !this.backgroundMusic.isReady) {
-					console.warn('🔊 Failed to load background music');
+					if (GameConfig.isDebugLoggingEnabled()) {
+						console.warn('🔊 Failed to load background music');
+					}
 					reject(new Error('Failed to load background music'));
 				}
 			}, 5000); // 5 second timeout
@@ -124,7 +135,9 @@ export class Pong3DAudio {
 		if (sound) {
 			sound.play();
 		} else {
-			console.warn(`🔊 Sound effect not found: ${name}`);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.warn(`🔊 Sound effect not found: ${name}`);
+			}
 		}
 	}
 

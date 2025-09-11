@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import { GameConfig } from './GameConfig';
 
 /**
  * Pong3DBallEffects - Handles all ball physics effects including spin, Magnus force,
@@ -40,7 +41,11 @@ export class Pong3DBallEffects {
 	public resetRallySpeed(): void {
 		this.rallyHitCount = 0;
 		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
-		console.log(`🔄 Rally speed reset: ${this.currentBallSpeed} units/s`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`🔄 Rally speed reset: ${this.currentBallSpeed} units/s`
+			);
+		}
 	}
 
 	/** Increment rally hit count and increase ball speed */
@@ -56,9 +61,11 @@ export class Pong3DBallEffects {
 			this.MAX_BALL_SPEED
 		);
 
-		console.log(
-			`🚀 Rally hit #${this.rallyHitCount}: Speed increased to ${this.currentBallSpeed.toFixed(1)} units/s`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`🚀 Rally hit #${this.rallyHitCount}: Speed increased to ${this.currentBallSpeed.toFixed(1)} units/s`
+			);
+		}
 	}
 
 	/** Maintain constant ball velocity magnitude while preserving direction */
@@ -88,7 +95,9 @@ export class Pong3DBallEffects {
 		this.spinActivationTime = performance.now();
 		this.spinDelayActive = true;
 
-		console.log(`🌪️ Spin applied: ${this.ballSpin.toString()}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(`🌪️ Spin applied: ${this.ballSpin.toString()}`);
+		}
 	}
 
 	/** Apply Magnus force effect based on current ball spin */
@@ -103,9 +112,11 @@ export class Pong3DBallEffects {
 			// Spin delay period - no Magnus force yet
 			if (!this.spinDelayActive && this.spinActivationTime > 0) {
 				this.spinDelayActive = true;
-				console.log(
-					`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					console.log(
+						`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`
+					);
+				}
 			}
 			return;
 		}
@@ -117,9 +128,11 @@ export class Pong3DBallEffects {
 		// Log when spin delay period ends (one-time)
 		if (this.spinDelayActive) {
 			this.spinDelayActive = false;
-			console.log(
-				`🌪️ Spin delay ended - Magnus effect now active! Spin: ${spinMagnitude.toFixed(3)}`
-			);
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.log(
+					`🌪️ Spin delay ended - Magnus effect now active! Spin: ${spinMagnitude.toFixed(3)}`
+				);
+			}
 		}
 
 		// Get current ball velocity
@@ -178,7 +191,9 @@ export class Pong3DBallEffects {
 		// Reset rally speed
 		this.resetRallySpeed();
 
-		console.log(`🔄 All ball effects reset`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(`🔄 All ball effects reset`);
+		}
 	}
 
 	/** Set ball velocity to a specific value */
@@ -222,7 +237,11 @@ export class Pong3DBallEffects {
 	public setBallVelocityConstant(speed: number): void {
 		this.BALL_VELOCITY_CONSTANT = Math.max(1, Math.min(50, speed)); // Clamp between 1 and 50
 		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
-		console.log(`⚽ Ball base speed set to ${this.BALL_VELOCITY_CONSTANT}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`⚽ Ball base speed set to ${this.BALL_VELOCITY_CONSTANT}`
+			);
+		}
 	}
 
 	public setRallySpeedIncrement(percentage: number): void {
@@ -230,9 +249,11 @@ export class Pong3DBallEffects {
 			0,
 			Math.min(100, percentage)
 		); // Clamp between 0 and 100
-		console.log(
-			`🏎️ Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`🏎️ Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`
+			);
+		}
 	}
 
 	public setMaxBallSpeed(maxSpeed: number): void {
@@ -240,29 +261,43 @@ export class Pong3DBallEffects {
 			this.BALL_VELOCITY_CONSTANT,
 			Math.min(100, maxSpeed)
 		); // Clamp between base speed and 100
-		console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+		}
 	}
 
 	public setSpinTransferFactor(factor: number): void {
 		this.SPIN_TRANSFER_FACTOR = Math.max(0, Math.min(5, factor)); // Clamp between 0 and 5
-		console.log(
-			`🌪️ Spin transfer factor set to ${this.SPIN_TRANSFER_FACTOR}`
-		);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`🌪️ Spin transfer factor set to ${this.SPIN_TRANSFER_FACTOR}`
+			);
+		}
 	}
 
 	public setMagnusCoefficient(coefficient: number): void {
 		this.MAGNUS_COEFFICIENT = Math.max(0, Math.min(1, coefficient)); // Clamp between 0 and 1
-		console.log(`🧲 Magnus coefficient set to ${this.MAGNUS_COEFFICIENT}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`🧲 Magnus coefficient set to ${this.MAGNUS_COEFFICIENT}`
+			);
+		}
 	}
 
 	public setSpinDecayFactor(factor: number): void {
 		this.SPIN_DECAY_FACTOR = Math.max(0.9, Math.min(1, factor)); // Clamp between 0.9 and 1
-		console.log(`⏳ Spin decay factor set to ${this.SPIN_DECAY_FACTOR}`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(
+				`⏳ Spin decay factor set to ${this.SPIN_DECAY_FACTOR}`
+			);
+		}
 	}
 
 	public setSpinDelay(delayMs: number): void {
 		this.SPIN_DELAY = Math.max(0, Math.min(1000, delayMs)); // Clamp between 0 and 1000ms
-		console.log(`⏱️ Spin delay set to ${this.SPIN_DELAY}ms`);
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(`⏱️ Spin delay set to ${this.SPIN_DELAY}ms`);
+		}
 	}
 
 	public applyWallSpinFriction(frictionFactor: number): void {
