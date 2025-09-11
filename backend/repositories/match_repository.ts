@@ -135,27 +135,6 @@ export default class MatchRepository {
 		return MatchSchema.parse(createdMatch);
 	}
 
-	static createMatches(
-		tournament_id: UUID,
-		participants: Participant[],
-		matches: CreateMatch[]
-	): Array<Match> {
-		const result: Array<Match> = [];
-		for (const m of matches) {
-			m.participant_1_id = this.getParticipantId(
-				participants,
-				m.participant_1_id
-			);
-			m.participant_2_id = this.getParticipantId(
-				participants,
-				m.participant_2_id
-			);
-			const match = this.createMatch(tournament_id, m);
-			result.push(match);
-		}
-		return result;
-	}
-
 	static updateMatch(match_id: UUID, upd: UpdateMatch): Match {
 		const updatedMatch = db.queryOne<Match>(
 			`UPDATE ${this.table}
@@ -180,6 +159,29 @@ export default class MatchRepository {
 			throw new DatabaseError(ERROR_FAILED_TO_UPDATE_MATCH);
 
 		return MatchSchema.parse(updatedMatch);
+	}
+
+	static createMatches(
+		tournament_id: UUID,
+		participants: Participant[],
+		matches: CreateMatch[]
+	): Array<Match> {
+		const result: Array<Match> = [];
+		for (const m of matches) {
+			// Matches contain userIds, because participants are
+			// not yet available when the schemas are created
+			m.participant_1_id = this.getParticipantId(
+				participants,
+				m.participant_1_id
+			);
+			m.participant_2_id = this.getParticipantId(
+				participants,
+				m.participant_2_id
+			);
+			const match = this.createMatch(tournament_id, m);
+			result.push(match);
+		}
+		return result;
 	}
 
 	static updateMatchesAfterPointScored(

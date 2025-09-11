@@ -6,7 +6,8 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-import { state } from '../misc/state';
+import { GameConfig } from './GameConfig';
+import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import { Pong3DInput } from './Pong3DInput';
 import {
@@ -16,37 +17,6 @@ import {
 	getCameraPosition,
 } from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
-
-// ============================================================================
-// CONFIGURATION - Easily adjustable settings
-// ============================================================================
-
-/**
- * Set the number of players for the game (2, 3, or 4)
- * This will automatically load the appropriate model:
- * - 2 players → /pong2p.glb
- * - 3 players → /pong3p.glb
- * - 4 players → /pong4p.glb
- */
-// export const PLAYER_COUNT: 2 | 3 | 4 = 2;
-export const DEFAULT_PLAYER_COUNT: 0 | 2 | 3 | 4 = 3;
-
-/**
- * Set the default player POV (perspective) for the camera
- * - 1 = Player 1's perspective (bottom view)
- * - 2 = Player 2's perspective (varies by mode)
- * - 3 = Player 3's perspective (side view)
- * - 4 = Player 4's perspective (side view)
- */
-export const THIS_PLAYER: 1 | 2 | 3 | 4 = 1;
-
-/**
- * Set default game mode
- * - true = Local 2-player mode (both players on same screen/keyboard)
- * - false = Network play mode (players on different devices)
- * Note: Local mode only applies when playerCount = 2
- */
-export const LOCAL_MODE: boolean = true;
 
 // ============================================================================
 
@@ -147,32 +117,26 @@ export class Pong3D {
 	private uiHandles: any = null; // Store full UI handles for winner display
 
 	// Player data - simplified to arrays for uniform handling
-	private playerNames: string[] = [state.player1Name, state.player2Name, state.player3Name, state.player4Name];
+	private playerNames: string[] = [
+		GameConfig.getPlayerName(1),
+		GameConfig.getPlayerName(2),
+		GameConfig.getPlayerName(3),
+		GameConfig.getPlayerName(4),
+	];
 	private playerScores: number[] = [0, 0, 0, 0];
-	private activePlayerCount: number = Number(
-		sessionStorage.getItem('playerCount')
-	); // Can be 2, 3, or 4
-	private initialPlayerCount: number = this.activePlayerCount; // Set at initialization, cannot be exceeded
-	private thisPlayer: number = Number(
-		sessionStorage.getItem('thisPlayer')
-	);
+	private playerCount: number = GameConfig.getPlayerCount();
+	private thisPlayer: 1 | 2 | 3 | 4 = GameConfig.getThisPlayer() as
+		| 1
+		| 2
+		| 3
+		| 4;
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
 	private gameEnded: boolean = false; // Flag to track if game has ended (winner declared)
 
-
-
-
-
-
 	// === GAME PHYSICS CONFIGURATION ===
 
-	// Ball settings
-	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
-	public RALLY_SPEED_INCREMENT_PERCENT = 10; // Percentage speed increase per paddle hit during rally
-	public MAX_BALL_SPEED = 24; // Maximum ball speed to prevent tunneling
+	// Ball settings (non-effects)
 	public WINNING_SCORE = 10; // Points needed to win the game
-	private currentBallSpeed = 12; // Current ball speed (starts at base speed)
-	private rallyHitCount = 0; // Number of paddle hits in current rally
 	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Ball control settings - velocity-based reflection angle modification
@@ -183,14 +147,6 @@ export class Pong3D {
 	// clamped toward the paddle normal so the ball cannot be returned at an
 	// extreme grazing/perpendicular angle which causes excessive wall bounces.
 	private ANGULAR_RETURN_LIMIT = Math.PI / 4; // 60 degrees
-
-	// Ball spin physics settings
-	private SPIN_TRANSFER_FACTOR = 1.0; // How much paddle velocity becomes spin
-	private MAGNUS_COEFFICIENT = 0.14; // Strength of Magnus force effect
-	private SPIN_DECAY_FACTOR = 0.98; // Spin decay per frame (0.99 = slow decay)
-	private SPIN_DELAY = 200; // Delay in milliseconds before spin effect activates
-	private ballSpin: BABYLON.Vector3 = new BABYLON.Vector3(0, 0, 0); // Current ball spin
-	private spinActivationTime: number = 0; // Timestamp when spin was applied
 
 	// Paddle physics settings
 	private PADDLE_MASS = 3; // Paddle mass for collision response
@@ -209,9 +165,11 @@ export class Pong3D {
 	// Track boundary stop state to avoid repeated velocity zeroing
 	private paddleStoppedAtBoundary: boolean[] = [false, false, false, false];
 
-	// Collision debouncing to prevent rapid-fire collisions
-	private lastCollisionTime = 0;
-	private readonly COLLISION_DEBOUNCE_MS = 20; // Minimum time between collisions
+	// Wall collision debouncing to prevent rapid-fire collisions
+	private lastWallCollisionTime = 0;
+	private readonly WALL_COLLISION_COOLDOWN_MS = 20; // ~2 frames at 60fps
+	private wallCollisionCount = 0; // Track rapid wall collisions
+	private wallCollisionResetTime = 0;
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
@@ -232,6 +190,10 @@ export class Pong3D {
 
 	// Game loop
 	private gameLoop: Pong3DGameLoop | null = null;
+
+	// Ball effects system
+	private ballEffects: Pong3DBallEffects;
+
 	private ballMesh: BABYLON.Mesh | null = null;
 
 	// Resize handler reference for cleanup
@@ -309,12 +271,11 @@ export class Pong3D {
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
-		// Overwrite player count if specified
-		if (!state.playerCount) {
-			this.playerCount = DEFAULT_PLAYER_COUNT;
-		}
-		this.thisPlayer = options?.thisPlayer || THIS_PLAYER; // Set POV player (default from constant)
-		this.local = options?.local ?? LOCAL_MODE; // Set local mode (default from constant)
+		// Player count comes from GameConfig, set by frontend when players are ready
+		this.thisPlayer =
+			options?.thisPlayer ||
+			(GameConfig.getThisPlayer() as 1 | 2 | 3 | 4); // Set POV player (default from GameConfig)
+		this.local = options?.local ?? GameConfig.isLocalMode(); // Set local mode (default from GameConfig)
 		if (options?.outOfBoundsDistance !== undefined) {
 			this.outOfBoundsDistance = options.outOfBoundsDistance; // Override default if provided
 		}
@@ -325,6 +286,9 @@ export class Pong3D {
 		this.debugLog(
 			`Initializing Pong3D for ${this.playerCount} players with model: ${modelUrl}, POV: Player ${this.thisPlayer}, Local: ${this.local}`
 		);
+
+		// Initialize ball effects system
+		this.ballEffects = new Pong3DBallEffects(12); // 12 is default base ball speed
 
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
@@ -664,10 +628,7 @@ export class Pong3D {
 								0,
 								1
 							); // X and Z axes
-						} else if (
-							this.playerCount === 4 &&
-							paddleIndex >= 2
-						) {
+						} else if (this.playerCount === 4 && paddleIndex >= 2) {
 							paddle.physicsImpostor.physicsBody.linearFactor.set(
 								0,
 								0,
@@ -742,7 +703,7 @@ export class Pong3D {
 				mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
 					mesh,
 					BABYLON.PhysicsImpostor.MeshImpostor, // Use exact mesh shape instead of box
-					{ mass: 0, restitution: 1.0, friction: 0 },
+					{ mass: 0, restitution: 0.95, friction: 0.1 }, // Slightly reduce restitution and add minimal friction
 					this.scene
 				);
 				console.log(
@@ -947,7 +908,9 @@ export class Pong3D {
 				// Player 3 (240°) - upper right
 				paddleAxis = new BABYLON.Vector3(-0.5, 0, 0.866); // Perpendicular to facing direction
 			}
-			console.log(`🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`);
+			console.log(
+				`🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`
+			);
 		} else if (this.playerCount === 4) {
 			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles at 90° and 270°)
 			if (paddleIndex === 2) {
@@ -970,7 +933,8 @@ export class Pong3D {
 		// Define a threshold for "significant" paddle velocity
 		// Lower threshold for 3P mode to make effects more visible
 		const VELOCITY_THRESHOLD = this.playerCount === 3 ? 0.05 : 0.1;
-		const hasPaddleVelocity = Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
+		const hasPaddleVelocity =
+			Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
 
 		console.log(
 			`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`
@@ -994,9 +958,15 @@ export class Pong3D {
 
 		// 🚨 DEBUG: Extra logging for 4P mode paddle detection
 		if (this.playerCount === 4) {
-			console.log(`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`);
-			console.log(`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlongAxis.toFixed(3)}`);
-			console.log(`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`);
+			console.log(
+				`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`
+			);
+			console.log(
+				`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlongAxis.toFixed(3)}`
+			);
+			console.log(
+				`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`
+			);
 		}
 		const velocityRatio = Math.max(
 			-1.0,
@@ -1015,8 +985,12 @@ export class Pong3D {
 		let finalDirection: BABYLON.Vector3;
 
 		// ====== DEBUG: Verify we're detecting the right mode ======
-		console.log(`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`);
-		console.log(`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`);
+		console.log(
+			`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
+		);
+		console.log(
+			`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`
+		);
 
 		if (hasPaddleVelocity) {
 			// MOVING PADDLE: Return angle directly proportional to velocity
@@ -1102,11 +1076,17 @@ export class Pong3D {
 					rotationMatrix
 				).normalize();
 
-				console.log(`🚨 3P Mode: Y-axis rotation applied - angle: ${(adjustedAngle * 180 / Math.PI).toFixed(1)}°`);
-				console.log(`🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`);
-				console.log(`🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`);
+				console.log(
+					`🚨 3P Mode: Y-axis rotation applied - angle: ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
+				);
+				console.log(
+					`🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+				);
+				console.log(
+					`🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`
+				);
 			} else if (this.playerCount === 4) {
-				// 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation  
+				// 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation
 				// Side paddles deflect ball along Z-axis using X-axis rotation (same effect as 2P Y-axis rotation)
 				console.log(`🚨🚨🚨 4P MODE ANGULAR EFFECTS EXECUTING! 🚨🚨🚨`);
 				console.log(
@@ -1142,9 +1122,17 @@ export class Pong3D {
 			} else {
 				// FALLBACK: Default to 2P behavior for unknown player counts
 				const rotationAxis = BABYLON.Vector3.Up();
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(rotationAxis, velocityBasedAngle);
-				finalDirection = BABYLON.Vector3.TransformCoordinates(paddleNormal, rotationMatrix).normalize();
-				console.log(`🎯 ${this.playerCount}P Mode: Using 2P physics (fallback)`);
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(
+					rotationAxis,
+					velocityBasedAngle
+				);
+				finalDirection = BABYLON.Vector3.TransformCoordinates(
+					paddleNormal,
+					rotationMatrix
+				).normalize();
+				console.log(
+					`🎯 ${this.playerCount}P Mode: Using 2P physics (fallback)`
+				);
 			}
 		} else {
 			// STATIONARY PADDLE: Physics-based reflection with angular limit
@@ -1237,26 +1225,12 @@ export class Pong3D {
 		);
 
 		// Increment rally speed - ball gets faster with each paddle hit during rally
-		this.rallyHitCount++;
-		this.currentBallSpeed =
-			this.BALL_VELOCITY_CONSTANT *
-			(1 +
-				((this.rallyHitCount - 1) *
-					this.RALLY_SPEED_INCREMENT_PERCENT) /
-					100);
-
-		// Apply maximum speed limit to prevent tunneling
-		this.currentBallSpeed = Math.min(
-			this.currentBallSpeed,
-			this.MAX_BALL_SPEED
-		);
-
-		console.log(
-			`🚀 Rally hit #${this.rallyHitCount}: Speed ${this.currentBallSpeed === this.MAX_BALL_SPEED ? 'capped at' : 'increased to'} ${this.currentBallSpeed.toFixed(1)} (${((this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100).toFixed(1)}% faster)`
-		);
+		this.ballEffects.incrementRallyHit();
 
 		// Apply the new velocity with rally-adjusted speed
-		const newVelocity = finalDirection.scale(this.currentBallSpeed);
+		const newVelocity = finalDirection.scale(
+			this.ballEffects.getCurrentBallSpeed()
+		);
 
 		// Ensure Y component stays zero (2D movement only)
 		newVelocity.y = 0;
@@ -1303,38 +1277,16 @@ export class Pong3D {
 			);
 		}
 		if (hasPaddleVelocity) {
-			// Spin is proportional to paddle velocity, just like the angle influence
-			const spinInfluence =
-				paddleVelAlongAxis * this.SPIN_TRANSFER_FACTOR;
-
-			// Choose spin axis based on player mode and paddle orientation
-			let spinAxis: BABYLON.Vector3;
-			if (this.playerCount === 4) {
-				// 4P Mode: P1/P2 walled off, P3/P4 (side paddles) use Y-axis spin (same as 2P)
-				spinAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis spin keeps ball in XZ plane
-				console.log(
-					`🌪️ 4P Mode: Using Y-axis spin for side paddles P3/P4 (same as 2P)`
-				);
-			} else {
-				// 2P/3P Mode: Y-axis spin (ball moves in XZ plane)
-				spinAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis spin
-			}
-
-			const effectiveSpin = spinInfluence; // Same for all modes
-
-			const newSpin = spinAxis.scale(effectiveSpin);
-
-			// Set the new spin (replace any existing spin)
-			this.ballSpin = newSpin.clone();
-			this.spinActivationTime = Date.now(); // Record when spin was applied
-			console.log(
-				`🌪️ Ball spin applied: (${this.ballSpin.x.toFixed(2)}, ${this.ballSpin.y.toFixed(2)}, ${this.ballSpin.z.toFixed(2)}) from paddle velocity: ${paddleVelAlongAxis.toFixed(2)} - delayed ${this.SPIN_DELAY}ms`
-			);
+			// Apply spin to ball using the full paddle velocity vector (preserve direction)
+			this.ballEffects.applySpinFromPaddle(paddleVelocity);
 		} else {
 			// Stationary paddle - no new spin added, but preserve existing spin
-			console.log(`🌪️ Stationary paddle - preserving existing spin: (${this.ballSpin.x.toFixed(2)}, ${this.ballSpin.y.toFixed(2)}, ${this.ballSpin.z.toFixed(2)})`);
-		} if (this.debugPaddleLogging || this.playerCount === 3) {
-			console.log(`Ball-Paddle Collision: Player ${paddleIndex + 1} (${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle)`);
+			console.log(`🌪️ Stationary paddle - preserving existing spin`);
+		}
+		if (this.debugPaddleLogging || this.playerCount === 3) {
+			console.log(
+				`Ball-Paddle Collision: Player ${paddleIndex + 1} (${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle)`
+			);
 			if (this.playerCount === 3) {
 				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 				console.log(
@@ -1366,18 +1318,63 @@ export class Pong3D {
 	}
 
 	private handleBallWallCollision(
-		_ballImpostor: BABYLON.PhysicsImpostor,
+		ballImpostor: BABYLON.PhysicsImpostor,
 		_wallImpostor: BABYLON.PhysicsImpostor
 	): void {
-		console.log(`🧱 Ball-Wall Collision detected`);
+		const currentTime = performance.now();
+
+		// Debounce wall collisions to prevent rapid-fire bouncing
+		if (
+			currentTime - this.lastWallCollisionTime <
+			this.WALL_COLLISION_COOLDOWN_MS
+		) {
+			return; // Ignore collision if too soon after last one
+		}
+
+		// Track rapid collisions - reset count every 500ms
+		if (currentTime - this.wallCollisionResetTime > 500) {
+			this.wallCollisionCount = 0;
+			this.wallCollisionResetTime = currentTime;
+		}
+		this.wallCollisionCount++;
+
+		this.lastWallCollisionTime = currentTime;
+
+		console.log(
+			`🧱 Ball-Wall Collision detected (count: ${this.wallCollisionCount})`
+		);
+
+		// Position correction: move ball slightly away from wall to prevent embedding
+		if (this.ballMesh && ballImpostor) {
+			const velocity = ballImpostor.getLinearVelocity();
+			if (velocity && velocity.length() > 0) {
+				// Move ball in direction of velocity (away from wall)
+				// Use gentle correction to avoid physics instability
+				const correctionDistance = 0.15; // Small, consistent correction
+				const correctionVector = velocity
+					.normalize()
+					.scale(correctionDistance);
+				const newPosition =
+					this.ballMesh.position.add(correctionVector);
+				this.ballMesh.position = newPosition;
+
+				// If too many rapid wall collisions, apply velocity damping
+				if (this.wallCollisionCount > 3) {
+					console.log(
+						`🚫 Rapid wall collisions detected - applying velocity damping`
+					);
+					const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
+					ballImpostor.setLinearVelocity(dampedVel);
+				}
+			}
+		}
 
 		// When ball hits wall, spin is preserved but may be modified by friction
 		// For realistic physics, some spin energy is lost
-		const spinFrictionFactor = 0.8; // 20% spin loss on wall collision
-		this.ballSpin.scaleInPlace(spinFrictionFactor);
+		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
 
 		console.log(
-			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballSpin.y.toFixed(2)}`
+			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballEffects.getBallSpin().y.toFixed(2)}`
 		);
 	}
 
@@ -1419,32 +1416,38 @@ export class Pong3D {
 		// Check if player has won (configurable winning score)
 		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
 			// Game over! Player wins
-			const playerName = this.playerNames[scoringPlayer] || `Player ${scoringPlayer + 1}`;
-			console.log(`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`);
-			
+			const playerName =
+				this.playerNames[scoringPlayer] ||
+				`Player ${scoringPlayer + 1}`;
+			console.log(
+				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
+			);
+
 			// Show winner UI
 			if (this.uiHandles) {
 				this.uiHandles.showWinner(scoringPlayer, playerName);
 			}
-			
+
 			// Mark game as ended - ball will continue and exit naturally
 			this.gameEnded = true;
-			
+
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
-			
+
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
 				console.log(`Calling goal callback for game end...`);
 				this.onGoalCallback(scoringPlayer, goalPlayer);
 			}
-			
+
 			// Reset cooldown and last player tracker - game is over
 			this.lastPlayerToHitBall = -1;
 			this.lastGoalTime = performance.now();
-			
+
 			// Let the ball continue its natural trajectory and exit bounds
-			console.log(`🏀 Ball will continue and exit naturally - no respawn`);
+			console.log(
+				`🏀 Ball will continue and exit naturally - no respawn`
+			);
 			return;
 		}
 
@@ -1570,7 +1573,9 @@ export class Pong3D {
 
 			// Check if game has ended - if so, stop the game loop instead of respawning
 			if (this.gameEnded) {
-				console.log(`🏆 Game ended - stopping game loop, ball will not respawn`);
+				console.log(
+					`🏆 Game ended - stopping game loop, ball will not respawn`
+				);
 				if (this.gameLoop) {
 					this.gameLoop.stop();
 				}
@@ -1583,14 +1588,11 @@ export class Pong3D {
 			}
 
 			// Reset rally speed system - new rally starts
-			this.resetRallySpeed();
+			this.ballEffects.resetAllEffects();
 
 			// Clear any pending goal state if ball went truly out of bounds
 			this.goalScored = false;
 			this.pendingGoalData = null;
-			this.ballSpin.set(0, 0, 0); // Reset spin to zero
-			this.spinActivationTime = 0; // Reset spin activation timer
-			this.spinDelayActive = false; // Reset delay flag
 
 			console.log(`⚡ Ball reset due to out of bounds`);
 		}
@@ -1611,13 +1613,13 @@ export class Pong3D {
 			ballPosition.x >= this.boundsXMax - margin;
 
 		if (hitBoundary) {
-			console.log(
-				`🎯 Ball reached boundary after goal!`
-			);
+			console.log(`🎯 Ball reached boundary after goal!`);
 
 			// Check if game has ended - if so, stop the game loop instead of respawning
 			if (this.gameEnded) {
-				console.log(`🏆 Game ended - stopping game loop, ball will not respawn`);
+				console.log(
+					`🏆 Game ended - stopping game loop, ball will not respawn`
+				);
 				if (this.gameLoop) {
 					this.gameLoop.stop();
 				}
@@ -1637,12 +1639,10 @@ export class Pong3D {
 			// Reset last player to hit ball - new rally starts
 			this.lastPlayerToHitBall = -1;
 
-			// Clear the goal state and reset spin
+			// Clear the goal state and reset all ball effects
 			this.goalScored = false;
 			this.pendingGoalData = null;
-			this.ballSpin.set(0, 0, 0); // Reset spin to zero
-			this.spinActivationTime = 0; // Reset spin activation timer
-			this.spinDelayActive = false; // Reset delay flag
+			this.ballEffects.resetAllEffects();
 
 			console.log(`⚡ Ball reset completed after boundary collision`);
 		}
@@ -1856,10 +1856,11 @@ export class Pong3D {
 
 		if (this.ballMesh) {
 			console.log(`Found ball mesh: ${this.ballMesh.name}`);
-			// Set the ball mesh in the game loop
+			// Set the ball mesh in the game loop and ball effects
 			if (this.gameLoop) {
 				this.gameLoop.setBallMesh(this.ballMesh);
 			}
+			this.ballEffects.setBallMesh(this.ballMesh);
 		} else {
 			console.warn('No ball mesh found in the scene!');
 			// Create a simple ball if none exists
@@ -2123,8 +2124,7 @@ export class Pong3D {
 				position = specialMap[i] || 'bottom';
 			} else {
 				const rel =
-					(i - povOffset + this.playerCount) %
-					this.playerCount;
+					(i - povOffset + this.playerCount) % this.playerCount;
 				if (this.playerCount === 2) {
 					position = rel === 0 ? 'bottom' : 'top';
 				} else if (this.playerCount === 3) {
@@ -2276,11 +2276,9 @@ export class Pong3D {
 
 	/** Reset the rally speed system - called when a new rally starts */
 	private resetRallySpeed(): void {
-		this.rallyHitCount = 0;
-		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
-		console.log(
-			`🔄 Rally reset: Speed back to base ${this.currentBallSpeed}`
-		);
+		this.ballEffects.resetRallySpeed();
+		const currentSpeed = this.ballEffects.getCurrentBallSpeed();
+		console.log(`🔄 Rally reset: Speed back to base ${currentSpeed}`);
 	}
 
 	private maintainConstantBallVelocity(): void {
@@ -2294,7 +2292,7 @@ export class Pong3D {
 		this.applyMagnusForce();
 
 		// Apply spin decay over time
-		this.ballSpin.scaleInPlace(this.SPIN_DECAY_FACTOR);
+		this.ballEffects.applySpinDecay();
 
 		// Calculate current speed (magnitude) in X-Z plane only
 		const currentSpeed = Math.sqrt(
@@ -2303,12 +2301,13 @@ export class Pong3D {
 		);
 
 		// Only adjust if ball is moving and speed differs significantly from target
+		const currentBallSpeed = this.ballEffects.getCurrentBallSpeed();
 		if (
 			currentSpeed > 0.1 &&
-			Math.abs(currentSpeed - this.currentBallSpeed) > 0.5
+			Math.abs(currentSpeed - currentBallSpeed) > 0.5
 		) {
 			// Normalize the X-Z velocity and scale to current rally speed
-			const scale = this.currentBallSpeed / currentSpeed;
+			const scale = currentBallSpeed / currentSpeed;
 			const correctedVelocity = new BABYLON.Vector3(
 				currentVelocity.x * scale,
 				0, // Keep Y locked to 0
@@ -2318,56 +2317,9 @@ export class Pong3D {
 		}
 	}
 
-	private spinDelayActive: boolean = false; // Track if we're still in delay period
-
 	private applyMagnusForce(): void {
-		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
-
-		// Check if spin delay has elapsed
-		const currentTime = Date.now();
-		const timeSinceSpinApplied = currentTime - this.spinActivationTime;
-
-		if (timeSinceSpinApplied < this.SPIN_DELAY) {
-			// Spin delay period - no Magnus force yet
-			if (!this.spinDelayActive && this.spinActivationTime > 0) {
-				this.spinDelayActive = true;
-				console.log(
-					`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`
-				);
-			}
-			return;
-		}
-
-		// Check if there's any spin to apply
-		if (this.ballSpin.length() < 0.001) return;
-
-		// Log when spin delay period ends (one-time)
-		if (this.spinDelayActive) {
-			this.spinDelayActive = false;
-			console.log(`🌪️ Spin delay ended - Magnus effect now active!`);
-		}
-
-		// Get current ball velocity
-		const velocity = this.ballMesh.physicsImpostor.getLinearVelocity();
-		if (!velocity) return;
-
-		// Magnus force = spin × velocity (cross product)
-		// This creates a force perpendicular to both spin and velocity
-		const magnusForce = BABYLON.Vector3.Cross(this.ballSpin, velocity);
-
-		// Scale the Magnus force by coefficient
-		magnusForce.scaleInPlace(this.MAGNUS_COEFFICIENT);
-
-		// Apply Magnus force as impulse (small continuous force)
-		// Scale down the impulse to make it smooth
-		const impulseScale = 0.016; // Approximate frame time for 60fps
-		magnusForce.scaleInPlace(impulseScale);
-
-		// Apply the impulse to curve the ball's path
-		this.ballMesh.physicsImpostor.applyImpulse(
-			magnusForce,
-			this.ballMesh.position
-		);
+		// Use ball effects to apply Magnus force directly
+		this.ballEffects.applyMagnusForce();
 	}
 
 	private updateBounds(): void {
@@ -2440,11 +2392,7 @@ export class Pong3D {
 			const axisNorm = axis.normalize();
 
 			// --- AXIS CONSTRAINT: Snap to axis before any movement or rendering ---
-			if (
-				this.playerCount === 3 &&
-				paddle &&
-				paddle.physicsImpostor
-			) {
+			if (this.playerCount === 3 && paddle && paddle.physicsImpostor) {
 				const paddleMesh = paddle as BABYLON.Mesh;
 				const impostor =
 					paddleMesh.physicsImpostor as BABYLON.PhysicsImpostor;
@@ -2709,8 +2657,8 @@ export class Pong3D {
 	}
 
 	public setBallVelocityConstant(speed: number): void {
-		this.BALL_VELOCITY_CONSTANT = Math.max(1, speed); // Minimum speed of 1
-		console.log('BALL_VELOCITY_CONSTANT ->', this.BALL_VELOCITY_CONSTANT);
+		this.ballEffects.setBallVelocityConstant(speed);
+		console.log('BALL_VELOCITY_CONSTANT ->', speed);
 	}
 
 	public setOnGoalCallback(
@@ -2930,11 +2878,9 @@ export class Pong3D {
 			this.gameLoop.start();
 		}
 
-		// Ensure spin starts at zero when game begins
-		this.ballSpin.set(0, 0, 0);
-		this.spinActivationTime = 0;
-		this.spinDelayActive = false;
-		console.log(`🎮 Game started: Spin initialized to zero`);
+		// Ensure ball effects start fresh when game begins
+		this.ballEffects.resetAllEffects();
+		console.log(`🎮 Game started: Ball effects initialized`);
 	}
 
 	/** Stop the game loop */
@@ -2955,31 +2901,21 @@ export class Pong3D {
 		// Reset last player to hit ball
 		this.lastPlayerToHitBall = -1;
 
-		// IMPORTANT: Reset spin to zero on all ball resets
-		this.ballSpin.set(0, 0, 0);
-		this.spinActivationTime = 0;
-		this.spinDelayActive = false;
-		console.log(`🔄 Manual ball reset: Spin cleared to zero`);
+		// IMPORTANT: Reset all ball effects on manual reset
+		this.ballEffects.resetAllEffects();
+		console.log(`🔄 Manual ball reset: All effects cleared`);
 	}
 
 	/** Set rally speed increment percentage */
 	public setRallySpeedIncrement(percentage: number): void {
-		this.RALLY_SPEED_INCREMENT_PERCENT = Math.max(
-			0,
-			Math.min(50, percentage)
-		); // Clamp between 0-50%
-		console.log(
-			`🚀 Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`
-		);
+		this.ballEffects.setRallySpeedIncrement(percentage);
+		console.log(`🚀 Rally speed increment set to ${percentage}%`);
 	}
 
 	/** Set maximum ball speed to prevent tunneling */
 	public setMaxBallSpeed(maxSpeed: number): void {
-		this.MAX_BALL_SPEED = Math.max(
-			this.BALL_VELOCITY_CONSTANT,
-			Math.min(100, maxSpeed)
-		); // Clamp between base speed and 100
-		console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+		this.ballEffects.setMaxBallSpeed(maxSpeed);
+		console.log(`🏎️ Maximum ball speed set to ${maxSpeed}`);
 	}
 
 	/** Set winning score needed to end the game */
@@ -2996,14 +2932,7 @@ export class Pong3D {
 		speedIncrease: number;
 		maxSpeed: number;
 	} {
-		return {
-			hitCount: this.rallyHitCount,
-			currentSpeed: this.currentBallSpeed,
-			baseSpeed: this.BALL_VELOCITY_CONSTANT,
-			speedIncrease:
-				(this.currentBallSpeed / this.BALL_VELOCITY_CONSTANT - 1) * 100,
-			maxSpeed: this.MAX_BALL_SPEED,
-		};
+		return this.ballEffects.getRallyInfo();
 	}
 
 	/** Set ball velocity (for testing different speeds) */
@@ -3324,8 +3253,8 @@ export function createPong3D(
 	options?: Omit<Pong3DOptions, 'playerCount'>
 ): Pong3D {
 	return new Pong3D(container, {
-		playerCount: Number(sessionStorage.getItem('PLAYER_COUNT')),
-		thisPlayer: Number(sessionStorage.getItem('THIS_PLAYER')),
+		playerCount: GameConfig.getPlayerCount() as 2 | 3 | 4,
+		thisPlayer: GameConfig.getThisPlayer() as 1 | 2 | 3 | 4,
 		...options,
 	});
 }

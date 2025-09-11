@@ -7,5 +7,6 @@
 		"strict": true,
 		"skipLibCheck": true
 	},
-	"include": [".", "../shared/."]
+	"include": [".", "../shared/."],
+	"exclude": ["../node_modules"]
 }

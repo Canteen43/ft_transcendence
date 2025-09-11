@@ -1,12 +1,16 @@
 import { FastifyRequest, RouteGenericInterface } from 'fastify';
+import { FastifyReply } from 'fastify/types/reply.js';
 import {
 	ERROR_AUTHENTICATION_FAILED,
 	ERROR_MALFORMED_TOKEN,
 	ERROR_NO_TOKEN,
 } from '../../shared/constants.js';
-import { AuthenticationFailedError } from '../../shared/exceptions.js';
+import {
+	AuthenticationError,
+	AuthenticationFailedError,
+} from '../../shared/exceptions.js';
 import UserService from '../services/user_service.js';
-import { FastifyReply } from 'fastify/types/reply.js';
+import { AuthenticatedRequest } from '../types/interfaces.js';
 
 export function authenticateRequest(request: FastifyRequest) {
 	try {
@@ -30,10 +34,16 @@ export function authenticateRequest(request: FastifyRequest) {
 	}
 }
 
-export const authHook = (request: FastifyRequest, reply: FastifyReply, done: Function) => {
-	if (request.routeOptions?.config?.secure !== false
-		&& !request.url?.startsWith('/docs')
-		&& process.env.DISABLE_AUTH !== 'true')
+export const authHook = (
+	request: FastifyRequest,
+	reply: FastifyReply,
+	done: Function
+) => {
+	if (
+		request.routeOptions?.config?.secure !== false &&
+		!request.url?.startsWith('/docs') &&
+		process.env.DISABLE_AUTH !== 'true'
+	)
 		authenticateRequest(request);
 	done();
 };

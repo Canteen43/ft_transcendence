@@ -1,6 +1,6 @@
 import { Player } from '../backend/types/interfaces.js';
 import { ParticipantStatus } from './enums.js';
-import { Message } from './schemas/message.js'
+import { Message } from './schemas/message.js';
 import { UUID } from './types.js';
 
 export const ERROR_CREATE_USER_FAILED = 'Failed to create user';
@@ -70,9 +70,14 @@ export const MESSAGE_MOVE = 'm';
 export const MESSAGE_GAME_STATE = 'g';
 export const MESSAGE_POINT = 'x';
 
+export const TOURNAMENT_INVITATION_MESSAGE: Message = {
+	t: MESSAGE_INITIATE_TOURNAMENT,
+};
 export const INVITATION_MESSAGE: Message = { t: MESSAGE_INITIATE_MATCH };
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
-export const TOURNAMENT_START_MESSAGE: Message = { t: MESSAGE_START_TOURNAMENT };
+export const TOURNAMENT_START_MESSAGE: Message = {
+	t: MESSAGE_START_TOURNAMENT,
+};
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 

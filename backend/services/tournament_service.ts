@@ -5,6 +5,8 @@ import {
 	DatabaseError,
 	SettingsNotFoundError,
 	TournamentNotFoundError,
+	UserAlreadyQueuedError,
+	UserNotQueuedError,
 } from '../../shared/exceptions.js';
 import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
 import {
@@ -16,15 +18,40 @@ import {
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
+	TournamentQueue,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import { randomInt } from '../../shared/utils.js';
+import { GameProtocol } from '../game/game_protocol.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 
 export default class TournamentService {
+	private static tournamentQueues: Map<number, Set<UUID>> = new Map();
+
+	static joinQueue(size: number, userId: UUID) {
+		let queue = this.tournamentQueues.get(size);
+		if (!queue) {
+			queue = new Set<UUID>();
+			this.tournamentQueues.set(size, queue);
+		}
+		if (queue.has(userId)) throw new UserAlreadyQueuedError(userId);
+		queue.add(userId);
+	}
+
+	static leaveQueue(size: number, userId: UUID) {
+		const queue = this.tournamentQueues.get(size);
+		if (!queue || !queue.has(userId)) throw new UserNotQueuedError(userId);
+		queue.delete(userId);
+	}
+
+	static getQueue(size: number): TournamentQueue {
+		const result = this.tournamentQueues.get(size) || new Set();
+		return { queue: [...result] };
+	}
+
 	static getFullTournament(id: UUID): FullTournament | null {
 		const tournament = TournamentRepository.getTournament(id);
 		if (!tournament) throw new TournamentNotFoundError(id);
@@ -48,27 +75,31 @@ export default class TournamentService {
 		return FullTournamentSchema.parse(fullTournament);
 	}
 
-	static createTournament(creator: UUID, participants: UUID[]): Tournament {
+	static createTournament(creator: UUID, users: UUID[]): Tournament {
 		const settings = SettingsRepository.getSettingsByUser(creator);
 		if (!settings) throw new SettingsNotFoundError('user', creator);
 
-		const tournament = CreateTournamentSchema.parse({
-			size: participants.length,
+		const createTournament = CreateTournamentSchema.parse({
+			size: users.length,
 			settings: settings.id,
 			status:
-				participants.length == 2
+				users.length == 2
 					? TournamentStatus.InProgress
 					: TournamentStatus.Pending,
 		});
 
-		const all_participants = this.createParticipants(participants);
-		const matches = this.createTournamentMatches(participants);
-
-		return TournamentRepository.createFullTournament(
-			tournament,
-			all_participants,
-			matches
+		const createParticipants = this.createParticipants(users);
+		const createMatches = this.createTournamentMatches(users);
+		const { tournament, participants } =
+			TournamentRepository.createFullTournament(
+				createTournament,
+				createParticipants,
+				createMatches
+			);
+		GameProtocol.getInstance().sendTournamentInvites(
+			participants.filter(p => p.user_id !== creator)
 		);
+		return tournament;
 	}
 
 	static getNumberOfRounds(tournament_id: UUID): number {
@@ -84,14 +115,12 @@ export default class TournamentService {
 		return participant;
 	}
 
-	private static createParticipants(
-		participants: UUID[]
-	): CreateParticipant[] {
-		return participants.map(p =>
+	private static createParticipants(users: UUID[]): CreateParticipant[] {
+		return users.map(p =>
 			CreateParticipantSchema.parse({
 				user_id: p,
 				status:
-					participants.length == 2
+					users.length == 2
 						? ParticipantStatus.Accepted
 						: ParticipantStatus.Pending,
 			})
