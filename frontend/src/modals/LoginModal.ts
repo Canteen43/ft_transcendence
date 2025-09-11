@@ -43,7 +43,7 @@ export class LoginModal extends Modal {
 		const username = this.UsernameField.value.trim();
 		const password = this.PasswordField.value.trim();
 
-		const requestData = { login: username, password_hash: password };
+		const requestData = { login: username, password: password };
 
 		const parseResult = AuthRequestSchema.safeParse(requestData);
 		if (!parseResult.success) {

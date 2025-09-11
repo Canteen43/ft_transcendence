@@ -1,10 +1,17 @@
 import * as z from 'zod';
-import { sanitizedString, zUUID } from '../types.js';
+import { zUUID } from '../types.js';
 
 const passwordSchema = z
 	.string()
 	.min(8, 'Password must be at least 8 characters')
-	.max(128, 'Password must be at most 128 characters');
+	.max(128, 'Password must be at most 128 characters')
+	.regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+	.regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+	.regex(/[0-9]/, 'Password must contain at least one number')
+	.regex(
+		/[^a-zA-Z0-9]/,
+		'Password must contain at least one special character'
+	);
 
 const loginSchema = z
 	.string()
@@ -35,15 +42,15 @@ export const UserSchema = z.object({
 
 export const CreateUserSchema = z.object({
 	login: z.string().pipe(loginSchema),
-	first_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
-	last_name: z.string().min(1).max(128).pipe(nameSchema).nullable(),
-	email: z.email().pipe(sanitizedString).nullable(),
-	password_hash: z.string().min(8).max(128),
+	first_name: z.string().pipe(nameSchema).nullable(),
+	last_name: z.string().pipe(nameSchema).nullable(),
+	email: z.email().nullable(),
+	password: z.string().pipe(passwordSchema),
 });
 
 export const AuthRequestSchema = z.object({
 	login: z.string(),
-	password_hash: z.string(),
+	password: z.string(),
 });
 
 export const AuthResponseSchema = z.object({
@@ -52,12 +59,7 @@ export const AuthResponseSchema = z.object({
 	token: z.string(),
 });
 
-export const AuthenticateUserSchema = UserSchema.extend({
-	password_hash: z.string(),
-});
-
 export type User = z.infer<typeof UserSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateUser = z.infer<typeof CreateUserSchema>;
-export type AuthenticateUser = z.infer<typeof AuthenticateUserSchema>;

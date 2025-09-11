@@ -79,7 +79,7 @@ async function createUser(
 	request: FastifyRequest<{ Body: CreateUser }>
 ): Promise<User> {
 	try {
-		const user: User = UserRepository.createUser(request.body);
+		const user: User = await UserRepository.createUser(request.body);
 		return user;
 	} catch (error) {
 		logger.error(error);
