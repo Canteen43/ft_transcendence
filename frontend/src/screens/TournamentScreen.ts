@@ -1,4 +1,6 @@
 import { Screen } from '../components/Screen';
+import { Button } from '../components/Button';
+
 
 interface Player {
 	id: string;
@@ -274,20 +276,6 @@ export class TournamentScreen extends Screen {
 
 	private renderControls(parent: HTMLElement) {
 		const controlsContainer = this.createElement(parent,'div','flex justify-center gap-4 mt-12');
-
-		// const resetBtn = document.createElement('button');
-		// resetBtn.textContent = 'START GAME';
-		// resetBtn.className =
-		// 	'font-sigmar px-8 py-3 text-xl font-bold rounded-lg border-2 border-[var(--color1)] text-[var(--color1)] hover:bg-[var(--color1)] hover:text-white transition-all duration-300';
-		// resetBtn.onclick = () => this.resetTournament();
-		// controlsContainer.appendChild(resetBtn);
-
-		const homeButton = document.createElement('button');
-		homeButton.textContent = 'BACK TO HOME';
-		homeButton.className =
-			'font-sigmar px-8 py-3 text-xl font-bold rounded-lg border-2 border-[var(--color1)] text-[var(--color1)] hover:bg-[var(--color1)] hover:text-white transition-all duration-300';
-		homeButton.onclick = () => new HomeScreen();
-		controlsContainer.appendChild(homeButton);
 	}
 
 	private createPlayerSlot(
@@ -302,8 +290,5 @@ export class TournamentScreen extends Screen {
 	}
 
 
-	private goHome() {
-		console.log('Navigate back to home screen');
-	}
 
 }

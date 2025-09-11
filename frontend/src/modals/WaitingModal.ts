@@ -23,7 +23,7 @@ export class WaitingModal extends Modal {
 		message.className = 'font-sigmar text-3xl font-bold text-center mb-12 text-[var(--color1)]';
 
 		const loader = document.createElement('l-jelly');
-		loader.setAttribute('size', '100');
+		loader.setAttribute('size', '80');
 		loader.setAttribute('speed', '1.5');
 		loader.setAttribute('color', 'var(--color1)');
 
