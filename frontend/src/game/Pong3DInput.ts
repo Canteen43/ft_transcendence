@@ -4,8 +4,8 @@
  * Key Bindings:
  * - Player 1: Arrow Right/Up (left) Arrow Left/Down (right)
  * - Player 2: A/W (left) D/S (right)  
- * - Player 3: Q (left) E (right)
- * - Player 4: U (left) I (right)
+ * - Player 3: J/I (left) L/K (right)
+ * - Player 4: 4/8 (left) 6/5 (right)
  * 
  * Additional Controls:
  * - Double-click canvas: Toggle fullscreen
@@ -68,13 +68,13 @@ export class Pong3DInput {
 		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p2Left = true;
 		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p2Right = true;
 
-		// Player 3: QE keys
-		if (k === 'q' || k === 'Q') this.keyState.p3Left = true;
-		if (k === 'e' || k === 'E') this.keyState.p3Right = true;
+		// Player 3: IJKL keys
+		if (k === 'j' || k === 'J' || k === 'i' || k === 'I') this.keyState.p3Left = true;
+		if (k === 'l' || k === 'L' || k === 'k' || k === 'K') this.keyState.p3Right = true;
 
-		// Player 4: UI keys
-		if (k === 'u' || k === 'U') this.keyState.p4Left = true;
-		if (k === 'i' || k === 'I') this.keyState.p4Right = true;
+		// Player 4: Number pad 8456
+		if (k === '4' || k === '8') this.keyState.p4Left = true;
+		if (k === '6' || k === '5') this.keyState.p4Right = true;
 	}
 
 	private handleKeyUp(e: KeyboardEvent): void {
@@ -87,13 +87,13 @@ export class Pong3DInput {
 		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p2Left = false;
 		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p2Right = false;
 
-		// Player 3: QE keys
-		if (k === 'q' || k === 'Q') this.keyState.p3Left = false;
-		if (k === 'e' || k === 'E') this.keyState.p3Right = false;
+		// Player 3: IJKL keys
+		if (k === 'j' || k === 'J' || k === 'i' || k === 'I') this.keyState.p3Left = false;
+		if (k === 'l' || k === 'L' || k === 'k' || k === 'K') this.keyState.p3Right = false;
 
-		// Player 4: UI keys
-		if (k === 'u' || k === 'U') this.keyState.p4Left = false;
-		if (k === 'i' || k === 'I') this.keyState.p4Right = false;
+		// Player 4: Number pad 8456
+		if (k === '4' || k === '8') this.keyState.p4Left = false;
+		if (k === '6' || k === '5') this.keyState.p4Right = false;
 	}
 
 	private toggleFullscreen(): void {

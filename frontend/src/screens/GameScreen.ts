@@ -2,13 +2,15 @@ import { Screen } from '../components/Screen';
 import { Pong3D } from '../game/Pong3D';
 
 export class GameScreen extends Screen {
+	private pong3DInstance: Pong3D;
+
 	constructor() {
 		super();
 
-		const video = document.getElementById(
-			'background-video'
-		) as HTMLVideoElement;
-		video.pause();
+		// const video = document.getElementById(
+		// 	'background-video'
+		// ) as HTMLVideoElement;
+		// video.pause();
 
 		// // Keep heading near top, not centered
 		// this.element.classList.remove('justify-center');
@@ -36,7 +38,7 @@ export class GameScreen extends Screen {
 		// initPongScene();
 
 		// Initialize 3D pong
-		new Pong3D(this.element);
+		this.pong3DInstance = new Pong3D(this.element);
 
 		// // Button for testing navigation
 		// void new Button(
@@ -46,5 +48,14 @@ export class GameScreen extends Screen {
 		// 	},
 		// 	content
 		// );
+	}
+
+	// Override destroy to properly clean up Pong3D resources
+	public destroy() {
+		if (this.pong3DInstance) {
+			this.pong3DInstance.dispose();
+		}
+		// Call parent destroy to remove DOM element
+		super.destroy();
 	}
 }

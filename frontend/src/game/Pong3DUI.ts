@@ -18,7 +18,11 @@ export interface Pong3DUIHandles {
     playerStacks: Array<GUI.StackPanel>;
     playerNameTexts: Array<GUI.TextBlock>;
     playerScoreTexts: Array<GUI.TextBlock>;
+    // Winner display
+    winnerMessage: GUI.TextBlock;
     movePlayerTo: (playerIndex: number, position: 'top' | 'bottom' | 'left' | 'right') => void;
+    showWinner: (playerIndex: number, playerName: string) => void;
+    hideWinner: () => void;
     dispose: () => void;
 }
 
@@ -251,6 +255,41 @@ export function createPong3DUI(_scene: BABYLON.Scene, opts?: Pong3DUIOptions): P
         movePlayerTo(i, pos);
     }
 
+    // Create winner message (initially hidden)
+    const winnerMessage = new GUI.TextBlock();
+    winnerMessage.text = "";
+    winnerMessage.color = "white";
+    winnerMessage.fontSize = "80px";
+    winnerMessage.fontFamily = "Arial";
+    winnerMessage.fontWeight = "bold";
+    winnerMessage.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    winnerMessage.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    winnerMessage.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    winnerMessage.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+    // Add text effects
+    winnerMessage.outlineColor = "white";
+    winnerMessage.outlineWidth = 4;
+    winnerMessage.shadowColor = "rgba(0, 0, 0, 0.7)";
+    winnerMessage.shadowOffsetX = 3;
+    winnerMessage.shadowOffsetY = 3;
+    winnerMessage.shadowBlur = 5;
+    winnerMessage.isVisible = false;
+    guiTexture.addControl(winnerMessage);
+
+    // Function to show winner
+    const showWinner = (playerIndex: number, playerName: string) => {
+        const colors = ['red', 'blue', 'green', 'cyan'];
+        const color = colors[playerIndex] || "white";
+        winnerMessage.text = `${playerName} WINS!`;
+        winnerMessage.color = color;
+        winnerMessage.isVisible = true;
+    };
+
+    // Function to hide winner
+    const hideWinner = () => {
+        winnerMessage.isVisible = false;
+    };
+
     return {
         guiTexture,
         topContainer,
@@ -260,7 +299,10 @@ export function createPong3DUI(_scene: BABYLON.Scene, opts?: Pong3DUIOptions): P
         playerStacks,
         playerNameTexts,
         playerScoreTexts,
+        winnerMessage,
         movePlayerTo,
+        showWinner,
+        hideWinner,
         dispose: () => guiTexture.dispose(),
     };
 }

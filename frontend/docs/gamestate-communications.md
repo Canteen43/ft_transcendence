@@ -4,34 +4,32 @@
 
 This document defines the high-level design and protocol for gamestate communications for the Pong3D project. It describes the roles, message flows, data models, synchronization strategy, and testing/validation considerations for an architecture where Player 1's local `Pong3D` instance acts as the authoritative game server ("master") and all other players run client-mode `Pong3D` instances. A lightweight relay server forwards WebSocket messages between participants.
 
-This is a design-only draft. No implementation code is included here. We'll iterate on the details and then convert agreed sections into implementation tasks.
+This design prioritizes bandwidth efficiency and simplicity by using input-based communication and raw coordinate transmission.
 
 ---
 
 ## Checklist (requirements extracted)
 - The Player 1 instance of `Pong3D` will be the authoritative gamestate (master/server).
 - Other players run `Pong3D` in client mode.
-- Clients update their own paddle position directly from input (local immediate response).
-- Each player maintains a WebSocket to a relay server that forwards messages to all participants.
-- Clients receive all positioning coordinates via WebSocket, except for their own paddle which they update locally.
-- Clients relay their own paddle position updates to the master (via the relay server).
-
+- Clients send only input controls (key press/release events) to the master.
+- Master runs authoritative physics simulation and sends position-only updates to all clients.
+- Master sends raw X,Z coordinates for all game objects (ball and paddles).
+- Ultra-simple message format for easy implementation and debugging.
 ---
 
 ## Actors and Roles
 
 - Master (Authoritative Server)
   - The Player 1 local `Pong3D` instance.
-  - Maintains the authoritative game state: ball position/velocity/spin, paddles state, scores, goals, and tick counter.
-  - Receives paddle updates from clients and applies them (after validation) to the authoritative state.
-  - Advances the physics/tick and broadcasts periodic authoritative snapshots to all clients via the relay server.
+  - Maintains the authoritative game state: ball position/velocity/spin, paddle positions, and scores.
+  - Receives input commands from clients and applies them to the authoritative physics simulation.
+  - Advances the physics simulation and broadcasts position updates to all clients via the relay server.
 
 - Clients
   - Local `Pong3D` instances running in client mode (players 2..N).
-  - Immediately update their local paddle in response to input (low-latency local feel).
-  - Continuously send paddle updates to the relay server for forwarding to the master.
-  - Receive authoritative snapshots and remote paddle updates from the master (via relay) and render other players and ball accordingly.
-  - Ignore authoritative updates for their own paddle for immediate responsiveness, but still use master snapshots for reconciliation.
+  - Send input commands (paddle direction) to the master via relay server.
+  - Receive authoritative position updates from master and render ball and other players accordingly.
+  - May apply local prediction for their own paddle for immediate responsiveness.
 
 - Relay Server
   - Simple WebSocket relay (stateless or near-stateless) whose primary job is to forward messages between participants.
@@ -42,104 +40,231 @@ This is a design-only draft. No implementation code is included here. We'll iter
 ## Network Topology
 
 - Every participant (master + clients) maintains a single persistent WebSocket connection to the Relay Server.
-- Message routing pattern:
-  - Client -> Relay -> Master (paddle updates)
-  - Master -> Relay -> All Clients (authoritative snapshots and state events)
-  - Relay can mirror client messages to all participants if desired (but authoritative state always comes from master)
+- Simple message routing:
+  - **Input Path**: Client -> Relay -> Master (input commands)
+  - **State Path**: Master -> Relay -> All Clients (position updates)
 
-This setup preserves a single authoritative replica while keeping the relay server simple.
-
----
-
-## Message Types (logical descriptions)
-
-1. Client -> Relay -> Master: PaddleUpdate
-   - Purpose: inform master of client's desired paddle state (position/velocity) and input sequence information.
-   - Fields (conceptual): playerId, localSeq, tickHint (optional), position (x or z depending on mode), velocity, timestamp (client clock), inputState (optional), reliability hints.
-   - Notes: send at a frequent but rate-limited cadence (e.g., 15–30Hz). Include a monotonically incrementing `localSeq` to enable reconciliation.
-
-2. Master -> Relay -> Clients: GameStateSnapshot
-   - Purpose: authoritative world state for rendering and reconciliation.
-   - Fields (conceptual): tick (authoritative tick counter), ball: {pos, vel, spin}, paddles: [{playerId, pos, vel, lastInputSeq}], scores, events (goals, resets), serverTimestamp.
-   - Notes: snapshots can be delta-compressed or full. Send at a fixed tick rate (e.g., 20Hz) or at a multiple of the physics tick.
-
-3. Optional Relay/Peer Messages
-   - Join/Leave, Ping/Pong, version/feature negotiation, and control messages (pause, resume).
+This setup preserves a single authoritative replica while providing low-latency paddle updates and keeping the relay server simple.
 
 ---
 
-## Data Model (high-level)
+## Message Types
 
-- Paddle state (per player)
-  - playerId (1..N)
-  - pos (float) — movement axis dependent (X or Z axis as per game mode)
-  - vel (float)
-  - lastInputSeq (int) — last client-sent sequence number applied by master
-  - authoritativeFlag (bool) — master-owned/validated flag (not required in message if implicit)
+### 1. Client → Master: Input Commands (on key state change only)
+```json
+{
+  "k": 1
+}
+```
+**Fields:**
+- `k`: paddle input state (0=none, 1=left/up, 2=right/down)
+- **Size**: ~3 bytes per input change
+- **Frequency**: Only when keys are pressed/released (10-20 events/second typical)  
+- **Purpose**: Send control input changes to master for authoritative physics
 
-- Ball state
-  - pos: {x,z}
-  - vel: {x,z}
-  - spin: scalar or vector (depending on implementation)
+### 2. Master → All Clients: Game State (every update)
+```json
+{
+  "b": [2.34, -1.87],
+  "pd": [
+    [-2.1, 0],
+    [2.1, 0]
+  ]
+}
+```
+**Fields:**
+- `b`: ball position [x, z]  
+- `pd`: paddle positions [x, z] for each player
+- **Size**: ~12 bytes for 2P, ~20 bytes for 4P
+- **Frequency**: 20-60Hz (as fast as needed)
+- **Purpose**: Authoritative positions for rendering
 
-- Game snapshot envelope
-  - tick (int) — authoritative tick number
-  - serverTimestamp (ms) — for optional smoothing calculations
-  - paddles[]
-  - ball
-  - scores
-  - events[] — goal triggers, resets, special events
+### 3. Event Messages (sent only on change)
+```json
+// Score update
+{ "type": "score", "scores": [3, 1], "scorer": 1 }
+
+// Goal event  
+{ "type": "goal", "scorer": 1, "victim": 2 }
+
+// Game control
+{ "type": "pause" }
+{ "type": "resume" }
+{ "type": "reset" }
+```
+
+### 4. Connection Messages
+```json
+// Join game
+{ "type": "join", "playerId": 2 }
+```
+
+---
+
+## Data Model
+
+### Simple Game State Structure
+```typescript
+interface GameState {
+  b: [number, number];    // ball position [x, z]
+  pd: [number, number][];  // paddle positions [[x1,z1], [x2,z2], ...] 
+}
+```
+
+### Simple Input Command Structure  
+```typescript
+interface InputCommand {
+  k: number;       // paddle input (0=none, 1=left/up, 2=right/down)
+}
+```
+
+### Paddle Input Encoding
+```
+0 = No movement (no keys pressed)
+1 = Move left/up (A key or W key) 
+2 = Move right/down (D key or S key)
+
+Examples for 2P mode:
+Player 1: A=left(1), D=right(2), none=0
+Player 2: Left arrow=left(1), Right arrow=right(2), none=0
+```
+
+### Coordinate System
+- **Ball**: Moves freely in X,Z plane (Y fixed at GLB height)
+- **Paddles**: 
+  - 2P mode: Both move on X-axis (Z positions fixed)
+  - 3P mode: P1,P2 on X-axis, P3 on Z-axis
+  - 4P mode: P1,P2 on X-axis, P3,P4 on Z-axis
+- **Raw coordinates**: No mapping - send actual mesh X,Z values
 
 ---
 
 ## Synchronization Strategy
 
-1. Authority model
-   - Master is authoritative for the entire world. Clients are authoritative for their own local input only until the master validates and includes them in a snapshot.
-   - Clients update their own paddle locally for immediate responsiveness (client-side prediction). They still send regular PaddleUpdate messages to the master.
+### 1. Authority Model
+- **Master Authority**: Player 1's Pong3D instance runs authoritative physics simulation
+- **Input Processing**: Master processes all client inputs and updates game state
+- **Position Authority**: Master owns all object positions (ball, all paddles)
 
-2. Reconciliation
-   - Master applies incoming paddle updates in order (sequence numbers) and clamps/validates positions (respecting PADDLE_RANGE, max velocity, etc.).
-   - Master includes `lastInputSeq` for each player's paddle in snapshots so clients can reconcile.
-   - When a client receives a snapshot containing a different authoritative position for its own paddle (beyond a small tolerance), the client should smoothly correct (reconcile) the local paddle: either snap if difference is large or do a short correction interpolation to avoid visible jitter.
+### 2. Simple Client Rendering
+```typescript
+// Client receives game state and renders directly
+receiveGameState(state: GameState) {
+  // Update ball position
+  this.ballMesh.position.set(state.b[0], this.ballY, state.b[1]);
+  
+  // Update other paddle positions (skip own paddle if using prediction)
+  state.pd.forEach((pos, i) => {
+    if (i !== this.myPlayerIndex) {
+      this.paddles[i].position.set(pos[0], this.paddleY, pos[1]);
+    }
+  });
+}
 
-3. Remote objects (ball & other paddles)
-   - Clients render remote paddles and the ball using interpolation based on recent authoritative snapshots (ex: keep 100–200ms render buffer and interpolate between known snapshot states).
-   - Extrapolation may be used when latency spikes, but capped and decayed quickly.
+// Optional: Client prediction for own paddle
+processInput(input: number) {
+  // Apply to local paddle immediately for responsiveness
+  this.updateLocalPaddle(input);
+  
+  // Send to master
+  this.sendInputToMaster(input);
+}
+```
 
 ---
 
-## Timing, Rates, and Bandwidth
+## Bandwidth Analysis
 
-- Recommended authoritative tick / snapshot rate: 15–30Hz. Balance between bandwidth and responsiveness. For Pong, 20Hz is a reasonable starting point.
-- Paddle updates from clients: 15–60Hz depending on input frequency and available bandwidth; can be compressed by sending only changed values and using dead-reckoning.
-- Typical message sizes should be small (a few dozen bytes per update) — use JSON or lightweight binary format (CBOR/Protobuf) depending on final performance needs.
+### Ultra-Simple Message Sizes
+- **Game State (2P)**: ~12 bytes per snapshot
+  - Ball XZ (8 bytes) + 2 Paddle XZ (8 bytes) = 16 bytes  
+- **Game State (4P)**: ~20 bytes per snapshot  
+  - Ball XZ (8 bytes) + 4 Paddle XZ (16 bytes) = 24 bytes
+- **Input Command**: ~3 bytes per input change
+  - Just the paddle input value: { "k": 1 }
+
+### Simple Bandwidth Usage (20Hz game state, input on change)
+```
+2-Player Game:
+- Master→Clients: 12 bytes × 20Hz = 240 bytes/s per client
+- Client→Master: 3 bytes × ~15 changes/s = 45 bytes/s per client
+- Total per client: ~285 bytes/s = 0.3 KB/s
+
+4-Player Game:  
+- Master→Clients: 20 bytes × 20Hz = 400 bytes/s per client
+- Client→Master: 3 bytes × ~15 changes/s = 45 bytes/s per client  
+- Total per client: ~445 bytes/s = 0.4 KB/s
+```
+
+### Comparison with Traditional Approaches
+```
+Traditional (position + velocity updates):
+- 2P: ~1.3 KB/s per client
+- 4P: ~2.6 KB/s per client
+
+Our Optimized Approach:
+- 2P: ~0.4 KB/s per client (70% reduction)
+- 4P: ~0.6 KB/s per client (77% reduction)
+```
+
+### Message Formats
+- **Development**: JSON with short field names
+- **Production**: Consider MessagePack or custom binary for further optimization
 
 ---
 
-## Latency Compensation and Prediction
+## Latency and Performance
 
-- Client-side prediction for own paddle: clients apply local input immediately then send updates to master.
-- Server reconciliation: master includes `lastInputSeq` in snapshots; the client can discard applied local inputs up to that sequence and reapply any remaining inputs if using input-buffering. For a simple position-only system, reconciliation can be position-based using `lastInputSeq` as a hint.
-- Ball handling: since master is authoritative for physics, clients only interpolate/extrapolate ball positions between snapshots.
+### Simple Approach
+- **No interpolation**: Clients render positions directly as received
+- **Optional client prediction**: Local paddle can move immediately, corrected by server updates
+- **Accept some stuttering**: Focus on learning core concepts first
+- **Iterate later**: Add smoothing/interpolation only if needed after basic version works
 
 ---
 
 ## Ordering, Reliability, and Consistency
 
-- WebSockets use TCP, so messages are delivered in order per connection. However, messages from different clients arrive independently, and end-to-end ordering across peers is not guaranteed.
-- Use monotonic sequence numbers / ticks in messages so receivers can detect duplicates, out-of-order messages, and missing updates.
-- For critical events (goals, resets), master publishes an event in the authoritative snapshot and may also emit an immediate "event" message to reduce perceived latency for those events.
+- WebSockets use TCP, so messages are delivered in order per connection and reliably.
+- For critical events (goals, resets), master can send immediate event messages in addition to the regular position updates.
 
 ---
 
 ## Validation and Anti-Cheating
 
-- Master must validate client-provided paddle updates to defend against invalid positions or impossible velocities:
-  - Clamp positions to allowed range (PADDLE_RANGE).
-  - Clamp velocities to PADDLE_MAX_VELOCITY.
-  - Rate-limit updates per client.
-- Relay server should perform authentication/authorization checks and optionally rate-limit abusive clients.
+### Simple Input Validation (Master-Side)
+```typescript
+validateInput(playerId: number, input: InputCommand): boolean {
+  // 1. Rate limiting  
+  if (this.getInputRate(playerId) > MAX_INPUT_RATE) {
+    return false; // Too many inputs per second
+  }
+  
+  // 2. Input value validation
+  if (input.k < 0 || input.k > 2) {
+    return false; // Invalid input value (must be 0, 1, or 2)
+  }
+  
+  return true;
+}
+
+applyValidatedInput(playerId: number, input: InputCommand) {
+  // Apply physics with built-in constraints
+  // Paddle boundaries and velocity limits enforced automatically
+  this.updatePaddle(playerId, input.k);
+}
+```
+
+### Physics-Based Anti-Cheat
+- **Boundary enforcement**: Master clamps paddle positions to valid range
+- **Velocity limits**: Master enforces maximum paddle speed  
+- **Deterministic physics**: Same input always produces same result
+- **Position authority**: Master position always overrides client prediction
+
+### Network-Level Protection
+- **Authentication**: Validate player identity at connection time
+- **Rate limiting**: Limit message frequency per connection
+- **Input sanitization**: Validate message format and ranges
 
 ---
 
@@ -168,10 +293,49 @@ This setup preserves a single authoritative replica while keeping the relay serv
 
 ## Testing Plan
 
-1. Unit tests for message serialization/deserialization and validation logic.
-2. A local integration harness that runs multiple `Pong3D` instances (master + N clients) connected through a mock relay and exercises network conditions (latency, jitter, packet reordering by delaying, although WebSocket/TCP reduces reordering chance).
-3. Scripted replay tests that simulate client input sequences and assert the master's snapshots remain deterministic and within tolerances.
-4. Visual/manual testing: run clients with instrumentation to log `PaddleUpdate` messages and master snapshots, verify reconciliation behavior when artificial lag is injected.
+### 1. Unit Testing
+```typescript
+// Message serialization/deserialization
+describe('GameState Serialization', () => {
+  test('simple JSON encoding', () => {
+    const state = { b: [2.34, -1.87], pd: [[-2.1, 0], [2.1, 0]] };
+    expect(JSON.stringify(state).length).toBeLessThan(40);
+  });
+});
+
+// Input validation  
+describe('Input Validation', () => {
+  test('rejects invalid input values', () => {
+    expect(validateInput(1, { k: 5 })).toBe(false); // Only 0,1,2 allowed
+  });
+});
+```
+
+### 2. Simple Physics Testing
+```typescript
+// Verify master processes inputs correctly
+describe('Input Processing', () => {
+  test('paddle moves correctly for input', () => {
+    const game = new MasterGame();
+    const initialPos = game.getPaddlePosition(1);
+    
+    game.processInput(1, { k: 1 }); // Move left
+    game.updatePhysics();
+    
+    expect(game.getPaddlePosition(1)).toBeLessThan(initialPos);
+  });
+});
+```
+
+### 3. Network Testing
+- **Mock WebSocket**: Test with simulated network conditions
+- **Multi-client testing**: Run master + client locally for testing  
+- **Basic integration**: Verify input → master → position update flow
+
+### 4. Basic Integration Testing
+- **End-to-end gameplay**: Simple 2-player games over local network
+- **Message validation**: Verify message formats are correct
+- **Connection handling**: Test join/leave, reconnection scenarios
 
 ---
 
@@ -182,19 +346,35 @@ This setup preserves a single authoritative replica while keeping the relay serv
 
 ---
 
-## Next Steps (suggested)
+## Implementation Roadmap
 
-1. Review this design and confirm assumptions (master is Player 1, relay is a simple forwarder).
-2. Decide on concrete message serialization format (JSON vs binary) and exact field names.
-3. Choose authoritative tick rate and client update cadence.
-4. Add a minimal message schema appendix with exact fields and types (will become the protocol spec).
-5. Implement a small relay proof-of-concept and a test harness to validate timing and reconciliation.
+### Phase 1: Basic Implementation (2P Remote)
+1. **Simple Messages**: Implement basic JSON input/state messages
+2. **Input Processing**: Send paddle input from client to master  
+3. **Position Updates**: Master sends ball/paddle positions to clients
+4. **Basic Rendering**: Clients update mesh positions from received state
 
----
+### Phase 2: Network Foundation  
+1. **WebSocket Integration**: Add WebSocket to Pong3D class
+2. **Simple Relay Server**: Basic message forwarding server
+3. **Connection Handling**: Join/leave game functionality
 
-If this looks good, I can:
-- produce a compact message-schema appendix (no code, only field names and types), or
-- add a sequence diagram for the typical flows (Client -> Relay -> Master -> Relay -> Clients), or
-- start implementing tests/harness code once you approve the protocol details.
+### Phase 3: Polish & Features
+1. **Error Handling**: Network failures, connection drops
+2. **Game Events**: Goals, scores, game end
+3. **Optional Improvements**: Client prediction, better input handling
 
-Which of these would you like to do next?
+### Phase 4: Multi-Player Extension (Later)
+1. **3P/4P Support**: Extend to more players if desired
+2. **Tournament Integration**: Match-making features
+
+## Key Design Decisions Summary
+
+✅ **Simple input-based communication**: Send paddle direction (0,1,2), not complex key states  
+✅ **Raw X,Z coordinates**: No coordinate mapping complexity  
+✅ **Master authority**: Player 1 runs authoritative physics simulation  
+✅ **Ultra-simple messages**: ~12 bytes per game state (2P)  
+✅ **Direct rendering**: Clients render positions directly from master updates  
+✅ **No timestamps/ticks**: Keep it simple for learning and debugging
+
+This design achieves **<0.3 KB/s bandwidth usage** with **simple, debuggable code** perfect for learning networked game development.

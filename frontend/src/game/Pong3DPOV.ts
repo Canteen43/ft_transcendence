@@ -66,9 +66,9 @@ export function getCameraPosition(
             } else if (activePlayerCount === 3) {
                 return {
                     alpha: Math.PI / 2,
-                    beta: Math.PI / 7,
-                    radius: defaultRadius - 1,
-                    target: createTarget(defaultTargetY + 3)
+                    beta: Math.PI / 6,
+                    radius: defaultRadius + 4,
+                    target: createTarget(defaultTargetY + 1)
                 };
             } else { // 4-player
                 return {

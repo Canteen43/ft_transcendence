@@ -1,139 +1,83 @@
-import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
-import type { GameOptions } from '../misc/GameOptions';
-import { LoginButton } from '../misc/LoginButton';
-import { webSocket } from '../misc/WebSocketWrapper';
-import { PlaceholderModal } from '../modals/PlaceholderModal';
-import { Remote2PlayerModal } from '../modals/Remote2PlayerModal';
-
-export let gameOptions: GameOptions | null = null;
+import { RemoteGameModal} from '../modals/RemoteGameModal';
+import { LocalGameModal} from '../modals/LocalGameModal';
+import { initParticles } from '../misc/Particles';
+import { isLoggedIn } from '../misc/AuthComponent';
 
 export class HomeScreen extends Screen {
+	private particlesContainer: HTMLDivElement | null = null;
+
 	constructor() {
 		super();
 
-		const video = document.getElementById(
-			'background-video'
-		) as HTMLVideoElement;
-		video.play();
+		// Create particles background
+		this.createParticlesBackground();
+		requestAnimationFrame(() => {void this.initParticlesAsync();});
 
 		this.element.className =
 			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
 
-		// Heading
+		// Main title
 		const heading = document.createElement('h1');
-		heading.textContent = 'transcendence';
-		heading.className =
-			'text-7xl font-extrabold select-none font-ps2p text-white';
-		heading.style.textShadow = `2px 2px 0px pink, -2px 2px 0px pink, 2px -2px 0px pink, -2px -2px 0px pink`;
+		heading.textContent = 'TRANSCENDANCE';
+		heading.className = 'font-rubik text-[100px] text-[var(--color1)] text-center floating-title select-none';
 		this.element.appendChild(heading);
 
-		// Button container
-		const buttonContainer = document.createElement('div');
-		buttonContainer.className = 'flex space-x-4 justify-center';
-		this.element.appendChild(buttonContainer);
+		// Container for the main 2 buttons
+		const mainButtonContainer = document.createElement('div');
+		mainButtonContainer.className = 'flex gap-8 mt-8';
+		this.element.appendChild(mainButtonContainer);
 
-		// Buttons
-		void new LoginButton(this.element);
+		// LOCAL Play button
+		const localBtn = document.createElement('button');
+		localBtn.textContent = 'LOCAL GAME';
+		localBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:text-[var(--color1bis)]  hover:border-[var(--color1bis)] transition-all duration-300 shadow-lg';
+		localBtn.onclick = () => new LocalGameModal(this.element);
+		mainButtonContainer.appendChild(localBtn);
 
-		void new Button(
-			'Postman Mock-Request',
-			async () => {
-				try {
-					const res = await fetch(
-						'https://1a7b7860-26ef-49a8-b367-439c7ea4ea05.mock.pstmn.io/users'
-					);
-					const data = await res.json();
-					alert(JSON.stringify(data, null, 2));
-				} catch {
-					alert('Error fetching data');
-				}
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Create Test User',
-			async () => {
-				const timestamp = Date.now();
-				const newUser = {
-					login: `test_${timestamp}`,
-					// login: `helene`,
-					first_name: 'Test',
-					last_name: 'User',
-					email: 'test.user@example.com',
-					password_hash: 'supersecret',
-				};
+		// REMOTE Play button 
+		const remoteBtn = document.createElement('button');
+		remoteBtn.textContent = 'REMOTE GAME';
+		remoteBtn.className = 'font-sigmar px-16 py-6 text-5xl text-[var(--color1)] font-bold rounded-lg border-4 border-[var(--color1)] hover:text-[var(--color1bis)] hover:border-[var(--color1bis)] transition-all duration-300 shadow-lg';
+		remoteBtn.onclick = () => this.remoteLogic();
+		mainButtonContainer.appendChild(remoteBtn);
+	}
 
-				try {
-					const res = await fetch('http://localhost:8080/users', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify(newUser),
-					});
+	private remoteLogic() {
+		if (!isLoggedIn()) {
+			alert("You must be logged-in to access the remote game");
+			return;
+		}
+		new RemoteGameModal(this.element);
+	}
 
-					if (!res.ok) {
-						const errText = await res.text(); // backend error message
-						throw new Error(errText);
-					}
+	private createParticlesBackground() {
+		this.particlesContainer = document.createElement('div');
+		this.particlesContainer.id = "tsparticles";
 
-					const data = await res.json();
-					alert(JSON.stringify(data, null, 2));
-				} catch (err) {
-					alert('Error creating user: ' + err);
-					console.error(err);
-				}
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Local 1v1',
-			() => {
-				gameOptions = {
-					type: 'local',
-					playerCount: 2,
-					thisPlayer: 1,
-				};
-				location.hash = '#game';
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Local 1vAI',
-			() => {
-				void new PlaceholderModal(this.element);
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Remote 1v1',
-			() => {
-				void new Remote2PlayerModal(this.element);
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Tournament',
-			() => {
-				void new PlaceholderModal(this.element);
-			},
-			buttonContainer
-		);
-		void new Button(
-			'Test WebSocket',
-			() => {
-				webSocket.send(JSON.stringify({
-					t: 'test',
-					d: 'Test message!'
-				}));
-			},
-			buttonContainer
-		);
-		void new Button(
-			'To TournamentScreen',
-			() => {
-				location.hash = '#tournament';
-			},
-			buttonContainer
-		);
+		Object.assign(this.particlesContainer.style, {
+			position: 'fixed',
+			top: '0',
+			left: '0',
+			width: '100vw',
+			height: '100vh',
+			zIndex: '-10', 
+			pointerEvents: 'none'
+		});
+
+		this.element.appendChild(this.particlesContainer);
+	}
+
+	private async initParticlesAsync() {
+		try {
+			await initParticles();
+		} catch (error) {
+			console.error('Failed to initialize particles:', error);
+		}
+	}
+
+	destroy() {
+		this.particlesContainer?.remove();
+		super.destroy?.();
 	}
 }
