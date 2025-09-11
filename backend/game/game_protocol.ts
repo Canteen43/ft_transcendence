@@ -54,8 +54,8 @@ import { GameSocket, Player } from '../types/interfaces.js';
 import { Match } from './match.js';
 import { formatError } from '../utils/utils.js';
 
-export class GameService {
-	private static instance: GameService;
+export class GameProtocol {
+	private static instance: GameProtocol;
 	private matches = new Map<UUID, Match>(); // Links connectionId to match
 
 	private constructor() { }
@@ -71,9 +71,9 @@ export class GameService {
 		[MESSAGE_QUIT]: this.handleQuit,
 	} as const;
 
-	static getInstance(): GameService {
+	static getInstance(): GameProtocol {
 		if (!this.instance) {
-			this.instance = new GameService();
+			this.instance = new GameProtocol();
 		}
 		return this.instance;
 	}
@@ -101,6 +101,10 @@ export class GameService {
 		} else {
 			logger.warn(`No handler for message type: ${json.type}`);
 		}
+	}
+
+	sendTournamentInvites(participants: Participant[]) {
+		this.sendTournamentMessage(TOURNAMENT_START_MESSAGE, participants);
 	}
 
 	private handleInitiate(connectionId: UUID, message: Message) {

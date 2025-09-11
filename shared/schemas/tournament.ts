@@ -16,7 +16,7 @@ export const TournamentSchema = z.object({
 });
 
 export const FullTournamentSchema = TournamentSchema.extend({
-	participants: z.array(ParticipantSchema),
+	players: z.array(ParticipantSchema),
 	matches: z.array(MatchSchema),
 });
 
@@ -35,8 +35,18 @@ export const UpdateTournamentSchema = TournamentSchema.pick({
 	status: true,
 });
 
+export const JoinTournamentSchema = z.object({
+	size: z.number().int(),
+});
+
+export const TournamentQueueSchema = z.object({
+	queue: z.array(zUUID),
+});
+
 export type Tournament = z.infer<typeof TournamentSchema>;
 export type FullTournament = z.infer<typeof FullTournamentSchema>;
 export type CreateTournamentApi = z.infer<typeof CreateTournamentApiSchema>;
 export type CreateTournament = z.infer<typeof CreateTournamentSchema>;
 export type UpdateTournament = z.infer<typeof UpdateTournamentSchema>;
+export type JoinTournament = z.infer<typeof JoinTournamentSchema>;
+export type TournamentQueue = z.infer<typeof TournamentQueueSchema>;

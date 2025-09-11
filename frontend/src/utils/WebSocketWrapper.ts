@@ -6,6 +6,7 @@ import {
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
 import { gameListener } from '../game/gameListener';
+// import { AliasModal } from '../modals/AliasModal';
 
 export class WebSocketWrapper {
 	private ws?: WebSocket;
@@ -21,11 +22,16 @@ export class WebSocketWrapper {
 			console.error('No token found');
 			return;
 		}
-		this.address += `?token=${token}`;
-		this.ws = new WebSocket(this.address);
+		
+		const wsUrl = `${this.address}?token=${token}`;
+
+		this.ws = new WebSocket(wsUrl);
 		this.ws.addEventListener('message', event => this.routeListener(event));
 		this.ws.addEventListener('close', () => {
 			console.info('WebSocket connection closed');
+		});
+		this.ws.addEventListener('open', () => {
+			console.info('WebSocket connection opened');
 		});
 	}
 
@@ -75,6 +81,7 @@ export class WebSocketWrapper {
 
 				case MESSAGE_START_TOURNAMENT:
 					console.info('Received start tournament message:', msg);
+					// new AliasModalModal(parent);
 					location.hash = '#tournament';
 					break;
 

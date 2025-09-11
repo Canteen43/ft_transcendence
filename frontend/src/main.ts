@@ -1,5 +1,7 @@
 // import { Video } from './misc/Video';
 import { AuthComponent } from './misc/AuthComponent';
+import { HomeButton } from './misc/HomeButton';
+
 import { Router } from './misc/Router';
 import './style.css';
 // Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
@@ -15,5 +17,6 @@ const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col';
 
 new AuthComponent(app);
+new HomeButton(app);
 new Router();
 // new Video();

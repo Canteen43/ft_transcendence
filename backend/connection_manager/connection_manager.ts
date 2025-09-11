@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
-import { UUID } from '../../shared/types.js';
-import { GameService } from '../game/game_protocol.js';
-import { GameSocket } from '../types/interfaces.js';
 import { logger } from '../../shared/logger.js';
+import { UUID } from '../../shared/types.js';
+import { GameProtocol } from '../game/game_protocol.js';
+import { GameSocket } from '../types/interfaces.js';
 
 export const connections: Map<UUID, GameSocket> = new Map(); // Links connectionId to socket
 export const userIdToConnectionMap: Map<UUID, GameSocket> = new Map(); // Links userId to socket
@@ -20,7 +20,7 @@ export function addConnection(user_id: UUID, socket: GameSocket): UUID {
 	socket.socketId = id;
 	socket.userId = user_id;
 	connections.set(id, socket);
-	connections.set(user_id, socket);
+	userIdToConnectionMap.set(user_id, socket);
 	return id;
 }
 
@@ -30,7 +30,11 @@ export function handleClose(event: CloseEvent) {
 }
 
 export function handleMessage(event: MessageEvent) {
-	logger.debug("Received WebSocket message");
+	logger.debug('Received WebSocket message');
 	const socket = event.target as GameSocket;
-	GameService.getInstance().handleMessage(socket.socketId, event.data);
+	GameProtocol.getInstance().handleMessage(socket.socketId, event.data);
+}
+
+export function getOnlineUsers(): UUID[] {
+	return Array.from(userIdToConnectionMap.keys());
 }

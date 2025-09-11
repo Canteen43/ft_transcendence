@@ -16,6 +16,7 @@ import {
 	UserSchema,
 } from '../../shared/schemas/user.js';
 import { UUID, zUUID } from '../../shared/types.js';
+import { getOnlineUsers } from '../connection_manager/connection_manager.js';
 import UserRepository from '../repositories/user_repository.js';
 import UserService from '../services/user_service.js';
 import { routeConfig } from '../utils/http_utils.js';
@@ -40,9 +41,7 @@ async function getUserByLogin(
 	return user;
 }
 
-async function getUserById(
-	request: FastifyRequest<{ Params: { id: UUID } }>
-): Promise<User> {
+function getUserById(request: FastifyRequest<{ Params: { id: UUID } }>): User {
 	var user: User | null;
 	try {
 		user = UserRepository.getUser(request.params.id);
@@ -58,6 +57,22 @@ async function getUserById(
 		);
 	}
 	return user;
+}
+
+async function getOnlineUsersHandler(request: FastifyRequest): Promise<User[]> {
+	try {
+		const users = getOnlineUsers()
+			.map(uuid => UserRepository.getUser(uuid))
+			// Null shouldn't be possible, but if it happens,
+			// I don't think we want to throw an error in this case
+			.filter((u): u is User => u !== null);
+		return users;
+	} catch (error) {
+		logger.error(error);
+		throw request.server.httpErrors.internalServerError(
+			constants.ERROR_REQUEST_FAILED
+		);
+	}
 }
 
 async function createUser(
@@ -105,12 +120,19 @@ export default async function userRoutes(
 		getUserByLogin
 	);
 	fastify.get(
-		'/id/:id',
+		'/:id',
 		routeConfig({
 			params: z.object({ id: zUUID }),
 			response: UserSchema,
 		}),
 		getUserById
+	);
+	fastify.get(
+		'/online',
+		routeConfig({
+			response: z.array(UserSchema),
+		}),
+		getOnlineUsersHandler
 	);
 	fastify.post<{ Body: CreateUser }>(
 		'/',

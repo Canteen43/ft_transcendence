@@ -3,7 +3,7 @@ import { TournamentStatus } from '../../shared/enums.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import { CreateMatch } from '../../shared/schemas/match.js';
-import { CreateParticipant } from '../../shared/schemas/participant.js';
+import { CreateParticipant, Participant } from '../../shared/schemas/participant.js';
 import {
 	CreateTournament,
 	Tournament,
@@ -65,7 +65,7 @@ export default class TournamentRepository {
 		tournament: CreateTournament,
 		participants: CreateParticipant[],
 		matches: CreateMatch[]
-	): Tournament {
+	): { tournament: Tournament, participants: Participant[] } {
 		return db.executeInTransaction(() => {
 			logger.info('Creating tournament');
 			const tournamentResult = this.createTournament(tournament);
@@ -83,7 +83,7 @@ export default class TournamentRepository {
 			);
 			logger.debug(`Created ${matchesResult.length} matches`);
 
-			return tournamentResult;
+			return { tournament: tournamentResult, participants: participantsResult };
 		});
 	}
 
