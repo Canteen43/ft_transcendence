@@ -1,18 +1,18 @@
+import { MESSAGE_ACCEPT } from '../../../shared/constants';
 import { Button } from '../components/Button';
-import { state } from '../misc/state';
+import { webSocket } from '../utils/WebSocketWrapper';
 
 export class StartButton extends Button {
 	constructor(parent: HTMLElement) {
-		super('Start', () => this.onClick(), parent);
+		super('Start', () => this.startClicked(), parent);
 	}
 
-	private onClick() {
-		// mark state
-		state.started_button_pressed = true;
+	private startClicked() {
+		webSocket.send({ t: MESSAGE_ACCEPT });
 
 		// remove all color classes (bg-*, hover:*)
-		const classesToRemove = Array.from(this.element.classList).filter(c =>
-			c.startsWith('bg-') || c.startsWith('hover:')
+		const classesToRemove = Array.from(this.element.classList).filter(
+			c => c.startsWith('bg-') || c.startsWith('hover:')
 		);
 		classesToRemove.forEach(c => this.element.classList.remove(c));
 
