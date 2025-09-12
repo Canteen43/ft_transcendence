@@ -11,12 +11,6 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
-	MESSAGE_QUIT,
-	MESSAGE_START,
-	MESSAGE_START_TOURNAMENT,
-} from '../../../shared/constants';
-import type { Message } from '../../../shared/schemas/message';
-import { MessageSchema } from '../../../shared/schemas/message';
 
 export function gameListener(event: MessageEvent) {
 	try {
@@ -52,9 +46,6 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_GAME_STATE:
-<<<<<<< HEAD
-				alert('Game State: ' + JSON.stringify(msg));
-=======
 				// Extract common payload fields; if 'd' is a JSON string parse it back to an object.
 				const rawPayload =
 					(msg as any).d ??
@@ -80,7 +71,6 @@ export function gameListener(event: MessageEvent) {
 				document.dispatchEvent(
 					new CustomEvent('remoteGameState', { detail: payload })
 				);
->>>>>>> 0508fd5e0147b26b6d695d41e00a57f399816e06
 				break;
 
 			case MESSAGE_POINT:
