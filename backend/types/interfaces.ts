@@ -1,6 +1,6 @@
 import { FastifyRequest, RouteGenericInterface } from 'fastify';
 import { JwtPayload } from 'jsonwebtoken';
-import { ParticipantStatus } from '../../shared/enums.js';
+import { PlayerStatus } from '../../shared/enums.js';
 import { UUID } from '../../shared/types.js';
 
 export interface AuthPayload extends JwtPayload {
@@ -15,8 +15,7 @@ export interface GameSocket extends WebSocket {
 export interface Player {
 	userId: UUID;
 	score: number;
-	paddlePos: number;
-	status: ParticipantStatus;
+	status: PlayerStatus;
 }
 
 export interface AuthenticatedRequest<

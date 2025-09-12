@@ -1,6 +1,6 @@
 'use strict';
 
-import { ParticipantStatus, TournamentStatus } from '../../shared/enums.js';
+import { TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
 	SettingsNotFoundError,
@@ -133,10 +133,6 @@ export default class TournamentService {
 		return users.map(p =>
 			CreateParticipantSchema.parse({
 				user_id: p,
-				status:
-					users.length == 2
-						? ParticipantStatus.Accepted
-						: ParticipantStatus.Pending,
 			})
 		);
 	}
