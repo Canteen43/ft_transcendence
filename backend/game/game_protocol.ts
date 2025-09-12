@@ -11,7 +11,6 @@ import {
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
-	MESSAGE_SHOW_START_BUTTON,
 	MESSAGE_START_TOURNAMENT,
 } from '../../shared/constants.js';
 import { MatchStatus } from '../../shared/enums.js';

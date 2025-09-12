@@ -17,7 +17,7 @@ import * as db from '../utils/db.js';
 
 export default class ParticipantRepository {
 	static table = 'tournament_participant';
-	static fields = 'id, tournament_id, user_id, status';
+	static fields = 'id, tournament_id, user_id';
 
 	// Overloaded function for get participant
 	// Takes a participant_id or
@@ -70,7 +70,7 @@ export default class ParticipantRepository {
 	): Participant {
 		const createdParticipant = db.queryOne<Participant>(
 			`INSERT INTO ${this.table} (tournament_id, user_id)
-			VALUES (?, ?, ?)
+			VALUES (?, ?)
 			RETURNING ${this.fields}`,
 			[tournament_id, participant.user_id]
 		);

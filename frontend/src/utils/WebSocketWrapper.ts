@@ -1,5 +1,4 @@
 import {
-	MESSAGE_SHOW_START_BUTTON,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -38,6 +37,21 @@ export class WebSocketWrapper {
 		});
 	}
 
+	send(message: Message): void {
+		if (!this.ws) {
+			console.warn('Websocket not opened. Message not sent.');
+			return;
+		}
+
+		const jsonMessage = JSON.stringify(message);
+		console.log('Sending WebSocket message:', {
+			original: message,
+			serialized: jsonMessage,
+		});
+		this.ws.send(JSON.stringify(message));
+	}
+
+
 	close(): void {
 		if (this.ws) {
 			this.ws.close();
@@ -56,20 +70,6 @@ export class WebSocketWrapper {
 		}
 	}
 
-	send(message: Message): void {
-		if (!this.ws) {
-			console.warn('Websocket not opened. Message not sent.');
-			return;
-		}
-
-		const jsonMessage = JSON.stringify(message);
-		console.log('Sending WebSocket message:', {
-			original: message,
-			serialized: jsonMessage,
-		});
-		this.ws.send(JSON.stringify(message));
-	}
-
 	public simulateMessage(msg: Message) {
 		console.log('Simulating WebSocket message:', msg);
 		const event = new MessageEvent('message', {
@@ -77,6 +77,7 @@ export class WebSocketWrapper {
 		});
 		this.routeListener(event);
 	}
+
 
 	private regListener(event: MessageEvent): void {
 		try {
@@ -92,8 +93,9 @@ export class WebSocketWrapper {
 			console.log('Message type:', msg.t);
 
 			switch (msg.t) {
-				case MESSAGE_SHOW_START_BUTTON:
+				case MESSAGE_START_TOURNAMENT:
 					console.info('Enough players joined:', msg);
+					
 					if (msg.d) {
 						console.log('Storing tournament ID in session:', msg.d);
 						sessionStorage.setItem('tournamentId', msg.d);
@@ -106,11 +108,11 @@ export class WebSocketWrapper {
 					}
 					break;
 
-				case MESSAGE_START_TOURNAMENT:
-					console.info('Received start tournament message:', msg);
-					// new AliasModal(parent);
-					location.hash = '#tournament';
-					break;
+				// case MESSAGE_START_TOURNAMENT:
+				// 	console.info('Received start tournament message:', msg);
+				// 	// new AliasModal(parent);
+				// 	location.hash = '#game';
+				// 	break;
 
 				case MESSAGE_START:
 					console.info('Received start message:', msg);

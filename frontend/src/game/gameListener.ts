@@ -2,13 +2,11 @@
 import {
 	MESSAGE_ACCEPT,
 	MESSAGE_DECLINE,
-	MESSAGE_ENOUGH_PLAYER,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
-	MESSAGE_SHOW_START_BUTTON,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -23,14 +21,17 @@ export function gameListener(event: MessageEvent) {
 				: event.data;
 		const msg: Message = MessageSchema.parse(raw);
 
-		switch (msg.t) {
-			case MESSAGE_ENOUGH_PLAYER:
-				alert('Initiate Tournament: ' + JSON.stringify(msg));
-				break;
+		console.log('Validated message:', msg);
+		console.log('Message type:', msg.t);
 
-			case MESSAGE_SHOW_START_BUTTON:
-				alert('Initiate Match: ' + JSON.stringify(msg));
-				break;
+		switch (msg.t) {
+			// case MESSAGE_ENOUGH_PLAYER:
+			// 	alert('Initiate Tournament: ' + JSON.stringify(msg));
+			// 	break;
+
+			// case MESSAGE_SHOW_START_BUTTON:
+			// 	alert('Initiate Match: ' + JSON.stringify(msg));
+			// 	break;
 
 			case MESSAGE_START_TOURNAMENT:
 				alert('Start Tournament: ' + JSON.stringify(msg));

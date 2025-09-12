@@ -35,14 +35,23 @@ export default class MatchRepository {
 		status?: MatchStatus
 	): MatchWithUserId | null {
 		const result = db.queryOne(
-			`SELECT ${this.fields}, p1.user_id as participant_1_user_id, p2.user_id as participant_2_user_id
+			`SELECT tournament_match.id, 
+					tournament_match.tournament_id,
+					tournament_match.tournament_round,
+					tournament_match.participant_1_id,
+					tournament_match.participant_2_id,
+					tournament_match.participant_1_score,
+					tournament_match.participant_2_score,
+					tournament_match.status,
+					p1.user_id as participant_1_user_id,
+					p2.user_id as participant_2_user_id
 			FROM ${this.table}
 			LEFT JOIN ${ParticipantRepository.table} p1
-				ON ${this.table}.participant_1_id = p1.participant_id
+				ON ${this.table}.participant_1_id = p1.id
 			LEFT JOIN ${ParticipantRepository.table} p2
-				ON ${this.table}.participant_2_id = p2.participant_id
-			WHERE id = ?
-			${status ? ' AND status = ?' : ''}`,
+				ON ${this.table}.participant_2_id = p2.id
+			WHERE tournament_match.id = ?
+			${status ? ' AND tournament_match.status = ?' : ''}`,
 			status ? [match_id, status] : [match_id]
 		);
 
