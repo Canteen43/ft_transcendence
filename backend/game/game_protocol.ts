@@ -5,7 +5,6 @@ import {
 	ERROR_USER_CONNECTION_NOT_FOUND,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
-	MESSAGE_DECLINE,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
@@ -48,7 +47,6 @@ export class GameProtocol {
 
 	private readonly protocolFunctionMap = {
 		[MESSAGE_ACCEPT]: this.handleAccept,
-		[MESSAGE_DECLINE]: this.handleDecline,
 		[MESSAGE_MOVE]: this.handleMove,
 		[MESSAGE_GAME_STATE]: this.handleGameState,
 		[MESSAGE_POINT]: this.handlePoint,
@@ -130,18 +128,6 @@ export class GameProtocol {
 		if (dbMatch.status == MatchStatus.Pending && match.allAccepted()) {
 			this.startMatch(match);
 		}
-	}
-
-	private handleDecline(connectionId: UUID, message: Message) {
-		logger.debug('websocket: decline message received.');
-		const match = this.getMatchObject(connectionId);
-		const players = this.getPlayersFromConnectionId(
-			connectionId,
-			match.players
-		);
-		const outgoing_message: Message = { t: 'd', d: players.current.userId };
-		this.sendMatchMessage(outgoing_message, match.players);
-		this.endMatch(match);
 	}
 
 	private handleMove(connectionId: UUID, message: Message) {

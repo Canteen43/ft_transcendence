@@ -44,7 +44,6 @@ export function handleClose(event: CloseEvent) {
 }
 
 export function handleMessage(event: MessageEvent) {
-	logger.debug('Received WebSocket message');
 	const socket = event.target as GameSocket;
 	GameProtocol.getInstance().handleMessage(socket.socketId, event.data);
 }

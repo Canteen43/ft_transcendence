@@ -1,8 +1,5 @@
 import z from 'zod';
-import {
-	ERROR_FAILED_TO_CREATE_PARTICIPANT,
-	ERROR_FAILED_TO_UPDATE_PARTICIPANT,
-} from '../../shared/constants.js';
+import { ERROR_FAILED_TO_CREATE_PARTICIPANT } from '../../shared/constants.js';
 import {
 	DatabaseError,
 	ParticipantNotFoundError,
@@ -17,7 +14,7 @@ import * as db from '../utils/db.js';
 
 export default class ParticipantRepository {
 	static table = 'tournament_participant';
-	static fields = 'id, tournament_id, user_id, status';
+	static fields = 'id, tournament_id, user_id';
 
 	// Overloaded function for get participant
 	// Takes a participant_id or
