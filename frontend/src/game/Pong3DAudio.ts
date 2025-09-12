@@ -1,5 +1,4 @@
 import * as BABYLON from '@babylonjs/core';
-import { GameConfig } from './GameConfig';
 
 /**
  * Pong3DAudio - Handles all game audio including sound effects and background music
@@ -15,6 +14,7 @@ export interface AudioSettings {
 
 export class Pong3DAudio {
 	private scene: BABYLON.Scene | null = null;
+	private audioEngine: any = null; // Babylon audio engine
 	private settings: AudioSettings = {
 		masterVolume: 1.0,
 		sfxVolume: 0.8,
@@ -22,9 +22,13 @@ export class Pong3DAudio {
 		enabled: true,
 	};
 
-	// Audio assets
-	private sounds: Map<string, BABYLON.Sound> = new Map();
-	private backgroundMusic: BABYLON.Sound | null = null;
+	// Audio assets - using new audio engine format
+	private sounds: Map<string, any> = new Map(); // Will store audio sources
+	private backgroundMusic: any = null;
+
+	// Musical harmony arrays (in cents)
+	private readonly PADDLE_HARMONICS = [0, 386, 702, 1200]; // Major chord: Root, Maj3rd, 5th, Octave
+	private readonly WALL_HARMONICS = [-500, -114, 202, -700]; // Lower harmonic series around -500 cents
 
 	constructor(settings?: Partial<AudioSettings>) {
 		if (settings) {
@@ -33,111 +37,143 @@ export class Pong3DAudio {
 	}
 
 	/** Set the scene reference for audio operations */
-	public setScene(scene: BABYLON.Scene): void {
+	public async setScene(scene: BABYLON.Scene): Promise<void> {
 		this.scene = scene;
+
+		// Initialize Babylon.js audio engine using modern API
+		try {
+			this.audioEngine = await BABYLON.CreateAudioEngineAsync();
+		} catch (error) {
+			console.warn(
+				'🔊 Failed to initialize Babylon.js audio engine:',
+				error
+			);
+		}
+	}
+
+	/** Play a sound effect with optional pitch and volume modification */
+	public async playSoundEffect(
+		name: string,
+		options: { pitch?: number; volume?: number } = {}
+	): Promise<void> {
+		if (!this.settings.enabled || !this.audioEngine) {
+			return;
+		}
+
+		const sound = this.sounds.get(name);
+		if (!sound) {
+			return;
+		}
+
+		try {
+			// Wait for the audio engine to unlock (handles user interaction automatically)
+			await this.audioEngine.unlockAsync();
+
+			// Set volume (use custom volume or default)
+			const volume =
+				options.volume !== undefined
+					? options.volume
+					: this.settings.sfxVolume * this.settings.masterVolume;
+			sound.setVolume(volume);
+
+			// Set pitch in cents if specified (0 = original pitch)
+			if (options.pitch !== undefined) {
+				sound.pitch = options.pitch;
+			} else {
+				sound.pitch = 0; // Reset to original pitch
+			}
+
+			sound.play();
+		} catch (error) {
+			console.error(`🔊 Failed to play sound ${name}:`, error);
+		}
+	}
+
+	/** Play a sound effect with a random harmonic pitch variation */
+	public async playSoundEffectWithHarmonic(
+		name: string,
+		harmonicType: 'paddle' | 'wall',
+		options: { volume?: number } = {}
+	): Promise<void> {
+		// Select random harmonic from the appropriate set
+		const harmonics =
+			harmonicType === 'paddle'
+				? this.PADDLE_HARMONICS
+				: this.WALL_HARMONICS;
+		const randomIndex = Math.floor(Math.random() * harmonics.length);
+		const pitch = harmonics[randomIndex];
+
+		// Play with the selected harmonic pitch
+		await this.playSoundEffect(name, {
+			pitch: pitch,
+			volume: options.volume,
+		});
+	} /** Play a sound effect with pitch modification */
+	public async playSoundEffectWithPitch(
+		name: string,
+		pitchCents: number
+	): Promise<void> {
+		if (!this.settings.enabled || !this.audioEngine) {
+			return;
+		}
+
+		const sound = this.sounds.get(name);
+		if (!sound) {
+			return;
+		}
+
+		try {
+			// Wait for the audio engine to unlock
+			await this.audioEngine.unlockAsync();
+
+			// Set volume and pitch
+			sound.setVolume(
+				this.settings.sfxVolume * this.settings.masterVolume
+			);
+
+			// Set pitch in cents (100 cents = 1 semitone, 1200 cents = 1 octave)
+			// Negative values lower the pitch, positive values raise it
+			sound.pitch = pitchCents;
+
+			sound.play();
+		} catch (error) {
+			console.error(
+				`🔊 Failed to play sound ${name} with pitch ${pitchCents}:`,
+				error
+			);
+		}
 	}
 
 	/** Load all game audio assets */
 	public async loadAudioAssets(): Promise<void> {
 		if (!this.scene) {
-			if (GameConfig.isDebugLoggingEnabled()) {
-				console.warn('🔊 Cannot load audio: scene not set');
-			}
 			return;
 		}
 
 		try {
-			// Load sound effects
-			await this.loadSoundEffect('paddle_hit', '/audio/paddle_hit.wav');
-			await this.loadSoundEffect('wall_bounce', '/audio/wall_bounce.wav');
-			await this.loadSoundEffect('goal_score', '/audio/goal_score.wav');
-			await this.loadSoundEffect('game_start', '/audio/game_start.wav');
-			await this.loadSoundEffect('game_end', '/audio/game_end.wav');
-
-			// Load background music
-			await this.loadBackgroundMusic('/audio/background_music.mp3');
-
-			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log('🔊 Audio assets loaded successfully');
-			}
+			// Load sound effects from sounds folder
+			await this.loadSoundEffect('ping', './src/game/sounds/ping.mp3');
+			await this.loadSoundEffect('goal', './src/game/sounds/goal.mp3');
+			await this.loadSoundEffect(
+				'victory',
+				'./src/game/sounds/victory.mp3'
+			);
 		} catch (error) {
-			if (GameConfig.isDebugLoggingEnabled()) {
-				console.warn('🔊 Audio loading failed:', error);
-			}
+			console.warn('🔊 Audio loading failed:', error);
 		}
 	}
 
-	/** Load a single sound effect */
+	/** Load a single sound effect using modern Babylon.js API */
 	private async loadSoundEffect(name: string, url: string): Promise<void> {
-		return new Promise((resolve, reject) => {
-			const sound = new BABYLON.Sound(
-				name,
-				url,
-				this.scene,
-				() => {
-					this.sounds.set(name, sound);
-					resolve();
-				},
-				{
-					volume:
-						this.settings.sfxVolume * this.settings.masterVolume,
-					autoplay: false,
-				}
-			);
+		if (!this.audioEngine) {
+			return;
+		}
 
-			// Handle loading errors
-			setTimeout(() => {
-				if (!this.sounds.has(name)) {
-					if (GameConfig.isDebugLoggingEnabled()) {
-						console.warn(`🔊 Failed to load sound: ${name}`);
-					}
-					reject(new Error(`Failed to load ${name}`));
-				}
-			}, 5000); // 5 second timeout
-		});
-	}
-
-	/** Load background music */
-	private async loadBackgroundMusic(url: string): Promise<void> {
-		return new Promise((resolve, reject) => {
-			this.backgroundMusic = new BABYLON.Sound(
-				'background_music',
-				url,
-				this.scene,
-				() => {
-					resolve();
-				},
-				{
-					volume:
-						this.settings.musicVolume * this.settings.masterVolume,
-					autoplay: false,
-					loop: true,
-				}
-			);
-
-			// Handle loading errors with timeout
-			setTimeout(() => {
-				if (!this.backgroundMusic || !this.backgroundMusic.isReady) {
-					if (GameConfig.isDebugLoggingEnabled()) {
-						console.warn('🔊 Failed to load background music');
-					}
-					reject(new Error('Failed to load background music'));
-				}
-			}, 5000); // 5 second timeout
-		});
-	}
-
-	/** Play a sound effect */
-	public playSoundEffect(name: string): void {
-		if (!this.settings.enabled) return;
-
-		const sound = this.sounds.get(name);
-		if (sound) {
-			sound.play();
-		} else {
-			if (GameConfig.isDebugLoggingEnabled()) {
-				console.warn(`🔊 Sound effect not found: ${name}`);
-			}
+		try {
+			const sound = await BABYLON.CreateSoundAsync(name, url);
+			this.sounds.set(name, sound);
+		} catch (error) {
+			console.warn(`🔊 Failed to load sound ${name}:`, error);
 		}
 	}
 
@@ -178,6 +214,15 @@ export class Pong3DAudio {
 	/** Get current audio settings */
 	public getSettings(): AudioSettings {
 		return { ...this.settings };
+	}
+
+	/** Test audio playback - force play a sound for debugging */
+	public testAudio(): void {
+		const pingSound = this.sounds.get('ping');
+		if (pingSound) {
+			pingSound.setVolume(1.0);
+			pingSound.play();
+		}
 	}
 
 	/** Dispose of all audio resources */

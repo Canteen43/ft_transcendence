@@ -10,7 +10,7 @@ export class GameConfig {
 	private static readonly DEFAULT_GAME_MODE = 'remote'; // Team convention: string values
 
 	// Debug/Logging controls
-	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
+	private static readonly DEFAULT_DEBUG_LOGGING = true; // Master switch for all debug logging
 	private static readonly DEFAULT_GAMESTATE_LOGGING = true; // Show gamestate updates even when debug is off
 
 	/**

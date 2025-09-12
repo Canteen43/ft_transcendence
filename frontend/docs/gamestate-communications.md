@@ -65,7 +65,7 @@ This setup preserves a single authoritative replica while providing low-latency 
 ### 2. Master → All Clients: Game State (every update)
 ```json
 {
-  "b": [2.34, -1.87],
+  "b": [2.340, -1.877],
   "pd": [
     [-2.1, 0],
     [2.1, 0]
