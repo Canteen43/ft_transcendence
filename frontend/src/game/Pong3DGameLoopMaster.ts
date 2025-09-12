@@ -1,4 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
+import { MESSAGE_GAME_STATE } from '../../../shared/constants';
+import type { Message } from '../../../shared/schemas/message';
+import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 
@@ -15,8 +18,8 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	private pong3DInstance: any; // Reference to get paddle positions
 
 	constructor(
-scene: BABYLON.Scene,
-networkUpdateCallback: (gameState: any) => void,
+		scene: BABYLON.Scene,
+		networkUpdateCallback: (gameState: any) => void,
 		pong3DInstance?: any
 	) {
 		// EXACTLY the same as local mode
@@ -80,9 +83,9 @@ networkUpdateCallback: (gameState: any) => void,
 				const paddle = this.pong3DInstance.paddles[i];
 				if (paddle) {
 					paddlePositions.push([
-networkNumber(paddle.position.x),
-networkNumber(paddle.position.z),
-]);
+						networkNumber(paddle.position.x),
+						networkNumber(paddle.position.z),
+					]);
 				}
 			}
 		}
@@ -105,14 +108,35 @@ networkNumber(paddle.position.z),
 			if (this.getGameState().isRunning) {
 				// Convert to network format as per design document
 				const networkGameState = this.convertToNetworkFormat();
+
+				// Existing callback used by local networking logic / server logic
 				this.networkUpdateCallback(networkGameState);
+
+				// Send continuous gamestate to websocket so remote clients get updates
+				try {
+					// serialize payload to match MessageSchema (d expected to be a string)
+					const payloadString = JSON.stringify(networkGameState);
+
+					const msg: Message = {
+						t: MESSAGE_GAME_STATE,
+						d: payloadString,
+					} as unknown as Message;
+					webSocket.send(msg);
+				} catch (err) {
+					if (GameConfig.isDebugLoggingEnabled()) {
+						console.warn(
+							'Failed to send gamestate over websocket',
+							err
+						);
+					}
+				}
 			}
 		}, 1000 / this.NETWORK_UPDATE_RATE);
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			console.log(
-`📡 Network updates started at ${this.NETWORK_UPDATE_RATE}Hz`
-);
+				`📡 Network updates started at ${this.NETWORK_UPDATE_RATE}Hz`
+			);
 		}
 	}
 
@@ -139,16 +163,16 @@ networkNumber(paddle.position.z),
 				if (this.getGameState().isRunning) {
 					const networkGameState = this.convertToNetworkFormat();
 					console.log(
-'📡 Master gamestate (network format):',
-networkGameState
-);
+						'📡 Master gamestate (network format):',
+						networkGameState
+					);
 				}
 			}, 1000 / this.GAMESTATE_LOG_RATE);
 
 			if (GameConfig.isDebugLoggingEnabled()) {
 				console.log(
-`📊 Gamestate logging started at ${this.GAMESTATE_LOG_RATE}Hz`
-);
+					`📊 Gamestate logging started at ${this.GAMESTATE_LOG_RATE}Hz`
+				);
 			}
 		}
 	}
@@ -172,16 +196,16 @@ networkGameState
 		if (input.k < 0 || input.k > 2) {
 			if (GameConfig.isDebugLoggingEnabled()) {
 				console.warn(
-`⚠️ Invalid input from player ${playerId}: ${input.k}`
-);
+					`⚠️ Invalid input from player ${playerId}: ${input.k}`
+				);
 			}
 			return;
 		}
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			console.log(
-`🎮 Processing input from player ${playerId}: ${input.k}`
-);
+				`🎮 Processing input from player ${playerId}: ${input.k}`
+			);
 		}
 
 		// TODO: Apply input to paddle based on game mode (2P, 3P, 4P)

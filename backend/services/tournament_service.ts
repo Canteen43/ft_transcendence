@@ -1,5 +1,3 @@
-'use strict';
-
 import { TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,

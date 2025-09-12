@@ -1,8 +1,5 @@
 import z from 'zod';
-import {
-	ERROR_FAILED_TO_CREATE_PARTICIPANT,
-	ERROR_FAILED_TO_UPDATE_PARTICIPANT,
-} from '../../shared/constants.js';
+import { ERROR_FAILED_TO_CREATE_PARTICIPANT } from '../../shared/constants.js';
 import {
 	DatabaseError,
 	ParticipantNotFoundError,

@@ -58,8 +58,6 @@ export const EMPTY_PLAYER: Player = {
 
 export const MESSAGE_START_TOURNAMENT = 'st';
 export const MESSAGE_ACCEPT = 'a';
-export const MESSAGE_DECLINE = 'd';
-
 export const MESSAGE_START = 's';
 export const MESSAGE_PAUSE = 'p';
 export const MESSAGE_QUIT = 'q';

@@ -22,6 +22,7 @@ export class WebSocketWrapper {
 			return;
 		}
 
+
 		const wsUrl = `${this.address}?token=${token}`;
 
 		this.ws = new WebSocket(wsUrl);

@@ -1,5 +1,3 @@
-'use strict';
-
 import './init.js';
 
 import type { FastifyInstance } from 'fastify';
