@@ -16,7 +16,7 @@ export const TournamentSchema = z.object({
 });
 
 export const FullTournamentSchema = TournamentSchema.extend({
-	players: z.array(ParticipantSchema),
+	participants: z.array(ParticipantSchema),
 	matches: z.array(MatchSchema),
 });
 
