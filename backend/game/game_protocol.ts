@@ -90,6 +90,11 @@ export class GameProtocol {
 		}
 	}
 
+	handleClose(connectionId: UUID) {
+		const match = this.matches.get(connectionId);
+		if (match) this.endMatch(match);
+	}
+
 	sendTournamentStart(participants: Participant[], tournament_id: UUID) {
 		const message: Message = {
 			t: MESSAGE_START_TOURNAMENT,
