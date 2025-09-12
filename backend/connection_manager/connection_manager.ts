@@ -4,6 +4,7 @@ import { ConnectionError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import { UUID } from '../../shared/types.js';
 import { GameProtocol } from '../game/game_protocol.js';
+import TournamentService from '../services/tournament_service.js';
 import { GameSocket } from '../types/interfaces.js';
 
 const connections: Map<UUID, GameSocket> = new Map(); // Links connectionId to socket
@@ -41,6 +42,7 @@ export function addConnection(user_id: UUID, socket: GameSocket): UUID {
 export function handleClose(event: CloseEvent) {
 	const socket = event.target as GameSocket;
 	connections.delete(socket.socketId);
+	TournamentService.leaveQueue(socket.userId);
 }
 
 export function handleMessage(event: MessageEvent) {

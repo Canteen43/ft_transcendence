@@ -67,7 +67,7 @@ export default class ParticipantRepository {
 	): Participant {
 		const createdParticipant = db.queryOne<Participant>(
 			`INSERT INTO ${this.table} (tournament_id, user_id)
-			VALUES (?, ?, ?)
+			VALUES (?, ?)
 			RETURNING ${this.fields}`,
 			[tournament_id, participant.user_id]
 		);
