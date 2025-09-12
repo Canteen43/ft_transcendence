@@ -6,30 +6,5 @@ export interface Message {
 
 
 
-
-
-
-player one sends g(ballX, ballZ)
-and only while moving m(playerX, playerZ, other)
-
-playerNumber players send (only while moving) (playerNumber, playerX, playerZ)
-
-Server relays all incoming messages to all -other- websockets. 
-
-
-
-JSON.stringify(message)
-
-
-message: Message = {
-	t: MESSAGE_GAME_STATE,
-	l: [123, 234],
-}
-
-message: Message = {
-	t: MESSAGE_MOVE,
-	d: user_id,
-	l: [123, 234],
-}
-
-
+master sends like this
+{"t":"g","d":"{\"b\":[-0.58,-13.192],\"pd\":[[0,9.15],[0,-9.15]]}"}

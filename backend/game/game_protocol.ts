@@ -5,7 +5,6 @@ import {
 	ERROR_USER_CONNECTION_NOT_FOUND,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
-	MESSAGE_DECLINE,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
@@ -48,7 +47,6 @@ export class GameProtocol {
 
 	private readonly protocolFunctionMap = {
 		[MESSAGE_ACCEPT]: this.handleAccept,
-		[MESSAGE_DECLINE]: this.handleDecline,
 		[MESSAGE_MOVE]: this.handleMove,
 		[MESSAGE_GAME_STATE]: this.handleGameState,
 		[MESSAGE_POINT]: this.handlePoint,
@@ -156,6 +154,8 @@ export class GameProtocol {
 
 	private handleGameState(connectionId: UUID, message: Message) {
 		logger.trace('websocket: game state message received.');
+		// log message
+		logger.trace('Game state message:' + JSON.stringify(message));
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.sendMatchMessage(message, match.players);

@@ -1,10 +1,7 @@
 // gameListener.ts
 import {
 	MESSAGE_ACCEPT,
-	MESSAGE_DECLINE,
 	MESSAGE_GAME_STATE,
-	MESSAGE_INITIATE_MATCH,
-	MESSAGE_INITIATE_TOURNAMENT,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
@@ -24,13 +21,7 @@ export function gameListener(event: MessageEvent) {
 		const msg: Message = MessageSchema.parse(raw);
 
 		switch (msg.t) {
-			case MESSAGE_INITIATE_TOURNAMENT:
-				alert('Initiate Tournament: ' + JSON.stringify(msg));
-				break;
 
-			case MESSAGE_INITIATE_MATCH:
-				alert('Initiate Match: ' + JSON.stringify(msg));
-				break;
 
 			case MESSAGE_START_TOURNAMENT:
 				alert('Start Tournament: ' + JSON.stringify(msg));
@@ -38,10 +29,6 @@ export function gameListener(event: MessageEvent) {
 
 			case MESSAGE_ACCEPT:
 				alert('Accept: ' + JSON.stringify(msg));
-				break;
-
-			case MESSAGE_DECLINE:
-				alert('Decline: ' + JSON.stringify(msg));
 				break;
 
 			case MESSAGE_START:

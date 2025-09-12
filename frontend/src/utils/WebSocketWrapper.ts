@@ -1,5 +1,4 @@
 import {
-	MESSAGE_INITIATE_MATCH,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -85,7 +84,7 @@ export class WebSocketWrapper {
 			const msg: Message = MessageSchema.parse(raw);
 
 			switch (msg.t) {
-				case MESSAGE_INITIATE_MATCH:
+				case MESSAGE_START:
 					console.info('Received initiate match message:', msg);
 					document.dispatchEvent(new Event('gameReady'));
 					break;
