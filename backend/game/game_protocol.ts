@@ -142,6 +142,8 @@ export class GameProtocol {
 
 	private handleGameState(connectionId: UUID, message: Message) {
 		logger.trace('websocket: game state message received.');
+		// log message
+		logger.trace('Game state message:' + JSON.stringify(message));
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.sendMatchMessage(message, match.players);

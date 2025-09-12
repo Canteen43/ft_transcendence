@@ -46,7 +46,35 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_GAME_STATE:
+<<<<<<< HEAD
 				alert('Game State: ' + JSON.stringify(msg));
+=======
+				// Extract common payload fields; if 'd' is a JSON string parse it back to an object.
+				const rawPayload =
+					(msg as any).d ??
+					(msg as any).payload ??
+					(msg as any).data ??
+					msg;
+				let payload;
+				if (typeof rawPayload === 'string') {
+					try {
+						payload = JSON.parse(rawPayload);
+					} catch (e) {
+						// fallback to raw string if parsing fails
+						payload = rawPayload;
+						console.warn(
+							'Failed to parse game state JSON string:',
+							e
+						);
+					}
+				} else {
+					payload = rawPayload;
+				}
+				console.debug('Game State received:', payload);
+				document.dispatchEvent(
+					new CustomEvent('remoteGameState', { detail: payload })
+				);
+>>>>>>> 0508fd5e0147b26b6d695d41e00a57f399816e06
 				break;
 
 			case MESSAGE_POINT:

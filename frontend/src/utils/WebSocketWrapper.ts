@@ -54,7 +54,18 @@ export class WebSocketWrapper {
 			console.warn('Websocket not opened. Message not sent.');
 			return;
 		}
-		this.ws.send(JSON.stringify(message));
+		try {
+			// Validate message shape before sending to avoid sending malformed payloads
+			const validated = MessageSchema.parse(message);
+			this.ws.send(JSON.stringify(validated));
+		} catch (err) {
+			// Don't throw — just warn so game loop can continue
+			console.warn(
+				'Attempted to send invalid message, not sent:',
+				err,
+				message
+			);
+		}
 	}
 
 	public simulateMessage(msg: Message) {

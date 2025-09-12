@@ -7,6 +7,7 @@ import * as CANNON from 'cannon-es';
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
 import { GameConfig } from './GameConfig';
+import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import { Pong3DGameLoopClient } from './Pong3DGameLoopClient';
@@ -234,6 +235,9 @@ export class Pong3D {
 	// Ball effects system
 	private ballEffects: Pong3DBallEffects;
 
+	// Audio system
+	private audioSystem: Pong3DAudio;
+
 	private ballMesh: BABYLON.Mesh | null = null;
 
 	// Resize handler reference for cleanup
@@ -331,6 +335,9 @@ export class Pong3D {
 
 		// Initialize ball effects system
 		this.ballEffects = new Pong3DBallEffects(12); // 12 is default base ball speed
+
+		// Initialize audio system
+		this.audioSystem = new Pong3DAudio();
 
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
@@ -508,6 +515,27 @@ export class Pong3D {
 
 		// Setup shadows after lights are adjusted
 		this.setupShadowSystem(scene);
+
+		// Initialize audio system
+		this.audioSystem
+			.setScene(this.scene)
+			.then(() => {
+				if (GameConfig.isDebugLoggingEnabled()) {
+					console.log(
+						'🔊 Audio system scene set and audio engine initialized'
+					);
+				}
+				// Load audio assets after audio engine is ready
+				return this.audioSystem.loadAudioAssets();
+			})
+			.catch(error => {
+				if (GameConfig.isDebugLoggingEnabled()) {
+					console.warn(
+						'🔊 Audio initialization or loading failed:',
+						error
+					);
+				}
+			});
 
 		scene.render();
 
@@ -914,6 +942,9 @@ export class Pong3D {
 		this.conditionalLog(
 			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}`
 		);
+
+		// Play ping sound effect with harmonic variation
+		this.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
 
 		const paddle = this.paddles[paddleIndex]!;
 		if (!paddle.physicsImpostor?.physicsBody) return;
@@ -1520,6 +1551,9 @@ export class Pong3D {
 			`🧱 Ball-Wall Collision detected (count: ${this.wallCollisionCount})`
 		);
 
+		// Play pitched-down ping sound for wall collision with harmonic variation
+		this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
+
 		// Position correction: move ball slightly away from wall to prevent embedding
 		if (this.ballMesh && ballImpostor) {
 			const velocity = ballImpostor.getLinearVelocity();
@@ -1590,6 +1624,9 @@ export class Pong3D {
 			return;
 		}
 
+		// Play goal sound effect only for legitimate scoring goals
+		this.audioSystem.playSoundEffect('goal');
+
 		// Award point to the scoring player
 		this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
 		this.playerScores[scoringPlayer]++;
@@ -1604,6 +1641,9 @@ export class Pong3D {
 			this.conditionalLog(
 				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
 			);
+
+			// Play victory sound effect
+			this.audioSystem.playSoundEffect('victory');
 
 			// Show winner UI
 			if (this.uiHandles) {
@@ -3445,6 +3485,12 @@ export class Pong3D {
 			this.conditionalLog('✅ Removed resize event listener');
 		}
 
+		// Dispose audio system
+		if (this.audioSystem) {
+			this.audioSystem.dispose();
+			this.conditionalLog('✅ Disposed audio system');
+		}
+
 		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
 		if (this.scene) {
 			this.scene.dispose();
@@ -3530,6 +3576,14 @@ export class Pong3D {
 			const testInput = { k: 1 }; // Move left/up
 			this.sendInputToMaster(testInput);
 		}
+	}
+
+	/**
+	 * TEST METHOD: Test audio playback manually
+	 */
+	public testAudio(): void {
+		console.log('🧪 Testing audio system...');
+		this.audioSystem.testAudio();
 	}
 }
 
