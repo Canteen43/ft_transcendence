@@ -55,7 +55,6 @@ CREATE TABLE tournament_participant (
 	),
 	tournament_id TEXT REFERENCES tournament(id),
 	user_id TEXT REFERENCES "user"(id),
-	status TEXT CHECK (status IN ('creator', 'pending', 'accepted')),
 	CONSTRAINT unique_tournament_user UNIQUE (tournament_id, user_id)
 );
 

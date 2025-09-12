@@ -3,7 +3,6 @@ import {
 	EMPTY_UUID,
 	ERROR_PLAYER_NOT_FOUND,
 	ERROR_USER_CONNECTION_NOT_FOUND,
-	INVITATION_MESSAGE,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
 	MESSAGE_DECLINE,
@@ -49,7 +48,6 @@ export class GameProtocol {
 	private constructor() {}
 
 	private readonly protocolFunctionMap = {
-		[MESSAGE_SHOW_START_BUTTON]: this.handleInitiate,
 		[MESSAGE_ACCEPT]: this.handleAccept,
 		[MESSAGE_DECLINE]: this.handleDecline,
 		[MESSAGE_MOVE]: this.handleMove,
@@ -70,7 +68,7 @@ export class GameProtocol {
 		const json = JSON.parse(message);
 		const handler =
 			this.protocolFunctionMap[
-				json.type as keyof typeof this.protocolFunctionMap
+				json.t as keyof typeof this.protocolFunctionMap
 			];
 		if (handler) {
 			try {
@@ -91,7 +89,7 @@ export class GameProtocol {
 				}
 			}
 		} else {
-			logger.warn(`No handler for message type: ${json.type}`);
+			logger.warn(`No handler for message type: ${json.t}`);
 		}
 	}
 
@@ -103,9 +101,9 @@ export class GameProtocol {
 		this.sendTournamentMessage(message, participants);
 	}
 
-	initiateMatch(connectionId: UUID, matchId: UUID) {
+	initiateMatch(connectionId: UUID, matchId: UUID): Match {
 		const socket = this.getSocket(connectionId);
-		const match = MatchRepository.getMatch(matchId);
+		const match = MatchRepository.getMatch(matchId, MatchStatus.Pending);
 		if (!match) throw new MatchNotFoundError(matchId);
 
 		const matchObject = this.createMatchObject(match, socket.userId);
@@ -115,22 +113,13 @@ export class GameProtocol {
 				matchObject
 			);
 		});
-		this.sendMatchMessage(
-			INVITATION_MESSAGE,
-			this.getPlayersFromConnectionId(connectionId, matchObject.players)
-				.others
-		);
-	}
-
-	private handleInitiate(connectionId: UUID, message: Message) {
-		logger.debug('websocket: game initiate message received.');
-		const matchId = message.d as UUID;
-		this.initiateMatch(connectionId, matchId);
+		return matchObject;
 	}
 
 	private handleAccept(connectionId: UUID, message: Message) {
 		logger.debug('websocket: accept message received.');
-		const match = this.getMatchObject(connectionId);
+		let match = this.matches.get(connectionId);
+		if (!match) match = this.initiateMatch(connectionId, message.d as UUID);
 		const players = this.getPlayersFromConnectionId(
 			connectionId,
 			match.players
@@ -157,17 +146,17 @@ export class GameProtocol {
 	}
 
 	private handleMove(connectionId: UUID, message: Message) {
-		logger.debug('websocket: move message received.');
+		logger.trace('websocket: move message received.');
 		const match = this.getMatchObject(connectionId);
 		const players = this.getPlayersFromConnectionId(
 			connectionId,
 			match.players
 		);
-		players.current.paddlePos = Number(message.d);
 		this.sendMatchMessage(message, players.others);
 	}
 
 	private handleGameState(connectionId: UUID, message: Message) {
+		logger.trace('websocket: game state message received.');
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.sendMatchMessage(message, match.players);
@@ -316,7 +305,7 @@ export class GameProtocol {
 	private updateMatchStatus(matchId: UUID, status: MatchStatus) {
 		const dbMatch = this.getDbMatch(matchId);
 		dbMatch.status = status;
-		const matchUpdate = UpdateMatchSchema.strip().parse(dbMatch);
-		MatchRepository.updateMatch(matchId, matchUpdate);
+		const update = UpdateMatchSchema.strip().parse(dbMatch);
+		MatchRepository.updateMatch(matchId, update);
 	}
 }

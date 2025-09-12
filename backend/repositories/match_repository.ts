@@ -30,7 +30,10 @@ export default class MatchRepository {
 	static fields =
 		'id, tournament_id, tournament_round, participant_1_id, participant_2_id, participant_1_score, participant_2_score, status';
 
-	static getMatch(match_id: UUID): MatchWithUserId | null {
+	static getMatch(
+		match_id: UUID,
+		status?: MatchStatus
+	): MatchWithUserId | null {
 		const result = db.queryOne(
 			`SELECT ${this.fields}, p1.user_id as participant_1_user_id, p2.user_id as participant_2_user_id
 			FROM ${this.table}
@@ -38,8 +41,9 @@ export default class MatchRepository {
 				ON ${this.table}.participant_1_id = p1.participant_id
 			LEFT JOIN ${ParticipantRepository.table} p2
 				ON ${this.table}.participant_2_id = p2.participant_id
-			WHERE id = ?`,
-			[match_id]
+			WHERE id = ?
+			${status ? ' AND status = ?' : ''}`,
+			status ? [match_id, status] : [match_id]
 		);
 
 		if (!result) return null;

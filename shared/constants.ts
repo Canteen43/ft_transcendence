@@ -1,5 +1,5 @@
 import { Player } from '../backend/types/interfaces.js';
-import { ParticipantStatus } from './enums.js';
+import { PlayerStatus } from './enums.js';
 import { Message } from './schemas/message.js';
 import { UUID } from './types.js';
 
@@ -53,14 +53,8 @@ export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
 export const EMPTY_PLAYER: Player = {
 	userId: EMPTY_UUID,
 	score: 0,
-	paddlePos: 0,
-	status: ParticipantStatus.Pending,
+	status: PlayerStatus.Pending,
 };
-
-// export const MESSAGE_INITIATE_TOURNAMENT = 't';
-// export const MESSAGE_INITIATE_MATCH = 'i';
-export const MESSAGE_ENOUGH_PLAYER = 't';
-export const MESSAGE_SHOW_START_BUTTON = 'i';
 
 export const MESSAGE_START_TOURNAMENT = 'st';
 export const MESSAGE_ACCEPT = 'a';
@@ -73,10 +67,6 @@ export const MESSAGE_MOVE = 'm';
 export const MESSAGE_GAME_STATE = 'g';
 export const MESSAGE_POINT = 'x';
 
-export const TOURNAMENT_INVITATION_MESSAGE: Message = {
-	t: MESSAGE_ENOUGH_PLAYER,
-};
-export const INVITATION_MESSAGE: Message = { t: MESSAGE_SHOW_START_BUTTON };
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
