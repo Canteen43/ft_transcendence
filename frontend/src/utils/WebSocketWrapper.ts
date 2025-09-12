@@ -4,7 +4,12 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
+import { MatchSchema } from '../../../shared/schemas/match';
 import { gameListener } from '../game/gameListener';
+import { apiCall } from '../utils/apiCall';
+import { FullTournamentSchema } from '../../../shared/schemas/tournament';
+
+
 // import { AliasModal } from '../modals/AliasModal';
 
 export class WebSocketWrapper {
@@ -61,13 +66,13 @@ export class WebSocketWrapper {
 		}
 	}
 
-	private routeListener(event: MessageEvent): void {
+	private async routeListener(event: MessageEvent): Promise<void> {
 		if (location.hash === '#game') {
 			console.log('Routing to game listener');
 			gameListener(event);
 		} else {
 			console.log('Routing to registration listener');
-			this.regListener(event);
+			await this.regListener(event);
 		}
 	}
 
@@ -80,7 +85,7 @@ export class WebSocketWrapper {
 	}
 
 
-	private regListener(event: MessageEvent): void {
+	private async regListener(event: MessageEvent): Promise<void> {
 		try {
 			console.log('Processing message in regListener...');
 
@@ -100,20 +105,29 @@ export class WebSocketWrapper {
 					if (msg.d) {
 						console.log('Storing tournament ID in session:', msg.d);
 						sessionStorage.setItem('tournamentId', msg.d);
-						document.dispatchEvent(new Event('gameReady'));
 					} else {
 						console.warn(
 							'Tournament ID not found in message.d:',
 							msg
 						);
 					}
-					break;
+					
+					const tournamentDetails = await apiCall(
+						'GET',
+						`/tournaments/${msg.d}`,
+						FullTournamentSchema,
+					);
+					if (!tournamentDetails) {
+						alert('No game data');
+						return;
+					} else {
+						console.log('Storing tournament ID in session:', tournamentDetails);
+						sessionStorage.setItem('matchID', tournamentDetails.matches[0].id);
+						document.dispatchEvent(new Event('gameReady'));
+					}
+			
 
-				// case MESSAGE_START_TOURNAMENT:
-				// 	console.info('Received start tournament message:', msg);
-				// 	// new AliasModal(parent);
-				// 	location.hash = '#game';
-				// 	break;
+					break;
 
 				case MESSAGE_START:
 					console.info('Received start message:', msg);
