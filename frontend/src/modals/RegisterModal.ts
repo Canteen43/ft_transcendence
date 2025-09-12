@@ -1,42 +1,74 @@
+import { z } from 'zod';
+import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
-import { LoginModal } from './LoginModal';
-import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { apiCall } from '../utils/apiCall';
-import { z } from "zod";
+import { LoginModal } from './LoginModal';
 
 export class RegisterModal extends Modal {
-	private UsernameField:HTMLInputElement;
-	private FirstNameField:HTMLInputElement;
-	private LastNameField:HTMLInputElement;
-	private EmailField:HTMLInputElement;
-	private PasswordField:HTMLInputElement;
-	private PasswordRepeatField:HTMLInputElement;
+	private UsernameField: HTMLInputElement;
+	private FirstNameField: HTMLInputElement;
+	private LastNameField: HTMLInputElement;
+	private EmailField: HTMLInputElement;
+	private PasswordField: HTMLInputElement;
+	private PasswordRepeatField: HTMLInputElement;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add('flex', 'flex-col','items-center','justify-center','gap-2','p-4');
+		this.box.classList.add(
+			'flex',
+			'flex-col',
+			'items-center',
+			'justify-center',
+			'gap-2',
+			'p-4'
+		);
 
-		this.UsernameField = this.myCreateInput('text', 'username', 'Enter your username');
-		this.FirstNameField = this.myCreateInput('text', 'first_name', 'Enter your first name');
-		this.LastNameField = this.myCreateInput('text', 'last_name', 'Enter your last name');
-		this.EmailField = this.myCreateInput('email', 'email', 'Enter your email');
-		this.PasswordField = this.myCreateInput('password', 'password', 'Enter your password (> 8 characters)');
-		this.PasswordRepeatField = this.myCreateInput('password', 'passwordrepeat', 'Re-enter your password');
+		this.UsernameField = this.myCreateInput(
+			'text',
+			'username',
+			'Enter your username'
+		);
+		this.FirstNameField = this.myCreateInput(
+			'text',
+			'first_name',
+			'Enter your first name'
+		);
+		this.LastNameField = this.myCreateInput(
+			'text',
+			'last_name',
+			'Enter your last name'
+		);
+		this.EmailField = this.myCreateInput(
+			'email',
+			'email',
+			'Enter your email'
+		);
+		this.PasswordField = this.myCreateInput(
+			'password',
+			'password',
+			'Enter your password (> 8 characters)'
+		);
+		this.PasswordRepeatField = this.myCreateInput(
+			'password',
+			'passwordrepeat',
+			'Re-enter your password'
+		);
 		new Button('Register', () => this.handleRegister(parent), this.box);
 		this.createLinks(parent);
 	}
 
-
 	private formatZodErrors(error: z.ZodError): string {
-		return error.issues.map(err => {
-			const field = err.path.join('.');
-			return `${field}: ${err.message}`;
-		}).join('\n');
+		return error.issues
+			.map(err => {
+				const field = err.path.join('.');
+				return `${field}: ${err.message}`;
+			})
+			.join('\n');
 	}
 
-	private async handleRegister(parent:HTMLElement) {
+	private async handleRegister(parent: HTMLElement) {
 		const username = this.UsernameField.value.trim();
 		const firstName = this.FirstNameField.value.trim();
 		const lastName = this.LastNameField.value.trim();
@@ -49,25 +81,31 @@ export class RegisterModal extends Modal {
 			return;
 		}
 
-		const requestData = { 
-			login: username, 
+		const requestData = {
+			login: username,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
-			password_hash: password };
+			password: password,
+		};
 
 		const parseResult = CreateUserSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			const errorMessage = this.formatZodErrors(parseResult.error);
 			alert(errorMessage);
-			console.error("Request validation failed:", parseResult.error);
+			console.error('Request validation failed:', parseResult.error);
 			return;
 		}
-		
-		try { 
-			const regData = await apiCall("POST", "/users/", UserSchema, requestData);
+
+		try {
+			const regData = await apiCall(
+				'POST',
+				'/users/',
+				UserSchema,
+				requestData
+			);
 			if (!regData) {
-				alert("Registration unsuccessful");
+				alert('Registration unsuccessful');
 				return;
 			}
 			console.log('Registration successful for: ', regData.login);
@@ -78,8 +116,11 @@ export class RegisterModal extends Modal {
 		}
 	}
 
-
-	private myCreateInput(type: string, id: string, placeholder: string): HTMLInputElement {
+	private myCreateInput(
+		type: string,
+		id: string,
+		placeholder: string
+	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
 		input.id = id;
@@ -92,15 +133,14 @@ export class RegisterModal extends Modal {
 	private createLinks(parent: HTMLElement) {
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'Go back to log-in';
-		RegisterLink.className = 'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
+		RegisterLink.className =
+			'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleGoBack(parent);
 		this.box.appendChild(RegisterLink);
-
 	}
 
-	private handleGoBack(parent: HTMLElement) { 
+	private handleGoBack(parent: HTMLElement) {
 		this.destroy();
 		new LoginModal(parent);
 	}
-
 }

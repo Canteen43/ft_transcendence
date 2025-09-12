@@ -11,7 +11,6 @@ import {
 	CreateParticipant,
 	Participant,
 	ParticipantSchema,
-	UpdateParticipant,
 } from '../../shared/schemas/participant.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
@@ -70,35 +69,15 @@ export default class ParticipantRepository {
 		participant: CreateParticipant
 	): Participant {
 		const createdParticipant = db.queryOne<Participant>(
-			`INSERT INTO ${this.table} (tournament_id, user_id, status)
+			`INSERT INTO ${this.table} (tournament_id, user_id)
 			VALUES (?, ?, ?)
 			RETURNING ${this.fields}`,
-			[tournament_id, participant.user_id, participant.status]
+			[tournament_id, participant.user_id]
 		);
 
 		if (!createdParticipant)
 			throw new DatabaseError(ERROR_FAILED_TO_CREATE_PARTICIPANT);
 
 		return ParticipantSchema.parse(createdParticipant);
-	}
-
-	static updateParticipant(
-		participant_id: UUID,
-		upd: UpdateParticipant
-	): Participant {
-		return db.executeInTransaction(() => {
-			const updatedParticipant = db.queryOne<Participant>(
-				`UPDATE ${this.table}
-				SET status = ?
-				WHERE id = ?
-				RETURNING ${this.fields}`,
-				[upd.status, participant_id]
-			);
-
-			if (!updatedParticipant)
-				throw new DatabaseError(ERROR_FAILED_TO_UPDATE_PARTICIPANT);
-
-			return ParticipantSchema.parse(updatedParticipant);
-		});
 	}
 }

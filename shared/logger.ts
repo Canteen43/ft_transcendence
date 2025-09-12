@@ -6,7 +6,7 @@ import { APP_LOG_LEVEL } from './constants.js';
 export const logger = pino({
 	level: APP_LOG_LEVEL,
 	redact: {
-		paths: ['params.password_hash', 'params.token'],
+		paths: ['params.password', 'params.token'],
 		censor: '[REDACTED]',
 	},
 	transport:

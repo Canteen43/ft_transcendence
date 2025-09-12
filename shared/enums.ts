@@ -13,7 +13,7 @@ export enum MatchStatus {
 	Paused = 'paused',
 }
 
-export enum ParticipantStatus {
+export enum PlayerStatus {
 	Creator = 'creator',
 	Pending = 'pending',
 	Accepted = 'accepted',
