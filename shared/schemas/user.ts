@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { zUUID } from '../types.js';
 
-const passwordSchema = z
+const passwordRequirements = z
 	.string()
 	.min(8, 'Password must be at least 8 characters')
 	.max(128, 'Password must be at most 128 characters')
@@ -12,6 +12,9 @@ const passwordSchema = z
 		/[^a-zA-Z0-9]/,
 		'Password must contain at least one special character'
 	);
+
+export const passwordSchema =
+	process.env.NODE_ENV === 'development' ? z.string() : passwordRequirements;
 
 const loginSchema = z
 	.string()
