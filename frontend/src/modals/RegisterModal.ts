@@ -97,23 +97,20 @@ export class RegisterModal extends Modal {
 			return;
 		}
 
-		try {
-			const regData = await apiCall(
-				'POST',
-				'/users/',
-				UserSchema,
-				requestData
-			);
-			if (!regData) {
-				alert('Registration unsuccessful');
-				return;
-			}
-			console.log('Registration successful for: ', regData.login);
-			new LoginModal(parent);
-			this.destroy();
-		} catch (error) {
-			console.error('Login error:', error);
+		const regData = await apiCall(
+			'POST',
+			'/users/',
+			UserSchema,
+			requestData
+		);
+		if (!regData) {
+			alert('Registration unsuccessful');
+			return;
 		}
+		console.log('Registration successful for: ', regData.login);
+		new LoginModal(parent);
+		this.destroy();
+
 	}
 
 	private myCreateInput(

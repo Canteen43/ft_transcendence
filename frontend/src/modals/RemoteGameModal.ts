@@ -21,26 +21,19 @@ export class RemoteGameModal extends Modal {
 			'gap-2',
 			'p-4'
 		);
-		new Button('2 players', () => this._2_players(), this.box);
-		new Button('tournament', () => this._tournament(), this.box);
+		new Button('2 players', () => this.logicRemote(2), this.box);
+		new Button('tournament', () => this.logicRemote(4), this.box);
 	}
 
-	private _2_players() {
-		this.joinGame(2);
+	private logicRemote(playerCount: number) {
+		this.joinGame(playerCount);
 		this.destroy();
-		sessionStorage.setItem('tournament', '0');
-		new WaitingModal(this.parent);
-	}
-
-	private _tournament() {
-		this.joinGame(4);
-		this.destroy();
-		sessionStorage.setItem('tournament', '1');
+		sessionStorage.setItem('tournament', (playerCount == 2)? '0' : '1');
 		new WaitingModal(this.parent);
 	}
 
 	private async joinGame(playerCount: number) {
-		// API call to joinn a tournament
+		// API call to join a tournament
 		// send 2 or 4, receive the array of players in that tournament
 
 		// const joinData = { size: playerCount }; // overkill - we are sending a nuber
