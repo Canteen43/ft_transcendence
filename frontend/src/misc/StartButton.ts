@@ -1,6 +1,7 @@
 import { MESSAGE_ACCEPT } from '../../../shared/constants';
 import { Button } from '../components/Button';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { MessageSchema } from '../../../shared/schemas/message';
 
 export class StartButton extends Button {
 	constructor(parent: HTMLElement) {
@@ -8,18 +9,18 @@ export class StartButton extends Button {
 	}
 
 	private startClicked() {
-		webSocket.send({ t: MESSAGE_ACCEPT });
-
-		// remove all color classes (bg-*, hover:*)
-		const classesToRemove = Array.from(this.element.classList).filter(
-			c => c.startsWith('bg-') || c.startsWith('hover:')
-		);
-		classesToRemove.forEach(c => this.element.classList.remove(c));
-
-		// set grey background
-		this.element.classList.add('bg-gray-500');
-
-		// change label
-		this.element.textContent = 'Started';
+		const matchID = sessionStorage.getItem("tournamentId");
+		const message = { t: MESSAGE_ACCEPT, d: matchID };
+		const validatedMessage = MessageSchema.parse(message);
+		webSocket.send(validatedMessage);
+		// // remove all color classes (bg-*, hover:*)
+		// const classesToRemove = Array.from(this.element.classList).filter(
+		// 	c => c.startsWith('bg-') || c.startsWith('hover:')
+		// );
+		// classesToRemove.forEach(c => this.element.classList.remove(c));
+		// // set grey background
+		// this.element.classList.add('bg-gray-500');
+		// // change label
+		// this.element.textContent = 'Started';
 	}
 }

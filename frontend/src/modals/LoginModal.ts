@@ -65,13 +65,15 @@ export class LoginModal extends Modal {
 			alert('Login unsuccessful');
 			return;
 		}
-		this.login(authData.token);
+		this.login(authData.token, authData.user_id);
 		sessionStorage.setItem('username', username);
+
 		this.destroy();
 	}
 
-	private login(token: string) {
+	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
+		sessionStorage.setItem('id', id);
 		webSocket.open();
 		document.dispatchEvent(new CustomEvent('login-success'));
 		console.info('Login successful');

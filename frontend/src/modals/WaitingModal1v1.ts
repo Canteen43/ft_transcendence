@@ -8,7 +8,9 @@ export class WaitingModal1v1 extends WaitingModal {
 	}
 
 	public enableStart() {
+		console.debug('gameReady received');
 		this.box.removeChild(this.box.lastChild!);
 		new StartButton(this.box);
 	}
+
 }
