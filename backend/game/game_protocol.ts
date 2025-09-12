@@ -121,8 +121,6 @@ export class GameProtocol {
 			connectionId,
 			match.players
 		);
-		const outgoing_message: Message = { t: 'a', d: players.current.userId };
-		this.sendMatchMessage(outgoing_message, match.players);
 		match.accept(players.current.userId);
 		const dbMatch = this.getDbMatch(match.matchId);
 		if (dbMatch.status == MatchStatus.Pending && match.allAccepted()) {
