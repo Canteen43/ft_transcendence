@@ -1,4 +1,5 @@
 export class Modal {
+	protected parent: HTMLElement;
 	protected overlay: HTMLDivElement;
 	protected box: HTMLDivElement;
 	private escHandler: (e: KeyboardEvent) => void;
@@ -6,20 +7,21 @@ export class Modal {
 	private closeButton: HTMLButtonElement;
 
 	constructor(parent: HTMLElement) {
+		this.parent = parent;
 		// outer overlay
 		this.overlay = document.createElement('div');
 		this.overlay.className =
-		'fixed inset-0 flex items-center justify-center bg-black/50 z-50';
-		
+			'fixed inset-0 flex items-center justify-center bg-black/50 z-50';
 
 		// inner modal box
 		this.box = document.createElement('div');
-		this.box.className = 'bg-white w-1/2 h-1/2 rounded-lg shadow-lg p-6 relative';
+		this.box.className =
+			'bg-white w-1/2 h-1/2 rounded-lg shadow-lg p-6 relative';
 
 		// Create close button (X) in top right corner
 		this.closeButton = document.createElement('button');
 		this.closeButton.innerHTML = '×'; // You can also use '✕' or an icon
-		this.closeButton.className = 
+		this.closeButton.className =
 			'absolute top-2 right-2 w-8 h-8 flex items-center justify-center ' +
 			'text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full ' +
 			'text-xl font-bold cursor-pointer transition-colors duration-200';
@@ -51,19 +53,10 @@ export class Modal {
 	}
 
 	public destroy() {
-		
 		// Clean up event listeners
 		document.removeEventListener('keydown', this.escHandler);
 		this.overlay.removeEventListener('click', this.clickOutside);
-
 		// Remove from DOM
 		this.overlay.remove();
-		// optional: null references
-		this.box = null!;
-		this.overlay = null!;
-		this.escHandler = null!;
-		this.clickOutside = null!;
-		this.closeButton = null!;
 	}
 }
-

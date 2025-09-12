@@ -1,13 +1,6 @@
-import {
-	MESSAGE_START,
-	MESSAGE_START_TOURNAMENT,
-} from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
-import { MessageSchema } from '../../../shared/schemas/message';
-import { MatchSchema } from '../../../shared/schemas/match';
 import { gameListener } from '../game/gameListener';
-import { apiCall } from '../utils/apiCall';
-import { FullTournamentSchema } from '../../../shared/schemas/tournament';
+import { regListener } from './regListener';
 
 
 // import { AliasModal } from '../modals/AliasModal';
@@ -26,18 +19,20 @@ export class WebSocketWrapper {
 			console.error('No token found');
 			return;
 		}
-
-
 		const wsUrl = `${this.address}?token=${token}`;
-
 		this.ws = new WebSocket(wsUrl);
+
 		this.ws.addEventListener('message', event => this.routeListener(event));
+
+		// TODO: add the logic for reconnection 
 		this.ws.addEventListener('close', () => {
 			console.info('WebSocket connection closed');
 		});
+
 		this.ws.addEventListener('open', () => {
 			console.info('WebSocket connection opened successfully');
 		});
+
 		this.ws.addEventListener('error', error => {
 			console.error('WebSocket error:', error);
 		});
@@ -48,7 +43,6 @@ export class WebSocketWrapper {
 			console.warn('Websocket not opened. Message not sent.');
 			return;
 		}
-
 		const jsonMessage = JSON.stringify(message);
 		console.log('Sending WebSocket message:', {
 			original: message,
@@ -56,7 +50,6 @@ export class WebSocketWrapper {
 		});
 		this.ws.send(JSON.stringify(message));
 	}
-
 
 	close(): void {
 		if (this.ws) {
@@ -72,7 +65,7 @@ export class WebSocketWrapper {
 			gameListener(event);
 		} else {
 			console.log('Routing to registration listener');
-			await this.regListener(event);
+			await regListener(event);
 		}
 	}
 
@@ -85,64 +78,8 @@ export class WebSocketWrapper {
 	}
 
 
-	private async regListener(event: MessageEvent): Promise<void> {
-		try {
-			console.log('Processing message in regListener...');
-
-			const raw =
-				typeof event.data === 'string'
-					? JSON.parse(event.data)
-					: event.data;
-			const msg: Message = MessageSchema.parse(raw);
-
-			console.log('Validated message:', msg);
-			console.log('Message type:', msg.t);
-
-			switch (msg.t) {
-				case MESSAGE_START_TOURNAMENT:
-					console.info('Enough players joined:', msg);
-					
-					if (msg.d) {
-						console.log('Storing tournament ID in session:', msg.d);
-						sessionStorage.setItem('tournamentId', msg.d);
-					} else {
-						console.warn(
-							'Tournament ID not found in message.d:',
-							msg
-						);
-					}
-					
-					const tournamentDetails = await apiCall(
-						'GET',
-						`/tournaments/${msg.d}`,
-						FullTournamentSchema,
-					);
-					if (!tournamentDetails) {
-						alert('No game data');
-						return;
-					} else {
-						console.log('Storing tournament ID in session:', tournamentDetails);
-						sessionStorage.setItem('matchID', tournamentDetails.matches[0].id);
-						document.dispatchEvent(new Event('gameReady'));
-					}
-			
-
-					break;
-
-				case MESSAGE_START:
-					console.info('Received start message:', msg);
-					document.dispatchEvent(new Event('toGameScreen'));
-					location.hash = '#game';
-					break;
-
-				default:
-					console.warn('Unexpected websocket message received:', msg);
-			}
-		} catch (err) {
-			console.error('Invalid message received:', event.data, err);
-		}
-	}
 }
+
 
 
 export const webSocket = new WebSocketWrapper(`ws://localhost:8080/websocket`);

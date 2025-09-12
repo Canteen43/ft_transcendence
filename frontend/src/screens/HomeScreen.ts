@@ -19,7 +19,7 @@ export class HomeScreen extends Screen {
 
 		// Main title
 		const heading = document.createElement('h1');
-		heading.textContent = 'TRANSCENDANCE';
+		heading.textContent = 'Space Pong';
 		heading.className = 'font-rubik text-[100px] text-[var(--color1)] text-center floating-title select-none';
 		this.element.appendChild(heading);
 

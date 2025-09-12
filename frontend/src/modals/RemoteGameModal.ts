@@ -1,15 +1,14 @@
 import * as z from 'zod';
 import {
-	JoinTournamentSchema,
+	CreateTournamentApiSchema,
+	// JoinTournamentSchema,
 	TournamentQueueSchema,
 	TournamentSchema,
-	CreateTournamentApiSchema,
 } from '../../../shared/schemas/tournament';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { apiCall } from '../utils/apiCall';
 import { WaitingModal } from './WaitingModal';
-import { WaitingModal1v1 } from './WaitingModal1v1';
 
 export class RemoteGameModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -28,57 +27,62 @@ export class RemoteGameModal extends Modal {
 
 	private _2_players() {
 		this.joinGame(2);
-		this.destroy;
+		this.destroy();
 		sessionStorage.setItem('tournament', '0');
-		new WaitingModal1v1(this.box);
+		new WaitingModal(this.parent);
 	}
 
 	private _tournament() {
 		this.joinGame(4);
-		this.destroy;
+		this.destroy();
 		sessionStorage.setItem('tournament', '1');
-		new WaitingModal(this.box);
+		new WaitingModal(this.parent);
 	}
 
 	private async joinGame(playerCount: number) {
+		// API call to joinn a tournament
+		// send 2 or 4, receive the array of players in that tournament
 
-		// trying to join a tournament: send 2 or 4, get the array of players in that tournament
-		const joinData = { size: playerCount };
-		const parseInput = JoinTournamentSchema.safeParse(joinData);
-		if (!parseInput.success) {
-			alert('Invalid tournament format');
-			console.error(
-				'Request validation failed:',
-				z.treeifyError(parseInput.error)
-			);
-			return;
-		}
+		// const joinData = { size: playerCount }; // overkill - we are sending a nuber
+		// const parseInput = JoinTournamentSchema.safeParse(joinData);
+		// if (!parseInput.success) {
+		// 	alert('Invalid tournament format');
+		// 	console.error(
+		// 		'Request validation failed:',
+		// 		z.treeifyError(parseInput.error)
+		// 	);
+		// 	return;
+		// }
 		const playerQueue = await apiCall(
 			'POST',
 			`/tournaments/join`,
 			TournamentQueueSchema,
-			joinData
+			{ size: playerCount }
 		);
 		if (!playerQueue) {
-			// alert('Joining the game was unsuccessful');
+			console.error('No response from tournament creation');
 			return;
 		}
 
 		// checking if the game / tournament is full
-		console.log('Tournament actual players:', playerQueue.queue);
+		console.log('Tournament (game) actual players:', playerQueue.queue);
 		const currentPlayers = playerQueue.queue.length;
 		const isTournamentReady = currentPlayers === playerCount;
 
 		// set up some game spec
+		// TODO : move to when we receive the full tournament infos
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
-		sessionStorage.setItem('playerCount', '2');
+		sessionStorage.setItem('playerCount', playerCount.toString());
 		sessionStorage.setItem('gameMode', 'remote');
 
-		// sending the start tournament request
+		// PLAYERS FULL: last player sending the start tournament request
+		// will trigger the 'st' ws message
+		// Validation overkill? it has been validated as a return schema already
 		if (isTournamentReady) {
 			const body = {
-				creator: sessionStorage.getItem("id") || "",
-				participants: playerQueue.queue };
+				creator: sessionStorage.getItem('id') || '',
+				participants: playerQueue.queue,
+			};
 			const parseInput2 = CreateTournamentApiSchema.safeParse(body);
 			console.log('Sending to /tournaments/join:', body);
 			if (!parseInput2.success) {
@@ -106,5 +110,3 @@ export class RemoteGameModal extends Modal {
 		}
 	}
 }
-
-

@@ -1,7 +1,7 @@
-import { Player } from '../backend/types/interfaces.js';
+import type { Player } from '../backend/types/interfaces.js';
 import { PlayerStatus } from './enums.js';
-import { Message } from './schemas/message.js';
-import { UUID } from './types.js';
+import type { Message } from './schemas/message.js';
+import type { UUID } from './types.js';
 
 export const ERROR_CREATE_USER_FAILED = 'Failed to create user';
 export const ERROR_INVALID_CREDENTIALS = 'Invalid login credentials';
