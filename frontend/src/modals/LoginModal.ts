@@ -88,7 +88,7 @@ export class LoginModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color1)] rounded p-2';
+		input.className = 'border border-[var(--color3)] rounded p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -98,14 +98,14 @@ export class LoginModal extends Modal {
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
 		RegisterLink.className =
-			'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleRegister(parent);
 		this.box.appendChild(RegisterLink);
 		// Create a password input
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className =
-			'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		this.box.appendChild(ForgotPasswordLink);
 	}

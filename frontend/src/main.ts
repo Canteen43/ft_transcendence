@@ -1,6 +1,7 @@
 // import { Video } from './misc/Video';
 import { AuthComponent } from './misc/AuthComponent';
 import { HomeButton } from './misc/HomeButton';
+import { createParticlesBackground, initParticles } from  './misc/Particles';
 
 import { Router } from './misc/Router';
 import './style.css';
@@ -15,6 +16,11 @@ import { webSocket } from './utils/WebSocketWrapper';
 
 const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col';
+
+
+// Create particles background
+createParticlesBackground(app);
+requestAnimationFrame(() => {void initParticles();});
 
 new AuthComponent(app);
 new HomeButton(app);

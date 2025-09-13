@@ -11,7 +11,7 @@ export class Button {
 		this.element.textContent = label;
 		this.element.className =
 			//'px-6 py-3 bg-green-700 hover:bg-green-900 rounded-lg text-white font-semibold shadow-lg transition-colors';
-			  'px-6 py-3 bg-[var(--color1)] hover:bg-[var(--color1bis)] rounded-lg text-white font-semibold shadow-lg transition-colors';
+			  'px-6 py-3 bg-[var(--color3)] hover:bg-[var(--color4)] rounded-lg text-white font-semibold shadow-lg transition-colors';
 
 		this.onClick = onClick;
 		this.element.addEventListener('click', onClick);

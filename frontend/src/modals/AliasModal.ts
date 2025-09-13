@@ -2,34 +2,35 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 
 export class AliasModal extends Modal {
-	private aliasField: HTMLInputElement;
+	private aliasFields: HTMLInputElement[] = [];
 
-	constructor(parent: HTMLElement) {
+	constructor(parent: HTMLElement, n: number) {
 		super(parent);
 
-		this.box.classList.add(
-			'flex',
-			'flex-col',
-			'items-center',
-			'justify-center',
-			'gap-2',
-			'p-4'
-		);
-		this.aliasField = this.myCreateInput(
-			'text',
-			'username',
-			'Enter your alias'
-		);
-		
+		const username = sessionStorage.getItem('username') ?? '';
 
-		new Button('To tournament', () => this.handleAlias(), this.box);
+		for (let i = 0; i < n; i++) {
+			const input = this.myCreateInput(
+				'text',
+				`username${i + 1}`,
+				username ? username : `player${i + 1}`
+			);
+			this.aliasFields.push(input);
+		}
+
+		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 
 	private async handleAlias() {
-		const Alias = this.aliasField.value.trim();
-		sessionStorage.setItem("Alias", Alias);
+		const gameMode = sessionStorage.getItem('gameMode');
+
+		this.aliasFields.forEach((field, index) => {
+			const alias = field.value.trim() || `Player${index + 1}`;
+			sessionStorage.setItem(`alias${index + 1}`, alias);
+		});
 		this.destroy();
-		location.hash = '#home';
+		if (gameMode == 'local') location.hash = '#game';
+		else location.hash = '#tournament';
 	}
 
 	private myCreateInput(
@@ -41,9 +42,8 @@ export class AliasModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color1)] rounded p-2';
+		input.className = 'border border-[var(--color3)] rounded p-2';
 		this.box.appendChild(input);
 		return input;
 	}
-
 }

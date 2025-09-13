@@ -88,14 +88,14 @@ sessionStorage vs localStorage vs global variable
 functions: getItem, setItem, removeItem
 
 TODO:
-
-- Login: better error handling for username existent
-- Better error handling on registration
-  -> if login already exist
-
 - save the match and tournament infos
 - separate state vs session storage
-- handle closing the modals while not yet in the game
 - continue tournament logic
+
+- handle closing the modals while not yet in the game -> apicall or websocket quit match
+- Change logout button to Username + drop down: stat + logout
+- Better error handling on registration if login already exist
+- aliases
+- design
 
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9

@@ -50,11 +50,11 @@
 }
 
 :root {
-  --color1: #3347f8;
-  --color1bis: #2e80fa;
-	--color2: #a5fa9a;
-	--color3: #006f9bff;
-	--color4: #fafaea;
+  --color1: #dee5e6;
+  --color1bis: #c1cf42;
+	--color2: #aeafbb;
+	--color3: rgb(27, 27, 126);
+	--color4: #6357cf;
   --color5: #f763b4;
 }
 

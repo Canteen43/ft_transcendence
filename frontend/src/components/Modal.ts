@@ -16,7 +16,8 @@ export class Modal {
 		// inner modal box
 		this.box = document.createElement('div');
 		this.box.className =
-			'bg-white w-1/2 h-1/2 rounded-lg shadow-lg p-6 relative';
+			'bg-white rounded-lg shadow-lg p-10 relative ' +
+			'flex flex-col items-center justify-center gap-4';
 
 		// Create close button (X) in top right corner
 		this.closeButton = document.createElement('button');
