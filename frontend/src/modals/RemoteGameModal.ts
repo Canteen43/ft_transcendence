@@ -13,14 +13,7 @@ import { WaitingModal } from './WaitingModal';
 export class RemoteGameModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
-		this.box.classList.add(
-			'flex',
-			'flex-col',
-			'items-center',
-			'justify-center',
-			'gap-2',
-			'p-4'
-		);
+		this.box.classList.remove('bg-white');
 		new Button('2 players', () => this.logicRemote(2), this.box);
 		new Button('tournament', () => this.logicRemote(4), this.box);
 	}
@@ -28,7 +21,7 @@ export class RemoteGameModal extends Modal {
 	private logicRemote(playerCount: number) {
 		this.joinGame(playerCount);
 		this.destroy();
-		sessionStorage.setItem('tournament', (playerCount == 2)? '0' : '1');
+		sessionStorage.setItem('tournament', playerCount == 2 ? '0' : '1');
 		new WaitingModal(this.parent);
 	}
 

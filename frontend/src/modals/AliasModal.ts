@@ -13,7 +13,7 @@ export class AliasModal extends Modal {
 			const input = this.myCreateInput(
 				'text',
 				`username${i + 1}`,
-				username ? username : `player${i + 1}`
+				username && n == 1 ? username : `player${i + 1}`
 			);
 			this.aliasFields.push(input);
 		}
@@ -36,12 +36,12 @@ export class AliasModal extends Modal {
 	private myCreateInput(
 		type: string,
 		id: string,
-		placeholder: string
+		defaultValue: string
 	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
 		input.id = id;
-		input.placeholder = placeholder;
+		input.value = defaultValue;
 		input.className = 'border border-[var(--color3)] rounded p-2';
 		this.box.appendChild(input);
 		return input;

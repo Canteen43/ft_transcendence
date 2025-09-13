@@ -3,19 +3,25 @@ export class Button {
 	private onClick: () => void;
 
 	constructor(
-		label: string,
+		content: string | HTMLElement,
 		onClick: () => void,
 		parent?: HTMLElement // optional parent element
 	) {
 		this.element = document.createElement('button');
-		this.element.textContent = label;
 		this.element.className =
 			//'px-6 py-3 bg-green-700 hover:bg-green-900 rounded-lg text-white font-semibold shadow-lg transition-colors';
-			  'px-6 py-3 bg-[var(--color3)] hover:bg-[var(--color4)] rounded-lg text-white font-semibold shadow-lg transition-colors';
+			'font-sigmar px-10 py-6 text-2xl px-12 py-5 bg-[var(--color3)] hover:bg-[var(--color4)] rounded-lg text-white text-3x shadow-lg transition-colors';
+
+		if (typeof content === 'string') {
+			this.element.textContent = content;
+		} else {
+			this.element.appendChild(content);
+		}
+		
 
 		this.onClick = onClick;
 		this.element.addEventListener('click', onClick);
-		
+
 		if (parent) {
 			parent.appendChild(this.element);
 		}
@@ -24,7 +30,7 @@ export class Button {
 	destroy(): void {
 		// Remove event listener to prevent memory leaks
 		this.element.removeEventListener('click', this.onClick);
-		
+
 		// Remove from parent if it exists
 		if (this.element.parentElement) {
 			this.element.parentElement.removeChild(this.element);
