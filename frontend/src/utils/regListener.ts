@@ -6,8 +6,7 @@ import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
 import { FullTournamentSchema } from '../../../shared/schemas/tournament';
 import { apiCall } from '../utils/apiCall';
-import { StorageManager } from './StorageManager';
-
+import { state } from '../utils/State';
 
 
 // TODO: add logic for the Quit event?
@@ -30,33 +29,24 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			// send DOM event gameReady => triggers ready button
 			case MESSAGE_START_TOURNAMENT:
 				console.info('Received "st":', msg);
-				if (msg.d) {
-					console.log('Storing tournament ID:', msg.d);
-					sessionStorage.setItem('tournamentId', msg.d);
-				} else {
-					console.error('Tournament ID not found in message.d:', msg);
-					return;
-				}
 				const tournData = await apiCall(
 					'GET',
 					`/tournaments/${msg.d}`,
 					FullTournamentSchema
 				);
 				if (tournData) {
-					console.log('Storing match ID:', tournData);
-					StorageManager.storeData(tournData);
+					console.log('Tournament data received:', tournData);
+					state.storeTournData(tournData);
+					state.storeCurrentMatch();
 					document.dispatchEvent(new Event('gameReady')); // will trigger the READY button
 				} else {
 					console.error('No tournament data received', tournData);
 					return;
 				}
-
 				break;
 
-			// s: START MESSSAGE per WS
-			// all players have pressed ready for their match
+			// s: case MESSAGE_START (all players ready)
 			// send DOM event toGameScreen => move to the game screen
-			// will need to destroy the 2 player readymodal
 			case MESSAGE_START:
 				console.info('Received start message:', msg);
 				document.dispatchEvent(new Event('toGameScreen'));

@@ -9,6 +9,8 @@ import { apiCall } from '../utils/apiCall';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { ForgottenModal } from './ForgottenModal';
 import { RegisterModal } from './RegisterModal';
+import { state } from '../utils/State';
+
 
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -17,14 +19,6 @@ export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		// this.box.classList.add(
-		// 	'flex',
-		// 	'flex-col',
-		// 	'items-center',
-		// 	'justify-center',
-		// 	'gap-2',
-		// 	'p-4'
-		// );
 		this.UsernameField = this.myCreateInput(
 			'text',
 			'username',
@@ -74,6 +68,7 @@ export class LoginModal extends Modal {
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('id', id);
+		state.playerId = id;
 		webSocket.open();
 		document.dispatchEvent(new CustomEvent('login-success'));
 		console.info('Login successful');

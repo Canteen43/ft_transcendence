@@ -1,21 +1,9 @@
 import { ReadyButton } from '../buttons/ReadyButton';
 import { Screen } from '../components/Screen';
 
-interface Player {
-	id: string;
-	name: string;
-}
-
 export class TournamentScreen extends Screen {
-	constructor(players?: Player[]) {
+	constructor() {
 		super();
-
-		const defaultPlayers = [
-			{ id: 'player1', name: 'Player 1' },
-			{ id: 'player2', name: 'Player 2' },
-			{ id: 'player3', name: 'Player 3' },
-			{ id: 'player4', name: 'Player 4' },
-		];
 
 		this.render();
 		this.addStyles();
@@ -66,9 +54,12 @@ export class TournamentScreen extends Screen {
 		const bracketGrid = this.createElement(
 			this.element,
 			'div',
-			'bracket-grid grid grid-cols-7 gap-4 items-center max-w-6xl mx-auto'
+			'bracket-grid grid grid-cols-7 gap-4 items-center max-w-6xl mx-auto mb-8'
 		);
 		this.renderBracket(bracketGrid);
+
+		// Ready button
+		new ReadyButton(this.element);
 	}
 
 	private renderBracket(parent: HTMLElement) {
@@ -79,10 +70,10 @@ export class TournamentScreen extends Screen {
 			'col-span-1 space-y-8'
 		);
 		leftSide.appendChild(
-			this.createPlayerSlot('player1', this.playerAliass['player1'])
+			this.createPlayerSlot('player1', sessionStorage.getItem('player1') || 'Player 1')
 		);
 		leftSide.appendChild(
-			this.createPlayerSlot('player2', this.playerAliass['player2'])
+			this.createPlayerSlot('player2', sessionStorage.getItem('player2') || 'Player 2')
 		);
 
 		// Left connector
@@ -129,10 +120,10 @@ export class TournamentScreen extends Screen {
 			'col-span-1 space-y-8'
 		);
 		rightSide.appendChild(
-			this.createPlayerSlot('player3', this.playerAliass['player3'])
+			this.createPlayerSlot('player3', sessionStorage.getItem('player3') || 'Player 3')
 		);
 		rightSide.appendChild(
-			this.createPlayerSlot('player4', this.playerAliass['player4'])
+			this.createPlayerSlot('player4', sessionStorage.getItem('player4') || 'Player 4')
 		);
 	}
 
@@ -195,40 +186,13 @@ export class TournamentScreen extends Screen {
 
 	private createPlayerSlot(
 		playerId: string,
-		playerAlias: string
+		playerIdText: string
 	): HTMLElement {
 		const slot = document.createElement('div');
 		slot.className =
 			'player-slot rounded-lg px-4 py-3 text-center font-semibold text-lg';
-		slot.textContent = playerAlias;
+		slot.textContent = playerIdText;
 		slot.setAttribute('data-player', playerId);
 		return slot;
-	}
-
-	// Method to update player names
-	updatePlayerName(playerId: string, name: string) {
-		this.playerAliass[playerId] = name;
-		const element = this.element.querySelector(
-			`[data-player="${playerId}"]`
-		) as HTMLElement;
-		if (element) {
-			element.textContent = name;
-		}
-	}
-
-	// Method to set winner
-	setWinner(playerId: string) {
-		// Remove winner class from all
-		this.element.querySelectorAll('.player-slot').forEach(slot => {
-			slot.classList.remove('winner');
-		});
-
-		// Add winner class to selected player
-		const winner = this.element.querySelector(
-			`[data-player="${playerId}"]`
-		);
-		if (winner) {
-			winner.classList.add('winner');
-		}
 	}
 }

@@ -71,7 +71,7 @@ export class RemoteGameModal extends Modal {
 
 		// set up some game spec
 		// TODO : move to when we receive the full tournament infos
-		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
+		sessionStorage.setItem('thisPlayerOld', currentPlayers.toString());
 		sessionStorage.setItem('playerCount', playerCount.toString());
 		sessionStorage.setItem('gameMode', 'remote');
 
@@ -101,7 +101,7 @@ export class RemoteGameModal extends Modal {
 			);
 			if (tournament) {
 				console.info('Tournament created with ID:', tournament.id);
-				// sessionStorage.setItem('tournamentId', tournament.id);
+				sessionStorage.setItem('tournamentId', tournament.id);
 				alert('Tournament started successfully!');
 			} else {
 				console.error('Failed to create tournament');
