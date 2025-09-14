@@ -175,6 +175,9 @@ export class Pong3D {
 	public WINNING_SCORE = 10; // Points needed to win the game
 	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
+	// Physics engine settings
+	private PHYSICS_TIME_STEP = 1 / 120; // Physics update frequency (120 Hz to reduce tunneling)
+
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
 
@@ -557,6 +560,9 @@ export class Pong3D {
 		const gravityVector = BABYLON.Vector3.Zero(); // No gravity for Pong
 		const physicsPlugin = new CannonJSPlugin(true, 10, CANNON);
 		this.scene.enablePhysics(gravityVector, physicsPlugin);
+
+		// Set physics time step for higher frequency updates to reduce tunneling
+		this.scene.getPhysicsEngine()?.setTimeStep(this.PHYSICS_TIME_STEP);
 
 		// Ball impostor (for local and master modes - both need physics)
 		if (
@@ -2892,6 +2898,21 @@ export class Pong3D {
 		this.conditionalLog('useGLBOrigin ->', this.useGLBOrigin);
 		// Immediately apply the new setting by refreshing the camera POV
 		this.setPlayerPOV(this.thisPlayer);
+	}
+
+	public setPhysicsTimeStep(timeStep: number): void {
+		if (timeStep > 0) {
+			this.PHYSICS_TIME_STEP = timeStep;
+			const physicsEngine = this.scene.getPhysicsEngine();
+			if (physicsEngine) {
+				physicsEngine.setTimeStep(this.PHYSICS_TIME_STEP);
+				this.conditionalLog('Physics time step updated to:', this.PHYSICS_TIME_STEP);
+			}
+		}
+	}
+
+	public getPhysicsTimeStep(): number {
+		return this.PHYSICS_TIME_STEP;
 	}
 
 	public setPaddleRange(value: number): void {
