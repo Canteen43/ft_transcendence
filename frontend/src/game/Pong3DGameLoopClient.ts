@@ -149,16 +149,12 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	}
 
 	/**
-	 * Process local input for immediate paddle response + send to master
+	 * Set ball velocity (client doesn't control physics, so this is a no-op)
 	 */
-	processLocalInput(keyInput: number): void {
-		// Optional: Move own paddle immediately for responsiveness
-		// Will be corrected by master updates if needed
-		if (this.pong3DInstance && this.pong3DInstance.setPaddlePosition) {
-			// Apply local prediction here if desired
+	setBallVelocity(_velocity: BABYLON.Vector3): void {
+		// Client doesn't run physics - velocity is controlled by master
+		if (GameConfig.isDebugLoggingEnabled()) {
+			console.log(`🎮 Client ignoring setBallVelocity - physics controlled by master`);
 		}
-
-		// Send to master
-		this.sendInput(keyInput);
 	}
 }

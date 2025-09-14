@@ -103,6 +103,8 @@ export class Pong3D {
 	private paddles: (BABYLON.Mesh | null)[] = [null, null, null, null];
 	private boundsXMin: number | null = null;
 	private boundsXMax: number | null = null;
+	private boundsZMin: number | null = null;
+	private boundsZMax: number | null = null;
 
 	// Configurable camera settings - initialized from POV module defaults
 	private DEFAULT_CAMERA_RADIUS = DEFAULT_CAMERA_SETTINGS.defaultRadius;
@@ -176,10 +178,11 @@ export class Pong3D {
 
 	// Ball settings (non-effects)
 	public WINNING_SCORE = 10; // Points needed to win the game
-	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
+	private static readonly OUT_OF_BOUNDS_DISTANCE = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
+	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 120; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_TIME_STEP = 1 / 60; // Physics update frequency (120 Hz to reduce tunneling)
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -554,6 +557,12 @@ export class Pong3D {
 				}
 			}
 			this.gameLoop.start();
+
+			// Set up render loop for manual goal detection
+			this.scene.registerBeforeRender(() => {
+				this.checkManualGoalCollisions();
+			});
+			this.conditionalLog('🎯 Manual goal detection render loop started');
 		}
 	}
 
@@ -567,6 +576,38 @@ export class Pong3D {
 
 		// Set physics time step for higher frequency updates to reduce tunneling
 		this.scene.getPhysicsEngine()?.setTimeStep(this.PHYSICS_TIME_STEP);
+
+		// Create physics impostors for goals now that physics is enabled
+		this.goalMeshes.forEach((goal, index) => {
+			if (goal && !goal.physicsImpostor) {
+				try {
+					goal.physicsImpostor = new BABYLON.PhysicsImpostor(
+						goal,
+						BABYLON.PhysicsImpostor.MeshImpostor,
+						{ mass: 0, restitution: 0.0, friction: 0.0 },
+						this.scene
+					);
+
+					// Make goal a sensor/trigger - detects collision but doesn't cause physical response
+					if (goal.physicsImpostor.physicsBody) {
+						// Disable collision response so ball passes through
+						goal.physicsImpostor.physicsBody.collisionResponse = false;
+						this.conditionalLog(
+							`✅ Goal ${index + 1} (${goal.name}): Created sensor MeshImpostor (no collision response)`
+						);
+					} else {
+						this.conditionalLog(
+							`✅ Goal ${index + 1} (${goal.name}): Created MeshImpostor for physics collision detection`
+						);
+					}
+				} catch (error) {
+					this.conditionalWarn(
+						`❌ Failed to create physics impostor for goal ${index + 1}:`,
+						error
+					);
+				}
+			}
+		});
 
 		// Ball impostor (for local and master modes - both need physics)
 		if (
@@ -871,10 +912,10 @@ export class Pong3D {
 			}
 		});
 
-		// Set up collision detection for local AND master modes (both need full game logic)
+		// Set up collision detection for local, master, AND client modes (all need goal detection)
 		if (
 			this.ballMesh?.physicsImpostor &&
-			(this.gameMode === 'local' || this.gameMode === 'master')
+			(this.gameMode === 'local' || this.gameMode === 'master' || this.gameMode === 'client')
 		) {
 			const paddleImpostors = this.paddles
 				.filter(p => p && p.physicsImpostor)
@@ -915,7 +956,48 @@ export class Pong3D {
 				);
 			}
 
-			// Set up manual goal detection
+			// Set up goal collision detection using physics
+			const goalImpostors = this.goalMeshes
+				.filter(goal => goal && goal.physicsImpostor)
+				.map(goal => goal!.physicsImpostor!);
+
+				this.conditionalLog(
+					`🎯 Goal collision setup: Found ${this.goalMeshes.length} goal meshes, ${goalImpostors.length} with physics impostors`
+				);
+
+				if (goalImpostors.length > 0 && this.ballMesh?.physicsImpostor) {
+					this.conditionalLog(`🎯 Registering physics collision detection for ${goalImpostors.length} goals...`);
+
+					this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
+						goalImpostors,
+						(main, collided) => {
+							this.conditionalLog(`🎯 RAW PHYSICS COLLISION: main=${main}, collided=${collided}`);
+
+					// Find which goal was hit
+					const goalIndex = this.goalMeshes.findIndex(
+						goal => goal && goal.physicsImpostor === collided
+					);
+					this.conditionalLog(
+						`🎯 Physics goal collision detected! Goal index: ${goalIndex}, Collided impostor: ${collided}`
+					);
+					if (goalIndex !== -1) {
+						this.conditionalLog(`🎯 Calling handleGoalCollision for goal ${goalIndex}`);
+						this.handleGoalCollision(goalIndex);
+					} else {
+						this.conditionalLog(`❌ Could not find goal index for collided impostor`);
+					}
+						}
+					);
+					this.conditionalLog(
+						`✅ Successfully set up ball-goal collision detection for ${goalImpostors.length} goals`
+					);
+				} else {
+					this.conditionalLog(
+						`❌ No goal physics impostors found! Goals may not be set up correctly.`
+					);
+				}
+
+			// Set up manual goal detection as fallback
 			this.setupManualGoalDetection();
 		} else if (this.gameMode !== 'local') {
 			this.conditionalLog(
@@ -1743,14 +1825,11 @@ export class Pong3D {
 	private setupManualGoalDetection(): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(
-				`🔧 Setting up manual goal detection as backup...`
+				`🔧 Manual goal detection available as backup (physics collision detection is primary)...`
 			);
 		}
 
-		// This will be called every frame to check for goal collisions manually
-		this.scene.registerBeforeRender(() => {
-			this.checkManualGoalCollisions();
-		});
+		// Manual detection is available as backup but not continuously running
 	}
 
 	public checkManualGoalCollisions(): void {
@@ -1766,65 +1845,17 @@ export class Pong3D {
 			this.checkBoundaryCollisionAfterGoal(ballPosition);
 		}
 
-		// Check each goal for collision (only if no goal has been scored yet)
-		if (!this.goalScored) {
-			// Debug: Show how many goals we're checking
-			const activeGoals = this.goalMeshes.filter(g => g !== null);
-			if (activeGoals.length !== this.playerCount) {
-				console.warn(
-					`🚨 Goal count mismatch: Expected ${this.playerCount} goals, but have ${activeGoals.length} active goals`
-				);
-			}
-
-			this.goalMeshes.forEach((goal, index) => {
-				if (!goal) {
-					// Debug: Show missing goals
-					if (index < this.playerCount) {
-						console.warn(
-							`🚨 Goal ${index + 1} is missing for ${this.playerCount}-player mode`
-						);
-					}
-					return;
-				}
-
-				// Debug: Periodically log goal checking (every 60 frames ~ 1 second)
-				if (Math.random() < 0.016) {
-					// ~1/60 chance
-					if (GameConfig.isDebugLoggingEnabled()) {
-						this.conditionalLog(
-							`🔍 Checking goal ${index + 1} (${goal.name}) for ball collision...`
-						);
-					}
-				}
-
-				// Get goal bounding box
-				const goalBounds = goal.getBoundingInfo().boundingBox;
-				const goalMin = goalBounds.minimumWorld;
-				const goalMax = goalBounds.maximumWorld;
-
-				// Check if ball is inside goal bounds
-				const isInside =
-					ballPosition.x >= goalMin.x &&
-					ballPosition.x <= goalMax.x &&
-					ballPosition.y >= goalMin.y &&
-					ballPosition.y <= goalMax.y &&
-					ballPosition.z >= goalMin.z &&
-					ballPosition.z <= goalMax.z;
-
-				if (isInside) {
-					if (GameConfig.isDebugLoggingEnabled()) {
-						this.conditionalLog(
-							`🎯 Manual goal detection: Ball inside Goal ${index + 1} (${goal.name})!`
-						);
-					}
-					this.handleGoalCollision(index);
-				}
-			});
-		}
+		// Manual goal detection is disabled - we rely on physics collision detection only
+		// The MeshImpostor handles rotated goals properly
 	}
 
 	private checkGeneralOutOfBounds(ballPosition: BABYLON.Vector3): void {
-		// Simple out-of-bounds check for X and Z axes (ball is locked to Y plane)
+		// If a goal was scored and we're waiting for boundary collision, don't do general out-of-bounds check
+		if (this.goalScored && this.pendingGoalData) {
+			return; // Let checkBoundaryCollisionAfterGoal handle the reset
+		}
+
+		// Simple out-of-bounds check using configurable distance threshold
 		const isOutOfBounds =
 			Math.abs(ballPosition.x) > this.outOfBoundsDistance ||
 			Math.abs(ballPosition.z) > this.outOfBoundsDistance;
@@ -1868,21 +1899,14 @@ export class Pong3D {
 	private checkBoundaryCollisionAfterGoal(
 		ballPosition: BABYLON.Vector3
 	): void {
-		// Get scene boundaries
-		if (this.boundsXMin === null || this.boundsXMax === null) {
-			this.updateBounds();
-			return; // Wait for bounds to be computed
-		}
-
-		// Check if ball has reached the boundary (add small margin for detection)
-		const margin = 0.5;
+		// Simple boundary check using configurable distance threshold
 		const hitBoundary =
-			ballPosition.x <= this.boundsXMin + margin ||
-			ballPosition.x >= this.boundsXMax - margin;
+			Math.abs(ballPosition.x) > this.outOfBoundsDistance ||
+			Math.abs(ballPosition.z) > this.outOfBoundsDistance;
 
 		if (hitBoundary) {
 			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(`🎯 Ball reached boundary after goal!`);
+				this.conditionalLog(`🎯 Ball reached boundary after goal! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`);
 			}
 
 			// Check if game has ended - if so, stop the game loop instead of respawning
@@ -2171,11 +2195,9 @@ export class Pong3D {
 	private findGoals(scene: BABYLON.Scene): void {
 		const meshes = scene.meshes;
 
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(
-				`🔍 Looking for goals in ${this.playerCount}-player mode...`
-			);
-		}
+		this.conditionalLog(
+			`🔍 Looking for goals in ${this.playerCount}-player mode... Total meshes: ${meshes.length}`
+		);
 		// Reduced goal debugging logging
 		// this.conditionalLog(`🔍 Player count: ${this.playerCount}`);
 		// this.conditionalLog(`🔍 Active player count: ${this.playerCount}`);
@@ -2246,19 +2268,50 @@ export class Pong3D {
 			return;
 		}
 
+		console.log(`🎯 GOAL DEBUG: Found ${foundGoals.length} goal meshes for ${this.playerCount} players`);
+		console.log(`🎯 GOAL DEBUG: Goal names:`, foundGoals.map(g => g?.name));
+
 		if (foundGoals.length < this.playerCount) {
 			console.warn(
 				`Expected ${this.playerCount} goals but only found ${foundGoals.length}`
 			);
 		}
 
-		// Make goal meshes invisible and collision-only
+		// Make goal meshes invisible and set up physics collision detection
 		this.goalMeshes.forEach((goal, index) => {
 			if (goal) {
-				goal.isVisible = false; // Make completely invisible
-				goal.checkCollisions = true; // Enable collision detection
+				// De-parent goal meshes to fix physics collision detection (similar to walls)
+				if (goal.parent) {
+					const worldMatrix = goal.getWorldMatrix();
+					const position = new BABYLON.Vector3();
+					const rotationQuaternion = new BABYLON.Quaternion();
+					const scaling = new BABYLON.Vector3();
+					worldMatrix.decompose(
+						scaling,
+						rotationQuaternion,
+						position
+					);
+
+					goal.parent = null;
+					goal.position = position;
+					goal.rotationQuaternion = rotationQuaternion;
+					goal.scaling = scaling;
+
+					this.conditionalLog(
+						`Goal ${index + 1} (${goal.name}): De-parented and repositioned to: x=${goal.position.x}, y=${goal.position.y}, z=${goal.position.z}`
+					);
+				}
+
+				goal.isVisible = false; // Make invisible (collision detection only)
+				goal.checkCollisions = false; // Disable Babylon collision detection
+
+				// Physics impostors will be created in setupPhysicsImpostors after physics is enabled
 				this.conditionalLog(
-					`Goal ${index + 1} (${goal.name}): Made invisible for collision-only detection`
+					`✅ Goal ${index + 1} (${goal.name}): Prepared for physics collision detection`
+				);
+			} else {
+				this.conditionalLog(
+					`❌ Goal ${index + 1}: Goal mesh is null or undefined`
 				);
 			}
 		});
@@ -2317,6 +2370,7 @@ export class Pong3D {
 		this.engine.runRenderLoop(() => {
 			this.updateBounds();
 			this.updatePaddles();
+			this.checkManualGoalCollisions();
 
 			this.scene.render();
 			this.maybeLogPaddles();
@@ -2357,6 +2411,7 @@ export class Pong3D {
 		this.engine.runRenderLoop(() => {
 			this.updateBounds();
 			this.updatePaddles();
+			this.checkManualGoalCollisions();
 			this.scene.render();
 			this.maybeLogPaddles();
 		});
@@ -2609,7 +2664,8 @@ export class Pong3D {
 	}
 
 	private updateBounds(): void {
-		if (this.boundsXMin === null || this.boundsXMax === null) {
+		if (this.boundsXMin === null || this.boundsXMax === null ||
+			this.boundsZMin === null || this.boundsZMax === null) {
 			try {
 				const allMeshes = this.scene.meshes;
 				const info = this.computeSceneBoundingInfo(allMeshes);
@@ -2617,6 +2673,8 @@ export class Pong3D {
 				if (info) {
 					this.boundsXMin = info.min.x;
 					this.boundsXMax = info.max.x;
+					this.boundsZMin = info.min.z;
+					this.boundsZMax = info.max.z;
 				}
 			} catch (e) {
 				// Ignore
