@@ -1,210 +1,81 @@
-# Pong 3D Game Physics Documentation
+# Pong 3D Physics - Core Concepts
 
 ## Overview
-
-This document defines the physics behavior for ball-paddle collisions in Pong 3D. The system aims to provide realistic and controllable ball physics while preventing extreme angles that could lead to poor gameplay.
+Pong 3D uses **2D physics in 3D space** - all ball movement and collisions occur in the X-Z plane, completely ignoring Y-axis for normals and reflections.
 
 ## Core Physics Principles
 
-### 1. Collision Normal Detection
-- **Primary Method**: Use Cannon.js collision detection to get the true surface normal at collision point
-- **Fallback**: Geometric calculation from paddle mesh if Cannon.js fails
-- **Last Resort**: Hardcoded normals based on paddle orientation
+### 1. X-Z Plane Movement
+- **Ball movement**: Always in X-Z plane (Y = 0)
+- **Normals**: Collision normals projected to X-Z plane
+- **Reflections**: All calculations ignore Y-component
+- **Result**: Pure 2D Pong physics in 3D environment
 
 ### 2. Paddle States
-The system recognizes two distinct paddle states:
 
-#### A. Stationary Paddle (velocity < threshold)
-- **Threshold**: `VELOCITY_THRESHOLD = 0.1` units/frame
-- **Behavior**: Pure physics reflection with angle limiting
+#### Stationary Paddle (velocity < 0.1)
+- **Perfect reflection** with angle limiting
+- **2D rotation clamping**: If reflection angle > 60°, rotate toward normal by excess amount
+- **Y-forced to 0**: Maintains X-Z plane movement
 
-#### B. Moving Paddle (velocity ≥ threshold)
-- **Behavior**: Velocity-based ball control with two effects:
-  1. **Angle Effect**: Paddle velocity influences return angle
-  2. **Spin Effect**: Paddle velocity creates ball spin
+#### Moving Paddle (velocity ≥ 0.1)
+- **Velocity-based control**: Paddle movement influences return angle
+- **Spin transfer**: Paddle velocity creates ball spin with Magnus effect
+- **Same direction deflection**: Ball deflects in same direction as paddle movement
 
-## Detailed Physics Behavior
+## Stationary Paddle Physics
 
-### Stationary Paddle Physics
+### Basic Reflection
+```
+reflection = ballVelocity - 2 × (ballVelocity · normal) × normal
+```
 
-When paddle velocity is below the threshold:
+### Angle Limiting (2D Rotation)
+1. Calculate perfect reflection
+2. Measure angle from normal: `θ = acos(|reflection · normal|)`
+3. If θ > 60°: rotate reflection toward normal by (θ - 60°)
+4. Force Y = 0, normalize, apply constant speed
 
-1. **Calculate Perfect Reflection**:
-   ```
-   reflection = ballVelocity - 2 * dot(ballVelocity, normal) * normal
-   ```
+### Key Benefits
+- **Consistent behavior**: Works regardless of paddle orientation
+- **Predictable clamping**: Grazing hits limited to 60° from normal
+- **Preserves direction**: Maintains correct left/right deflection
 
-2. **Check Angular Limit**:
-   - Calculate incoming angle from normal: `acos(|dot(ballVel, normal)|)`
-   - If incoming angle > (90° - ANGULAR_RETURN_LIMIT), it's a grazing hit
+## Moving Paddle Physics
 
-3. **Apply Result**:
-   - **Normal hits**: Use perfect reflection
-   - **Grazing hits**: Clamp return angle to exactly ANGULAR_RETURN_LIMIT from normal
+### Angle Effect
+- Return angle = (paddleVelocity / maxVelocity) × 60°
+- Ball deflects **in same direction** as paddle movement
+- Example: Paddle moving right → ball deflects right
 
-### Moving Paddle Physics
+### Spin Effect
+- Ball spin = paddleVelocity × spinFactor
+- Delayed activation (200ms) for straight initial travel
+- Magnus force creates curved trajectory
+- Spin decays over time (98% per frame)
 
-When paddle velocity is at or above the threshold:
+## Configuration
 
-### Moving Paddle Physics
-
-When paddle velocity is at or above the threshold:
-
-1. **Angle Effect** (Direct Proportional Control):
-   - Calculate velocity ratio: `paddleVel / PADDLE_MAX_VELOCITY` (clamped to ±1.0)
-   - Calculate return angle: `velocityRatio * ANGULAR_RETURN_LIMIT`
-   - **Key Physics**: Ball deflects **IN THE SAME DIRECTION** as paddle movement
-   
-   **Examples**:
-   - Moving left at max velocity (ratio = -1.0) → Ball deflects LEFT at max angle (-60°)
-   - Moving right at max velocity (ratio = +1.0) → Ball deflects RIGHT at max angle (+60°)
-   - Moving right at half velocity (ratio = +0.5) → Ball deflects RIGHT at half angle (+30°)
-   - Stationary (ratio = 0.0) → No angular deflection (0°)
-
-2. **Spin Effect** (Delayed Magnus Force):
-   - Ball spin = `paddleVelocity * SPIN_TRANSFER_FACTOR`
-   - Spin activation delayed by `SPIN_DELAY` milliseconds
-   - During delay: Ball travels straight
-   - After delay: Magnus force creates curved trajectory
-   - Spin decays over time: `spin *= SPIN_DECAY_FACTOR` per frame
-
-## Configuration Parameters
-
-### Angular Limits
 ```typescript
-ANGULAR_RETURN_LIMIT = Math.PI / 3; // 60 degrees from normal
+ANGULAR_RETURN_LIMIT = 60°;        // Max reflection angle
+VELOCITY_THRESHOLD = 0.1;          // Stationary/moving threshold
+BALL_VELOCITY_CONSTANT = 12;       // Constant ball speed
+SPIN_TRANSFER_FACTOR = 1.0;        // Paddle velocity → spin conversion
+MAGNUS_COEFFICIENT = 0.1;          // Spin force strength
 ```
-- Maximum allowed return angle from paddle normal
-- Prevents extreme grazing returns that cause wall-bouncing
-
-### Velocity Thresholds
-```typescript
-VELOCITY_THRESHOLD = 0.1;           // Minimum velocity for "moving" paddle
-PADDLE_MAX_VELOCITY = 12;           // Maximum paddle speed for calculations
-```
-
-### Ball Physics
-```typescript
-BALL_VELOCITY_CONSTANT = 12;        // Constant ball speed
-BALL_ANGLE_MULTIPLIER = 1.0;        // Strength of angle influence (0-2)
-```
-
-### Spin Physics
-```typescript
-SPIN_TRANSFER_FACTOR = 1.0;         // How much paddle velocity becomes spin
-MAGNUS_COEFFICIENT = 0.1;           // Strength of Magnus force effect  
-SPIN_DECAY_FACTOR = 0.98;           // Spin decay per frame
-SPIN_DELAY = 200;                   // Delay in ms before spin effect activates
-```
-
-## Physics Flow Diagram
-
-```
-Ball Hits Paddle
-       ↓
-Get Collision Normal (Cannon.js → Geometric → Hardcoded)
-       ↓
-Check Paddle Velocity
-       ↓
-   ┌─────────────────────┐
-   ↓                     ↓
-STATIONARY           MOVING
-   ↓                     ↓
-Calculate Perfect    Calculate Velocity-Based
-Reflection           Return Direction
-   ↓                     ↓
-Check if Grazing     Apply Angle Effect
-Hit (angle limit)    (rotate normal by velocity ratio)
-   ↓                     ↓
-Normal Hit: Use      Apply Spin Effect
-Perfect Reflection   (spin = paddle velocity)
-   ↓                     ↓
-Grazing Hit: Clamp   Set Ball Velocity
-to Angular Limit     (constant speed)
-       ↓                 ↓
-    ┌──────────────────────┐
-    ↓
-Set Ball Velocity (constant speed)
-    ↓
-Apply Magnus Force (if spin exists)
-    ↓
-Decay Spin Over Time
-```
-
-## Expected Behaviors
-
-### Stationary Paddle Examples
-
-1. **Head-on collision** (ball → normal):
-   - Return: Perfect reflection (ball ← normal)
-   - No angle limiting needed
-
-2. **45° collision** (within limit):
-   - Return: Perfect 45° reflection
-   - No angle limiting applied
-
-3. **75° collision** (grazing hit):
-   - Perfect reflection would be ~165° (too steep)
-   - Return: Clamped to exactly 30° from normal
-   - Preserves collision "side" but limits steepness
-
-### Moving Paddle Examples
-
-1. **Stationary ball, paddle moving right**:
-   - Return: Ball deflected right at angle proportional to paddle speed
-   - Spin: Clockwise spin applied (Magnus effect curves ball)
-
-2. **Ball from left, paddle moving right**:
-   - Return: Enhanced rightward deflection (additive effect)
-   - Spin: Strong clockwise spin
-
-3. **Ball from right, paddle moving right**:
-   - Return: Reduced rightward deflection (opposing effect)
-   - Spin: Clockwise spin still applied
 
 ## Implementation Notes
 
-### Player-Specific Adjustments
-- **Player 2 (top paddle)**: Angle direction inverted for consistent control
-- **3-Player mode**: Each paddle has rotated movement axis
-- **4-Player mode**: Players 3-4 move on Z-axis instead of X-axis
+### Collision Detection
+- Primary: Cannon.js physics engine
+- Fallback: Geometric calculation
+- Last resort: Hardcoded normals
 
-### Collision Validation
-- Edge collision detection prevents weird bounces
-- Position correction prevents ball pass-through
-- Collision cooldowns prevent multiple triggers
+### Edge Cases Handled
+- Ball tunneling prevention with manual bounds checking
+- Multiple collision prevention with cooldowns
+- Position correction for physics engine limitations
 
-### Physics Integration
-- Constant ball speed maintenance
-- Magnus force application for spin effects
-- Spin decay simulation
-- Wall collision spin reduction
-
-## Debugging Features
-
-### Console Logging
-- Collision normal values
-- Paddle velocity states
-- Angle calculations
-- Spin values
-- Clamping events
-
-### Visual Indicators
-- Real-time paddle velocity display
-- Ball spin visualization (if enabled)
-- Collision point highlighting (if enabled)
-
-## Tuning Guidelines
-
-### For More Realistic Physics
-- Increase `SPIN_TRANSFER_FACTOR` and `MAGNUS_COEFFICIENT`
-- Decrease `ANGULAR_RETURN_LIMIT` for stricter angle limiting
-
-### For More Arcade-Style
-- Increase `BALL_ANGLE_MULTIPLIER` for stronger paddle control
-- Increase `ANGULAR_RETURN_LIMIT` for more forgiving grazing hits
-
-### For Faster Gameplay
-- Increase `BALL_VELOCITY_CONSTANT`
-- Increase `PADDLE_MAX_VELOCITY`
-- Decrease spin decay for longer-lasting effects
+### Player Adjustments
+- Player 2: Angle direction inverted
+- 3-4 Player modes: Axis rotation for different movement planes

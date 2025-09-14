@@ -7,7 +7,7 @@ export class GameConfig {
 	// Default values
 	private static readonly DEFAULT_PLAYER_COUNT = 2;
 	private static readonly DEFAULT_THIS_PLAYER = 1;
-	private static readonly DEFAULT_GAME_MODE = 'remote'; // Team convention: string values
+	private static readonly DEFAULT_GAME_MODE = 'local'; // Team convention: string values
 
 	// Debug/Logging controls
 	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
