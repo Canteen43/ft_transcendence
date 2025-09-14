@@ -1372,63 +1372,45 @@ export class Pong3D {
 			this.conditionalLog(
 				`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
 			);
-			// Check the OUTGOING angle (reflection angle from normal)
-			const reflectionDot = BABYLON.Vector3.Dot(
-				perfectReflection,
-				paddleNormal
-			);
-			const outgoingAngleFromNormal = Math.acos(Math.abs(reflectionDot));
+			// === 2D REFLECTION LOGIC ===
+			// Check angle of perfect reflection from normal
+			const reflectionDot = BABYLON.Vector3.Dot(perfectReflection, paddleNormal);
+			const reflectionAngle = Math.acos(Math.abs(reflectionDot));
 
 			this.conditionalLog(
-				`  - Perfect reflection angle from normal: ${((outgoingAngleFromNormal * 180) / Math.PI).toFixed(1)}°`
+				`  - Perfect reflection angle from normal: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}°`
 			);
 			this.conditionalLog(
 				`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
 			);
 
-			// === STANDARD REFLECTION LOGIC (works for all modes) ===
-			if (outgoingAngleFromNormal <= this.ANGULAR_RETURN_LIMIT) {
-				// Perfect reflection is within angular limits - use it
+			if (reflectionAngle <= this.ANGULAR_RETURN_LIMIT) {
+				// Ball approach angle is within limits - use perfect reflection
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
-						`✅ Using perfect reflection (within limits)`
+						`✅ Using perfect reflection (incoming angle within limits)`
 					);
 				}
 				finalDirection = perfectReflection.normalize();
 			} else {
-				// Perfect reflection exceeds angular limit - clamp it
+				// Reflection angle exceeds limit - clamp by rotating toward normal
 				this.conditionalLog(
-					`🔒 Clamping reflection: ${((outgoingAngleFromNormal * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+					`🔒 Clamping reflection: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
 				);
 
-				// Determine which side of the normal the reflection should be on
-				// Use the cross product to determine the rotation axis and direction
-				const rotationAxis = BABYLON.Vector3.Cross(
-					paddleNormal,
-					perfectReflection
-				);
+				// Rotate perfect reflection toward normal by the excess angle
+				const excessAngle = reflectionAngle - this.ANGULAR_RETURN_LIMIT;
+				const rotationAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis for X-Z plane
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(rotationAxis, excessAngle);
+				finalDirection = BABYLON.Vector3.TransformCoordinates(perfectReflection, rotationMatrix).normalize();
 
-				if (rotationAxis.length() < 1e-6) {
-					// Perfect reflection is parallel to normal (head-on collision) - return along normal
-					finalDirection = paddleNormal.clone();
-				} else {
-					// Rotate the normal by exactly the angular limit toward the reflection
-					const normalizedRotAxis = rotationAxis.normalize();
-					const rotationMatrix = BABYLON.Matrix.RotationAxis(
-						normalizedRotAxis,
-						this.ANGULAR_RETURN_LIMIT
-					);
-					finalDirection = BABYLON.Vector3.TransformCoordinates(
-						paddleNormal,
-						rotationMatrix
-					).normalize();
-				}
+				// Ensure Y=0 for 2D movement
+				finalDirection.y = 0;
+				finalDirection = finalDirection.normalize();
 
-				const clampedAngle = Math.acos(
-					Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))
-				);
+				const clampedAngle = Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal)));
 				this.conditionalLog(
-					`🔒 Actual clamped angle: ${((clampedAngle * 180) / Math.PI).toFixed(1)}°`
+					`🔒 Clamped result: angle=${((clampedAngle * 180) / Math.PI).toFixed(1)}°, direction=(${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
 				);
 			}
 		}
@@ -1450,6 +1432,15 @@ export class Pong3D {
 
 		// Ensure Y component stays zero (2D movement only)
 		newVelocity.y = 0;
+
+		// Re-normalize after zeroing Y component to maintain correct angle
+		if (newVelocity.length() > 0) {
+			newVelocity.normalize().scaleInPlace(this.ballEffects.getCurrentBallSpeed());
+		}
+
+		this.conditionalLog(
+			`🎯 Velocity after Y-zero: (${newVelocity.x.toFixed(3)}, ${newVelocity.y.toFixed(3)}, ${newVelocity.z.toFixed(3)})`
+		);
 
 		// Apply the modified velocity
 		ballImpostor.setLinearVelocity(newVelocity);
