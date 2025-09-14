@@ -89,9 +89,33 @@ export abstract class Pong3DGameLoopBase {
 	abstract stop(): void;
 
 	/**
-	 * Get current game state for network transmission
+	 * Set ball velocity (for testing different speeds)
 	 */
-	getGameState() {
-		return this.gameState;
+	setBallVelocity(velocity: BABYLON.Vector3): void {
+		if (this.ballMesh && this.ballMesh.physicsImpostor) {
+			this.ballMesh.physicsImpostor.setLinearVelocity(velocity);
+		}
+	}
+
+	/**
+	 * Get current game state (useful for debugging and network sync)
+	 */
+	getGameState(): GameState {
+		// Ensure the gameState is up-to-date with the physics engine before returning
+		if (this.ballMesh && this.ballMesh.physicsImpostor) {
+			this.gameState.ball.position = this.ballMesh.getAbsolutePosition();
+			const linearVelocity =
+				this.ballMesh.physicsImpostor.getLinearVelocity();
+			if (linearVelocity) {
+				this.gameState.ball.velocity = linearVelocity;
+			}
+		}
+		return {
+			ball: {
+				position: this.gameState.ball.position.clone(),
+				velocity: this.gameState.ball.velocity.clone(),
+			},
+			isRunning: this.gameState.isRunning,
+		};
 	}
 }

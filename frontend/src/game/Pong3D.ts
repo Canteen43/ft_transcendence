@@ -65,6 +65,12 @@ export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
 	private static readonly DEBUG_ENABLED = false;
 
+	// Physics collider size multiplier - adjust this to tune collision detection sensitivity
+	private static readonly PHYSICS_COLLIDER_MULTIPLIER = 1; // 5% larger than visual ball
+
+	// Simple ball radius for physics impostor
+	private static readonly BALL_RADIUS = 0.3;
+
 	// Debug helper method - now uses GameConfig
 	private debugLog(...args: any[]): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
@@ -173,10 +179,10 @@ export class Pong3D {
 
 	// Ball settings (non-effects)
 	public WINNING_SCORE = 10; // Points needed to win the game
-	private outOfBoundsDistance: number = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
+	private outOfBoundsDistance: number = 15; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 120; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_TIME_STEP = 1 / 120; // Increased to 300 Hz for much better collision detection
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -206,9 +212,10 @@ export class Pong3D {
 
 	// Wall collision debouncing to prevent rapid-fire collisions
 	private lastWallCollisionTime = 0;
-	private readonly WALL_COLLISION_COOLDOWN_MS = 20; // ~2 frames at 60fps
+	private WALL_COLLISION_COOLDOWN_MS = 8; // Reduced from 20ms to 8ms for fast balls
 	private wallCollisionCount = 0; // Track rapid wall collisions
 	private wallCollisionResetTime = 0;
+	private lastWallCollisionPosition: BABYLON.Vector3 | null = null; // Track last collision position to prevent bouncing loops
 
 	// Store original GLB positions for relative movement
 	private originalGLBPositions: { x: number; z: number }[] = [
@@ -242,6 +249,7 @@ export class Pong3D {
 	private audioSystem: Pong3DAudio;
 
 	private ballMesh: BABYLON.Mesh | null = null;
+	private physicsSphere: BABYLON.Mesh | null = null; // Reference to the physics collider sphere
 
 	// Resize handler reference for cleanup
 	private resizeHandler: (() => void) | null = null;
@@ -561,8 +569,31 @@ export class Pong3D {
 		const physicsPlugin = new CannonJSPlugin(true, 10, CANNON);
 		this.scene.enablePhysics(gravityVector, physicsPlugin);
 
-		// Set physics time step for higher frequency updates to reduce tunneling
-		this.scene.getPhysicsEngine()?.setTimeStep(this.PHYSICS_TIME_STEP);
+		// Configure physics engine for better collision normal calculation
+		const physicsEngine = this.scene.getPhysicsEngine();
+		if (physicsEngine) {
+			// Set physics time step for higher frequency updates to reduce tunneling
+			physicsEngine.setTimeStep(this.PHYSICS_TIME_STEP);
+
+			// Configure Cannon.js for better collision handling
+			if (physicsEngine.getPhysicsPlugin() && (physicsEngine.getPhysicsPlugin() as any).world) {
+				const world = (physicsEngine.getPhysicsPlugin() as any).world;
+
+				// Enable better contact generation
+				if (world.narrowphase) {
+					// These settings help with collision normal accuracy
+					world.narrowphase.contactEquationStiffness = 1e6;
+					world.narrowphase.frictionEquationStiffness = 1e6;
+				}
+
+				// Reduce solver iterations for better performance while maintaining accuracy
+				if (world.solver) {
+					world.solver.iterations = 10; // Default is usually 10
+				}
+
+				this.conditionalLog(`🔧 Physics engine configured for better collision normals`);
+			}
+		}
 
 		// Ball impostor (for local and master modes - both need physics)
 		if (
@@ -573,30 +604,57 @@ export class Pong3D {
 			if (this.ballMesh.parent) {
 				this.ballMesh.parent = null;
 			}
-			this.ballMesh.physicsImpostor = new BABYLON.PhysicsImpostor(
-				this.ballMesh,
+
+			// Use simple fixed radius for physics impostor
+			const ballRadius = Pong3D.BALL_RADIUS;
+			const physicsRadius = ballRadius * Pong3D.PHYSICS_COLLIDER_MULTIPLIER;
+
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`📏 Ball physics radius: ${physicsRadius.toFixed(3)} (base: ${ballRadius.toFixed(3)}, multiplier: ${Pong3D.PHYSICS_COLLIDER_MULTIPLIER})`
+				);
+			}
+			this.physicsSphere = BABYLON.MeshBuilder.CreateSphere(
+				'ballPhysicsCollider',
+				{ diameter: physicsRadius * 2 },
+				this.scene
+			);
+
+			// Position the physics sphere at the same location as the visual ball
+			this.physicsSphere.position.copyFrom(this.ballMesh.position);
+			this.physicsSphere.isVisible = false; // Hide the physics collider
+
+			// Create physics impostor on the larger invisible sphere
+			this.physicsSphere.physicsImpostor = new BABYLON.PhysicsImpostor(
+				this.physicsSphere,
 				BABYLON.PhysicsImpostor.SphereImpostor,
 				{ mass: 1, restitution: 1.0, friction: 0 },
 				this.scene
 			);
 
+			// Double-check positioning after impostor creation
+			this.physicsSphere.position.copyFrom(this.ballMesh.position);
+
+			// Also create impostor on visual ball for reference (but it won't be used for physics)
+			this.ballMesh.physicsImpostor = this.physicsSphere.physicsImpostor;
+
 			// Lock ball movement to X-Z plane (no Y movement)
-			if (this.ballMesh.physicsImpostor.physicsBody) {
-				if (this.ballMesh.physicsImpostor.physicsBody.linearFactor) {
-					this.ballMesh.physicsImpostor.physicsBody.linearFactor.set(
+			if (this.physicsSphere.physicsImpostor.physicsBody) {
+				if (this.physicsSphere.physicsImpostor.physicsBody.linearFactor) {
+					this.physicsSphere.physicsImpostor.physicsBody.linearFactor.set(
 						1,
 						0,
 						1
 					); // X and Z only, no Y
 				}
 				// Remove any damping from ball so it doesn't slow down
-				this.ballMesh.physicsImpostor.physicsBody.linearDamping = 0;
-				this.ballMesh.physicsImpostor.physicsBody.angularDamping = 0;
+				this.physicsSphere.physicsImpostor.physicsBody.linearDamping = 0;
+				this.physicsSphere.physicsImpostor.physicsBody.angularDamping = 0;
 			}
 
 			if (GameConfig.isDebugLoggingEnabled()) {
 				this.conditionalLog(
-					`Created SphereImpostor for: ${this.ballMesh.name}`
+					`Created physics collider for: ${this.ballMesh.name} (visual radius: ${ballRadius.toFixed(3)}, physics radius: ${physicsRadius.toFixed(3)}, multiplier: ${Pong3D.PHYSICS_COLLIDER_MULTIPLIER})`
 				);
 			}
 		} else if (this.ballMesh) {
@@ -1448,7 +1506,18 @@ export class Pong3D {
 		const paddleToBall = ballPosition.subtract(paddlePosition);
 
 		// Project onto paddle normal to get distance from paddle face
-		const ballRadius = 0.1; // Approximate ball radius (adjust based on your ball size)
+		// Use the physics collider radius for accurate collision calculations
+		let ballRadius = 0.1; // Default fallback
+		if (this.ballMesh && this.ballMesh.physicsImpostor) {
+			// Calculate radius from physics body if available
+			const physicsBody = this.ballMesh.physicsImpostor.physicsBody;
+			if (physicsBody && physicsBody.shapes && physicsBody.shapes.length > 0) {
+				const shape = physicsBody.shapes[0];
+				if (shape && typeof shape.radius === 'number') {
+					ballRadius = shape.radius;
+				}
+			}
+		}
 		const paddleThickness = 0.2; // Approximate paddle thickness
 		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.05; // Smaller buffer for stability
 
@@ -1532,16 +1601,39 @@ export class Pong3D {
 
 	private handleBallWallCollision(
 		ballImpostor: BABYLON.PhysicsImpostor,
-		_wallImpostor: BABYLON.PhysicsImpostor
+		wallImpostor: BABYLON.PhysicsImpostor
 	): void {
 		const currentTime = performance.now();
 
+		// Get ball velocity for adaptive cooldown calculation
+		const ballVelocity = ballImpostor.getLinearVelocity();
+		const ballSpeed = ballVelocity ? ballVelocity.length() : 0;
+
+		// Adaptive cooldown: faster balls need shorter cooldown to prevent bouncing loops
+		// Base cooldown of 8ms, but reduce for very fast balls (speed > 15)
+		let adaptiveCooldown = this.WALL_COLLISION_COOLDOWN_MS;
+		if (ballSpeed > 15) {
+			adaptiveCooldown = Math.max(3, this.WALL_COLLISION_COOLDOWN_MS * (12 / ballSpeed)); // Min 3ms
+		}
+
 		// Debounce wall collisions to prevent rapid-fire bouncing
 		if (
-			currentTime - this.lastWallCollisionTime <
-			this.WALL_COLLISION_COOLDOWN_MS
+			currentTime - this.lastWallCollisionTime < adaptiveCooldown
 		) {
 			return; // Ignore collision if too soon after last one
+		}
+
+		// Additional check: ensure ball has moved at least 0.3 units from last collision point
+		// This prevents bouncing loops where the ball rapidly collides with the same wall
+		if (this.ballMesh && this.lastWallCollisionPosition) {
+			const distanceFromLastCollision = BABYLON.Vector3.Distance(
+				this.ballMesh.position,
+				this.lastWallCollisionPosition
+			);
+			if (distanceFromLastCollision < 0.3) {
+				this.conditionalLog(`⚠️ Ball too close to last collision point (${distanceFromLastCollision.toFixed(3)} < 0.3), ignoring`);
+				return;
+			}
 		}
 
 		// Track rapid collisions - reset count every 500ms
@@ -1552,46 +1644,124 @@ export class Pong3D {
 		this.wallCollisionCount++;
 
 		this.lastWallCollisionTime = currentTime;
+		// Store collision position to prevent bouncing loops
+		if (this.ballMesh) {
+			this.lastWallCollisionPosition = this.ballMesh.position.clone();
+		}
 
 		this.conditionalLog(
-			`🧱 Ball-Wall Collision detected (count: ${this.wallCollisionCount})`
+			`🧱 Ball-Wall Collision detected (count: ${this.wallCollisionCount}, speed: ${ballSpeed.toFixed(2)}, cooldown: ${adaptiveCooldown.toFixed(1)}ms)`
 		);
+
+		// DEBUG: Log collision details to understand physics engine behavior
+		if (this.ballMesh && ballImpostor && wallImpostor) {
+			const ballVelocity = ballImpostor.getLinearVelocity();
+			const ballPosition = this.ballMesh.position;
+
+			// Try to get collision normal from physics engine (if available)
+			let collisionNormal: BABYLON.Vector3 | null = null;
+			try {
+				// Some physics engines provide contact point information
+				if (ballImpostor.physicsBody && wallImpostor.physicsBody) {
+					// Cannon.js specific: try to get contact information
+					const contacts = (ballImpostor.physicsBody as any).world?.contacts;
+					if (contacts) {
+						// Look for the most recent contact involving these bodies
+						for (let i = contacts.length - 1; i >= 0; i--) {
+							const contact = contacts[i];
+							if ((contact.bi === ballImpostor.physicsBody && contact.bj === wallImpostor.physicsBody) ||
+								(contact.bi === wallImpostor.physicsBody && contact.bj === ballImpostor.physicsBody)) {
+								collisionNormal = new BABYLON.Vector3(
+									contact.ni.x,
+									contact.ni.y,
+									contact.ni.z
+								);
+								break;
+							}
+						}
+					}
+				}
+			} catch (error) {
+				this.conditionalLog(`⚠️ Could not get collision normal from physics engine: ${error}`);
+			}
+
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🎯 Wall collision details:`
+				);
+				this.conditionalLog(
+					`  - Ball position: (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)})`
+				);
+				this.conditionalLog(
+					`  - Ball velocity before: (${ballVelocity?.x.toFixed(3)}, ${ballVelocity?.y.toFixed(3)}, ${ballVelocity?.z.toFixed(3)})`
+				);
+				if (collisionNormal) {
+					this.conditionalLog(
+						`  - Collision normal: (${collisionNormal.x.toFixed(3)}, ${collisionNormal.y.toFixed(3)}, ${collisionNormal.z.toFixed(3)})`
+					);
+				} else {
+					this.conditionalLog(`  - Collision normal: Not available from physics engine`);
+				}
+			}
+		}
 
 		// Play pitched-down ping sound for wall collision with harmonic variation
 		this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
 
-		// Position correction: move ball slightly away from wall to prevent embedding
+		// Minimal position correction - only if ball is clearly embedded
 		if (this.ballMesh && ballImpostor) {
 			const velocity = ballImpostor.getLinearVelocity();
-			if (velocity && velocity.length() > 0) {
-				// Move ball in direction of velocity (away from wall)
-				// Use gentle correction to avoid physics instability
-				const correctionDistance = 0.15; // Small, consistent correction
-				const correctionVector = velocity
-					.normalize()
-					.scale(correctionDistance);
-				const newPosition =
-					this.ballMesh.position.add(correctionVector);
-				this.ballMesh.position = newPosition;
+			if (velocity && velocity.length() > 0.1) { // Only correct if moving significantly
+				// Check if ball is actually embedded in the wall
+				const wallMesh = (wallImpostor as any).mesh || (wallImpostor as any)._mesh;
+				if (wallMesh) {
+					const ballBounds = this.ballMesh.getBoundingInfo().boundingBox;
+					const wallBounds = wallMesh.getBoundingInfo().boundingBox;
 
-				// If too many rapid wall collisions, apply velocity damping
+					// Check for overlap on all axes
+					const overlapX = Math.min(ballBounds.maximumWorld.x, wallBounds.maximumWorld.x) -
+								   Math.max(ballBounds.minimumWorld.x, wallBounds.minimumWorld.x);
+					const overlapZ = Math.min(ballBounds.maximumWorld.z, wallBounds.maximumWorld.z) -
+								   Math.max(ballBounds.minimumWorld.z, wallBounds.minimumWorld.z);
+
+					const isEmbedded = overlapX > 0 && overlapZ > 0 && (overlapX > 0.05 || overlapZ > 0.05); // More sensitive detection
+
+					if (isEmbedded) {
+						this.conditionalLog(`🔧 Ball embedded in wall - applying position correction`);
+						this.conditionalLog(`  - Overlap: X=${overlapX.toFixed(3)}, Z=${overlapZ.toFixed(3)} (threshold: 0.05)`);
+						// Move ball in direction of velocity (away from wall)
+						const correctionDistance = Math.max(overlapX, overlapZ) + 0.05; // Correct by overlap amount + small buffer
+						const correctionVector = velocity
+							.normalize()
+							.scale(correctionDistance);
+						const newPosition = this.ballMesh.position.add(correctionVector);
+						this.ballMesh.position = newPosition;
+					}
+				}
+
+				// If too many rapid wall collisions, apply gentle velocity damping
 				if (this.wallCollisionCount > 3) {
 					this.conditionalLog(
-						`🚫 Rapid wall collisions detected - applying velocity damping`
+						`🚫 Rapid wall collisions detected - applying gentle velocity damping`
 					);
-					const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
+					const dampedVel = velocity.scale(0.95); // Reduce velocity by 5% (gentler)
 					ballImpostor.setLinearVelocity(dampedVel);
 				}
 			}
 		}
 
-		// When ball hits wall, spin is preserved but may be modified by friction
-		// For realistic physics, some spin energy is lost
-		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
-
-		this.conditionalLog(
-			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballEffects.getBallSpin().y.toFixed(2)}`
-		);
+		// DEBUG: Log velocity after collision to see physics engine reflection
+		if (GameConfig.isDebugLoggingEnabled() && ballImpostor) {
+			// Use setTimeout to log after physics engine has processed the collision
+			setTimeout(() => {
+				const newVelocity = ballImpostor.getLinearVelocity();
+				if (newVelocity) {
+					this.conditionalLog(
+						`  - Ball velocity after: (${newVelocity.x.toFixed(3)}, ${newVelocity.y.toFixed(3)}, ${newVelocity.z.toFixed(3)})`
+					);
+				}
+			}, 16); // Next frame
+		}
 	}
 
 	private handleGoalCollision(goalIndex: number): void {
@@ -1722,6 +1892,13 @@ export class Pong3D {
 
 		// This will be called every frame to check for goal collisions manually
 		this.scene.registerBeforeRender(() => {
+			// Sync visual ball position with physics sphere position FIRST
+			if (this.ballMesh && this.physicsSphere && this.gameMode !== 'client') {
+				// Update visual ball position to match physics sphere position
+				this.ballMesh.position.copyFrom(this.physicsSphere.position);
+			}
+
+			// THEN check collisions using the updated position
 			this.checkManualGoalCollisions();
 		});
 	}
@@ -1729,7 +1906,8 @@ export class Pong3D {
 	public checkManualGoalCollisions(): void {
 		if (!this.ballMesh) return;
 
-		const ballPosition = this.ballMesh.position;
+		// Use physics sphere position for collision detection if available, otherwise use visual ball
+		const ballPosition = this.physicsSphere ? this.physicsSphere.position : this.ballMesh.position;
 
 		// Always check for general out of bounds (independent of goal scoring)
 		this.checkGeneralOutOfBounds(ballPosition);
@@ -1819,9 +1997,7 @@ export class Pong3D {
 			}
 
 			// Reset ball immediately for general out of bounds (normal gameplay)
-			if (this.gameLoop) {
-				this.gameLoop.resetBall();
-			}
+			this.resetBall();
 
 			// Reset rally speed system - new rally starts
 			this.ballEffects.resetAllEffects();
@@ -1833,6 +2009,8 @@ export class Pong3D {
 			this.conditionalLog(`⚡ Ball reset due to out of bounds`);
 		}
 	}
+
+
 	private checkBoundaryCollisionAfterGoal(
 		ballPosition: BABYLON.Vector3
 	): void {
@@ -1863,16 +2041,6 @@ export class Pong3D {
 				}
 				return; // Exit without resetting ball
 			}
-
-			this.conditionalLog(`🔄 Resetting ball for new rally...`);
-
-			// Now reset the ball (normal gameplay)
-			if (this.gameLoop) {
-				this.gameLoop.resetBall();
-			}
-
-			// Reset rally speed system - new rally starts
-			this.resetRallySpeed();
 
 			// Reset last player to hit ball - new rally starts
 			this.lastPlayerToHitBall = -1;
@@ -2104,36 +2272,11 @@ export class Pong3D {
 			}
 			this.ballEffects.setBallMesh(this.ballMesh);
 		} else {
-			this.conditionalWarn('No ball mesh found in the scene!');
-			// Create a simple ball if none exists
-			this.createDefaultBall();
+			this.conditionalError('No ball mesh found in the scene! All courts should have a ball mesh.');
 		}
 	}
 
-	private createDefaultBall(): void {
-		// Create a simple sphere as a fallback ball
-		this.ballMesh = BABYLON.MeshBuilder.CreateSphere(
-			'defaultBall',
-			{ diameter: 0.2 },
-			this.scene
-		);
 
-		// Create a simple material
-		const ballMaterial = new BABYLON.StandardMaterial(
-			'ballMaterial',
-			this.scene
-		);
-		ballMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1); // White ball
-		ballMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Slight glow
-		this.ballMesh.material = ballMaterial;
-
-		this.conditionalLog('Created default ball mesh');
-
-		// Set the ball mesh in the game loop
-		if (this.gameLoop) {
-			this.gameLoop.setBallMesh(this.ballMesh);
-		}
-	}
 
 	private findGoals(scene: BABYLON.Scene): void {
 		const meshes = scene.meshes;
@@ -2915,6 +3058,44 @@ export class Pong3D {
 		return this.PHYSICS_TIME_STEP;
 	}
 
+	/** Debug method to analyze wall collision normals */
+	public debugWallNormals(): void {
+		if (!this.scene) return;
+
+		const walls = this.scene.meshes.filter(mesh =>
+			mesh.name && /wall/i.test(mesh.name) && mesh.physicsImpostor
+		);
+
+		this.conditionalLog(`🔍 Wall Normal Analysis:`);
+		walls.forEach((wall, index) => {
+			const position = wall.position;
+			const rotation = wall.rotation;
+
+			// Calculate expected normal based on wall position
+			let expectedNormal = BABYLON.Vector3.Zero();
+			if (Math.abs(position.x) > Math.abs(position.z)) {
+				// Left/right wall
+				expectedNormal.x = position.x > 0 ? -1 : 1;
+			} else {
+				// Top/bottom wall
+				expectedNormal.z = position.z > 0 ? -1 : 1;
+			}
+
+			this.conditionalLog(
+				`  Wall ${index + 1} (${wall.name}):`
+			);
+			this.conditionalLog(
+				`    Position: (${position.x.toFixed(2)}, ${position.y.toFixed(2)}, ${position.z.toFixed(2)})`
+			);
+			this.conditionalLog(
+				`    Rotation: (${rotation.x.toFixed(2)}, ${rotation.y.toFixed(2)}, ${rotation.z.toFixed(2)})`
+			);
+			this.conditionalLog(
+				`    Expected normal: (${expectedNormal.x.toFixed(2)}, ${expectedNormal.y.toFixed(2)}, ${expectedNormal.z.toFixed(2)})`
+			);
+		});
+	}
+
 	public setPaddleRange(value: number): void {
 		this.PADDLE_RANGE = value;
 		this.conditionalLog('PADDLE_RANGE ->', this.PADDLE_RANGE);
@@ -3172,9 +3353,61 @@ export class Pong3D {
 
 	/** Reset the ball to center position */
 	public resetBall(): void {
-		if (this.gameLoop) {
-			this.gameLoop.resetBall();
+		// Reset both visual ball and physics sphere to original position
+		if (this.ballMesh && this.physicsSphere) {
+			// Get the original position from the game loop
+			const originalPos = this.gameLoop ? (this.gameLoop as any).originalBallPosition : this.ballMesh.position.clone();
+
+			// Reset visual ball position
+			this.ballMesh.position.copyFrom(originalPos);
+
+			// Reset physics sphere position
+			this.physicsSphere.position.copyFrom(originalPos);
+
+			// Reset physics body position if it exists
+			if (this.physicsSphere.physicsImpostor && this.physicsSphere.physicsImpostor.physicsBody) {
+				// Force the physics body to update its position
+				this.physicsSphere.physicsImpostor.physicsBody.position.set(
+					originalPos.x,
+					originalPos.y,
+					originalPos.z
+				);
+				this.physicsSphere.physicsImpostor.physicsBody.velocity.set(0, 0, 0);
+				this.physicsSphere.physicsImpostor.physicsBody.angularVelocity.set(0, 0, 0);
+
+				// Also update the physics sphere mesh position
+				this.physicsSphere.position.copyFrom(originalPos);
+
+				// Immediately sync visual ball position
+				if (this.ballMesh) {
+					this.ballMesh.position.copyFrom(originalPos);
+				}
+
+				// Clear any forces that might still be applied
+				if (this.physicsSphere.physicsImpostor.physicsBody.force) {
+					this.physicsSphere.physicsImpostor.physicsBody.force.set(0, 0, 0);
+				}
+				if (this.physicsSphere.physicsImpostor.physicsBody.torque) {
+					this.physicsSphere.physicsImpostor.physicsBody.torque.set(0, 0, 0);
+				}
+
+				// Force the physics engine to update
+				this.physicsSphere.physicsImpostor.physicsBody.aabbNeedsUpdate = true;
+			}
+
+			// Apply new random starting velocity to the physics sphere
+			if (this.physicsSphere.physicsImpostor) {
+				const startingVelocity = this.generateRandomStartingVelocity(5);
+				this.physicsSphere.physicsImpostor.applyImpulse(
+					startingVelocity,
+					this.physicsSphere.getAbsolutePosition()
+				);
+				this.conditionalLog(`🚀 Applied starting velocity: (${startingVelocity.x.toFixed(2)}, ${startingVelocity.z.toFixed(2)})`);
+			}
+
+			this.conditionalLog(`🔄 Ball reset to original position: (${originalPos.x.toFixed(3)}, ${originalPos.y.toFixed(3)}, ${originalPos.z.toFixed(3)})`);
 		}
+
 		// Reset rally speed when ball is manually reset
 		this.resetRallySpeed();
 
@@ -3184,6 +3417,26 @@ export class Pong3D {
 		// IMPORTANT: Reset all ball effects on manual reset
 		this.ballEffects.resetAllEffects();
 		this.conditionalLog(`🔄 Manual ball reset: All effects cleared`);
+	}
+
+	/**
+	 * Generate a random starting velocity for the ball
+	 */
+	private generateRandomStartingVelocity(speed: number = 5): BABYLON.Vector3 {
+		// Random direction: forward or backward (±1)
+		const zDirection = Math.random() < 0.5 ? 1 : -1;
+
+		// Calculate X and Z components
+		// Use a limited angle range to keep game playable
+		const maxAngle = Math.PI / 3; // 60 degrees max from straight line
+		const randomAngle = (Math.random() - 0.5) * 2 * maxAngle; // -60° to +60°
+
+		const x = Math.sin(randomAngle) * speed;
+		const z = Math.cos(randomAngle) * speed * zDirection;
+
+		const velocity = new BABYLON.Vector3(x, 0, z);
+
+		return velocity;
 	}
 
 	/** Set rally speed increment percentage */
@@ -3546,7 +3799,7 @@ export class Pong3D {
 	/**
 	 * Send game state to all clients (Master mode only)
 	 */
-	private sendGameStateToClients(gameState: any): void {
+	private sendGameStateToClients(_gameState: any): void {
 		// Reduced logging - only log structure occasionally, not every call
 		// this.conditionalLog('📡 Master sending game state to clients:', gameState);
 		// TODO: Send via WebSocket using team's message format
@@ -3561,7 +3814,7 @@ export class Pong3D {
 	/**
 	 * Send input to master (Client mode only)
 	 */
-	private sendInputToMaster(input: { k: number }): void {
+	private sendInputToMaster(_input: { k: number }): void {
 		// Reduced logging for input - only log occasionally
 		// this.conditionalLog(`📡 Player ${this.thisPlayer} sending input to master:`, input);
 		// TODO: Send via WebSocket using team's message format
