@@ -1,5 +1,6 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { ReadyModal } from '../modals/ReadyModal';
 
 export class AliasModal extends Modal {
 	private aliasFields: HTMLInputElement[] = [];
@@ -7,13 +8,27 @@ export class AliasModal extends Modal {
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
 
-		const username = sessionStorage.getItem('username') ?? '';
+				const username = sessionStorage.getItem('username') ?? '';
+		const alias = sessionStorage.getItem('alias') ?? '';
+		const aliases = [
+			sessionStorage.getItem('alias1') ?? '',
+			sessionStorage.getItem('alias2') ?? '',
+			sessionStorage.getItem('alias3') ?? '',
+			sessionStorage.getItem('alias4') ?? '',
+		];
 
 		for (let i = 0; i < n; i++) {
+			let defaultValue = '';
+
+			if (n === 1) {
+				defaultValue = alias || username || `player${i + 1}`;
+			} else {
+				defaultValue = aliases[i] || `player${i + 1}`;
+			}
 			const input = this.myCreateInput(
 				'text',
 				`username${i + 1}`,
-				username && n == 1 ? username : `player${i + 1}`
+				defaultValue
 			);
 			this.aliasFields.push(input);
 		}
@@ -22,15 +37,18 @@ export class AliasModal extends Modal {
 	}
 
 	private async handleAlias() {
-		const gameMode = sessionStorage.getItem('gameMode');
+		const tournament = sessionStorage.getItem('tournament') ?? '';
+		const gameMode = sessionStorage.getItem('gameMode') ?? '';
 
 		this.aliasFields.forEach((field, index) => {
 			const alias = field.value.trim() || `Player${index + 1}`;
 			sessionStorage.setItem(`alias${index + 1}`, alias);
 		});
 		this.destroy();
-		if (gameMode == 'local') location.hash = '#game';
-		else location.hash = '#tournament';
+		if (tournament == '1') location.hash = '#tournament';
+		else if (gameMode == 'local') location.hash = '#game';
+		else new ReadyModal(this.parent);
+		this.destroy();
 	}
 
 	private myCreateInput(

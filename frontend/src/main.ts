@@ -9,7 +9,7 @@ import './style.css';
 import '@babylonjs/loaders';
 
 // Global exposure for debugging
-import { state } from './misc/state';
+import { state } from './misc/State';
 import { webSocket } from './utils/WebSocketWrapper';
 (window as any).state = state;
 (window as any).webSocket = webSocket;

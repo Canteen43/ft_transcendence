@@ -21,12 +21,14 @@ export class AuthComponent {
 	private render() {
 		this.button?.destroy();
 		const userIsLoggedIn = isLoggedIn();
-
+		const username = sessionStorage.getItem('username') ?? '';
+		
 		this.button = new Button(
-			userIsLoggedIn ? 'Logout' : 'Login',
+			userIsLoggedIn ? username : 'Login',
 			userIsLoggedIn ? () => this.logout() : () => this.showLoginModal(),
 			this.parent
 		);
+	
 		this.button.element.classList.add(
 			'absolute',
 			'top-4',

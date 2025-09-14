@@ -17,14 +17,14 @@ export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add(
-			'flex',
-			'flex-col',
-			'items-center',
-			'justify-center',
-			'gap-2',
-			'p-4'
-		);
+		// this.box.classList.add(
+		// 	'flex',
+		// 	'flex-col',
+		// 	'items-center',
+		// 	'justify-center',
+		// 	'gap-2',
+		// 	'p-4'
+		// );
 		this.UsernameField = this.myCreateInput(
 			'text',
 			'username',
@@ -65,8 +65,8 @@ export class LoginModal extends Modal {
 			alert('Login unsuccessful');
 			return;
 		}
-		this.login(authData.token, authData.user_id);
 		sessionStorage.setItem('username', username);
+		this.login(authData.token, authData.user_id);
 
 		this.destroy();
 	}
@@ -94,20 +94,24 @@ export class LoginModal extends Modal {
 	}
 
 	private createLinks(parent: HTMLElement) {
-		// Create a password input
+		const LinkContainer = document.createElement('div');
+		LinkContainer.className = 'flex flex-col items-center justify-center gap-1.5';
+
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
 		RegisterLink.className =
-			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm m-0';
 		RegisterLink.onclick = () => this.handleRegister(parent);
-		this.box.appendChild(RegisterLink);
-		// Create a password input
+		LinkContainer.appendChild(RegisterLink);
+
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className =
-			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm m-0';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
-		this.box.appendChild(ForgotPasswordLink);
+		LinkContainer.appendChild(ForgotPasswordLink);
+
+		this.box.appendChild(LinkContainer);
 	}
 
 	private handleRegister(parent: HTMLElement) {

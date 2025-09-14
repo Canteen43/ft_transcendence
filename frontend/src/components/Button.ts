@@ -9,8 +9,8 @@ export class Button {
 	) {
 		this.element = document.createElement('button');
 		this.element.className =
-			//'px-6 py-3 bg-green-700 hover:bg-green-900 rounded-lg text-white font-semibold shadow-lg transition-colors';
-			'font-sigmar px-10 py-6 text-2xl px-12 py-5 bg-[var(--color3)] hover:bg-[var(--color4)] rounded-lg text-white text-3x shadow-lg transition-colors';
+			// 'px-6 py-3 bg-green-700 hover:bg-green-900 rounded-lg text-white font-semibold shadow-lg transition-colors';
+			'font-sigmar text-2xl px-12 py-4 bg-[var(--color3)] hover:bg-[var(--color4)] rounded-lg text-white  transition-colors';
 
 		if (typeof content === 'string') {
 			this.element.textContent = content;

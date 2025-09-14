@@ -27,7 +27,8 @@ export class LocalGameModal extends Modal {
 		btn3.element.style.height = '150px'; // button height
 		btn4.element.style.width = '400px'; // button width
 		btn4.element.style.height = '150px'; // button height
-		this.box.classList.remove('bg-white');
+		this.box.style.backgroundColor = 'var(--color3)';
+		this.box.classList.remove('shadow-lg');
 	}
 
 	private setupLocalGame(n: number) {

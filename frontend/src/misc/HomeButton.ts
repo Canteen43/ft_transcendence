@@ -41,3 +41,4 @@ export class HomeButton {
 		this.button.remove();
 	}
 }
+

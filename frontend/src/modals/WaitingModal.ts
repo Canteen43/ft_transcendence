@@ -1,6 +1,7 @@
 import { jelly, newtonsCradle } from 'ldrs';
 import { Modal } from '../components/Modal';
-import { ReadyModal } from '../modals/ReadyModal';
+import { AliasModal } from './AliasModal';
+
 
 newtonsCradle.register();
 jelly.register();
@@ -38,12 +39,6 @@ export class WaitingModal extends Modal {
 	}
 
 	private async nextStep() {
-		if (sessionStorage.getItem('tournament') == '1') {
-			location.hash = '#tournament';
-			this.destroy();
-		} else {
-			new ReadyModal(this.parent);
-			this.destroy();
-		}
+		new AliasModal(this.parent, 1);
 	}
 }

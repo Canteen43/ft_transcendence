@@ -129,7 +129,7 @@ export class RegisterModal extends Modal {
 
 	private createLinks(parent: HTMLElement) {
 		const RegisterLink = document.createElement('button');
-		RegisterLink.textContent = 'Go back to log-in';
+		RegisterLink.textContent = 'Back to log-in';
 		RegisterLink.className =
 			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleGoBack(parent);
