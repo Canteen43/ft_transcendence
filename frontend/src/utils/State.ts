@@ -24,6 +24,8 @@ class State {
 	///////////////////////////////////////////////////
 	// Store tournament data
 	storeTournData(tournData: any): void {
+		console.log('DEBUG: Entering storeTournData function');
+
 		const matches = tournData.matches;
 		const participants = tournData.participants;
 
@@ -52,8 +54,7 @@ class State {
 
 		// verif same tournID
 		const tournID_0 = sessionStorage.getItem('tournament_id');
-		if (tournID_0 != tournData.id)
-			console.error('Tournament ID mismatch');
+		if (tournID_0 != tournData.id) console.error('Tournament ID mismatch');
 
 		console.log('Tournament data stored and current match determined');
 	}
@@ -61,6 +62,17 @@ class State {
 	///////////////////////////////////////////////////
 	// session store the current match for this player
 	storeCurrentMatch(): void {
+		console.log('DEBUG: Entering storeCurrentMatch function');
+
+		sessionStorage.setItem(
+			'player1',
+			this.tournament.matches.match0.player1_id
+		);
+		sessionStorage.setItem(
+			'player2',
+			this.tournament.matches.match0.player2_id
+		);
+
 		// Case 1: 2 players game - always match0
 		if (this.tournament.is_two_player_game) {
 			const match = this.tournament.matches.match0;
@@ -70,19 +82,19 @@ class State {
 			} else if (match.player2_id === this.playerId) {
 				sessionStorage.setItem('thisPlayer', '2');
 			}
-
-			sessionStorage.setItem('player1', this.tournament.matches.match0.player1_id);
-			sessionStorage.setItem('player2', this.tournament.matches.match0.player2_id);
 			return;
-
-
 		}
 
 		// Case 2: Tournament finale? player in it?
 		if (this.tournament.matches.match2.id) {
-
-			sessionStorage.setItem('player3', this.tournament.matches.match1.player1_id);
-			sessionStorage.setItem('player4', this.tournament.matches.match1.player2_id);
+			sessionStorage.setItem(
+				'player3',
+				this.tournament.matches.match1.player1_id
+			);
+			sessionStorage.setItem(
+				'player4',
+				this.tournament.matches.match1.player2_id
+			);
 
 			if (
 				this.tournament.matches.match2.player1_id === this.playerId ||
@@ -124,6 +136,8 @@ class State {
 	///////////////////////////////////////////////////
 	// Clear all data
 	clear(): void {
+		console.log('DEBUG: Entering clear function');
+
 		this.tournamentOngoing = false;
 		this.gameOngoing = false;
 		this.normalGameReady = false;
