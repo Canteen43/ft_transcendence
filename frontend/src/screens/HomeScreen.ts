@@ -1,5 +1,5 @@
+import { isLoggedIn } from '../buttons/AuthButton';
 import { Screen } from '../components/Screen';
-import { isLoggedIn } from '../misc/AuthComponent';
 import { AliasModal } from '../modals/AliasModal';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';

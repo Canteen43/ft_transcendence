@@ -6,6 +6,9 @@ import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
 import { FullTournamentSchema } from '../../../shared/schemas/tournament';
 import { apiCall } from '../utils/apiCall';
+import { StorageManager } from './StorageManager';
+
+
 
 // TODO: add logic for the Quit event?
 export async function regListener(event: MessageEvent): Promise<void> {
@@ -41,8 +44,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				);
 				if (tournData) {
 					console.log('Storing match ID:', tournData);
-					sessionStorage.setItem('matchID', tournData.matches[0].id);
-					console.log('🔥 FIRING gameReady event');
+					StorageManager.storeData(tournData);
 					document.dispatchEvent(new Event('gameReady')); // will trigger the READY button
 				} else {
 					console.error('No tournament data received', tournData);

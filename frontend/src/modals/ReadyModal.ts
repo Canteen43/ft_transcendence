@@ -1,5 +1,5 @@
+import { ReadyButton } from '../buttons/ReadyButton';
 import { Modal } from '../components/Modal';
-import { ReadyButton } from '../misc/ReadyButton';
 
 export class ReadyModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -13,6 +13,5 @@ export class ReadyModal extends Modal {
 		// 	'p-4'
 		// );
 		new ReadyButton(this.box);
-
 	}
 }

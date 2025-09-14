@@ -93,21 +93,19 @@ TODO:
 - separate state vs session storage
 - continue tournament logic
 
+- api for sending the alias, websocket/api for receiving other players aliases
 - handle closing the modals while not yet in the game -> apicall or websocket quit match
-- Change logout button to Username + drop down: stat + logout
 - Better error handling on registration if login already exist
-- aliases
 - design
 
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9
 
 gacp() {
-if [ -z "$1" ]; then
-echo "❌ Error: commit message is required"
-return 1
-fi
-
-git add -A
-git commit -m "$1"
-git push
+  if [ -z "$1" ]; then
+  echo "❌ Error: commit message is required"
+  return 1
+  fi
+  git add -A
+  git commit -m "$1"
+  git push
 }
