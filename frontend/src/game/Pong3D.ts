@@ -65,6 +65,9 @@ export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
 	private static readonly DEBUG_ENABLED = false;
 
+	// Simple ball radius for physics impostor
+	private static readonly BALL_RADIUS = 0.3;
+
 	// Debug helper method - now uses GameConfig
 	private debugLog(...args: any[]): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
@@ -579,6 +582,14 @@ export class Pong3D {
 				{ mass: 1, restitution: 1.0, friction: 0 },
 				this.scene
 			);
+
+			// Set custom radius for physics impostor
+			if (this.ballMesh.physicsImpostor.physicsBody) {
+				// For Cannon.js physics body, we need to set the radius directly
+				if (this.ballMesh.physicsImpostor.physicsBody.shapes && this.ballMesh.physicsImpostor.physicsBody.shapes[0]) {
+					this.ballMesh.physicsImpostor.physicsBody.shapes[0].radius = Pong3D.BALL_RADIUS;
+				}
+			}
 
 			// Lock ball movement to X-Z plane (no Y movement)
 			if (this.ballMesh.physicsImpostor.physicsBody) {
