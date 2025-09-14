@@ -252,6 +252,7 @@ export class Pong3D {
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
+	private secondLastPlayerToHitBall: number = -1; // Track which player hit the ball before the last hitter (0-based index)
 	private onGoalCallback:
 		| ((scoringPlayer: number, goalPlayer: number) => void)
 		| null = null;
@@ -955,9 +956,11 @@ export class Pong3D {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(`🏓 Ball hit by Player ${paddleIndex + 1}`);
 		}
+		// Shift last hitter to second last hitter, then set new last hitter
+		this.secondLastPlayerToHitBall = this.lastPlayerToHitBall;
 		this.lastPlayerToHitBall = paddleIndex;
 		this.conditionalLog(
-			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}`
+			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}, Second last: ${this.secondLastPlayerToHitBall}`
 		);
 
 		// Play ping sound effect with harmonic variation
@@ -1612,10 +1615,11 @@ export class Pong3D {
 
 		// goalIndex is the player whose goal was hit (they conceded)
 		// The scoring player is the one who last hit the ball
-		const scoringPlayer = this.lastPlayerToHitBall;
+		let scoringPlayer = this.lastPlayerToHitBall;
 		const goalPlayer = goalIndex;
 
 		this.conditionalLog(`Last player to hit ball: ${scoringPlayer}`);
+		this.conditionalLog(`Second last player to hit ball: ${this.secondLastPlayerToHitBall}`);
 		this.conditionalLog(`Goal player (conceding): ${goalPlayer}`);
 		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
@@ -1624,10 +1628,29 @@ export class Pong3D {
 				'Goal detected but no player has hit the ball yet'
 			);
 			return;
-		} // Prevent scoring against yourself (in case of weird physics)
+		}
+
+		// Handle own goals: if last hitter hit their own goal, award to second last hitter (if exists)
 		if (scoringPlayer === goalPlayer) {
+			if (this.secondLastPlayerToHitBall !== -1) {
+				// Award point to second last hitter for the own goal
+				scoringPlayer = this.secondLastPlayerToHitBall;
+				this.conditionalLog(
+					`Own goal! Awarding point to second last hitter (Player ${scoringPlayer + 1})`
+				);
+			} else {
+				// No second last hitter, no score for own goal
+				this.conditionalWarn(
+					`Player ${scoringPlayer + 1} hit their own goal with no previous hitter - no score`
+				);
+				return;
+			}
+		}
+
+		// Check if last hitter and second last hitter are the same (invalid goal)
+		if (scoringPlayer === this.secondLastPlayerToHitBall) {
 			this.conditionalWarn(
-				`Player ${scoringPlayer + 1} hit their own goal - no score`
+				`Player ${scoringPlayer + 1} hit the ball twice in a row - no score`
 			);
 			return;
 		}
@@ -1672,6 +1695,7 @@ export class Pong3D {
 
 			// Reset cooldown and last player tracker - game is over
 			this.lastPlayerToHitBall = -1;
+			this.secondLastPlayerToHitBall = -1;
 			this.lastGoalTime = performance.now();
 
 			// Let the ball continue its natural trajectory and exit bounds
@@ -1712,6 +1736,7 @@ export class Pong3D {
 
 		// Reset the last player tracker and set cooldown
 		this.lastPlayerToHitBall = -1;
+		this.secondLastPlayerToHitBall = -1;
 		this.lastGoalTime = performance.now();
 	}
 
@@ -1826,11 +1851,16 @@ export class Pong3D {
 			}
 
 			// Reset rally speed system - new rally starts
-			this.ballEffects.resetAllEffects();
+			this.resetRallySpeed();
+
+			// Reset last player to hit ball - new rally starts
+			this.lastPlayerToHitBall = -1;
+			this.secondLastPlayerToHitBall = -1;
 
 			// Clear any pending goal state if ball went truly out of bounds
 			this.goalScored = false;
 			this.pendingGoalData = null;
+			this.ballEffects.resetAllEffects();
 
 			this.conditionalLog(`⚡ Ball reset due to out of bounds`);
 		}
@@ -1878,6 +1908,7 @@ export class Pong3D {
 
 			// Reset last player to hit ball - new rally starts
 			this.lastPlayerToHitBall = -1;
+			this.secondLastPlayerToHitBall = -1;
 
 			// Clear the goal state and reset all ball effects
 			this.goalScored = false;
@@ -3182,6 +3213,7 @@ export class Pong3D {
 
 		// Reset last player to hit ball
 		this.lastPlayerToHitBall = -1;
+		this.secondLastPlayerToHitBall = -1;
 
 		// IMPORTANT: Reset all ball effects on manual reset
 		this.ballEffects.resetAllEffects();
