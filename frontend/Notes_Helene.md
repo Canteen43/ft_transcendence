@@ -88,6 +88,7 @@ sessionStorage vs localStorage vs global variable
 functions: getItem, setItem, removeItem
 
 TODO:
+
 - save the match and tournament infos
 - separate state vs session storage
 - continue tournament logic
@@ -99,3 +100,14 @@ TODO:
 - design
 
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9
+
+gacp() {
+if [ -z "$1" ]; then
+echo "❌ Error: commit message is required"
+return 1
+fi
+
+git add -A
+git commit -m "$1"
+git push
+}

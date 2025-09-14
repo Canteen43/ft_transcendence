@@ -22,19 +22,32 @@ export class AuthComponent {
 		this.button?.destroy();
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
-		
+
 		this.button = new Button(
-			userIsLoggedIn ? username : 'Login',
+			userIsLoggedIn ? username : 'sign in',
 			userIsLoggedIn ? () => this.logout() : () => this.showLoginModal(),
 			this.parent
 		);
-	
+
 		this.button.element.classList.add(
 			'absolute',
 			'top-4',
 			'right-4',
-			'fixed'
+			'fixed',
+			'w-50',
+			'text-center',
+			'truncate'
 		);
+
+		if (userIsLoggedIn) {
+			this.button.element.addEventListener('mouseenter', () => {
+				this.button!.element.textContent = 'sign out';
+			});
+
+			this.button.element.addEventListener('mouseleave', () => {
+				this.button!.element.textContent = username;
+			});
+		}
 	}
 
 	private logout() {

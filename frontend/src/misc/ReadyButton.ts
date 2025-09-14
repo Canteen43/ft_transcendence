@@ -41,7 +41,7 @@ export class ReadyButton extends Button {
 		loader.setAttribute('color', 'white'); // White to show on button background
 
 		const message = document.createElement('span');
-		message.textContent = 'Waiting...';
+		message.textContent = '';
 		message.style.color = 'white';
 
 		container.appendChild(loader);

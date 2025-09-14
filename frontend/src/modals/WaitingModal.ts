@@ -2,18 +2,14 @@ import { jelly, newtonsCradle } from 'ldrs';
 import { Modal } from '../components/Modal';
 import { AliasModal } from './AliasModal';
 
-
 newtonsCradle.register();
 jelly.register();
 
-
 // Waiting for players, event listener for game Ready
 export class WaitingModal extends Modal {
-	
 	constructor(parent: HTMLElement) {
 		super(parent);
-		this.printMessage();
-		this.printLoader();
+		this.printMessageLoader();
 		document.addEventListener('gameReady', () => this.nextStep());
 	}
 
@@ -22,20 +18,24 @@ export class WaitingModal extends Modal {
 		super.destroy();
 	}
 
-	private async printMessage() {
+	private async printMessageLoader() {
+		const container = document.createElement('div');
+		container.className = 'flex flex-col items-center';
+
+
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s)...';
 		message.className =
-			'font-sigmar text-3xl font-bold text-center mb-12 text-[var(--color3)]';
-		this.box.appendChild(message);
-	}
+			'font-sigmar text-3xl font-bold text-center mb-5 text-[var(--color3)]';
+		container.appendChild(message);
 
-	private async printLoader() {
 		const loader = document.createElement('l-jelly');
-		loader.setAttribute('size', '80');
+		loader.setAttribute('size', '60');
 		loader.setAttribute('speed', '1.5');
 		loader.setAttribute('color', 'var(--color3)');
-		this.box.appendChild(loader);
+		container.appendChild(loader);
+
+		this.box.appendChild(container);
 	}
 
 	private async nextStep() {

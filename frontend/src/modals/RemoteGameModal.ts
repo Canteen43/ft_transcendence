@@ -10,36 +10,28 @@ import { Modal } from '../components/Modal';
 import { apiCall } from '../utils/apiCall';
 import { WaitingModal } from './WaitingModal';
 
-
-
-
-
-
-
 export class RemoteGameModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
 		const img2 = document.createElement('img');
-		img2.src = '../../public/2_astronauts.png';
+		img2.src = '../../public/2_players.png';
 		img2.className = 'h-25  mx-auto';
 
 		const imgt = document.createElement('img');
 		imgt.src = '../../public/trophy.png';
 		imgt.className = 'h-25  mx-auto';
 
-
-
-		const btn2 = new Button(img2, () => this.logicRemote(2), this.box);
-		const btnt = new Button(imgt, () => this.logicRemote(3), this.box);
-		btn2.element.style.width = '400px'; // button width
-		btn2.element.style.height = '150px'; // button height
-		btnt.element.style.width = '400px'; // button width
-		btnt.element.style.height = '150px'; // button height
+		const btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
+		const btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
+		btn2plyr.element.style.width = '400px'; // button width
+		btn2plyr.element.style.height = '150px'; // button height
+		btnTourn.element.style.width = '400px'; // button width
+		btnTourn.element.style.height = '150px'; // button height
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 	}
-	
+
 	private logicRemote(playerCount: number) {
 		this.joinGame(playerCount);
 		this.destroy();
