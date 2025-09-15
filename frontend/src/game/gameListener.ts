@@ -101,7 +101,29 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_POINT:
-				alert('Point: ' + JSON.stringify(msg));
+				// Extract the scoring player's UID from the message
+				const scoringPlayerUID = (msg as any).d;
+				console.log('🎯 MESSAGE_POINT received:', msg);
+				console.log('🎯 Scoring player UID:', scoringPlayerUID);
+				console.log('🎯 Full message object:', JSON.stringify(msg));
+				if (scoringPlayerUID && typeof scoringPlayerUID === 'string') {
+					console.log(
+						'Score update received for player UID:',
+						scoringPlayerUID
+					);
+					console.log('🎯 Dispatching remoteScoreUpdate event');
+					document.dispatchEvent(
+						new CustomEvent('remoteScoreUpdate', {
+							detail: { scoringPlayerUID },
+						})
+					);
+					console.log('🎯 remoteScoreUpdate event dispatched');
+				} else {
+					console.warn(
+						'Invalid MESSAGE_POINT format - missing UID:',
+						msg
+					);
+				}
 				break;
 
 			default:

@@ -378,3 +378,13 @@ describe('Input Processing', () => {
 ✅ **No timestamps/ticks**: Keep it simple for learning and debugging
 
 This design achieves **<0.3 KB/s bandwidth usage** with **simple, debuggable code** perfect for learning networked game development.
+
+
+
+Complete MESSAGE_POINT Flow
+
+
+Master: Detects goal → calls sendScoreUpdateToClients(scoringPlayerIndex) → sends WebSocket message with scoring player's UID
+WebSocket: Transmits {"t":"x", "d":"scoring-player-uid"} message
+gameListener.ts: Receives MESSAGE_POINT → dispatches remoteScoreUpdate event with UID data
+Pong3D.ts (client): Listens for remoteScoreUpdate event → calls handleRemoteScoreUpdate() → updates scores and UI

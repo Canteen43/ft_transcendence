@@ -6,7 +6,11 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
-import { MESSAGE_GAME_STATE, MESSAGE_MOVE } from '../../../shared/constants';
+import {
+	MESSAGE_GAME_STATE,
+	MESSAGE_MOVE,
+	MESSAGE_POINT,
+} from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
@@ -66,7 +70,7 @@ interface BoundingInfo {
 
 export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
-	private static readonly DEBUG_ENABLED = false;
+	// private static readonly DEBUG_ENABLED = false;
 
 	// Simple ball radius for physics impostor
 	private static readonly BALL_RADIUS = 0.3;
@@ -329,6 +333,31 @@ export class Pong3D {
 		// Store resize handler reference for proper cleanup
 		this.resizeHandler = () => this.engine.resize();
 		window.addEventListener('resize', this.resizeHandler);
+
+		// Listen for remote score updates from WebSocket (client mode only)
+		if (this.gameMode === 'client') {
+			console.log(
+				'🎮 Setting up remoteScoreUpdate event listener for client mode'
+			);
+			window.addEventListener('remoteScoreUpdate', (event: Event) => {
+				console.log('🎮 remoteScoreUpdate event received:', event);
+				const customEvent = event as CustomEvent<{
+					scoringPlayerUID: string;
+				}>;
+				console.log(
+					'🎮 Calling handleRemoteScoreUpdate with UID:',
+					customEvent.detail.scoringPlayerUID
+				);
+				this.handleRemoteScoreUpdate(
+					customEvent.detail.scoringPlayerUID
+				);
+			});
+		} else {
+			console.log(
+				'🎮 Not setting up remoteScoreUpdate listener - game mode:',
+				this.gameMode
+			);
+		}
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
@@ -1741,10 +1770,16 @@ export class Pong3D {
 		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
 		if (scoringPlayer === -1) {
-			this.conditionalWarn(
-				'Goal detected but no player has hit the ball yet'
+			// Ball went into goal without being hit - opponent of goalPlayer scores
+			if (this.playerCount === 2) {
+				scoringPlayer = 1 - goalPlayer;
+			} else {
+				// For 4 players, assume players are arranged as 0 opposite 2, 1 opposite 3
+				scoringPlayer = (goalPlayer + 2) % this.playerCount;
+			}
+			this.conditionalLog(
+				`Ball went into goal without being hit - awarding to opponent Player ${scoringPlayer + 1} (goalPlayer was ${goalPlayer + 1})`
 			);
-			return;
 		}
 
 		// Handle own goals: if last hitter hit their own goal, award to second last hitter (if exists)
@@ -1779,6 +1814,13 @@ export class Pong3D {
 		this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
 		this.playerScores[scoringPlayer]++;
 		this.conditionalLog(`New scores after goal:`, this.playerScores);
+
+		// Send score update to clients (only in master mode)
+		console.log(
+			'🏆 sendScoreUpdateToClients called with scoringPlayer:',
+			scoringPlayer
+		);
+		this.sendScoreUpdateToClients(scoringPlayer);
 
 		// Check if player has won (configurable winning score)
 		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
@@ -3762,6 +3804,134 @@ export class Pong3D {
 					'Failed to send gamestate to clients over websocket',
 					err
 				);
+			}
+		}
+	}
+
+	/**
+	 * Send score update to clients (Master mode only)
+	 * Sends MESSAGE_POINT with the scoring player's UID
+	 */
+	private sendScoreUpdateToClients(scoringPlayerIndex: number): void {
+		console.log(
+			'📡 sendScoreUpdateToClients called with scoringPlayerIndex:',
+			scoringPlayerIndex
+		);
+		if (this.gameMode !== 'master') {
+			console.log('📡 Not master mode, skipping score update send');
+			return; // Only master sends score updates
+		}
+
+		try {
+			// Log current sessionStorage state for debugging
+			console.log('📡 Current sessionStorage UIDs:');
+			for (let i = 1; i <= 4; i++) {
+				const uid = GameConfig.getPlayerUID(i as 1 | 2 | 3 | 4);
+				console.log(`  📡 Player ${i} UID: ${uid || 'null'}`);
+			}
+
+			// Get the scoring player's UID from GameConfig
+			const scoringPlayerUID = GameConfig.getPlayerUID(
+				(scoringPlayerIndex + 1) as 1 | 2 | 3 | 4
+			); // Convert 0-based to 1-based
+
+			console.log(
+				`📡 Retrieved UID for scoring player ${scoringPlayerIndex + 1}: ${scoringPlayerUID || 'null'}`
+			);
+
+			if (!scoringPlayerUID) {
+				console.warn(
+					`No UID found for player ${scoringPlayerIndex + 1}, cannot send score update`
+				);
+				return;
+			}
+
+			console.log(
+				`🏆 Sending score update for Player ${scoringPlayerIndex + 1} (UID: ${scoringPlayerUID})`
+			);
+
+			// Send via WebSocket using team's message format
+			const message: Message = {
+				t: MESSAGE_POINT,
+				d: scoringPlayerUID,
+			} as unknown as Message;
+			console.log(
+				'📡 MESSAGE_POINT payload being sent:',
+				JSON.stringify(message)
+			);
+			webSocket.send(message);
+
+			console.log(`📡 WebSocket message (POINT) sent successfully`);
+		} catch (err) {
+			console.warn(
+				'Failed to send score update to clients over websocket',
+				err
+			);
+		}
+	}
+
+	/**
+	 * Handle remote score update from WebSocket (client mode only)
+	 */
+	private handleRemoteScoreUpdate(scoringPlayerUID: string): void {
+		console.log(
+			'🎮 handleRemoteScoreUpdate called with UID:',
+			scoringPlayerUID
+		);
+		if (this.gameMode !== 'client') {
+			console.warn('handleRemoteScoreUpdate called in non-client mode');
+			return;
+		}
+
+		// Find the player index from the UID
+		let scoringPlayerIndex = -1;
+		for (let i = 0; i < this.playerCount; i++) {
+			const playerUID = GameConfig.getPlayerUID((i + 1) as 1 | 2 | 3 | 4);
+			console.log(`🎮 Checking player ${i + 1} UID:`, playerUID);
+			if (playerUID === scoringPlayerUID) {
+				scoringPlayerIndex = i;
+				break;
+			}
+		}
+
+		if (scoringPlayerIndex === -1) {
+			console.warn(`Could not find player with UID: ${scoringPlayerUID}`);
+			return;
+		}
+
+		console.log(
+			`🎮 Found scoring player index: ${scoringPlayerIndex} for UID: ${scoringPlayerUID}`
+		);
+
+		// Update the score
+		this.playerScores[scoringPlayerIndex]++;
+		console.log(
+			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
+		);
+
+		// Update the UI
+		this.updatePlayerInfoDisplay();
+
+		// Check if player has won
+		if (this.playerScores[scoringPlayerIndex] >= this.WINNING_SCORE) {
+			const playerName =
+				this.playerNames[scoringPlayerIndex] ||
+				`Player ${scoringPlayerIndex + 1}`;
+			console.log(
+				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
+			);
+
+			// Show winner UI
+			if (this.uiHandles) {
+				this.uiHandles.showWinner(scoringPlayerIndex, playerName);
+			}
+
+			// Mark game as ended
+			this.gameEnded = true;
+
+			// Stop the game loop
+			if (this.gameLoop) {
+				this.gameLoop.stop();
 			}
 		}
 	}

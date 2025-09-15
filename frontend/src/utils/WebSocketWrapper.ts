@@ -2,7 +2,6 @@ import type { Message } from '../../../shared/schemas/message';
 import { gameListener } from '../game/gameListener';
 import { regListener } from './regListener';
 
-
 // import { AliasModal } from '../modals/AliasModal';
 
 export class WebSocketWrapper {
@@ -24,7 +23,7 @@ export class WebSocketWrapper {
 
 		this.ws.addEventListener('message', event => this.routeListener(event));
 
-		// TODO: add the logic for reconnection 
+		// TODO: add the logic for reconnection
 		this.ws.addEventListener('close', () => {
 			console.info('WebSocket connection closed');
 		});
@@ -48,7 +47,7 @@ export class WebSocketWrapper {
 			original: message,
 			serialized: jsonMessage,
 		});
-		this.ws.send(JSON.stringify(message));
+		this.ws.send(jsonMessage);
 	}
 
 	close(): void {
@@ -76,11 +75,7 @@ export class WebSocketWrapper {
 		});
 		this.routeListener(event);
 	}
-
-
 }
-
-
 
 export const webSocket = new WebSocketWrapper(`ws://localhost:8080/websocket`);
 // TODO: Avoid hardcoding port
