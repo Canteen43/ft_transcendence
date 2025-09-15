@@ -1,13 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
-
-export interface GameState {
-	ball: {
-		position: BABYLON.Vector3;
-		velocity: BABYLON.Vector3;
-	};
-	isRunning: boolean;
-}
+import type { GameState } from './Pong3DGameLoopBase';
 
 export class Pong3DGameLoop {
 	protected scene: BABYLON.Scene;

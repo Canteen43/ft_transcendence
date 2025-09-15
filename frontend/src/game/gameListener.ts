@@ -42,7 +42,34 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_MOVE:
-				alert('Move: ' + JSON.stringify(msg));
+				// Extract player ID and input from the message
+				const movePayload =
+					(msg as any).d ?? (msg as any).payload ?? msg;
+				let moveData;
+				if (typeof movePayload === 'string') {
+					try {
+						moveData = JSON.parse(movePayload);
+					} catch (e) {
+						console.warn('Failed to parse move JSON string:', e);
+						break;
+					}
+				} else {
+					moveData = movePayload;
+				}
+
+				// Expect format: { playerId: number, input: { k: number } }
+				if (
+					moveData &&
+					typeof moveData.playerId === 'number' &&
+					moveData.input
+				) {
+					console.debug('Move received:', moveData);
+					document.dispatchEvent(
+						new CustomEvent('remoteMove', { detail: moveData })
+					);
+				} else {
+					console.warn('Invalid move message format:', moveData);
+				}
 				break;
 
 			case MESSAGE_GAME_STATE:
