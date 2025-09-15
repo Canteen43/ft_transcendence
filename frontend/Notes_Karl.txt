@@ -212,6 +212,34 @@ LEARNED:
 
 TODO:
 - Understand how particles are attached to Frontend
+- Should there be an API to get off the tournament waiting list?
+	- This would be needed when a player closes their modal
+- Decide on modules
+- Get remote game to work
+	- Master needs to receive
+	- Client needs to receive and send
+- 2FA:
+	- Frontend
+		- add "enable/disable 2FA" Button when logged in
+			- enable
+				- API call
+				- retrieves secret
+				- shows secret as QR
+			- disable
+				- API call
+				- deletes secret from database
+		- when login is triggered
+			- check return. if 2fa, prompt user for code
+	- Backend
+		- on enable API call:
+			- generate secret
+			- store secret
+			- return secret (use otpauth:// format)
+		- on login API call:
+			- check if user has 2FA
+			- if so, ask for code
+			- if code ok, grant login
+
 
 
 Commands to test WebSocket:
