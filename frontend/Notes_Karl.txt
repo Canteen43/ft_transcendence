@@ -213,7 +213,6 @@ LEARNED:
 TODO:
 
 Solo:
- -switch to F4 for debugging
 
 Group:
 - Talk about Module ideas
@@ -222,6 +221,12 @@ Rufus:
 - Help him get remote game to work
 
 Helene:
+- Talk about her new changes
+- Talk about concrete frontend objectives
+	- Add "No running tournament" label on T-screen
+	- What should happen when navigating straight to #game?
+	- Do we need a state?
+	- What should happen when playing quits waiting list?
 - Talk about particle ideas
 	- adding more colors
 	- highlight instead of repulse (bubble mode)
