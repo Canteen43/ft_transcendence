@@ -101,7 +101,7 @@ export class RemoteGameModal extends Modal {
 			);
 			if (tournament) {
 				console.info('Tournament created with ID:', tournament.id);
-				sessionStorage.setItem('tournamentId', tournament.id);
+				// sessionStorage.setItem('tournamentId', tournament.id);
 				alert('Tournament started successfully!');
 			} else {
 				console.error('Failed to create tournament');

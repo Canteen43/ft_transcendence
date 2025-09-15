@@ -21,6 +21,8 @@ class State {
 		current_match_id: '',
 	};
 
+
+
 	///////////////////////////////////////////////////
 	// Store tournament data
 	storeTournData(tournData: any): void {
@@ -53,8 +55,10 @@ class State {
 		}
 
 		// verif same tournID
-		const tournID_0 = sessionStorage.getItem('tournament_id');
-		if (tournID_0 != tournData.id) console.error('Tournament ID mismatch');
+		// const tournID_0 = sessionStorage.getItem('tournament_id');
+		// console.log(`Tournament ID new: ${this.tournament.id || 'Not set'}`);
+		// console.log(`Tournament ID session: ${tournID_0 || 'Not set'}`);
+		// if (tournID_0 != tournData.id) console.error('Tournament ID mismatch');
 
 		console.log('Tournament data stored and current match determined');
 	}
@@ -63,6 +67,9 @@ class State {
 	// session store the current match for this player
 	storeCurrentMatch(): void {
 		console.log('DEBUG: Entering storeCurrentMatch function');
+
+
+		sessionStorage.setItem('tournamentID', this.tournament.id);
 
 		sessionStorage.setItem(
 			'player1',
@@ -132,6 +139,38 @@ class State {
 			}
 		}
 	}
+
+	///////////////////////////////////////////////////
+	// Helper print
+	printTournament(): void {
+	console.log('=== TOURNAMENT STATUS ===');
+	console.log(`Tournament ID: ${this.tournament.id || 'Not set'}`);
+	console.log(`Tournament Ongoing: ${this.tournamentOngoing}`);
+	console.log(`Current Round: ${this.tournament.round}`);
+	console.log(`Two Player Game: ${this.tournament.is_two_player_game}`);
+	console.log(`Current Match ID: ${this.tournament.current_match_id || 'None'}`);
+	
+	console.log('\n--- MATCHES ---');
+	Object.entries(this.tournament.matches).forEach(([matchKey, match]) => {
+		const isCurrentMatch = match.id === this.tournament.current_match_id;
+		const status = isCurrentMatch ? ' [CURRENT]' : '';
+		
+		console.log(`${matchKey.toUpperCase()}${status}:`);
+		console.log(`  Match ID: ${match.id || 'Not set'}`);
+		console.log(`  Player 1: ${match.player1_id || 'TBD'}`);
+		console.log(`  Player 2: ${match.player2_id || 'TBD'}`);
+		console.log('');
+	});
+	
+	console.log('--- GAME STATUS ---');
+	console.log(`Game Ongoing: ${this.gameOngoing}`);
+	console.log(`Current Player ID: ${this.playerId || 'Not set'}`);
+	
+	console.log('\n--- DEBUG INFO ---');
+	console.log(`Normal Game Ready: ${this.normalGameReady}`);
+	console.log(`Started Button Pressed: ${this.startedButtonPressed}`);
+	console.log('========================\n');
+}
 
 	///////////////////////////////////////////////////
 	// Clear all data

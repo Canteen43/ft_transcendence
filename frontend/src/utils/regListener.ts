@@ -38,6 +38,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 					console.log('Tournament data received:', tournData);
 					state.storeTournData(tournData);
 					state.storeCurrentMatch();
+					state.printTournament();
 					document.dispatchEvent(new Event('gameReady')); // will trigger the READY button
 				} else {
 					console.error('No tournament data received', tournData);
