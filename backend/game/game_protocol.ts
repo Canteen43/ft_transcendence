@@ -210,7 +210,7 @@ export class GameProtocol {
 
 	private endMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
-		const outgoing_message: Message = { t: 'q' };
+		const outgoing_message: Message = { t: MESSAGE_QUIT };
 		this.sendMatchMessage(outgoing_message, match.players);
 
 		const keysToDelete: UUID[] = [];
