@@ -4,8 +4,8 @@ export class HomeButton {
 
 	constructor(
 		parent: HTMLElement,
-		imgSrc: string = '../home_empty.png',
-		hoverImgSrc: string = '../home_full.png'
+		imgSrc: string = '../home_empty_white.png',
+		hoverImgSrc: string = '../home_full_white.png'
 	) {
 		this.button = document.createElement('button');
 		this.button.className =
@@ -41,3 +41,4 @@ export class HomeButton {
 		this.button.remove();
 	}
 }
+

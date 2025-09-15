@@ -8,7 +8,7 @@ export class ForgottenModal extends Modal {
 
 		const message = document.createElement('p');
 		message.textContent = 'TOO BAD!';
-		message.className = 'text-[var(--color1)] font-extrabold text-3xl uppercase tracking-wide';
+		message.className = 'text-[var(--color3)] font-extrabold text-3xl uppercase tracking-wide';
 		this.box.appendChild(message);
 	}
 }

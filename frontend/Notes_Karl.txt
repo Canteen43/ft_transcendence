@@ -211,7 +211,31 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Understand how particles are attached to Frontend
+
+Solo:
+- find out how to play on two computers when testing
+
+Group:
+- Talk about Module ideas
+
+Rufus:
+- Help him get remote game to work
+
+Helene:
+- Talk about her new changes
+- Talk about concrete frontend objectives
+	- Add "No running tournament" label on T-screen
+	- What should happen when navigating straight to #game?
+	- Do we need a state?
+	- What should happen when playing quits waiting list?
+- Talk about particle ideas
+	- adding more colors
+	- highlight instead of repulse (bubble mode)
+	- add repulse to push to keep nice click effect
+
+Wouter:
+- talk about quitting wait
+	- API to get off the waiting list when player closes modal
 
 
 Commands to test WebSocket:
@@ -222,9 +246,31 @@ webSocket.simulateMessage({ t: "i" });
 Starting Game:
 webSocket.simulateMessage({ t: "s" });
 		- Use case: Second player joined waiting list, Game is ready
-		- Action: Edit WaitingModal to display StartButton
+		- Action: Edit WaitingModal to display ReadyButton
 			- this is harder because Modal will have to be access out of global scope
 Starting Tournament:
 webSocket.simulateMessage({ t: "st" });
 		- Use case: Fourth player joined tournament wait list
 		- Action: Go to tournament screen
+
+2FA-Ideas:
+- Frontend
+	- add "enable/disable 2FA" Button when logged in
+		- enable
+			- API call
+			- retrieves secret
+			- shows secret as QR
+		- disable
+			- API call
+			- deletes secret from database
+	- when login is triggered
+		- check return. if 2fa, prompt user for code
+- Backend
+	- on enable API call:
+		- generate secret
+		- store secret
+		- return secret (use otpauth:// format)
+	- on login API call:
+		- check if user has 2FA
+		- if so, ask for code
+		- if code ok, grant login

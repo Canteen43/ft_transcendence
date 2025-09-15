@@ -28,32 +28,32 @@ export class RegisterModal extends Modal {
 		this.UsernameField = this.myCreateInput(
 			'text',
 			'username',
-			'Enter your username'
+			'username'
 		);
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
-			'Enter your first name'
+			'first name'
 		);
 		this.LastNameField = this.myCreateInput(
 			'text',
 			'last_name',
-			'Enter your last name'
+			'last name'
 		);
 		this.EmailField = this.myCreateInput(
 			'email',
 			'email',
-			'Enter your email'
+			'email'
 		);
 		this.PasswordField = this.myCreateInput(
 			'password',
 			'password',
-			'Enter your password (> 8 characters)'
+			'password'
 		);
 		this.PasswordRepeatField = this.myCreateInput(
 			'password',
 			'passwordrepeat',
-			'Re-enter your password'
+			'password repeat'
 		);
 		new Button('Register', () => this.handleRegister(parent), this.box);
 		this.createLinks(parent);
@@ -97,23 +97,20 @@ export class RegisterModal extends Modal {
 			return;
 		}
 
-		try {
-			const regData = await apiCall(
-				'POST',
-				'/users/',
-				UserSchema,
-				requestData
-			);
-			if (!regData) {
-				alert('Registration unsuccessful');
-				return;
-			}
-			console.log('Registration successful for: ', regData.login);
-			new LoginModal(parent);
-			this.destroy();
-		} catch (error) {
-			console.error('Login error:', error);
+		const regData = await apiCall(
+			'POST',
+			'/users/',
+			UserSchema,
+			requestData
+		);
+		if (!regData) {
+			alert('Registration unsuccessful');
+			return;
 		}
+		console.log('Registration successful for: ', regData.login);
+		new LoginModal(parent);
+		this.destroy();
+
 	}
 
 	private myCreateInput(
@@ -125,16 +122,16 @@ export class RegisterModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color1)] rounded p-2';
+		input.className = 'border border-[var(--color3)] rounded p-2';
 		this.box.appendChild(input);
 		return input;
 	}
 
 	private createLinks(parent: HTMLElement) {
 		const RegisterLink = document.createElement('button');
-		RegisterLink.textContent = 'Go back to log-in';
+		RegisterLink.textContent = 'Back to log-in';
 		RegisterLink.className =
-			'text-[var(--color1)] hover:text-[var(--color1bis)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
 		RegisterLink.onclick = () => this.handleGoBack(parent);
 		this.box.appendChild(RegisterLink);
 	}

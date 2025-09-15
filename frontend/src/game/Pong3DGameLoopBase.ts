@@ -9,6 +9,11 @@ export interface GameState {
 	isRunning: boolean;
 }
 
+export interface NetworkGameState {
+	b: [number, number];
+	pd: [number, number][];
+}
+
 /**
  * Base class for game loops - contains common functionality
  */

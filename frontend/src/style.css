@@ -50,12 +50,12 @@
 }
 
 :root {
-  --color1: #3347f8;
-  --color1bis: #2e80fa;
-	--color2: #a5fa9a;
-	--color3: #006f9bff;
-	--color4: #fafaea;
-  --color5: #f763b4;
+  --color1: #dee5e6;
+  --color1bis: rgb(0, 24, 238);
+	--color2: #aeafbb;
+	--color3: #0d1453ff;
+	--color4: rgb(0, 24, 238);
+  --color5: #f7ed63;
 }
 
 /* ==============================
@@ -69,18 +69,4 @@
 
 .floating-title {
   animation: float 6s ease-in-out infinite;
-}
-
-/* ==============================
-   6. Hide Scrollbar
-============================== */
-/* Hide scrollbar for Chrome, Safari and Opera */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
 }
