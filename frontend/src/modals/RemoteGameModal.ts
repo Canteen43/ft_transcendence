@@ -71,7 +71,7 @@ export class RemoteGameModal extends Modal {
 
 		// set up some game spec
 		// TODO : move to when we receive the full tournament infos
-		sessionStorage.setItem('thisPlayerOld', currentPlayers.toString());
+		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('playerCount', playerCount.toString());
 		sessionStorage.setItem('gameMode', 'remote');
 
