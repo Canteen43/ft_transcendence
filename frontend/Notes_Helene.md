@@ -89,23 +89,13 @@ functions: getItem, setItem, removeItem
 
 TODO:
 
+- Login: better error handling for username existent
+- Better error handling on registration
+  -> if login already exist
+
 - save the match and tournament infos
 - separate state vs session storage
+- handle closing the modals while not yet in the game
 - continue tournament logic
 
-- api for sending the alias, websocket/api for receiving other players aliases
-- handle closing the modals while not yet in the game -> apicall or websocket quit match
-- Better error handling on registration if login already exist
-- design
-
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9
-
-gacp() {
-  if [ -z "$1" ]; then
-  echo "❌ Error: commit message is required"
-  return 1
-  fi
-  git add -A
-  git commit -m "$1"
-  git push
-}
