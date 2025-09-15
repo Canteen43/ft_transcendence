@@ -12,9 +12,14 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	private thisPlayerId: number;
 	private onInputSend?: (inputCommand: { k: number }) => void;
 	private pong3DInstance: any; // Reference to main Pong3D instance for paddle access
+	private handleRemoteGameState: (event: any) => void;
+	private keyboardObserver: BABYLON.Nullable<
+		BABYLON.Observer<BABYLON.KeyboardInfo>
+	> = null;
 
 	// Track current input state to only send changes
 	private currentInputState = 0; // 0=none, 1=left/up, 2=right/down
+	private logCounter = 0; // Counter for throttling detailed logs to 1Hz
 
 	constructor(
 		scene: BABYLON.Scene,
@@ -26,6 +31,15 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		this.thisPlayerId = thisPlayerId;
 		this.onInputSend = onInputSend;
 		this.pong3DInstance = pong3DInstance;
+
+		// Set up WebSocket listener for remote game state updates
+		this.handleRemoteGameState = (event: any) => {
+			this.receiveGameState(event.detail);
+		};
+		document.addEventListener(
+			'remoteGameState',
+			this.handleRemoteGameState
+		);
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			console.log(
@@ -50,10 +64,68 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			// Client just renders - all positions come from network
 		});
 
+		// Set up keyboard input for sending input commands to master
+		this.setupKeyboardInput();
+
 		if (GameConfig.isDebugLoggingEnabled()) {
 			console.log(
 				`🎮 Client rendering started for Player ${this.thisPlayerId}`
 			);
+		}
+	}
+
+	/**
+	 * Set up keyboard input for sending input commands to master
+	 */
+	private setupKeyboardInput(): void {
+		// Remove existing observer if any
+		if (this.keyboardObserver) {
+			this.scene.onKeyboardObservable.remove(this.keyboardObserver);
+		}
+
+		this.keyboardObserver = this.scene.onKeyboardObservable.add(kbInfo => {
+			switch (kbInfo.type) {
+				case BABYLON.KeyboardEventTypes.KEYDOWN:
+					this.handleKeyDown(kbInfo.event.key);
+					break;
+				case BABYLON.KeyboardEventTypes.KEYUP:
+					this.handleKeyUp(kbInfo.event.key);
+					break;
+			}
+		});
+	}
+
+	/**
+	 * Handle key down events for sending input to master
+	 */
+	private handleKeyDown(key: string): void {
+		let inputCommand = 0; // 0=none
+
+		// Client mode: Use arrow keys to control this player's paddle
+		switch (key) {
+			case 'ArrowUp':
+			case 'ArrowLeft':
+				inputCommand = 1; // Move up/left
+				break;
+			case 'ArrowDown':
+			case 'ArrowRight':
+				inputCommand = 2; // Move down/right
+				break;
+		}
+
+		if (inputCommand !== 0) {
+			this.sendInput(inputCommand);
+		}
+	}
+
+	/**
+	 * Handle key up events
+	 */
+	private handleKeyUp(key: string): void {
+		// Check if the released key was an arrow key controlling movement
+		const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+		if (arrowKeys.includes(key) && this.currentInputState !== 0) {
+			this.sendInput(0); // Stop movement
 		}
 	}
 
@@ -68,6 +140,18 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			this.renderObserver = null;
 		}
 
+		// Remove keyboard observer
+		if (this.keyboardObserver) {
+			this.scene.onKeyboardObservable.remove(this.keyboardObserver);
+			this.keyboardObserver = null;
+		}
+
+		// Remove WebSocket listener
+		document.removeEventListener(
+			'remoteGameState',
+			this.handleRemoteGameState
+		);
+
 		if (GameConfig.isDebugLoggingEnabled()) {
 			console.log(`🎮 Client stopped for Player ${this.thisPlayerId}`);
 		}
@@ -81,6 +165,8 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		b: [number, number];
 		pd: [number, number][];
 	}): void {
+		console.log('📡 Client received pd:', gameStateMessage.pd);
+
 		if (GameConfig.isGamestateLoggingEnabled()) {
 			console.log(
 				`📡 Player ${this.thisPlayerId} received:`,
@@ -88,39 +174,75 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			);
 		}
 
+		// Throttle detailed logging to 1Hz (every 30 messages at 30Hz)
+		this.logCounter = (this.logCounter + 1) % 30;
+		const shouldLogDetails = this.logCounter === 0;
+
 		// Update ball position directly (no physics)
 		if (this.ballMesh) {
 			const ballY = this.ballMesh.position.y; // Preserve Y position from GLB
 			this.ballMesh.position.set(
-				gameStateMessage.b[0], // X from network
+				gameStateMessage.b[0]*(-1), // X from network
 				ballY, // Y preserved
 				gameStateMessage.b[1] // Z from network
 			);
 
 			// Update internal game state
 			this.gameState.ball.position.set(
-				gameStateMessage.b[0],
+				gameStateMessage.b[0]*(-1),
 				ballY,
 				gameStateMessage.b[1]
 			);
 		}
 
-		// Update other player paddle positions (skip own paddle for responsiveness)
+		// Update all paddle positions from network
 		if (this.pong3DInstance && this.pong3DInstance.paddles) {
+			if (shouldLogDetails) {
+				console.log(
+					'Client pong3DInstance.paddles:',
+					this.pong3DInstance.paddles
+				);
+			}
 			gameStateMessage.pd.forEach((paddlePos, index) => {
-				// Skip our own paddle if using local prediction
-				if (index !== this.thisPlayerId - 1) {
-					const paddle = this.pong3DInstance.paddles[index];
-					if (paddle) {
-						const paddleY = paddle.position.y; // Preserve Y from GLB
-						paddle.position.set(
-							paddlePos[0], // X from network
-							paddleY, // Y preserved
-							paddlePos[1] // Z from network
+				const paddle = this.pong3DInstance.paddles[index];
+				if (shouldLogDetails) {
+					console.log(
+						`Client paddle ${index}:`,
+						paddle ? 'EXISTS' : 'NULL',
+						paddlePos
+					);
+				}
+				if (paddle) {
+					const oldPos = paddle.position.clone();
+					const paddleY = paddle.position.y; // Preserve Y from GLB
+					const newPosition = new BABYLON.Vector3(
+						paddlePos[0], // X from network
+						paddleY, // Y preserved
+						paddlePos[1] // Z from network
+					);
+
+					// Update mesh position only (client is viewer, no physics needed)
+					paddle.position.copyFrom(newPosition);
+					if (shouldLogDetails) {
+						console.log(
+							`Client updated paddle ${index} from [${oldPos.x.toFixed(3)}, ${oldPos.z.toFixed(3)}] to [${paddlePos[0].toFixed(3)}, ${paddlePos[1].toFixed(3)}]`
+						);
+					}
+
+					if (GameConfig.isDebugLoggingEnabled()) {
+						console.log(
+							`🎮 Client updated paddle ${index + 1} position: [${paddlePos[0]}, ${paddlePos[1]}]`
 						);
 					}
 				}
 			});
+		} else {
+			if (shouldLogDetails) {
+				console.log(
+					'Client pong3DInstance or paddles is null:',
+					this.pong3DInstance
+				);
+			}
 		}
 	}
 
@@ -154,7 +276,9 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	setBallVelocity(_velocity: BABYLON.Vector3): void {
 		// Client doesn't run physics - velocity is controlled by master
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(`🎮 Client ignoring setBallVelocity - physics controlled by master`);
+			console.log(
+				`🎮 Client ignoring setBallVelocity - physics controlled by master`
+			);
 		}
 	}
 }

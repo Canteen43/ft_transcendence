@@ -6,6 +6,9 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
+import { MESSAGE_GAME_STATE, MESSAGE_MOVE } from '../../../shared/constants';
+import type { Message } from '../../../shared/schemas/message';
+import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
@@ -318,8 +321,10 @@ export class Pong3D {
 	}
 
 	private setupEventListeners(): void {
-		// Initialize input handler - it will manage keyboard and canvas events
-		this.inputHandler = new Pong3DInput(this.canvas);
+		// Only initialize input handler in local/master modes - client sends input via WebSocket
+		if (this.gameMode !== 'client') {
+			this.inputHandler = new Pong3DInput(this.canvas);
+		}
 
 		// Store resize handler reference for proper cleanup
 		this.resizeHandler = () => this.engine.resize();
@@ -400,7 +405,8 @@ export class Pong3D {
 				this.thisPlayer,
 				input => {
 					this.sendInputToMaster(input);
-				}
+				},
+				this
 			);
 		}
 
@@ -494,7 +500,7 @@ export class Pong3D {
 			// Reduced logging for lights setup
 			// this.conditionalLog(`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`);
 
-			scene.lights.forEach((light, index) => {
+			scene.lights.forEach(light => {
 				// Reduced light debugging - only log on errors
 				// this.conditionalLog(`Light ${index + 1}:`, {
 				// 	name: light.name,
@@ -628,8 +634,12 @@ export class Pong3D {
 			// Set custom radius for physics impostor
 			if (this.ballMesh.physicsImpostor.physicsBody) {
 				// For Cannon.js physics body, we need to set the radius directly
-				if (this.ballMesh.physicsImpostor.physicsBody.shapes && this.ballMesh.physicsImpostor.physicsBody.shapes[0]) {
-					this.ballMesh.physicsImpostor.physicsBody.shapes[0].radius = Pong3D.BALL_RADIUS;
+				if (
+					this.ballMesh.physicsImpostor.physicsBody.shapes &&
+					this.ballMesh.physicsImpostor.physicsBody.shapes[0]
+				) {
+					this.ballMesh.physicsImpostor.physicsBody.shapes[0].radius =
+						Pong3D.BALL_RADIUS;
 				}
 			}
 
@@ -915,7 +925,9 @@ export class Pong3D {
 		// Set up collision detection for local, master, AND client modes (all need goal detection)
 		if (
 			this.ballMesh?.physicsImpostor &&
-			(this.gameMode === 'local' || this.gameMode === 'master' || this.gameMode === 'client')
+			(this.gameMode === 'local' ||
+				this.gameMode === 'master' ||
+				this.gameMode === 'client')
 		) {
 			const paddleImpostors = this.paddles
 				.filter(p => p && p.physicsImpostor)
@@ -961,41 +973,49 @@ export class Pong3D {
 				.filter(goal => goal && goal.physicsImpostor)
 				.map(goal => goal!.physicsImpostor!);
 
+			this.conditionalLog(
+				`🎯 Goal collision setup: Found ${this.goalMeshes.length} goal meshes, ${goalImpostors.length} with physics impostors`
+			);
+
+			if (goalImpostors.length > 0 && this.ballMesh?.physicsImpostor) {
 				this.conditionalLog(
-					`🎯 Goal collision setup: Found ${this.goalMeshes.length} goal meshes, ${goalImpostors.length} with physics impostors`
+					`🎯 Registering physics collision detection for ${goalImpostors.length} goals...`
 				);
 
-				if (goalImpostors.length > 0 && this.ballMesh?.physicsImpostor) {
-					this.conditionalLog(`🎯 Registering physics collision detection for ${goalImpostors.length} goals...`);
+				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
+					goalImpostors,
+					(main, collided) => {
+						this.conditionalLog(
+							`🎯 RAW PHYSICS COLLISION: main=${main}, collided=${collided}`
+						);
 
-					this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
-						goalImpostors,
-						(main, collided) => {
-							this.conditionalLog(`🎯 RAW PHYSICS COLLISION: main=${main}, collided=${collided}`);
-
-					// Find which goal was hit
-					const goalIndex = this.goalMeshes.findIndex(
-						goal => goal && goal.physicsImpostor === collided
-					);
-					this.conditionalLog(
-						`🎯 Physics goal collision detected! Goal index: ${goalIndex}, Collided impostor: ${collided}`
-					);
-					if (goalIndex !== -1) {
-						this.conditionalLog(`🎯 Calling handleGoalCollision for goal ${goalIndex}`);
-						this.handleGoalCollision(goalIndex);
-					} else {
-						this.conditionalLog(`❌ Could not find goal index for collided impostor`);
-					}
+						// Find which goal was hit
+						const goalIndex = this.goalMeshes.findIndex(
+							goal => goal && goal.physicsImpostor === collided
+						);
+						this.conditionalLog(
+							`🎯 Physics goal collision detected! Goal index: ${goalIndex}, Collided impostor: ${collided}`
+						);
+						if (goalIndex !== -1) {
+							this.conditionalLog(
+								`🎯 Calling handleGoalCollision for goal ${goalIndex}`
+							);
+							this.handleGoalCollision(goalIndex);
+						} else {
+							this.conditionalLog(
+								`❌ Could not find goal index for collided impostor`
+							);
 						}
-					);
-					this.conditionalLog(
-						`✅ Successfully set up ball-goal collision detection for ${goalImpostors.length} goals`
-					);
-				} else {
-					this.conditionalLog(
-						`❌ No goal physics impostors found! Goals may not be set up correctly.`
-					);
-				}
+					}
+				);
+				this.conditionalLog(
+					`✅ Successfully set up ball-goal collision detection for ${goalImpostors.length} goals`
+				);
+			} else {
+				this.conditionalLog(
+					`❌ No goal physics impostors found! Goals may not be set up correctly.`
+				);
+			}
 
 			// Set up manual goal detection as fallback
 			this.setupManualGoalDetection();
@@ -1459,7 +1479,10 @@ export class Pong3D {
 			);
 			// === 2D REFLECTION LOGIC ===
 			// Check angle of perfect reflection from normal
-			const reflectionDot = BABYLON.Vector3.Dot(perfectReflection, paddleNormal);
+			const reflectionDot = BABYLON.Vector3.Dot(
+				perfectReflection,
+				paddleNormal
+			);
 			const reflectionAngle = Math.acos(Math.abs(reflectionDot));
 
 			this.conditionalLog(
@@ -1486,14 +1509,22 @@ export class Pong3D {
 				// Rotate perfect reflection toward normal by the excess angle
 				const excessAngle = reflectionAngle - this.ANGULAR_RETURN_LIMIT;
 				const rotationAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis for X-Z plane
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(rotationAxis, excessAngle);
-				finalDirection = BABYLON.Vector3.TransformCoordinates(perfectReflection, rotationMatrix).normalize();
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(
+					rotationAxis,
+					excessAngle
+				);
+				finalDirection = BABYLON.Vector3.TransformCoordinates(
+					perfectReflection,
+					rotationMatrix
+				).normalize();
 
 				// Ensure Y=0 for 2D movement
 				finalDirection.y = 0;
 				finalDirection = finalDirection.normalize();
 
-				const clampedAngle = Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal)));
+				const clampedAngle = Math.acos(
+					Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))
+				);
 				this.conditionalLog(
 					`🔒 Clamped result: angle=${((clampedAngle * 180) / Math.PI).toFixed(1)}°, direction=(${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
 				);
@@ -1520,7 +1551,9 @@ export class Pong3D {
 
 		// Re-normalize after zeroing Y component to maintain correct angle
 		if (newVelocity.length() > 0) {
-			newVelocity.normalize().scaleInPlace(this.ballEffects.getCurrentBallSpeed());
+			newVelocity
+				.normalize()
+				.scaleInPlace(this.ballEffects.getCurrentBallSpeed());
 		}
 
 		this.conditionalLog(
@@ -1701,7 +1734,9 @@ export class Pong3D {
 		const goalPlayer = goalIndex;
 
 		this.conditionalLog(`Last player to hit ball: ${scoringPlayer}`);
-		this.conditionalLog(`Second last player to hit ball: ${this.secondLastPlayerToHitBall}`);
+		this.conditionalLog(
+			`Second last player to hit ball: ${this.secondLastPlayerToHitBall}`
+		);
 		this.conditionalLog(`Goal player (conceding): ${goalPlayer}`);
 		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
@@ -1906,7 +1941,9 @@ export class Pong3D {
 
 		if (hitBoundary) {
 			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(`🎯 Ball reached boundary after goal! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`);
+				this.conditionalLog(
+					`🎯 Ball reached boundary after goal! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
+				);
 			}
 
 			// Check if game has ended - if so, stop the game loop instead of respawning
@@ -2268,8 +2305,13 @@ export class Pong3D {
 			return;
 		}
 
-		console.log(`🎯 GOAL DEBUG: Found ${foundGoals.length} goal meshes for ${this.playerCount} players`);
-		console.log(`🎯 GOAL DEBUG: Goal names:`, foundGoals.map(g => g?.name));
+		console.log(
+			`🎯 GOAL DEBUG: Found ${foundGoals.length} goal meshes for ${this.playerCount} players`
+		);
+		console.log(
+			`🎯 GOAL DEBUG: Goal names:`,
+			foundGoals.map(g => g?.name)
+		);
 
 		if (foundGoals.length < this.playerCount) {
 			console.warn(
@@ -2368,8 +2410,11 @@ export class Pong3D {
 		if (this.guiTexture) return;
 
 		this.engine.runRenderLoop(() => {
+			// Only update paddles in local/master modes - client receives paddle positions from network
+			if (this.gameMode !== 'client') {
+				this.updatePaddles();
+			}
 			this.updateBounds();
-			this.updatePaddles();
 			this.checkManualGoalCollisions();
 
 			this.scene.render();
@@ -2409,8 +2454,11 @@ export class Pong3D {
 
 		// Keep a simple render loop that updates the scene
 		this.engine.runRenderLoop(() => {
+			// Only update paddles in local/master modes - client receives paddle positions from network
+			if (this.gameMode !== 'client') {
+				this.updatePaddles();
+			}
 			this.updateBounds();
-			this.updatePaddles();
 			this.checkManualGoalCollisions();
 			this.scene.render();
 			this.maybeLogPaddles();
@@ -2664,8 +2712,12 @@ export class Pong3D {
 	}
 
 	private updateBounds(): void {
-		if (this.boundsXMin === null || this.boundsXMax === null ||
-			this.boundsZMin === null || this.boundsZMax === null) {
+		if (
+			this.boundsXMin === null ||
+			this.boundsXMax === null ||
+			this.boundsZMin === null ||
+			this.boundsZMax === null
+		) {
 			try {
 				const allMeshes = this.scene.meshes;
 				const info = this.computeSceneBoundingInfo(allMeshes);
@@ -2997,7 +3049,10 @@ export class Pong3D {
 			const physicsEngine = this.scene.getPhysicsEngine();
 			if (physicsEngine) {
 				physicsEngine.setTimeStep(this.PHYSICS_TIME_STEP);
-				this.conditionalLog('Physics time step updated to:', this.PHYSICS_TIME_STEP);
+				this.conditionalLog(
+					'Physics time step updated to:',
+					this.PHYSICS_TIME_STEP
+				);
 			}
 		}
 	}
@@ -3057,7 +3112,23 @@ export class Pong3D {
 				// 4-player mode: Players 3-4 move on Y-axis
 				this.gameState.paddlePositionsY[index] = clampedPosition;
 				if (this.paddles[index]) {
-					this.paddles[index]!.position.z = clampedPosition;
+					// Update physics impostor position (mesh will follow automatically)
+					if (
+						this.paddles[index]!.physicsImpostor &&
+						this.paddles[index]!.physicsImpostor.physicsBody
+					) {
+						this.paddles[
+							index
+						]!.physicsImpostor.physicsBody.position.set(
+							this.paddles[index]!.position.x,
+							this.paddles[index]!.position.y,
+							clampedPosition
+						);
+						// Mesh position will be updated by physics engine
+					} else {
+						// Fallback: update mesh directly if no physics impostor
+						this.paddles[index]!.position.z = clampedPosition;
+					}
 				}
 			} else if (this.playerCount === 3) {
 				// 3-player mode: Position represents movement along rotated axis
@@ -3072,16 +3143,48 @@ export class Pong3D {
 				this.gameState.paddlePositionsY[index] = clampedPosition * sin;
 
 				if (this.paddles[index]) {
-					this.paddles[index]!.position.x =
-						this.gameState.paddlePositionsX[index];
-					this.paddles[index]!.position.z =
-						this.gameState.paddlePositionsY[index];
+					// Update physics impostor position (mesh will follow automatically)
+					if (
+						this.paddles[index]!.physicsImpostor &&
+						this.paddles[index]!.physicsImpostor.physicsBody
+					) {
+						this.paddles[
+							index
+						]!.physicsImpostor.physicsBody.position.set(
+							this.gameState.paddlePositionsX[index],
+							this.paddles[index]!.position.y,
+							this.gameState.paddlePositionsY[index]
+						);
+						// Mesh position will be updated by physics engine
+					} else {
+						// Fallback: update mesh directly if no physics impostor
+						this.paddles[index]!.position.x =
+							this.gameState.paddlePositionsX[index];
+						this.paddles[index]!.position.z =
+							this.gameState.paddlePositionsY[index];
+					}
 				}
 			} else {
 				// 2-player mode: X-axis movement only
 				this.gameState.paddlePositionsX[index] = clampedPosition;
 				if (this.paddles[index]) {
-					this.paddles[index]!.position.x = clampedPosition;
+					// Update physics impostor position (mesh will follow automatically)
+					if (
+						this.paddles[index]!.physicsImpostor &&
+						this.paddles[index]!.physicsImpostor.physicsBody
+					) {
+						this.paddles[
+							index
+						]!.physicsImpostor.physicsBody.position.set(
+							clampedPosition,
+							this.paddles[index]!.position.y,
+							this.paddles[index]!.position.z
+						);
+						// Mesh position will be updated by physics engine
+					} else {
+						// Fallback: update mesh directly if no physics impostor
+						this.paddles[index]!.position.x = clampedPosition;
+					}
 				}
 			}
 		}
@@ -3641,13 +3744,26 @@ export class Pong3D {
 	private sendGameStateToClients(gameState: any): void {
 		// Reduced logging - only log structure occasionally, not every call
 		// this.conditionalLog('📡 Master sending game state to clients:', gameState);
-		// TODO: Send via WebSocket using team's message format
-		// const message = {
-		// 	t: 'g', // MESSAGE_GAME_STATE
-		// 	d: JSON.stringify(gameState),
-		// };
-		// Only log the WebSocket message structure occasionally for debugging
-		// this.conditionalLog('📡 WebSocket message (GAME_STATE):', message);
+
+		try {
+			// Send via WebSocket using team's message format
+			const payloadString = JSON.stringify(gameState);
+			const message: Message = {
+				t: MESSAGE_GAME_STATE,
+				d: payloadString,
+			} as unknown as Message;
+			webSocket.send(message);
+
+			// Only log the WebSocket message structure occasionally for debugging
+			// this.conditionalLog('📡 WebSocket message (GAME_STATE):', message);
+		} catch (err) {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.warn(
+					'Failed to send gamestate to clients over websocket',
+					err
+				);
+			}
+		}
 	}
 
 	/**
@@ -3656,13 +3772,31 @@ export class Pong3D {
 	private sendInputToMaster(input: { k: number }): void {
 		// Reduced logging for input - only log occasionally
 		// this.conditionalLog(`📡 Player ${this.thisPlayer} sending input to master:`, input);
-		// TODO: Send via WebSocket using team's message format
-		// const message = {
-		// 	t: 'm', // MESSAGE_MOVE
-		// 	d: JSON.stringify(input),
-		// };
-		// Only log the WebSocket message structure occasionally for debugging
-		// this.conditionalLog('📡 WebSocket message (MOVE):', message);
+
+		try {
+			// Send via WebSocket using team's message format
+			// Format expected by gameListener: { playerId: number, input: { k: number } }
+			const moveData = {
+				playerId: this.thisPlayer,
+				input: input,
+			};
+			const payloadString = JSON.stringify(moveData);
+			const message: Message = {
+				t: MESSAGE_MOVE,
+				d: payloadString,
+			} as unknown as Message;
+			webSocket.send(message);
+
+			// Only log the WebSocket message structure occasionally for debugging
+			// this.conditionalLog('📡 WebSocket message (MOVE):', message);
+		} catch (err) {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.warn(
+					'Failed to send input to master over websocket',
+					err
+				);
+			}
+		}
 	}
 
 	/**
