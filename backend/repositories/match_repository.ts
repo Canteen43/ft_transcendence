@@ -219,7 +219,10 @@ export default class MatchRepository {
 					})
 				);
 				if (!tournament)
-					throw new TournamentNotFoundError(tournament_id);
+					throw new TournamentNotFoundError(
+						'tournament id',
+						tournament_id
+					);
 			}
 		});
 	}

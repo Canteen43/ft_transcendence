@@ -37,6 +37,10 @@ export const UpdateTournamentSchema = TournamentSchema.pick({
 
 export const JoinTournamentSchema = z.object({
 	size: z.number().int(),
+	alias: z
+		.string()
+		.min(3, 'Alias must be at least 3 characters')
+		.max(20, 'Alias must be at most 20 characters'),
 });
 
 export const TournamentQueueSchema = z.object({

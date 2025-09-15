@@ -3,6 +3,7 @@ import {
 	EMPTY_UUID,
 	ERROR_PLAYER_NOT_FOUND,
 	ERROR_USER_CONNECTION_NOT_FOUND,
+	MATCH_FINISH_MESSAGE,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
 	MESSAGE_GAME_STATE,
@@ -19,6 +20,7 @@ import {
 	MatchNotReadyError,
 	ParticipantNotFoundError,
 	ProtocolError,
+	TournamentNotFoundError,
 } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import {
@@ -166,12 +168,18 @@ export class GameProtocol {
 			userId
 		);
 		this.sendMatchMessage(message, match.players);
+		if (matchFinished) {
+			this.sendTournamentMessage(
+				MATCH_FINISH_MESSAGE,
+				this.getTournamentParticipants(match.matchId)
+			);
+		}
 	}
 
 	private handleQuit(connectionId: UUID, message: Message) {
 		logger.debug('websocket: quit message received.');
-		const match = this.getMatchObject(connectionId);
-		this.endMatch(match);
+		const match = this.matches.get(connectionId);
+		if (match) this.endMatch(match);
 	}
 
 	private handlePause(connectionId: UUID, message: Message) {
@@ -290,6 +298,16 @@ export class GameProtocol {
 		const match = MatchRepository.getMatch(matchId);
 		if (!match) throw new MatchNotFoundError(matchId);
 		return match;
+	}
+
+	private getTournamentParticipants(matchId: UUID): Participant[] {
+		const dbMatch = this.getDbMatch(matchId);
+		const participants = ParticipantRepository.getTournamentParticipants(
+			dbMatch.tournament_id
+		);
+		if (participants.length == 0)
+			throw new TournamentNotFoundError('match id', matchId);
+		return participants;
 	}
 
 	private updateMatchStatus(matchId: UUID, status: MatchStatus) {
