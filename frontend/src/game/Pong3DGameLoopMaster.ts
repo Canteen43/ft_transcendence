@@ -4,6 +4,7 @@ import type { Message } from '../../../shared/schemas/message';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
+import type { NetworkGameState } from './Pong3DGameLoopBase';
 
 /**
  * Master game loop - IDENTICAL to local mode but adds network transmission
@@ -13,9 +14,10 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	private networkUpdateCallback: (gameState: any) => void;
 	private networkUpdateInterval: NodeJS.Timeout | null = null;
 	private gamestateLogInterval: NodeJS.Timeout | null = null;
-	private readonly NETWORK_UPDATE_RATE = 30; // 30Hz network updates
+	private readonly NETWORK_UPDATE_RATE = 60; // 60Hz network updates
 	private readonly GAMESTATE_LOG_RATE = 1; // 1Hz gamestate logging
 	private pong3DInstance: any; // Reference to get paddle positions
+	private handleRemoteMove: (event: any) => void;
 
 	constructor(
 		scene: BABYLON.Scene,
@@ -26,6 +28,15 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		super(scene);
 		this.networkUpdateCallback = networkUpdateCallback;
 		this.pong3DInstance = pong3DInstance;
+
+		// Set up listener for remote player input
+		this.handleRemoteMove = (event: any) => {
+			const moveData = event.detail;
+			if (moveData.playerId && moveData.input) {
+				this.processClientInput(moveData.playerId, moveData.input);
+			}
+		};
+		document.addEventListener('remoteMove', this.handleRemoteMove);
 	}
 
 	/**
@@ -52,6 +63,9 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		this.stopNetworkUpdates();
 		this.stopGamestateLogging();
 
+		// Remove event listener
+		document.removeEventListener('remoteMove', this.handleRemoteMove);
+
 		// Stop EXACTLY the same as local mode
 		super.stop();
 	}
@@ -60,7 +74,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	 * Convert internal GameState to network format as per design document
 	 * Returns: { "b": [x, z], "pd": [[x1,z1], [x2,z2], ...] }
 	 */
-	private convertToNetworkFormat(): any {
+	private convertToNetworkFormat(): NetworkGameState {
 		const gameState = this.getGameState();
 
 		// Helper function for network transmission - clean precision
@@ -79,26 +93,38 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		const paddlePositions: [number, number][] = [];
 
 		if (this.pong3DInstance && this.pong3DInstance.paddles) {
+			console.log(
+				'Master pong3DInstance.paddles:',
+				this.pong3DInstance.paddles
+			);
 			for (let i = 0; i < this.pong3DInstance.playerCount; i++) {
 				const paddle = this.pong3DInstance.paddles[i];
+				console.log(`Master paddle ${i}:`, paddle ? 'EXISTS' : 'NULL');
 				if (paddle) {
-					paddlePositions.push([
+					const pos: [number, number] = [
 						networkNumber(paddle.position.x),
 						networkNumber(paddle.position.z),
-					]);
+					];
+					paddlePositions.push(pos);
+					console.log(
+						`Master paddle ${i} position: [${paddle.position.x.toFixed(3)}, ${paddle.position.z.toFixed(3)}] -> network [${pos[0]}, ${pos[1]}]`
+					);
 				}
 			}
+		} else {
+			console.log(
+				'Master pong3DInstance or paddles is null:',
+				this.pong3DInstance
+			);
 		}
+
+		console.log('📡 Master sending pd:', paddlePositions);
 
 		return {
 			b: ballPosition,
 			pd: paddlePositions,
 		};
 	}
-
-	/**
-	 * Start sending network updates at 30Hz
-	 */
 	private startNetworkUpdates(): void {
 		if (this.networkUpdateInterval) {
 			clearInterval(this.networkUpdateInterval);
@@ -191,8 +217,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	 * Process input from remote client
 	 */
 	processClientInput(playerId: number, input: { k: number }): void {
-		// TODO: Apply client input to appropriate paddle
-		// For now, just validate the input
+		// Validate input
 		if (input.k < 0 || input.k > 2) {
 			if (GameConfig.isDebugLoggingEnabled()) {
 				console.warn(
@@ -208,7 +233,42 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 			);
 		}
 
-		// TODO: Apply input to paddle based on game mode (2P, 3P, 4P)
-		// This will be implemented when paddle control is added
+		// Apply input to appropriate paddle by setting network key state
+		// This allows the input to be processed by updatePaddles() like local input
+		if (this.pong3DInstance && this.pong3DInstance.inputHandler) {
+			const paddleIndex = playerId - 1; // Convert player ID (1-4) to array index (0-3)
+
+			// Convert input command to key state
+			let leftPressed = false;
+			let rightPressed = false;
+
+			switch (input.k) {
+				case 0: // Stop - no movement
+					leftPressed = false;
+					rightPressed = false;
+					break;
+				case 1: // Move left/up
+					leftPressed = true;
+					rightPressed = false;
+					break;
+				case 2: // Move right/down
+					leftPressed = false;
+					rightPressed = true;
+					break;
+			}
+
+			// Set the network key state - this will be processed by updatePaddles()
+			this.pong3DInstance.inputHandler.setNetworkKeyState(
+				paddleIndex,
+				leftPressed,
+				rightPressed
+			);
+
+			if (GameConfig.isDebugLoggingEnabled()) {
+				console.log(
+					`🎮 Player ${playerId} network input: left=${leftPressed}, right=${rightPressed}`
+				);
+			}
+		}
 	}
 }

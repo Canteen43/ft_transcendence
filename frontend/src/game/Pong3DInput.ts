@@ -1,12 +1,12 @@
 /**
  * Pong3DInput - Handles keyboard input for up to 4 players
- * 
+ *
  * Key Bindings:
  * - Player 1: Arrow Right/Up (left) Arrow Left/Down (right)
- * - Player 2: A/W (left) D/S (right)  
+ * - Player 2: A/W (left) D/S (right)
  * - Player 3: J/I (left) L/K (right)
  * - Player 4: 4/8 (left) 6/5 (right)
- * 
+ *
  * Additional Controls:
  * - Double-click canvas: Toggle fullscreen
  */
@@ -62,15 +62,20 @@ export class Pong3DInput {
 		const k = e.key;
 		// Player 1: Arrow keys (left/right swapped)
 		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = true;
-		if (k === 'ArrowLeft' || k === 'ArrowDown') this.keyState.p1Right = true;
+		if (k === 'ArrowLeft' || k === 'ArrowDown')
+			this.keyState.p1Right = true;
 
 		// Player 2: WASD
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p2Left = true;
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p2Right = true;
+		if (k === 'a' || k === 'A' || k === 'w' || k === 'W')
+			this.keyState.p2Left = true;
+		if (k === 'd' || k === 'D' || k === 's' || k === 'S')
+			this.keyState.p2Right = true;
 
 		// Player 3: IJKL keys
-		if (k === 'j' || k === 'J' || k === 'i' || k === 'I') this.keyState.p3Left = true;
-		if (k === 'l' || k === 'L' || k === 'k' || k === 'K') this.keyState.p3Right = true;
+		if (k === 'j' || k === 'J' || k === 'i' || k === 'I')
+			this.keyState.p3Left = true;
+		if (k === 'l' || k === 'L' || k === 'k' || k === 'K')
+			this.keyState.p3Right = true;
 
 		// Player 4: Number pad 8456
 		if (k === '4' || k === '8') this.keyState.p4Left = true;
@@ -81,15 +86,20 @@ export class Pong3DInput {
 		const k = e.key;
 		// Player 1: Arrow keys (left/right swapped)
 		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = false;
-		if (k === 'ArrowLeft' || k === 'ArrowDown') this.keyState.p1Right = false;
+		if (k === 'ArrowLeft' || k === 'ArrowDown')
+			this.keyState.p1Right = false;
 
 		// Player 2: WASD
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W') this.keyState.p2Left = false;
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S') this.keyState.p2Right = false;
+		if (k === 'a' || k === 'A' || k === 'w' || k === 'W')
+			this.keyState.p2Left = false;
+		if (k === 'd' || k === 'D' || k === 's' || k === 'S')
+			this.keyState.p2Right = false;
 
 		// Player 3: IJKL keys
-		if (k === 'j' || k === 'J' || k === 'i' || k === 'I') this.keyState.p3Left = false;
-		if (k === 'l' || k === 'L' || k === 'k' || k === 'K') this.keyState.p3Right = false;
+		if (k === 'j' || k === 'J' || k === 'i' || k === 'I')
+			this.keyState.p3Left = false;
+		if (k === 'l' || k === 'L' || k === 'k' || k === 'K')
+			this.keyState.p3Right = false;
 
 		// Player 4: Number pad 8456
 		if (k === '4' || k === '8') this.keyState.p4Left = false;
@@ -98,7 +108,9 @@ export class Pong3DInput {
 
 	private toggleFullscreen(): void {
 		if (!document.fullscreenElement) {
-			this.canvas.requestFullscreen().catch(err => console.warn('Fullscreen failed:', err));
+			this.canvas
+				.requestFullscreen()
+				.catch(err => console.warn('Fullscreen failed:', err));
 		} else {
 			document.exitFullscreen();
 		}
@@ -106,6 +118,33 @@ export class Pong3DInput {
 
 	public getKeyState(): KeyState {
 		return { ...this.keyState };
+	}
+
+	public setNetworkKeyState(
+		playerIndex: number,
+		left: boolean,
+		right: boolean
+	): void {
+		// Set network-controlled key state for a specific player
+		// This allows remote clients to control paddles through the same input system
+		switch (playerIndex) {
+			case 0: // Player 1
+				this.keyState.p1Left = left;
+				this.keyState.p1Right = right;
+				break;
+			case 1: // Player 2
+				this.keyState.p2Left = left;
+				this.keyState.p2Right = right;
+				break;
+			case 2: // Player 3
+				this.keyState.p3Left = left;
+				this.keyState.p3Right = right;
+				break;
+			case 3: // Player 4
+				this.keyState.p4Left = left;
+				this.keyState.p4Right = right;
+				break;
+		}
 	}
 
 	public cleanup(): void {
