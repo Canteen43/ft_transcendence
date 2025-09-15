@@ -213,6 +213,7 @@ LEARNED:
 TODO:
 
 Solo:
+- find out how to play on two computers when testing
 
 Group:
 - Talk about Module ideas
