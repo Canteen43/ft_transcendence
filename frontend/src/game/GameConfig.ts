@@ -87,12 +87,12 @@ export class GameConfig {
 	 */
 	static getPlayerName(playerIndex: 1 | 2 | 3 | 4): string {
 		const keys = [
-			'player1Name',
-			'player2Name',
-			'player3Name',
-			'player4Name',
+			'alias1',
+			'alias2',
+			'alias3',
+			'alias4',
 		];
-		const defaultNames = ['cat', 'dog', 'monkey', 'goat'];
+		const defaultNames = ['player 1', 'player 2', 'player 3', 'player 4'];
 		const stored = sessionStorage.getItem(keys[playerIndex - 1]);
 		return stored || defaultNames[playerIndex - 1];
 	}
@@ -102,10 +102,10 @@ export class GameConfig {
 	 */
 	static setPlayerName(playerIndex: 1 | 2 | 3 | 4, name: string): void {
 		const keys = [
-			'player1Name',
-			'player2Name',
-			'player3Name',
-			'player4Name',
+			'alias1',
+			'alias2',
+			'alias3',
+			'alias4',
 		];
 		sessionStorage.setItem(keys[playerIndex - 1], name);
 		console.log(`🎮 Player ${playerIndex} name set to: ${name}`);
