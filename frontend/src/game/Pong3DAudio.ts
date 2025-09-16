@@ -109,7 +109,9 @@ export class Pong3DAudio {
 			pitch: pitch,
 			volume: options.volume,
 		});
-	} /** Play a sound effect with pitch modification */
+	}
+
+	/** Play a sound effect with pitch modification */
 	public async playSoundEffectWithPitch(
 		name: string,
 		pitchCents: number

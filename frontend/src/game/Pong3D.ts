@@ -12,6 +12,7 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
@@ -1832,16 +1833,38 @@ export class Pong3D {
 			// Play victory sound effect
 			this.audioSystem.playSoundEffect('victory');
 
+			
+
 			// Show winner UI
 			if (this.uiHandles) {
 				this.uiHandles.showWinner(scoringPlayer, playerName);
 			}
 
-			// Mark game as ended - ball will continue and exit naturally
+			// Mark game as ended - ball will freeze immediately on winning goal
 			this.gameEnded = true;
+
+			// Stop the ball immediately when game ends (freeze it in place)
+			if (this.ballMesh && this.ballMesh.physicsImpostor) {
+				this.ballMesh.physicsImpostor.setLinearVelocity(
+					BABYLON.Vector3.Zero()
+				);
+				this.ballMesh.physicsImpostor.setAngularVelocity(
+					BABYLON.Vector3.Zero()
+				);
+				this.conditionalLog(`🏆 Ball frozen in place - game ended`);
+			}
 
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
+
+
+			// Wait 7 seconds for victory music to finish, then set game status
+			setTimeout(() => {
+				state.gameOngoing = false;
+				this.conditionalLog(
+					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
+				);
+			}, 7000);
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
