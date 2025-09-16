@@ -5,17 +5,20 @@ import { regListener } from './regListener';
 // import { AliasModal } from '../modals/AliasModal';
 
 export class WebSocketWrapper {
-	public ws?: WebSocket;
+	public ws: WebSocket | null = null;
 	private address: string;
 
 	constructor(address: string) {
 		this.address = address;
+		if (sessionStorage.getItem('token')) {
+			this.open();
+		}
 	}
 
 	open(): void {
 		let token = sessionStorage.getItem('token');
 		if (!token) {
-			console.error('No token found');
+			console.error("Couldn't open WS. No token found");
 			return;
 		}
 		const wsUrl = `${this.address}?token=${token}`;
@@ -23,9 +26,12 @@ export class WebSocketWrapper {
 
 		this.ws.addEventListener('message', event => this.routeListener(event));
 
-		// TODO: add the logic for reconnection
 		this.ws.addEventListener('close', () => {
-			console.info('WebSocket connection closed');
+			console.info('WebSocket connection closed.');
+			if (sessionStorage.getItem('token')) {
+				console.info('Reconnecting WebSocket...');
+				this.open();
+			}
 		});
 
 		this.ws.addEventListener('open', () => {
@@ -53,8 +59,7 @@ export class WebSocketWrapper {
 	close(): void {
 		if (this.ws) {
 			this.ws.close();
-			console.log('Closing WebSocket connection');
-			this.ws = undefined;
+			this.ws = null;
 		}
 	}
 

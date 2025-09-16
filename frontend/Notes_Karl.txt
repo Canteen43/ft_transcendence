@@ -258,7 +258,7 @@ Frontend TODO:
 + Add WS:outgoing:Q to GameScreen.destroy()
 + Add warning to Button:Home when in game
 + insert Modal:Alias before Modal:Waiting
-- add reloading for websocket after f5
++ add reloading for websocket after f5
 - add Attribute:Alias to Api-Call:Join-Tournament
 - Add quitting logic to Modal:Ready?
 - Add Button:Leave-Tournament to Screen:Tournament (Helene?)

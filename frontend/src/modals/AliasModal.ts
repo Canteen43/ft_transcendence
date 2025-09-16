@@ -56,7 +56,7 @@ export class AliasModal extends Modal {
 		if (state.gameMode === 'local') {
 			location.hash = '#game';
 		} else {
-			this.joinGame(state.tournamentSize);
+			this.joinGame(state.targetSize);
 			new WaitingModal(this.parent);
 		}
 		this.destroy();
@@ -76,11 +76,12 @@ export class AliasModal extends Modal {
 		return input;
 	}
 
-	private async joinGame(playerCount: number) {
+	// TODO: function to seperate file to separate concerns?
+	private async joinGame(targetSize: number) {
 		// API call to join a tournament
 		// send 2 or 4, receive the array of players in that tournament
 
-		// const joinData = { size: playerCount }; // overkill - we are sending a nuber
+		// const joinData = { size: targetSize }; // overkill - we are sending a nuber
 		// const parseInput = JoinTournamentSchema.safeParse(joinData);
 		// if (!parseInput.success) {
 		// 	alert('Invalid tournament format');
@@ -94,7 +95,7 @@ export class AliasModal extends Modal {
 			'POST',
 			`/tournaments/join`,
 			TournamentQueueSchema,
-			{ size: playerCount }
+			{ size: targetSize }
 		);
 		if (!playerQueue) {
 			console.error('No response from tournament creation');
@@ -104,12 +105,12 @@ export class AliasModal extends Modal {
 		// checking if the game / tournament is full
 		console.log('Tournament (game) actual players:', playerQueue.queue);
 		const currentPlayers = playerQueue.queue.length;
-		const isTournamentReady = currentPlayers === playerCount;
+		const isTournamentReady = currentPlayers === targetSize;
 
 		// set up some game spec
 		// TODO : move to when we receive the full tournament infos
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
-		sessionStorage.setItem('playerCount', playerCount.toString());
+		sessionStorage.setItem('targetSize', targetSize.toString());
 		sessionStorage.setItem('gameMode', 'remote');
 
 		// PLAYERS FULL: last player sending the start tournament request
