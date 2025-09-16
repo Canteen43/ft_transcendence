@@ -43,6 +43,7 @@ export function handleClose(event: CloseEvent) {
 	const socket = event.target as GameSocket;
 	connections.delete(socket.socketId);
 	TournamentService.leaveQueue(socket.userId);
+	GameProtocol.getInstance().handleClose(socket.socketId);
 }
 
 export function handleMessage(event: MessageEvent) {

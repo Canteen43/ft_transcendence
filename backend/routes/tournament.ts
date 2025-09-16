@@ -66,6 +66,7 @@ async function joinTournament(
 async function leaveQueue(request: FastifyRequest) {
 	const authRequest = getAuthData(request);
 	TournamentService.leaveQueue(authRequest.user.userId);
+	//TournamentService.quitCurrentTournament(authRequest.user.userId);
 }
 
 export default async function tournamentRoutes(

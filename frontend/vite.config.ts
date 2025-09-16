@@ -8,9 +8,11 @@ export default defineConfig({
 	// 		external: ['sanitize-html']
 	// 	}
 	// },
-	// server: {
-	// 	fs: {
-	// 		allow: ['..'], // allow serving files from the parent directory
-	// 	},
-	// },
+	server: {
+		host: '0.0.0.0',
+		allowedHosts: true,
+		// fs: {
+		// 	allow: ['..'], // allow serving files from the parent directory
+		// },
+	},
 });

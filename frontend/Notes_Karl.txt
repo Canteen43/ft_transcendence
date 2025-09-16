@@ -211,7 +211,54 @@ LEARNED:
 			-> blacklist defeats original purpose
 
 TODO:
-- Understand how particles are attached to Frontend
+
+Solo:
+- Make todo list for frontend flow
+
+Group:
+
+Rufus:
+
+Helene:
+- Talk about frontend todo
+- Talk about particle ideas
+	- adding more colors
+	- highlight instead of repulse (bubble mode)
+	- add repulse to push to keep nice click effect
+
+Wouter:
+
+Problem:
+- We can't attach quitting logic to home screen only.
+- It will not trigger when navigating back from game screen to tournament screen
+- We can't also attach it to tournament screen because then the tournament would quit itself.
+
+Solution:
+Game
+- Set up beforeunload that destroys screen
+- if WS:incoming:S (Start game signal)
+	state var gameOngoing = true;
+- GameScreen.destroy():
+	- if (gameOngoing)
+		Send "Q"
+- This will catch all forms of navigating away.
+- Button:Home with warning when in game
+Tournament
+- if WS:incoming:ST
+	session var tournamentOngoing = true;
+- new Button:Leave-Tournament
+	- session var tournamentOngoing = false;
+	- possibly: add warning depending on player having lost a game
+
+Frontend TODO:
+- insert Modal:Alias before Modal:Waiting
+- add Attribute:Alias to Api-Call:Join-Tournament
+- add Api-Call:Leave-Tournament to quitting Modal:Waiting
+- Set up Eventhook:beforeunload
+- Create StateVar:gameOngoing
+- Add WS:outgoing:Q and gameOngoing=false to GameScreen.destroy()
+- Add warning to Button:Home when in game
+- Add Button:Leave-Tournament to Screen:Tournament
 
 
 Commands to test WebSocket:
@@ -228,3 +275,25 @@ Starting Tournament:
 webSocket.simulateMessage({ t: "st" });
 		- Use case: Fourth player joined tournament wait list
 		- Action: Go to tournament screen
+
+2FA-Ideas:
+- Frontend
+	- add "enable/disable 2FA" Button when logged in
+		- enable
+			- API call
+			- retrieves secret
+			- shows secret as QR
+		- disable
+			- API call
+			- deletes secret from database
+	- when login is triggered
+		- check return. if 2fa, prompt user for code
+- Backend
+	- on enable API call:
+		- generate secret
+		- store secret
+		- return secret (use otpauth:// format)
+	- on login API call:
+		- check if user has 2FA
+		- if so, ask for code
+		- if code ok, grant login
