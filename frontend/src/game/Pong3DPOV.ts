@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
+import { conditionalLog } from './Logger';
 
 /**
  * Camera configuration for different player POVs in Pong3D
@@ -9,7 +10,7 @@ import { GameConfig } from './GameConfig';
     camera.radius = cameraPos.radius;
 
     if (GameConfig.isDebugLoggingEnabled()) {
-        console.log(`Camera POV switched to Player ${playerPOV}: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}, radius=${cameraPos.radius.toFixed(2)}, target=(${cameraPos.target.x.toFixed(2)}, ${cameraPos.target.y.toFixed(2)}, ${cameraPos.target.z.toFixed(2)})`);
+        conditionalLog(`Camera POV switched to Player ${playerPOV}: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}, radius=${cameraPos.radius.toFixed(2)}, target=(${cameraPos.target.x.toFixed(2)}, ${cameraPos.target.y.toFixed(2)}, ${cameraPos.target.z.toFixed(2)})`);
     }handles all camera positioning logic for 2-4 player modes
  */
 
@@ -172,7 +173,7 @@ export function applyCameraPosition(
 	camera.beta = cameraPos.beta;
 	camera.radius = cameraPos.radius;
 
-	console.log(
+	conditionalLog(
 		`Camera POV switched to Player ${playerPOV}: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}, radius=${cameraPos.radius.toFixed(2)}, target=(${cameraPos.target.x.toFixed(2)}, ${cameraPos.target.y.toFixed(2)}, ${cameraPos.target.z.toFixed(2)})`
 	);
 }
