@@ -8,7 +8,6 @@ import { FullTournamentSchema } from '../../../shared/schemas/tournament';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 
-
 // TODO: add logic for the Quit event?
 export async function regListener(event: MessageEvent): Promise<void> {
 	try {
@@ -50,7 +49,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			// send DOM event toGameScreen => move to the game screen
 			case MESSAGE_START:
 				console.info('Received start message:', msg);
-				document.dispatchEvent(new Event('toGameScreen'));
+				state.gameOngoing = true;
 				location.hash = '#game';
 				break;
 

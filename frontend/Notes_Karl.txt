@@ -254,7 +254,7 @@ Frontend TODO:
 - insert Modal:Alias before Modal:Waiting
 - add Attribute:Alias to Api-Call:Join-Tournament
 - add Api-Call:Leave-Tournament to quitting Modal:Waiting
-- Set up Eventhook:beforeunload
++ Set up Eventhook:beforeunload
 - Create StateVar:gameOngoing
 - Add WS:outgoing:Q and gameOngoing=false to GameScreen.destroy()
 - Add warning to Button:Home when in game
