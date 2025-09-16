@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+	FullTournamentSchema,
+	JoinTournamentSchema,
 	CreateTournamentApiSchema,
 	TournamentQueueSchema,
 	TournamentSchema,
@@ -79,23 +81,24 @@ export class AliasModal extends Modal {
 	// TODO: function to seperate file to separate concerns?
 	private async joinGame(targetSize: number) {
 		// API call to join a tournament
-		// send 2 or 4, receive the array of players in that tournament
+		// send 2 or 4 + alias, receive the array of players in that tournament
 
-		// const joinData = { size: targetSize }; // overkill - we are sending a nuber
-		// const parseInput = JoinTournamentSchema.safeParse(joinData);
-		// if (!parseInput.success) {
-		// 	alert('Invalid tournament format');
-		// 	console.error(
-		// 		'Request validation failed:',
-		// 		z.treeifyError(parseInput.error)
-		// 	);
-		// 	return;
-		// }
+		const joinData = { size: targetSize, alias: sessionStorage.getItem('alias1') }; // overkill - we are sending a nuber
+		const parseInput = JoinTournamentSchema.safeParse(joinData);
+		if (!parseInput.success) {
+			alert('Invalid tournament format');
+			console.error(
+				'Request validation failed:',
+				z.treeifyError(parseInput.error)
+			);
+			return;
+		}
+		console.debug('Sending to /tounaments/join:', joinData);
 		const playerQueue = await apiCall(
 			'POST',
 			`/tournaments/join`,
 			TournamentQueueSchema,
-			{ size: targetSize }
+			joinData
 		);
 		if (!playerQueue) {
 			console.error('No response from tournament creation');
@@ -122,7 +125,7 @@ export class AliasModal extends Modal {
 				participants: playerQueue.queue,
 			};
 			const parseInput2 = CreateTournamentApiSchema.safeParse(body);
-			console.log('Sending to /tournaments/join:', body);
+			console.log('Sending to /tournaments:', body);
 			if (!parseInput2.success) {
 				alert('Invalid tournament creation data');
 				console.error(
