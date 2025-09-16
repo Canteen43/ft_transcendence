@@ -1,6 +1,6 @@
 import { MESSAGE_ACCEPT } from '../../../shared/constants';
-import { Button } from '../components/Button';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { Button } from './Button';
 
 export class ReadyButton extends Button {
 	constructor(parent: HTMLElement) {

@@ -1,8 +1,8 @@
 import { MESSAGE_QUIT } from '../../../shared/constants';
-import { Screen } from '../components/Screen';
 import { Pong3D } from '../game/Pong3D';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { Screen } from './Screen';
 
 export class GameScreen extends Screen {
 	private pong3DInstance: Pong3D;

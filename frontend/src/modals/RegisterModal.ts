@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
 import { LoginModal } from './LoginModal';
+import { Modal } from './Modal.ts';
 
 export class RegisterModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -25,11 +25,7 @@ export class RegisterModal extends Modal {
 			'p-4'
 		);
 
-		this.UsernameField = this.myCreateInput(
-			'text',
-			'username',
-			'username'
-		);
+		this.UsernameField = this.myCreateInput('text', 'username', 'username');
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
@@ -40,11 +36,7 @@ export class RegisterModal extends Modal {
 			'last_name',
 			'last name'
 		);
-		this.EmailField = this.myCreateInput(
-			'email',
-			'email',
-			'email'
-		);
+		this.EmailField = this.myCreateInput('email', 'email', 'email');
 		this.PasswordField = this.myCreateInput(
 			'password',
 			'password',
@@ -110,7 +102,6 @@ export class RegisterModal extends Modal {
 		console.log('Registration successful for: ', regData.login);
 		new LoginModal(parent);
 		this.destroy();
-
 	}
 
 	private myCreateInput(

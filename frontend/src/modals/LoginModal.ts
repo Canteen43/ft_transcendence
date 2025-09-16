@@ -3,14 +3,13 @@ import {
 	AuthRequestSchema,
 	AuthResponseSchema,
 } from '../../../shared/schemas/user.ts';
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { ForgottenModal } from './ForgottenModal';
+import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
-import { state } from '../utils/State';
-
 
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -90,7 +89,8 @@ export class LoginModal extends Modal {
 
 	private createLinks(parent: HTMLElement) {
 		const LinkContainer = document.createElement('div');
-		LinkContainer.className = 'flex flex-col items-center justify-center gap-1.5';
+		LinkContainer.className =
+			'flex flex-col items-center justify-center gap-1.5';
 
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
