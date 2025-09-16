@@ -13,7 +13,7 @@ export class ReadyButton extends Button {
 			console.error('No match ID found in session storage');
 			return;
 		}
-		console.debug({matchID});
+		console.debug({ matchID });
 		webSocket.send({ t: MESSAGE_ACCEPT, d: matchID });
 		this.showLoader();
 	}
@@ -23,27 +23,24 @@ export class ReadyButton extends Button {
 		this.element.innerHTML = '';
 		this.element.disabled = true;
 
-		// Keep button visible but indicate disabled state
+		// Remove button styling - make it transparent
 		this.element.classList.remove('hover:bg-whatever'); // Remove hover states
 		this.element.classList.add('cursor-not-allowed');
-
-		// Make sure button background is visible
-		this.element.style.backgroundColor = 'var(--color1)'; // or whatever your button color is
-		this.element.style.color = 'white';
-		this.element.style.border = '1px solid var(--color1)';
+		this.element.style.backgroundColor = 'transparent';
+		this.element.style.border = 'none';
 
 		// Add loader and text
 		const container = document.createElement('div');
 		container.className = 'flex items-center justify-center gap-2';
 
-		const loader = document.createElement('l-jelly');
-		loader.setAttribute('size', '24'); // Smaller to fit in button
+		const loader = document.createElement('l-hourglass');
+		loader.setAttribute('size', '40'); 
 		loader.setAttribute('speed', '1.5');
-		loader.setAttribute('color', 'white'); // White to show on button background
+		loader.setAttribute('color', 'var(--color3)');
 
 		const message = document.createElement('span');
 		message.textContent = '';
-		message.style.color = 'white';
+		message.style.color = 'var(--color1)'; // Or whatever text color you prefer
 
 		container.appendChild(loader);
 		container.appendChild(message);

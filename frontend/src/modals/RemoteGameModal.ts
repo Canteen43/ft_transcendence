@@ -31,6 +31,10 @@ export class RemoteGameModal extends Modal {
 				'duration-300'
 			);
 		});
+
+		// modal box background
+		this.box.style.backgroundColor = 'var(--color3)';
+		this.box.classList.remove('shadow-lg');
 	}
 
 	private logicRemote(tournamentSize: number) {
