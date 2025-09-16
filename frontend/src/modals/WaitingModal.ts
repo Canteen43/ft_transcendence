@@ -2,6 +2,7 @@ import { jelly, newtonsCradle } from 'ldrs';
 import { Modal } from '../components/Modal';
 import { apiCall } from '../utils/apiCall';
 import { AliasModal } from './AliasModal';
+import { ReadyModal } from './ReadyModal';
 
 newtonsCradle.register();
 jelly.register();
@@ -45,7 +46,7 @@ export class WaitingModal extends Modal {
 	}
 
 	private async nextStep() {
-		new AliasModal(this.parent, 1);
+		new ReadyModal(this.parent);
 		this.destroy();
 	}
 }

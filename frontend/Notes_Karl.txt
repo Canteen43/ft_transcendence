@@ -251,17 +251,17 @@ Tournament
 	- possibly: add warning depending on player having lost a game
 
 Frontend TODO:
-- insert Modal:Alias before Modal:Waiting
-- add Attribute:Alias to Api-Call:Join-Tournament
 + add Api-Call:Leave-Tournament to quitting Modal:Waiting
 + Set up Eventhook:beforeunload
 + Create StateVar:gameOngoing
 + Add gameOngoing=false to end of game (Rufus)
 + Add WS:outgoing:Q to GameScreen.destroy()
 + Add warning to Button:Home when in game
-- Add Button:Leave-Tournament to Screen:Tournament (Helene?)
++ insert Modal:Alias before Modal:Waiting
+- add reloading for websocket after f5
+- add Attribute:Alias to Api-Call:Join-Tournament
 - Add quitting logic to Modal:Ready?
-
+- Add Button:Leave-Tournament to Screen:Tournament (Helene?)
 
 Commands to test WebSocket:
 Game Ready:

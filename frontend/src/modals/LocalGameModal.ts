@@ -1,5 +1,6 @@
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
 
 export class LocalGameModal extends Modal {
@@ -46,6 +47,8 @@ export class LocalGameModal extends Modal {
 		sessionStorage.setItem('playerCount', n.toString());
 		sessionStorage.setItem('thisPlayer', '1');
 		sessionStorage.setItem('gameMode', 'local');
+		state.gameMode = 'local';
+		state.playerCount = n;
 		new AliasModal(this.parent, n);
 		this.destroy();
 	}
