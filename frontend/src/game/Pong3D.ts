@@ -1833,8 +1833,6 @@ export class Pong3D {
 			// Play victory sound effect
 			this.audioSystem.playSoundEffect('victory');
 
-			
-
 			// Show winner UI
 			if (this.uiHandles) {
 				this.uiHandles.showWinner(scoringPlayer, playerName);
@@ -1857,14 +1855,19 @@ export class Pong3D {
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
-
 			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
 				state.gameOngoing = false;
 				this.conditionalLog(
 					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
 				);
+				if (sessionStorage.getItem('tournament') === '1') {
+				location.hash = '#tournament';
+			}
 			}, 7000);
+
+			// if we are in a tournament redirect to tournament page
+			
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
@@ -3972,6 +3975,9 @@ export class Pong3D {
 				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
 			);
 
+			// Play victory sound effect
+			this.audioSystem.playSoundEffect('victory');
+
 			// Show winner UI
 			if (this.uiHandles) {
 				this.uiHandles.showWinner(scoringPlayerIndex, playerName);
@@ -3984,6 +3990,19 @@ export class Pong3D {
 			if (this.gameLoop) {
 				this.gameLoop.stop();
 			}
+
+			// Wait 7 seconds for victory music to finish, then set game status and redirect if tournament
+			setTimeout(() => {
+				state.gameOngoing = false;
+				this.conditionalLog(
+					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
+				);
+
+				// if we are in a tournament redirect to tournament page
+				if (sessionStorage.getItem('tournament') === '1') {
+					location.hash = '#tournament';
+				}
+			}, 7000);
 		}
 	}
 
