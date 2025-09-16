@@ -17,12 +17,20 @@ export class RemoteGameModal extends Modal {
 
 		const btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
 		const btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
-		btn2plyr.element.style.width = '400px'; // button width
-		btn2plyr.element.style.height = '150px'; // button height
-		btnTourn.element.style.width = '400px'; // button width
-		btnTourn.element.style.height = '150px'; // button height
-		this.box.style.backgroundColor = 'var(--color3)';
-		this.box.classList.remove('shadow-lg');
+
+		// fixed button size
+		[btn2plyr, btnTourn].forEach(btn => {
+			btn.element.classList.add(
+				'w-[300px]',
+				'h-[120px]',
+				'flex',
+				'items-center',
+				'justify-center',
+				'hover:bg-[var(--color1bis)]',
+				'transition-colors',
+				'duration-300'
+			);
+		});
 	}
 
 	private logicRemote(tournamentSize: number) {
