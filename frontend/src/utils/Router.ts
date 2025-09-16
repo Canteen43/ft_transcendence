@@ -7,6 +7,14 @@ export class Router {
 	private currentScreen: Screen | null = null;
 
 	constructor() {
+		// This will ensure destroy functions are called
+		window.addEventListener('beforeunload', () => {
+			if (this.currentScreen) {
+				this.currentScreen.destroy();
+			}
+		});
+
+		// This is the proper routing logic
 		location.hash = location.hash || '#home'; // Default to #home if no hash
 		window.addEventListener('hashchange', () => this.handleRoute());
 		this.handleRoute(); // Initial route won't trigger hashchange so call it manually

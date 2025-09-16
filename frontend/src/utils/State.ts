@@ -14,14 +14,30 @@ class State {
 		round: 0,
 		is_two_player_game: false,
 		matches: {
-			match0: { id: '', player1_id: '', player2_id: '' },
-			match1: { id: '', player1_id: '', player2_id: '' },
-			match2: { id: '', player1_id: '', player2_id: '' },
+			match0: {
+				id: '',
+				player1_id: '',
+				player2_id: '',
+				participant_1_user_id: '',
+				participant_2_user_id: '',
+			},
+			match1: {
+				id: '',
+				player1_id: '',
+				player2_id: '',
+				participant_1_user_id: '',
+				participant_2_user_id: '',
+			},
+			match2: {
+				id: '',
+				player1_id: '',
+				player2_id: '',
+				participant_1_user_id: '',
+				participant_2_user_id: '',
+			},
 		},
 		current_match_id: '',
 	};
-
-
 
 	///////////////////////////////////////////////////
 	// Store tournament data
@@ -39,6 +55,8 @@ class State {
 			id: matches[0].id,
 			player1_id: matches[0].participant_1_id,
 			player2_id: matches[0].participant_2_id,
+			participant_1_user_id: matches[0].participant_1_user_id,
+			participant_2_user_id: matches[0].participant_2_user_id,
 		};
 
 		if (matches.length > 1) {
@@ -46,11 +64,15 @@ class State {
 				id: matches[1].id,
 				player1_id: matches[1].participant_1_id,
 				player2_id: matches[1].participant_2_id,
+				participant_1_user_id: matches[1].participant_1_user_id,
+				participant_2_user_id: matches[1].participant_2_user_id,
 			};
 			this.tournament.matches.match2 = {
 				id: matches[2].id,
 				player1_id: matches[2].participant_1_id,
 				player2_id: matches[2].participant_2_id,
+				participant_1_user_id: matches[2].participant_1_user_id,
+				participant_2_user_id: matches[2].participant_2_user_id,
 			};
 		}
 
@@ -68,16 +90,15 @@ class State {
 	storeCurrentMatch(): void {
 		console.log('DEBUG: Entering storeCurrentMatch function');
 
-
 		sessionStorage.setItem('tournamentID', this.tournament.id);
 
 		sessionStorage.setItem(
 			'player1',
-			this.tournament.matches.match0.player1_id
+			this.tournament.matches.match0.participant_1_user_id
 		);
 		sessionStorage.setItem(
 			'player2',
-			this.tournament.matches.match0.player2_id
+			this.tournament.matches.match0.participant_2_user_id
 		);
 
 		// Case 1: 2 players game - always match0
@@ -143,34 +164,37 @@ class State {
 	///////////////////////////////////////////////////
 	// Helper print
 	printTournament(): void {
-	console.log('=== TOURNAMENT STATUS ===');
-	console.log(`Tournament ID: ${this.tournament.id || 'Not set'}`);
-	console.log(`Tournament Ongoing: ${this.tournamentOngoing}`);
-	console.log(`Current Round: ${this.tournament.round}`);
-	console.log(`Two Player Game: ${this.tournament.is_two_player_game}`);
-	console.log(`Current Match ID: ${this.tournament.current_match_id || 'None'}`);
-	
-	console.log('\n--- MATCHES ---');
-	Object.entries(this.tournament.matches).forEach(([matchKey, match]) => {
-		const isCurrentMatch = match.id === this.tournament.current_match_id;
-		const status = isCurrentMatch ? ' [CURRENT]' : '';
-		
-		console.log(`${matchKey.toUpperCase()}${status}:`);
-		console.log(`  Match ID: ${match.id || 'Not set'}`);
-		console.log(`  Player 1: ${match.player1_id || 'TBD'}`);
-		console.log(`  Player 2: ${match.player2_id || 'TBD'}`);
-		console.log('');
-	});
-	
-	console.log('--- GAME STATUS ---');
-	console.log(`Game Ongoing: ${this.gameOngoing}`);
-	console.log(`Current Player ID: ${this.playerId || 'Not set'}`);
-	
-	console.log('\n--- DEBUG INFO ---');
-	console.log(`Normal Game Ready: ${this.normalGameReady}`);
-	console.log(`Started Button Pressed: ${this.startedButtonPressed}`);
-	console.log('========================\n');
-}
+		console.log('=== TOURNAMENT STATUS ===');
+		console.log(`Tournament ID: ${this.tournament.id || 'Not set'}`);
+		console.log(`Tournament Ongoing: ${this.tournamentOngoing}`);
+		console.log(`Current Round: ${this.tournament.round}`);
+		console.log(`Two Player Game: ${this.tournament.is_two_player_game}`);
+		console.log(
+			`Current Match ID: ${this.tournament.current_match_id || 'None'}`
+		);
+
+		console.log('\n--- MATCHES ---');
+		Object.entries(this.tournament.matches).forEach(([matchKey, match]) => {
+			const isCurrentMatch =
+				match.id === this.tournament.current_match_id;
+			const status = isCurrentMatch ? ' [CURRENT]' : '';
+
+			console.log(`${matchKey.toUpperCase()}${status}:`);
+			console.log(`  Match ID: ${match.id || 'Not set'}`);
+			console.log(`  Player 1: ${match.player1_id || 'TBD'}`);
+			console.log(`  Player 2: ${match.player2_id || 'TBD'}`);
+			console.log('');
+		});
+
+		console.log('--- GAME STATUS ---');
+		console.log(`Game Ongoing: ${this.gameOngoing}`);
+		console.log(`Current Player ID: ${this.playerId || 'Not set'}`);
+
+		console.log('\n--- DEBUG INFO ---');
+		console.log(`Normal Game Ready: ${this.normalGameReady}`);
+		console.log(`Started Button Pressed: ${this.startedButtonPressed}`);
+		console.log('========================\n');
+	}
 
 	///////////////////////////////////////////////////
 	// Clear all data
@@ -186,9 +210,27 @@ class State {
 			round: 0,
 			is_two_player_game: false,
 			matches: {
-				match0: { id: '', player1_id: '', player2_id: '' },
-				match1: { id: '', player1_id: '', player2_id: '' },
-				match2: { id: '', player1_id: '', player2_id: '' },
+				match0: {
+					id: '',
+					player1_id: '',
+					player2_id: '',
+					participant_1_user_id: '',
+					participant_2_user_id: '',
+				},
+				match1: {
+					id: '',
+					player1_id: '',
+					player2_id: '',
+					participant_1_user_id: '',
+					participant_2_user_id: '',
+				},
+				match2: {
+					id: '',
+					player1_id: '',
+					player2_id: '',
+					participant_1_user_id: '',
+					participant_2_user_id: '',
+				},
 			},
 			current_match_id: '',
 		};
