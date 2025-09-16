@@ -52,7 +52,7 @@ export default class TournamentService {
 
 	static getFullTournament(id: UUID): FullTournament | null {
 		const tournament = TournamentRepository.getTournament(id);
-		if (!tournament) throw new TournamentNotFoundError(id);
+		if (!tournament) return null;
 
 		const participants =
 			ParticipantRepository.getTournamentParticipants(id);
@@ -80,7 +80,7 @@ export default class TournamentService {
 
 		const createTournament = CreateTournamentSchema.parse({
 			size: users.length,
-			settings: settings.id,
+			settings_id: settings.id,
 			status: TournamentStatus.InProgress,
 		});
 
