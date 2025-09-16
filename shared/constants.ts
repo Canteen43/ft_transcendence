@@ -64,8 +64,10 @@ export const MESSAGE_QUIT = 'q';
 export const MESSAGE_MOVE = 'm';
 export const MESSAGE_GAME_STATE = 'g';
 export const MESSAGE_POINT = 'x';
+export const MESSAGE_FINISH = 'f';
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
+export const MATCH_FINISH_MESSAGE: Message = { t: MESSAGE_FINISH };
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 

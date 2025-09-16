@@ -6,8 +6,8 @@ export class SettingsNotFoundError extends Error {
 }
 
 export class TournamentNotFoundError extends Error {
-	constructor(userId: string) {
-		super(`Tournament not found: ${userId}`);
+	constructor(reference: string, userId: string) {
+		super(`Tournament not found for ${reference}: ${userId}`);
 		this.name = 'TournamentNotFoundError';
 	}
 }

@@ -59,8 +59,13 @@ async function joinTournament(
 	request: FastifyRequest<{ Body: JoinTournament }>
 ): Promise<TournamentQueue> {
 	const authRequest = getAuthData(request);
-	TournamentService.joinQueue(request.body.size, authRequest.user.userId);
-	return TournamentService.getQueue(request.body.size);
+	TournamentService.joinQueue(
+		request.body.size,
+		authRequest.user.userId,
+		request.body.alias
+	);
+	const queue = TournamentService.getQueue(request.body.size);
+	return { queue: Array.from(queue).map(user => user.userId) };
 }
 
 async function leaveQueue(request: FastifyRequest) {
