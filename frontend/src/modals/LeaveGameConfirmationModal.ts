@@ -1,5 +1,5 @@
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button';
+import { Modal } from './Modal';
 
 export class LeaveGameConfirmationModal extends Modal {
 	constructor(parent: HTMLElement) {

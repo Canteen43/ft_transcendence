@@ -1,6 +1,6 @@
-import { Button } from '../components/Button';
 import { LoginModal } from '../modals/LoginModal';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { Button } from './Button';
 
 export function isLoggedIn(): boolean {
 	const token = sessionStorage.getItem('token');

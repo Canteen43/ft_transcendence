@@ -1,5 +1,5 @@
 import { ReadyButton } from '../buttons/ReadyButton';
-import { Modal } from '../components/Modal';
+import { Modal } from './Modal';
 
 export class ReadyModal extends Modal {
 	constructor(parent: HTMLElement) {

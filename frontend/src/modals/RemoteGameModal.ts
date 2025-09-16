@@ -1,7 +1,7 @@
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button';
 import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
+import { Modal } from './Modal';
 
 export class RemoteGameModal extends Modal {
 	constructor(parent: HTMLElement) {

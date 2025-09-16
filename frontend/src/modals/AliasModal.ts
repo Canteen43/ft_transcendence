@@ -4,11 +4,11 @@ import {
 	TournamentQueueSchema,
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button';
 import { ReadyModal } from '../modals/ReadyModal';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
+import { Modal } from './Modal';
 import { WaitingModal } from './WaitingModal';
 
 export class AliasModal extends Modal {
