@@ -259,6 +259,7 @@ Frontend TODO:
 + Add warning to Button:Home when in game
 + insert Modal:Alias before Modal:Waiting
 + add reloading for websocket after f5
+- debug: make sure tournament is actually created
 - add Attribute:Alias to Api-Call:Join-Tournament
 - Add quitting logic to Modal:Ready?
 - Add Button:Leave-Tournament to Screen:Tournament (Helene?)
