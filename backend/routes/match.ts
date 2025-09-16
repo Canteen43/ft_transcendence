@@ -33,12 +33,5 @@ export default async function matchRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	fastify.get(
-		'/:id',
-		routeConfig({
-			params: z.object({ id: zUUID }),
-			response: MatchSchemaWithUserId,
-		}),
-		getMatch
-	);
+	fastify.get('/:id', getMatch);
 }

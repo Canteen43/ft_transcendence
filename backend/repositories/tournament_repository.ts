@@ -3,7 +3,10 @@ import { TournamentStatus } from '../../shared/enums.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import { CreateMatch } from '../../shared/schemas/match.js';
-import { CreateParticipant, Participant } from '../../shared/schemas/participant.js';
+import {
+	CreateParticipant,
+	Participant,
+} from '../../shared/schemas/participant.js';
 import {
 	CreateTournament,
 	Tournament,
@@ -17,11 +20,11 @@ import ParticipantRepository from './participant_repository.js';
 
 export default class TournamentRepository {
 	static table = 'tournament';
-	static fields = 'id, size, current_round, settings, status';
+	static fields = 'id, size, current_round, settings_id, status';
 
 	static getTournament(id: UUID): Tournament | null {
 		const result = db.queryOne<Tournament>(
-			`SELECT id, size, settings, status
+			`SELECT id, size, settings_id, status
 		 FROM ${this.table}
 		 WHERE id = ?`,
 			[id]
@@ -35,7 +38,7 @@ export default class TournamentRepository {
 		const result = db.queryOne<Tournament>(
 			`SELECT ${this.table}.id,
 				${this.table}.size,
-				${this.table}.settings,
+				${this.table}.settings_id,
 				${this.table}.status
 			FROM ${this.table}
 			INNER JOIN ${ParticipantRepository.table}
@@ -51,9 +54,9 @@ export default class TournamentRepository {
 
 	static createTournament(src: CreateTournament): Tournament {
 		const result = db.queryOne<Tournament>(
-			`INSERT INTO ${this.table} (size, settings, status)
+			`INSERT INTO ${this.table} (size, settings_id, status)
 			VALUES (?, ?, ?)
-			RETURNING id, size, settings, status`,
+			RETURNING id, size, settings_id, status`,
 			[src.size, src.settings, src.status]
 		);
 
@@ -65,7 +68,7 @@ export default class TournamentRepository {
 		tournament: CreateTournament,
 		participants: CreateParticipant[],
 		matches: CreateMatch[]
-	): { tournament: Tournament, participants: Participant[] } {
+	): { tournament: Tournament; participants: Participant[] } {
 		return db.executeInTransaction(() => {
 			logger.info('Creating tournament');
 			const tournamentResult = this.createTournament(tournament);
@@ -83,7 +86,10 @@ export default class TournamentRepository {
 			);
 			logger.debug(`Created ${matchesResult.length} matches`);
 
-			return { tournament: tournamentResult, participants: participantsResult };
+			return {
+				tournament: tournamentResult,
+				participants: participantsResult,
+			};
 		});
 	}
 
@@ -95,7 +101,7 @@ export default class TournamentRepository {
 			`UPDATE ${this.table}
 		 SET status = ?
 		 WHERE id = ?
-		 RETURNING id, size, settings, status`,
+		 RETURNING id, size, settings_id, status`,
 			[upd.status, tournament_id]
 		);
 

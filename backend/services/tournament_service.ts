@@ -52,7 +52,7 @@ export default class TournamentService {
 
 	static getFullTournament(id: UUID): FullTournament | null {
 		const tournament = TournamentRepository.getTournament(id);
-		if (!tournament) throw new TournamentNotFoundError(id);
+		if (!tournament) return null;
 
 		const participants =
 			ParticipantRepository.getTournamentParticipants(id);
