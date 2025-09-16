@@ -36,6 +36,7 @@ export class RemoteGameModal extends Modal {
 	private logicRemote(tournamentSize: number) {
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
+		sessionStorage.setItem('playerCount', '2');
 		this.destroy();
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
 		new AliasModal(this.parent, 1);

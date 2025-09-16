@@ -66,7 +66,7 @@ export class LoginModal extends Modal {
 
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
-		sessionStorage.setItem('id', id);
+		sessionStorage.setItem('userID', id);
 		state.playerId = id;
 		webSocket.open();
 		document.dispatchEvent(new CustomEvent('login-success'));

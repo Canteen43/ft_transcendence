@@ -121,7 +121,7 @@ export class AliasModal extends Modal {
 		// Validation overkill? it has been validated as a return schema already
 		if (isTournamentReady) {
 			const body = {
-				creator: sessionStorage.getItem('id') || '',
+				creator: sessionStorage.getItem('userID') || '',
 				participants: playerQueue.queue,
 			};
 			const parseInput2 = CreateTournamentApiSchema.safeParse(body);

@@ -1,12 +1,12 @@
 
 export function setMatchData(tournData: any): void {
 
-	const userID = sessionStorage.getItem('id');
+	const userID = sessionStorage.getItem('userID');
 	const isTourn = (tournData.matches.length > 1);
 
-	console.debug('DEBUG: userID =', userID);
-	console.debug('DEBUG: isTourn =', isTourn);
-	console.debug('DEBUG: tournData =', tournData);
+	console.debug('userID =', userID);
+	console.debug('isTourn =', isTourn);
+	console.debug('tournData =', tournData);
 
 	// Helper function to get alias from user_id
 	const getAliasFromUserId = (userId: string): string | null => {
@@ -14,8 +14,8 @@ export function setMatchData(tournData: any): void {
 		return participant ? participant.alias : null;
 	};
 
+	// Two player game
 	if (!isTourn) {
-		// Two player game
 		const player1 = tournData.matches[0].participant_1_user_id;
 		const player2 = tournData.matches[0].participant_2_user_id;
 		const player1Alias = getAliasFromUserId(player1);
@@ -32,8 +32,9 @@ export function setMatchData(tournData: any): void {
 		
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
 	}
+
 	// Tournament first round
-	else if (!tournData.matches[2].participant_1_user_id) {
+	else {//if (!tournData.matches[2].participant_1_user_id) {
 		const tournPlyr1 = tournData.matches[0].participant_1_user_id;
 		const tournPlyr2 = tournData.matches[0].participant_2_user_id;
 		const tournPlyr3 = tournData.matches[1].participant_1_user_id;
@@ -50,6 +51,7 @@ export function setMatchData(tournData: any): void {
 		sessionStorage.setItem('alias2', tournPlyr2Alias || tournPlyr2);
 		sessionStorage.setItem('alias3', tournPlyr3Alias || tournPlyr3);
 		sessionStorage.setItem('alias4', tournPlyr4Alias || tournPlyr4);
+		
 
 		let matchID, thisPlayer, player1, player2, player1Alias, player2Alias;
 
@@ -82,38 +84,38 @@ export function setMatchData(tournData: any): void {
 		sessionStorage.setItem('player1Alias', player1Alias || player1);
 		sessionStorage.setItem('player2Alias', player2Alias || player2);
 	}
-	else {
-		// Tournament finale
-		const tournPlyr5 = tournData.matches[2].participant_1_user_id;
-		const tournPlyr6 = tournData.matches[2].participant_2_user_id;
+	// else {
+	// 	// Tournament finale
+	// 	const tournPlyr5 = tournData.matches[2].participant_1_user_id;
+	// 	const tournPlyr6 = tournData.matches[2].participant_2_user_id;
 
-		if (userID == tournPlyr5 || userID == tournPlyr6) {
-			const matchID = tournData.matches[2].id; 
-			const thisPlayer = (userID == tournPlyr5) ? '1' : '2';
-			const player1 = tournData.matches[2].participant_1_user_id;
-			const player2 = tournData.matches[2].participant_2_user_id;
-			const player1Alias = getAliasFromUserId(player1);
-			const player2Alias = getAliasFromUserId(player2);
+	// 	if (userID == tournPlyr5 || userID == tournPlyr6) {
+	// 		const matchID = tournData.matches[2].id; 
+	// 		const thisPlayer = (userID == tournPlyr5) ? '1' : '2';
+	// 		const player1 = tournData.matches[2].participant_1_user_id;
+	// 		const player2 = tournData.matches[2].participant_2_user_id;
+	// 		const player1Alias = getAliasFromUserId(player1);
+	// 		const player2Alias = getAliasFromUserId(player2);
 
-			sessionStorage.setItem('thisPlayer', thisPlayer);
-			sessionStorage.setItem('matchID', matchID);
-			sessionStorage.setItem('player1', player1);
-			sessionStorage.setItem('player2', player2);
-			sessionStorage.setItem('player1Alias', player1Alias || player1);
-			sessionStorage.setItem('player2Alias', player2Alias || player2);
+	// 		sessionStorage.setItem('thisPlayer', thisPlayer);
+	// 		sessionStorage.setItem('matchID', matchID);
+	// 		sessionStorage.setItem('player1', player1);
+	// 		sessionStorage.setItem('player2', player2);
+	// 		sessionStorage.setItem('player1Alias', player1Alias || player1);
+	// 		sessionStorage.setItem('player2Alias', player2Alias || player2);
 			
-			console.log('DEBUG: Tournament finale - matchID set to:', matchID);
-		} else {
-			console.log('DEBUG: User not in finale match');
-			// User is not in the finale, clear their match data
-			sessionStorage.removeItem('matchID');
-			sessionStorage.removeItem('thisPlayer');
-			sessionStorage.removeItem('player1');
-			sessionStorage.removeItem('player2');
-			sessionStorage.removeItem('player1Alias');
-			sessionStorage.removeItem('player2Alias');
-		}
-	}
+	// 		console.log('DEBUG: Tournament finale - matchID set to:', matchID);
+	// 	} else {
+	// 		console.log('DEBUG: User not in finale match');
+	// 		// User is not in the finale, clear their match data
+	// 		sessionStorage.removeItem('matchID');
+	// 		sessionStorage.removeItem('thisPlayer');
+	// 		sessionStorage.removeItem('player1');
+	// 		sessionStorage.removeItem('player2');
+	// 		sessionStorage.removeItem('player1Alias');
+	// 		sessionStorage.removeItem('player2Alias');
+	// 	}
+	// }
 
 	console.log('DEBUG: Final sessionStorage matchID:', sessionStorage.getItem('matchID'));
 }
