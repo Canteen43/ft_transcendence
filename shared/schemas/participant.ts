@@ -5,6 +5,7 @@ export const ParticipantSchema = z.object({
 	id: zUUID,
 	tournament_id: zUUID,
 	user_id: zUUID,
+	alias: z.string(),
 });
 
 export const CreateParticipantSchema = ParticipantSchema.omit({

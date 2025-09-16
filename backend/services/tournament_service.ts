@@ -16,7 +16,6 @@ import {
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
-	TournamentQueue,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import { randomInt } from '../../shared/utils.js';
@@ -25,34 +24,36 @@ import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
+import { QueuedUser } from '../types/interfaces.js';
 
 export default class TournamentService {
-	private static tournamentQueues: Map<number, Set<UUID>> = new Map();
+	private static tournamentQueues: Map<number, Set<QueuedUser>> = new Map();
 
-	static joinQueue(size: number, userId: UUID) {
+	static joinQueue(size: number, userId: UUID, alias: string) {
 		let queue = this.tournamentQueues.get(size);
 		if (!queue) {
-			queue = new Set<UUID>();
+			queue = new Set<QueuedUser>();
 			this.tournamentQueues.set(size, queue);
 		}
-		if (queue.has(userId)) throw new UserAlreadyQueuedError(userId);
-		queue.add(userId);
+		if (this.findInQueue(queue, userId))
+			throw new UserAlreadyQueuedError(userId);
+		queue.add({ userId, alias });
 	}
 
 	static leaveQueue(userId: UUID) {
 		for (const [size, queue] of this.tournamentQueues) {
-			if (queue.has(userId)) queue.delete(userId);
+			const userToRemove = this.findInQueue(queue, userId);
+			if (userToRemove) queue.delete(userToRemove);
 		}
 	}
 
-	static getQueue(size: number): TournamentQueue {
-		const result = this.tournamentQueues.get(size) || new Set();
-		return { queue: [...result] };
+	static getQueue(size: number): Set<QueuedUser> {
+		return this.tournamentQueues.get(size) || new Set();
 	}
 
 	static getFullTournament(id: UUID): FullTournament | null {
 		const tournament = TournamentRepository.getTournament(id);
-		if (!tournament) return null;
+		if (!tournament) throw new TournamentNotFoundError('user id', id);
 
 		const participants =
 			ParticipantRepository.getTournamentParticipants(id);
@@ -74,7 +75,10 @@ export default class TournamentService {
 	}
 
 	static createTournament(creator: UUID, users: UUID[]): Tournament {
-		this.validateAndRemoveFromQueue(users.length, users);
+		const tournamentUsers = this.validateAndRemoveFromQueue(
+			users.length,
+			users
+		);
 		const settings = SettingsRepository.getSettingsByUser(creator);
 		if (!settings) throw new SettingsNotFoundError('user', creator);
 
@@ -84,7 +88,7 @@ export default class TournamentService {
 			status: TournamentStatus.InProgress,
 		});
 
-		const createParticipants = this.createParticipants(users);
+		const createParticipants = this.createParticipants(tournamentUsers);
 		const createMatches = this.createTournamentMatches(users);
 		const { tournament, participants } =
 			TournamentRepository.createFullTournament(
@@ -103,7 +107,8 @@ export default class TournamentService {
 
 	static getNumberOfRounds(tournament_id: UUID): number {
 		const tournament = TournamentRepository.getTournament(tournament_id);
-		if (!tournament) throw new TournamentNotFoundError(tournament_id);
+		if (!tournament)
+			throw new TournamentNotFoundError('tournament id', tournament_id);
 		return this.numberOfRounds(tournament.size);
 	}
 
@@ -117,20 +122,29 @@ export default class TournamentService {
 	private static validateAndRemoveFromQueue(
 		size: number,
 		users: UUID[]
-	): void {
+	): QueuedUser[] {
 		const queue = this.tournamentQueues.get(size);
 		if (!queue) throw new UserNotQueuedError(users[0]);
 
+		const tournamentUsers = new Array<QueuedUser>();
 		for (const user of users) {
-			if (!queue.has(user)) throw new UserNotQueuedError(user);
+			const toRemove = this.findInQueue(queue, user);
+			if (!toRemove) throw new UserNotQueuedError(user);
+			tournamentUsers.push(toRemove);
 		}
-		for (const user of users) queue.delete(user);
+		for (const user of tournamentUsers) {
+			queue.delete(user);
+		}
+		return tournamentUsers;
 	}
 
-	private static createParticipants(users: UUID[]): CreateParticipant[] {
-		return users.map(p =>
+	private static createParticipants(
+		users: QueuedUser[]
+	): CreateParticipant[] {
+		return users.map(u =>
 			CreateParticipantSchema.parse({
-				user_id: p,
+				user_id: u.userId,
+				alias: u.alias,
 			})
 		);
 	}
@@ -177,5 +191,12 @@ export default class TournamentService {
 			size /= 2;
 		}
 		return result;
+	}
+
+	private static findInQueue(
+		queue: Set<QueuedUser>,
+		userId: UUID
+	): QueuedUser | undefined {
+		return Array.from(queue).find(user => user.userId === userId);
 	}
 }

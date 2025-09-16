@@ -18,6 +18,11 @@ export interface Player {
 	status: PlayerStatus;
 }
 
+export interface QueuedUser {
+	userId: UUID;
+	alias: string;
+}
+
 export interface AuthenticatedRequest<
 	T extends RouteGenericInterface = RouteGenericInterface,
 > extends FastifyRequest<T> {
