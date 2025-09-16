@@ -220,7 +220,7 @@ Group:
 Rufus:
 
 Helene:
-- Talk about what needs to be done
+- Talk about frontend todo
 - Talk about particle ideas
 	- adding more colors
 	- highlight instead of repulse (bubble mode)
@@ -233,31 +233,32 @@ Problem:
 - It will not trigger when navigating back from game screen to tournament screen
 - We can't also attach it to tournament screen because then the tournament would quit itself.
 
-Solution 1:
-- A Button:Cancel-Tournament
-- Button only shows if you have not lost a game
-- Navigation is completely free
-- Pressing it will send "Q" to backend via WS
-
-Solution 2:
-- Leave "Q" attached to home screen and also have it inside the game
-- How does game know that someone navigated away
-
-Solution 3:
-- Beforeunload hook to destroy the screen when closing or navigating away or page reloading
-- "No game running" and "no tournament running" when manually navigating to these options
-- Send "Q" when leaving game unfinished
-- Send "Q" when hitting cancel tournament button
-- Make Home Button
-- Issue 1: check if sending "Q" for unfinished games only is possible
-
-RETHINK SOLUTIONS!
+Solution:
+Game
+- Set up beforeunload that destroys screen
+- if WS:incoming:S (Start game signal)
+	state var gameOngoing = true;
+- GameScreen.destroy():
+	- if (gameOngoing)
+		Send "Q"
+- This will catch all forms of navigating away.
+- Button:Home with warning when in game
+Tournament
+- if WS:incoming:ST
+	session var tournamentOngoing = true;
+- new Button:Leave-Tournament
+	- session var tournamentOngoing = false;
+	- possibly: add warning depending on player having lost a game
 
 Frontend TODO:
 - insert Modal:Alias before Modal:Waiting
-- add alias to Api-Call:Join-Tournament
+- add Attribute:Alias to Api-Call:Join-Tournament
 - add Api-Call:Leave-Tournament to quitting Modal:Waiting
-- add WS:Q to navigating home
+- Set up Eventhook:beforeunload
+- Create StateVar:gameOngoing
+- Add WS:outgoing:Q and gameOngoing=false to GameScreen.destroy()
+- Add warning to Button:Home when in game
+- Add Button:Leave-Tournament to Screen:Tournament
 
 
 Commands to test WebSocket:
