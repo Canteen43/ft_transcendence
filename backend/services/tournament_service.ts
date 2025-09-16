@@ -16,7 +16,6 @@ import {
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
-	TournamentQueue,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import { randomInt } from '../../shared/utils.js';
@@ -145,6 +144,7 @@ export default class TournamentService {
 		return users.map(u =>
 			CreateParticipantSchema.parse({
 				user_id: u.userId,
+				alias: u.alias,
 			})
 		);
 	}

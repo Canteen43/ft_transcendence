@@ -14,7 +14,7 @@ import * as db from '../utils/db.js';
 
 export default class ParticipantRepository {
 	static table = 'tournament_participant';
-	static fields = 'id, tournament_id, user_id';
+	static fields = 'id, tournament_id, user_id, alias';
 
 	// Overloaded function for get participant
 	// Takes a participant_id or
