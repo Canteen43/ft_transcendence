@@ -1,8 +1,8 @@
 import { isLoggedIn } from '../buttons/AuthButton';
-import { Screen } from '../components/Screen';
 import { AliasModal } from '../modals/AliasModal';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
+import { Screen } from './Screen';
 
 export class HomeScreen extends Screen {
 	constructor() {

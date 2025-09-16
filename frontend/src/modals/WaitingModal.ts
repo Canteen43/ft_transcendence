@@ -1,7 +1,7 @@
 import { jelly, newtonsCradle } from 'ldrs';
-import { Modal } from '../components/Modal';
 import { apiCall } from '../utils/apiCall';
 import { AliasModal } from './AliasModal';
+import { Modal } from './Modal';
 import { ReadyModal } from './ReadyModal';
 
 newtonsCradle.register();

@@ -1,5 +1,5 @@
 import { ReadyButton } from '../buttons/ReadyButton';
-import { Screen } from '../components/Screen';
+import { Screen } from './Screen';
 
 export class TournamentScreen extends Screen {
 	constructor() {
@@ -70,10 +70,16 @@ export class TournamentScreen extends Screen {
 			'col-span-1 space-y-8'
 		);
 		leftSide.appendChild(
-			this.createPlayerSlot('player1', sessionStorage.getItem('player1') || 'Player 1')
+			this.createPlayerSlot(
+				'player1',
+				sessionStorage.getItem('player1') || 'Player 1'
+			)
 		);
 		leftSide.appendChild(
-			this.createPlayerSlot('player2', sessionStorage.getItem('player2') || 'Player 2')
+			this.createPlayerSlot(
+				'player2',
+				sessionStorage.getItem('player2') || 'Player 2'
+			)
 		);
 
 		// Left connector
@@ -120,10 +126,16 @@ export class TournamentScreen extends Screen {
 			'col-span-1 space-y-8'
 		);
 		rightSide.appendChild(
-			this.createPlayerSlot('player3', sessionStorage.getItem('player3') || 'Player 3')
+			this.createPlayerSlot(
+				'player3',
+				sessionStorage.getItem('player3') || 'Player 3'
+			)
 		);
 		rightSide.appendChild(
-			this.createPlayerSlot('player4', sessionStorage.getItem('player4') || 'Player 4')
+			this.createPlayerSlot(
+				'player4',
+				sessionStorage.getItem('player4') || 'Player 4'
+			)
 		);
 	}
 
