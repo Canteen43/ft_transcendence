@@ -13,7 +13,7 @@ const API_BASE = `http://localhost:8080`;
 export async function apiCall<T>(
 	method: string,
 	route: string,
-	schema: ZodType<T>,
+	schema?: ZodType<T>,
 	body?: unknown
 ): Promise<T | null> {
 	try {
@@ -32,31 +32,28 @@ export async function apiCall<T>(
 		const res = await fetch(`${API_BASE}${route}`, options);
 
 		if (!res.ok) {
-			alert(` API error: ${res.status} ${res.statusText} (${route})`);
-			console.error(
-				` API error: ${res.status} ${res.statusText} (${route})`
+			console.warn(
+				`API error: ${res.status} ${res.statusText} (${route})`
 			);
 			return null;
 		}
+
+		console.info(`API returned 200-OK for ${route}`);
+		if (!schema) return null;
 
 		const data = await res.json();
 
 		const parsed = schema.safeParse(data);
 		if (!parsed.success) {
-			alert(
-				` Zod validation failed: ${res.status} ${res.statusText} (${route})`
-			);
-			console.error(
-				' Zod validation failed:',
+			console.warn(
+				'Zod validation failed:',
 				z.treeifyError(parsed.error)
 			);
 			return null;
 		}
-
 		return parsed.data;
 	} catch (err) {
-		alert(` Network error for ${route}:`);
-		console.error(` Network error for ${route}:`, err);
+		console.warn(`Network error for ${route}:`, err);
 		return null;
 	}
 }

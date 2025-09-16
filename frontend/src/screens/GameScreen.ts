@@ -1,5 +1,8 @@
+import { MESSAGE_QUIT } from '../../../shared/constants';
 import { Screen } from '../components/Screen';
 import { Pong3D } from '../game/Pong3D';
+import { state } from '../utils/State';
+import { webSocket } from '../utils/WebSocketWrapper';
 
 export class GameScreen extends Screen {
 	private pong3DInstance: Pong3D;
@@ -55,6 +58,11 @@ export class GameScreen extends Screen {
 		if (this.pong3DInstance) {
 			this.pong3DInstance.dispose();
 		}
+		if (state.gameOngoing && state.gameMode === 'remote') {
+			webSocket.send({ t: MESSAGE_QUIT });
+		}
+		state.gameOngoing = false;
+		state.gameMode = null;
 		// Call parent destroy to remove DOM element
 		super.destroy();
 	}

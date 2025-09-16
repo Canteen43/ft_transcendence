@@ -1,5 +1,6 @@
 import { jelly, newtonsCradle } from 'ldrs';
 import { Modal } from '../components/Modal';
+import { apiCall } from '../utils/apiCall';
 import { AliasModal } from './AliasModal';
 
 newtonsCradle.register();
@@ -13,7 +14,13 @@ export class WaitingModal extends Modal {
 		document.addEventListener('gameReady', () => this.nextStep());
 	}
 
-	destroy() {
+	public quit() {
+		apiCall('POST', `/tournaments/leave`);
+		document.removeEventListener('gameReady', () => this.nextStep());
+		super.quit();
+	}
+
+	public destroy() {
 		document.removeEventListener('gameReady', () => this.nextStep());
 		super.destroy();
 	}
@@ -21,7 +28,6 @@ export class WaitingModal extends Modal {
 	private async printMessageLoader() {
 		const container = document.createElement('div');
 		container.className = 'flex flex-col items-center';
-
 
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s)...';
@@ -40,5 +46,6 @@ export class WaitingModal extends Modal {
 
 	private async nextStep() {
 		new AliasModal(this.parent, 1);
+		this.destroy();
 	}
 }

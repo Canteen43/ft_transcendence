@@ -1,3 +1,6 @@
+import { th } from 'zod/v4/locales';
+import { LeaveGameConfirmationModal } from '../modals/LeaveGameConfirmationModal';
+
 export class HomeButton {
 	private button: HTMLButtonElement;
 	private img: HTMLImageElement;
@@ -33,7 +36,9 @@ export class HomeButton {
 	}
 
 	private handleHomeClick = () => {
-		location.hash = '#home';
+		if (location.hash === '#game') {
+			new LeaveGameConfirmationModal(this.button.parentElement!);
+		} else location.hash = '#home';
 	};
 
 	destroy() {
@@ -41,4 +46,3 @@ export class HomeButton {
 		this.button.remove();
 	}
 }
-

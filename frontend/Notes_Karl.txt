@@ -253,12 +253,14 @@ Tournament
 Frontend TODO:
 - insert Modal:Alias before Modal:Waiting
 - add Attribute:Alias to Api-Call:Join-Tournament
-- add Api-Call:Leave-Tournament to quitting Modal:Waiting
++ add Api-Call:Leave-Tournament to quitting Modal:Waiting
 + Set up Eventhook:beforeunload
-- Create StateVar:gameOngoing
-- Add WS:outgoing:Q and gameOngoing=false to GameScreen.destroy()
-- Add warning to Button:Home when in game
-- Add Button:Leave-Tournament to Screen:Tournament
++ Create StateVar:gameOngoing
++ Add gameOngoing=false to end of game (Rufus)
++ Add WS:outgoing:Q to GameScreen.destroy()
++ Add warning to Button:Home when in game
+- Add Button:Leave-Tournament to Screen:Tournament (Helene?)
+- Add quitting logic to Modal:Ready?
 
 
 Commands to test WebSocket:

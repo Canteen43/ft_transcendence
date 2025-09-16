@@ -1,6 +1,7 @@
 class State {
 	public tournamentOngoing: boolean = false;
 	public gameOngoing: boolean = false;
+	public gameMode: 'local' | 'remote' | null = null;
 
 	// debug variables
 	public normalGameReady: boolean = false;

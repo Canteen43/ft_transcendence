@@ -27,7 +27,7 @@ export class Modal {
 		// 	'text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full ' +
 		// 	'text-xl font-bold cursor-pointer transition-colors duration-200';
 		// this.closeButton.addEventListener('click', () => {
-		// 	this.destroy();
+		// 	this.quit();
 		// });
 		// this.box.appendChild(this.closeButton);
 
@@ -36,13 +36,13 @@ export class Modal {
 
 		// Escape listener
 		this.escHandler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') this.destroy();
+			if (e.key === 'Escape') this.quit();
 		};
 		document.addEventListener('keydown', this.escHandler);
 
 		// Click outside to close listener
 		this.clickOutside = (e: MouseEvent) => {
-			if (e.target === this.overlay) this.destroy();
+			if (e.target === this.overlay) this.quit();
 		};
 		this.overlay.addEventListener('click', this.clickOutside);
 
@@ -51,6 +51,10 @@ export class Modal {
 		this.box.addEventListener('click', (e: MouseEvent) => {
 			e.stopPropagation();
 		});
+	}
+
+	public quit() {
+		this.destroy();
 	}
 
 	public destroy() {
