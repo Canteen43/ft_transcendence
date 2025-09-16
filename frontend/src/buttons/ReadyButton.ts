@@ -13,6 +13,7 @@ export class ReadyButton extends Button {
 			console.error('No match ID found in session storage');
 			return;
 		}
+		console.debug({matchID});
 		webSocket.send({ t: MESSAGE_ACCEPT, d: matchID });
 		this.showLoader();
 	}

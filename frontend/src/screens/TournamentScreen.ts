@@ -63,7 +63,7 @@ export class TournamentScreen extends Screen {
 	}
 
 	private renderBracket(parent: HTMLElement) {
-		// Left side players
+		// Left side players (match 0)
 		const leftSide = this.createElement(
 			parent,
 			'div',
@@ -72,13 +72,13 @@ export class TournamentScreen extends Screen {
 		leftSide.appendChild(
 			this.createPlayerSlot(
 				'player1',
-				sessionStorage.getItem('player1') || 'Player 1'
+				sessionStorage.getItem('alias1') || 'Player 1'
 			)
 		);
 		leftSide.appendChild(
 			this.createPlayerSlot(
 				'player2',
-				sessionStorage.getItem('player2') || 'Player 2'
+				sessionStorage.getItem('alias2') || 'Player 2'
 			)
 		);
 
@@ -119,7 +119,7 @@ export class TournamentScreen extends Screen {
 		// Right connector
 		this.renderConnector(parent, 'right');
 
-		// Right side players
+		// Right side players (match 1)
 		const rightSide = this.createElement(
 			parent,
 			'div',
@@ -128,13 +128,13 @@ export class TournamentScreen extends Screen {
 		rightSide.appendChild(
 			this.createPlayerSlot(
 				'player3',
-				sessionStorage.getItem('player3') || 'Player 3'
+				sessionStorage.getItem('alias3') || 'Player 3'
 			)
 		);
 		rightSide.appendChild(
 			this.createPlayerSlot(
 				'player4',
-				sessionStorage.getItem('player4') || 'Player 4'
+				sessionStorage.getItem('alias4') || 'Player 4'
 			)
 		);
 	}

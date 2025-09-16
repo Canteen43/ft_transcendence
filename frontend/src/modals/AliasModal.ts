@@ -20,7 +20,7 @@ export class AliasModal extends Modal {
 		super(parent);
 
 		const username = sessionStorage.getItem('username') ?? '';
-		const alias = sessionStorage.getItem('alias') ?? '';
+		const alias = sessionStorage.getItem('alias1') ?? '';
 		const aliases = [
 			sessionStorage.getItem('alias1') ?? '',
 			sessionStorage.getItem('alias2') ?? '',
