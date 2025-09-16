@@ -407,7 +407,6 @@ export class Pong3D {
 		}
 
 		this.setupCamera();
-		this.setupEventListeners();
 
 		// Determine game mode based on GameConfig
 		this.gameMode = this.getGameMode();
@@ -416,6 +415,8 @@ export class Pong3D {
 				`🎮 Game mode detected: ${this.gameMode} (Player ${this.thisPlayer}, ${GameConfig.getPlayerCount()} players)`
 			);
 		}
+
+		this.setupEventListeners();
 
 		// Initialize appropriate game loop based on mode
 		if (this.gameMode === 'local') {
@@ -954,9 +955,7 @@ export class Pong3D {
 		// Set up collision detection for local, master, AND client modes (all need goal detection)
 		if (
 			this.ballMesh?.physicsImpostor &&
-			(this.gameMode === 'local' ||
-				this.gameMode === 'master' ||
-				this.gameMode === 'client')
+			(this.gameMode === 'local' || this.gameMode === 'master')
 		) {
 			const paddleImpostors = this.paddles
 				.filter(p => p && p.physicsImpostor)
@@ -1770,16 +1769,11 @@ export class Pong3D {
 		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
 		if (scoringPlayer === -1) {
-			// Ball went into goal without being hit - opponent of goalPlayer scores
-			if (this.playerCount === 2) {
-				scoringPlayer = 1 - goalPlayer;
-			} else {
-				// For 4 players, assume players are arranged as 0 opposite 2, 1 opposite 3
-				scoringPlayer = (goalPlayer + 2) % this.playerCount;
-			}
-			this.conditionalLog(
-				`Ball went into goal without being hit - awarding to opponent Player ${scoringPlayer + 1} (goalPlayer was ${goalPlayer + 1})`
+			// Ball went into goal without being hit - no score
+			this.conditionalWarn(
+				`Ball went into goal without being hit - no score`
 			);
+			return;
 		}
 
 		// Handle own goals: if last hitter hit their own goal, award to second last hitter (if exists)
@@ -1961,10 +1955,6 @@ export class Pong3D {
 			// Reset rally speed system - new rally starts
 			this.resetRallySpeed();
 
-			// Reset last player to hit ball - new rally starts
-			this.lastPlayerToHitBall = -1;
-			this.secondLastPlayerToHitBall = -1;
-
 			// Clear any pending goal state if ball went truly out of bounds
 			this.goalScored = false;
 			this.pendingGoalData = null;
@@ -2008,10 +1998,6 @@ export class Pong3D {
 
 			// Reset rally speed system - new rally starts
 			this.resetRallySpeed();
-
-			// Reset last player to hit ball - new rally starts
-			this.lastPlayerToHitBall = -1;
-			this.secondLastPlayerToHitBall = -1;
 
 			// Clear the goal state and reset all ball effects
 			this.goalScored = false;
@@ -2710,6 +2696,10 @@ export class Pong3D {
 		this.conditionalLog(
 			`🔄 Rally reset: Speed back to base ${currentSpeed}`
 		);
+
+		// Reset last player to hit ball - new rally starts
+		this.lastPlayerToHitBall = -1;
+		this.secondLastPlayerToHitBall = -1;
 	}
 
 	private maintainConstantBallVelocity(): void {
@@ -3394,6 +3384,10 @@ export class Pong3D {
 			this.gameLoop.start();
 		}
 
+		// Reset last player to hit ball for clean game start
+		this.lastPlayerToHitBall = -1;
+		this.secondLastPlayerToHitBall = -1;
+
 		// Ensure ball effects start fresh when game begins
 		this.ballEffects.resetAllEffects();
 		this.conditionalLog(`🎮 Game started: Ball effects initialized`);
@@ -3413,10 +3407,6 @@ export class Pong3D {
 		}
 		// Reset rally speed when ball is manually reset
 		this.resetRallySpeed();
-
-		// Reset last player to hit ball
-		this.lastPlayerToHitBall = -1;
-		this.secondLastPlayerToHitBall = -1;
 
 		// IMPORTANT: Reset all ball effects on manual reset
 		this.ballEffects.resetAllEffects();

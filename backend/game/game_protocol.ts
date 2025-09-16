@@ -62,12 +62,12 @@ export class GameProtocol {
 	}
 
 	handleMessage(connectionId: UUID, message: string) {
-		logger.debug(
+		logger.trace(
 			`GameProtocol.handleMessage: Received message from connection ${connectionId}`
 		);
-		logger.debug(`GameProtocol.handleMessage: Raw message: ${message}`);
+		logger.trace(`GameProtocol.handleMessage: Raw message: ${message}`);
 		const json = JSON.parse(message);
-		logger.debug(
+		logger.trace(
 			`GameProtocol.handleMessage: Parsed message type: ${json.t}`
 		);
 		const handler =
@@ -75,7 +75,7 @@ export class GameProtocol {
 				json.t as keyof typeof this.protocolFunctionMap
 			];
 		if (handler) {
-			logger.debug(
+			logger.trace(
 				`GameProtocol.handleMessage: Found handler for message type ${json.t}`
 			);
 			try {
