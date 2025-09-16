@@ -57,7 +57,7 @@ export default class TournamentRepository {
 			`INSERT INTO ${this.table} (size, settings_id, status)
 			VALUES (?, ?, ?)
 			RETURNING id, size, settings_id, status`,
-			[src.size, src.settings, src.status]
+			[src.size, src.settings_id, src.status]
 		);
 
 		if (!result) throw new DatabaseError(ERROR_FAILED_TO_CREATE_TOURNAMENT);
