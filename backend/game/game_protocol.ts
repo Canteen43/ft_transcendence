@@ -62,12 +62,22 @@ export class GameProtocol {
 	}
 
 	handleMessage(connectionId: UUID, message: string) {
+		logger.trace(
+			`GameProtocol.handleMessage: Received message from connection ${connectionId}`
+		);
+		logger.trace(`GameProtocol.handleMessage: Raw message: ${message}`);
 		const json = JSON.parse(message);
+		logger.trace(
+			`GameProtocol.handleMessage: Parsed message type: ${json.t}`
+		);
 		const handler =
 			this.protocolFunctionMap[
 				json.t as keyof typeof this.protocolFunctionMap
 			];
 		if (handler) {
+			logger.trace(
+				`GameProtocol.handleMessage: Found handler for message type ${json.t}`
+			);
 			try {
 				handler.call(this, connectionId, json);
 			} catch (error) {
@@ -156,16 +166,36 @@ export class GameProtocol {
 		// TODO: check if message comes from game creator?
 		logger.debug('websocket: point scored message received.');
 		const userId = message.d as UUID;
+		logger.debug(`MESSAGE_POINT: userId from message: ${userId}`);
 		const match = this.getMatchObject(connectionId);
+		logger.debug(
+			`MESSAGE_POINT: match found with ${match.players.length} players`
+		);
+		match.players.forEach((p, i) => {
+			logger.debug(
+				`MESSAGE_POINT: player ${i}: userId=${p.userId}, score=${p.score}`
+			);
+		});
 		const player = match.players.find(p => p.userId === userId);
-		if (!player)
+		if (!player) {
+			logger.error(
+				`MESSAGE_POINT: Player not found for userId: ${userId}`
+			);
 			throw new ProtocolError(ERROR_PLAYER_NOT_FOUND + ': ' + userId);
+		}
+		logger.debug(
+			`MESSAGE_POINT: Found player, incrementing score from ${player.score} to ${player.score + 1}`
+		);
 		player.score++;
 		const matchFinished = MatchService.processPointAndCheckMatchFinished(
 			match.matchId,
 			userId
 		);
+		logger.debug(
+			`MESSAGE_POINT: Forwarding message to ${match.players.length} players`
+		);
 		this.sendMatchMessage(message, match.players);
+		logger.debug('MESSAGE_POINT: Message forwarded successfully');
 	}
 
 	private handleQuit(connectionId: UUID, message: Message) {
@@ -221,9 +251,28 @@ export class GameProtocol {
 	}
 
 	private sendMatchMessage(message: Message, players: Player[]) {
-		players.forEach(p => {
+		logger.debug(
+			`sendMatchMessage: Sending ${message.t} to ${players.length} players`
+		);
+		players.forEach((p, index) => {
 			try {
-				getConnectionByUserId(p.userId)?.send(JSON.stringify(message));
+				logger.debug(
+					`sendMatchMessage: Sending to player ${index} (userId: ${p.userId})`
+				);
+				const connection = getConnectionByUserId(p.userId);
+				if (!connection) {
+					logger.error(
+						`sendMatchMessage: No connection found for userId: ${p.userId}`
+					);
+					return;
+				}
+				logger.debug(
+					`sendMatchMessage: Connection found, sending message`
+				);
+				connection.send(JSON.stringify(message));
+				logger.debug(
+					`sendMatchMessage: Message sent successfully to userId: ${p.userId}`
+				);
 			} catch (error) {
 				logger.warn(
 					`Failed to send websocket message to user id ${p.userId}: ${formatError(error)}`
@@ -231,6 +280,7 @@ export class GameProtocol {
 				if (!(error instanceof ConnectionError)) throw error;
 			}
 		});
+		logger.debug('sendMatchMessage: Finished sending to all players');
 	}
 
 	private sendTournamentMessage(
