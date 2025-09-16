@@ -30,26 +30,30 @@ export default class MatchRepository {
 	static fields =
 		'id, tournament_id, tournament_round, participant_1_id, participant_2_id, participant_1_score, participant_2_score, status';
 
+	static matchPlusUserIdQuery = `
+		SELECT tournament_match.id,
+				tournament_match.tournament_id,
+				tournament_match.tournament_round,
+				tournament_match.participant_1_id,
+				tournament_match.participant_2_id,
+				tournament_match.participant_1_score,
+				tournament_match.participant_2_score,
+				tournament_match.status,
+				p1.user_id as participant_1_user_id,
+				p2.user_id as participant_2_user_id
+		FROM ${this.table}
+		LEFT JOIN ${ParticipantRepository.table} p1
+			ON ${this.table}.participant_1_id = p1.id
+		LEFT JOIN ${ParticipantRepository.table} p2
+			ON ${this.table}.participant_2_id = p2.id`;
+
 	static getMatch(
 		match_id: UUID,
 		status?: MatchStatus
 	): MatchWithUserId | null {
 		const result = db.queryOne(
-			`SELECT tournament_match.id, 
-					tournament_match.tournament_id,
-					tournament_match.tournament_round,
-					tournament_match.participant_1_id,
-					tournament_match.participant_2_id,
-					tournament_match.participant_1_score,
-					tournament_match.participant_2_score,
-					tournament_match.status,
-					p1.user_id as participant_1_user_id,
-					p2.user_id as participant_2_user_id
-			FROM ${this.table}
-			LEFT JOIN ${ParticipantRepository.table} p1
-				ON ${this.table}.participant_1_id = p1.id
-			LEFT JOIN ${ParticipantRepository.table} p2
-				ON ${this.table}.participant_2_id = p2.id
+			this.matchPlusUserIdQuery +
+				`
 			WHERE tournament_match.id = ?
 			${status ? ' AND tournament_match.status = ?' : ''}`,
 			status ? [match_id, status] : [match_id]
@@ -62,11 +66,11 @@ export default class MatchRepository {
 	static getTournamentMatches(
 		tournament_id: UUID,
 		tournament_round?: number
-	): Match[] {
-		var query = `
-		SELECT ${this.fields}
-		FROM ${this.table}
-		WHERE tournament_id = ?`;
+	): MatchWithUserId[] {
+		var query =
+			this.matchPlusUserIdQuery +
+			`
+			WHERE ${this.table}.tournament_id = ?`;
 
 		const params: any[] = [tournament_id];
 
@@ -75,8 +79,8 @@ export default class MatchRepository {
 			params.push(tournament_round);
 		}
 
-		const result = db.queryAll<Match>(query, params);
-		return z.array(MatchSchema).parse(result);
+		const result = db.queryAll<MatchWithUserId>(query, params);
+		return z.array(MatchSchemaWithUserId).parse(result);
 	}
 
 	static getNumberOfUnfinishedMatches(

@@ -5,7 +5,7 @@ import {
 } from '../constants.js';
 import { TournamentStatus } from '../enums.js';
 import { zUUID } from '../types.js';
-import { MatchSchema } from './match.js';
+import { MatchSchemaWithUserId } from './match.js';
 import { ParticipantSchema } from './participant.js';
 
 export const TournamentSchema = z.object({
@@ -17,7 +17,7 @@ export const TournamentSchema = z.object({
 
 export const FullTournamentSchema = TournamentSchema.extend({
 	participants: z.array(ParticipantSchema),
-	matches: z.array(MatchSchema),
+	matches: z.array(MatchSchemaWithUserId),
 });
 
 export const CreateTournamentSchema = TournamentSchema.omit({ id: true });
