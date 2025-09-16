@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
+import { conditionalLog } from './Logger';
 import type { GameState } from './Pong3DGameLoopBase';
 
 export class Pong3DGameLoop {
@@ -39,7 +40,7 @@ export class Pong3DGameLoop {
 			this.gameState.ball.position = this.originalBallPosition.clone();
 
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log(
+				conditionalLog(
 					`🎾 Ball original position: ${this.originalBallPosition.toString()}`
 				);
 			}
@@ -50,7 +51,7 @@ export class Pong3DGameLoop {
 	 * Start the game loop
 	 */
 	start(): void {
-		// console.log("🎾 Starting Pong3D Game Loop with Physics Engine");
+		// conditionalLog("🎾 Starting Pong3D Game Loop with Physics Engine");
 		this.gameState.isRunning = true;
 
 		// The physics engine runs in the background. We just need to apply initial velocity.
@@ -69,7 +70,7 @@ export class Pong3DGameLoop {
 	 */
 	stop(): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log('⏹️ Stopping Pong3D Game Loop');
+			conditionalLog('⏹️ Stopping Pong3D Game Loop');
 		}
 		this.gameState.isRunning = false;
 		// Stop the ball
@@ -111,7 +112,7 @@ export class Pong3DGameLoop {
 		this.gameState.ball.position = this.ballMesh.position.clone();
 		this.gameState.ball.velocity = startingVelocity;
 
-		// console.log(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
+		// conditionalLog(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
 	}
 
 	/**
@@ -180,7 +181,7 @@ export class Pong3DGameLoop {
 
 		const velocity = new BABYLON.Vector3(x, 0, z);
 
-		// console.log(`🎲 Random starting velocity: ${velocity.toString()} (angle: ${(randomAngle * 180 / Math.PI).toFixed(1)}°)`);
+		// conditionalLog(`🎲 Random starting velocity: ${velocity.toString()} (angle: ${(randomAngle * 180 / Math.PI).toFixed(1)}°)`);
 		return velocity;
 	}
 }

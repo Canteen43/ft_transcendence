@@ -12,6 +12,7 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
@@ -78,7 +79,7 @@ export class Pong3D {
 	// Debug helper method - now uses GameConfig
 	private debugLog(...args: any[]): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(...args);
+			this.conditionalLog(...args);
 		}
 	}
 
@@ -336,15 +337,18 @@ export class Pong3D {
 
 		// Listen for remote score updates from WebSocket (client mode only)
 		if (this.gameMode === 'client') {
-			console.log(
+			this.conditionalLog(
 				'🎮 Setting up remoteScoreUpdate event listener for client mode'
 			);
-			window.addEventListener('remoteScoreUpdate', (event: Event) => {
-				console.log('🎮 remoteScoreUpdate event received:', event);
+			document.addEventListener('remoteScoreUpdate', (event: Event) => {
+				this.conditionalLog(
+					'🎮 remoteScoreUpdate event received:',
+					event
+				);
 				const customEvent = event as CustomEvent<{
 					scoringPlayerUID: string;
 				}>;
-				console.log(
+				this.conditionalLog(
 					'🎮 Calling handleRemoteScoreUpdate with UID:',
 					customEvent.detail.scoringPlayerUID
 				);
@@ -353,7 +357,7 @@ export class Pong3D {
 				);
 			});
 		} else {
-			console.log(
+			this.conditionalLog(
 				'🎮 Not setting up remoteScoreUpdate listener - game mode:',
 				this.gameMode
 			);
@@ -567,7 +571,7 @@ export class Pong3D {
 			.setScene(this.scene)
 			.then(() => {
 				if (GameConfig.isDebugLoggingEnabled()) {
-					console.log(
+					this.conditionalLog(
 						'🔊 Audio system scene set and audio engine initialized'
 					);
 				}
@@ -576,7 +580,7 @@ export class Pong3D {
 			})
 			.catch(error => {
 				if (GameConfig.isDebugLoggingEnabled()) {
-					console.warn(
+					this.conditionalWarn(
 						'🔊 Audio initialization or loading failed:',
 						error
 					);
@@ -1105,7 +1109,7 @@ export class Pong3D {
 			paddleImpostor
 		);
 		if (!paddleNormal) {
-			console.warn(
+			this.conditionalWarn(
 				`Could not get collision normal from Cannon.js, using geometric fallback`
 			);
 			// Fallback to geometric calculation
@@ -1810,7 +1814,7 @@ export class Pong3D {
 		this.conditionalLog(`New scores after goal:`, this.playerScores);
 
 		// Send score update to clients (only in master mode)
-		console.log(
+		this.conditionalLog(
 			'🏆 sendScoreUpdateToClients called with scoringPlayer:',
 			scoringPlayer
 		);
@@ -1834,11 +1838,36 @@ export class Pong3D {
 				this.uiHandles.showWinner(scoringPlayer, playerName);
 			}
 
-			// Mark game as ended - ball will continue and exit naturally
+			// Mark game as ended - ball will freeze immediately on winning goal
 			this.gameEnded = true;
+
+			// Stop the ball immediately when game ends (freeze it in place)
+			if (this.ballMesh && this.ballMesh.physicsImpostor) {
+				this.ballMesh.physicsImpostor.setLinearVelocity(
+					BABYLON.Vector3.Zero()
+				);
+				this.ballMesh.physicsImpostor.setAngularVelocity(
+					BABYLON.Vector3.Zero()
+				);
+				this.conditionalLog(`🏆 Ball frozen in place - game ended`);
+			}
 
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
+
+			// Wait 7 seconds for victory music to finish, then set game status
+			setTimeout(() => {
+				state.gameOngoing = false;
+				this.conditionalLog(
+					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
+				);
+				if (sessionStorage.getItem('tournament') === '1') {
+				location.hash = '#tournament';
+			}
+			}, 7000);
+
+			// if we are in a tournament redirect to tournament page
+			
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
@@ -2043,7 +2072,9 @@ export class Pong3D {
 			);
 
 			if (shadowCastingLights.length === 0) {
-				console.warn('❌ No suitable lights found for shadow casting');
+				this.conditionalWarn(
+					'❌ No suitable lights found for shadow casting'
+				);
 				this.conditionalLog(
 					'💡 Make sure your GLB has lights with "light" in the name and they are SpotLight or DirectionalLight type'
 				);
@@ -2069,7 +2100,7 @@ export class Pong3D {
 						`✅ Added ball as shadow caster for ${light.name}`
 					);
 				} else {
-					console.warn(
+					this.conditionalWarn(
 						`⚠️ Ball mesh not available for shadow casting`
 					);
 				}
@@ -2099,7 +2130,7 @@ export class Pong3D {
 				`🎉 Shadow system setup complete: ${shadowCastingLights.length} lights, ${shadowReceivers.length} receivers`
 			);
 		} catch (error) {
-			console.error('❌ Error setting up shadow system:', error);
+			this.conditionalWarn('❌ Error setting up shadow system:', error);
 		}
 	}
 	private computeSceneBoundingInfo(
@@ -2180,7 +2211,7 @@ export class Pong3D {
 		}
 
 		if (foundPaddles.length < this.playerCount) {
-			console.warn(
+			this.conditionalWarn(
 				`Expected ${this.playerCount} paddles but only found ${foundPaddles.length}`
 			);
 		}
@@ -2327,22 +2358,22 @@ export class Pong3D {
 		);
 
 		if (foundGoals.length === 0) {
-			console.warn(
+			this.conditionalWarn(
 				'No goal meshes found in the scene! Add meshes named "goal1", "goal2", etc. for score detection'
 			);
 			return;
 		}
 
-		console.log(
+		this.conditionalLog(
 			`🎯 GOAL DEBUG: Found ${foundGoals.length} goal meshes for ${this.playerCount} players`
 		);
-		console.log(
+		this.conditionalLog(
 			`🎯 GOAL DEBUG: Goal names:`,
 			foundGoals.map(g => g?.name)
 		);
 
 		if (foundGoals.length < this.playerCount) {
-			console.warn(
+			this.conditionalWarn(
 				`Expected ${this.playerCount} goals but only found ${foundGoals.length}`
 			);
 		}
@@ -2429,7 +2460,7 @@ export class Pong3D {
 				this.conditionalLog('Hidden duplicate paddle meshes:', hidden);
 			}
 		} catch (err) {
-			console.warn('Error while hiding duplicate paddles:', err);
+			this.conditionalWarn('Error while hiding duplicate paddles:', err);
 		}
 	}
 
@@ -2622,6 +2653,29 @@ export class Pong3D {
 			this.score2Text.text = String(this.playerScores[1]);
 			this.conditionalLog(`Set score2Text to: ${this.playerScores[1]}`);
 		}
+
+		// Handle remaining players if UI arrays exist but we're in backwards compatibility mode
+		// This ensures score updates work for all players even when called before UI is fully set up
+		if (this.uiPlayerNameTexts && this.uiPlayerScoreTexts) {
+			for (
+				let i = 0;
+				i <
+				Math.min(
+					this.playerCount,
+					this.uiPlayerNameTexts.length,
+					this.uiPlayerScoreTexts.length
+				);
+				i++
+			) {
+				// Skip players 0 and 1 as they're handled above
+				if (i < 2) continue;
+				this.uiPlayerNameTexts[i].text = this.playerNames[i];
+				this.uiPlayerScoreTexts[i].text = String(this.playerScores[i]);
+				this.conditionalLog(
+					`Set Player ${i + 1} (backwards compat with arrays): ${this.playerNames[i]} - ${this.playerScores[i]}`
+				);
+			}
+		}
 	}
 
 	/** Set player names and update display */
@@ -2641,7 +2695,7 @@ export class Pong3D {
 	/** Set active player count (2, 3, or 4) - cannot exceed initial player count */
 	public setActivePlayerCount(_count: number): void {
 		// Since playerCount determines the court layout, we can't change it after initialization
-		console.warn(
+		this.conditionalWarn(
 			`Cannot change player count after initialization. Current player count: ${this.playerCount}`
 		);
 	}
@@ -3491,7 +3545,9 @@ export class Pong3D {
 			}
 
 			if (!contact) {
-				console.warn('No contact found between ball and paddle');
+				this.conditionalWarn(
+					'No contact found between ball and paddle'
+				);
 				return null;
 			}
 
@@ -3591,14 +3647,14 @@ export class Pong3D {
 				}
 			} else {
 				// If X-Z components are too small, this might be a top/bottom collision
-				console.warn(
+				this.conditionalWarn(
 					`🚨 Normal has minimal X-Z components: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
 				);
 			}
 
 			return correctedNormal;
 		} catch (error) {
-			console.warn(
+			this.conditionalWarn(
 				'Failed to get collision normal from Cannon.js:',
 				error
 			);
@@ -3691,7 +3747,7 @@ export class Pong3D {
 
 			return normal;
 		} catch (error) {
-			console.warn(
+			this.conditionalWarn(
 				`Failed to calculate paddle normal for paddle ${paddleIndex + 1}:`,
 				error
 			);
@@ -3790,7 +3846,7 @@ export class Pong3D {
 			// this.conditionalLog('📡 WebSocket message (GAME_STATE):', message);
 		} catch (err) {
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.warn(
+				this.conditionalWarn(
 					'Failed to send gamestate to clients over websocket',
 					err
 				);
@@ -3803,21 +3859,23 @@ export class Pong3D {
 	 * Sends MESSAGE_POINT with the scoring player's UID
 	 */
 	private sendScoreUpdateToClients(scoringPlayerIndex: number): void {
-		console.log(
+		this.conditionalLog(
 			'📡 sendScoreUpdateToClients called with scoringPlayerIndex:',
 			scoringPlayerIndex
 		);
 		if (this.gameMode !== 'master') {
-			console.log('📡 Not master mode, skipping score update send');
+			this.conditionalLog(
+				'📡 Not master mode, skipping score update send'
+			);
 			return; // Only master sends score updates
 		}
 
 		try {
 			// Log current sessionStorage state for debugging
-			console.log('📡 Current sessionStorage UIDs:');
+			this.conditionalLog('📡 Current sessionStorage UIDs:');
 			for (let i = 1; i <= 4; i++) {
 				const uid = GameConfig.getPlayerUID(i as 1 | 2 | 3 | 4);
-				console.log(`  📡 Player ${i} UID: ${uid || 'null'}`);
+				this.conditionalLog(`  📡 Player ${i} UID: ${uid || 'null'}`);
 			}
 
 			// Get the scoring player's UID from GameConfig
@@ -3825,18 +3883,18 @@ export class Pong3D {
 				(scoringPlayerIndex + 1) as 1 | 2 | 3 | 4
 			); // Convert 0-based to 1-based
 
-			console.log(
+			this.conditionalLog(
 				`📡 Retrieved UID for scoring player ${scoringPlayerIndex + 1}: ${scoringPlayerUID || 'null'}`
 			);
 
 			if (!scoringPlayerUID) {
-				console.warn(
+				this.conditionalWarn(
 					`No UID found for player ${scoringPlayerIndex + 1}, cannot send score update`
 				);
 				return;
 			}
 
-			console.log(
+			this.conditionalLog(
 				`🏆 Sending score update for Player ${scoringPlayerIndex + 1} (UID: ${scoringPlayerUID})`
 			);
 
@@ -3845,15 +3903,17 @@ export class Pong3D {
 				t: MESSAGE_POINT,
 				d: scoringPlayerUID,
 			} as unknown as Message;
-			console.log(
+			this.conditionalLog(
 				'📡 MESSAGE_POINT payload being sent:',
 				JSON.stringify(message)
 			);
 			webSocket.send(message);
 
-			console.log(`📡 WebSocket message (POINT) sent successfully`);
+			this.conditionalLog(
+				`📡 WebSocket message (POINT) sent successfully`
+			);
 		} catch (err) {
-			console.warn(
+			this.conditionalWarn(
 				'Failed to send score update to clients over websocket',
 				err
 			);
@@ -3864,12 +3924,14 @@ export class Pong3D {
 	 * Handle remote score update from WebSocket (client mode only)
 	 */
 	private handleRemoteScoreUpdate(scoringPlayerUID: string): void {
-		console.log(
+		this.conditionalLog(
 			'🎮 handleRemoteScoreUpdate called with UID:',
 			scoringPlayerUID
 		);
 		if (this.gameMode !== 'client') {
-			console.warn('handleRemoteScoreUpdate called in non-client mode');
+			this.conditionalWarn(
+				'handleRemoteScoreUpdate called in non-client mode'
+			);
 			return;
 		}
 
@@ -3877,7 +3939,7 @@ export class Pong3D {
 		let scoringPlayerIndex = -1;
 		for (let i = 0; i < this.playerCount; i++) {
 			const playerUID = GameConfig.getPlayerUID((i + 1) as 1 | 2 | 3 | 4);
-			console.log(`🎮 Checking player ${i + 1} UID:`, playerUID);
+			this.conditionalLog(`🎮 Checking player ${i + 1} UID:`, playerUID);
 			if (playerUID === scoringPlayerUID) {
 				scoringPlayerIndex = i;
 				break;
@@ -3885,17 +3947,19 @@ export class Pong3D {
 		}
 
 		if (scoringPlayerIndex === -1) {
-			console.warn(`Could not find player with UID: ${scoringPlayerUID}`);
+			this.conditionalWarn(
+				`Could not find player with UID: ${scoringPlayerUID}`
+			);
 			return;
 		}
 
-		console.log(
+		this.conditionalLog(
 			`🎮 Found scoring player index: ${scoringPlayerIndex} for UID: ${scoringPlayerUID}`
 		);
 
 		// Update the score
 		this.playerScores[scoringPlayerIndex]++;
-		console.log(
+		this.conditionalLog(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
 
@@ -3907,9 +3971,12 @@ export class Pong3D {
 			const playerName =
 				this.playerNames[scoringPlayerIndex] ||
 				`Player ${scoringPlayerIndex + 1}`;
-			console.log(
+			this.conditionalLog(
 				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
 			);
+
+			// Play victory sound effect
+			this.audioSystem.playSoundEffect('victory');
 
 			// Show winner UI
 			if (this.uiHandles) {
@@ -3923,6 +3990,19 @@ export class Pong3D {
 			if (this.gameLoop) {
 				this.gameLoop.stop();
 			}
+
+			// Wait 7 seconds for victory music to finish, then set game status and redirect if tournament
+			setTimeout(() => {
+				state.gameOngoing = false;
+				this.conditionalLog(
+					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
+				);
+
+				// if we are in a tournament redirect to tournament page
+				if (sessionStorage.getItem('tournament') === '1') {
+					location.hash = '#tournament';
+				}
+			}, 7000);
 		}
 	}
 
@@ -3951,7 +4031,7 @@ export class Pong3D {
 			// this.conditionalLog('📡 WebSocket message (MOVE):', message);
 		} catch (err) {
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.warn(
+				this.conditionalWarn(
 					'Failed to send input to master over websocket',
 					err
 				);
@@ -3989,7 +4069,7 @@ export class Pong3D {
 	 * TEST METHOD: Test audio playback manually
 	 */
 	public testAudio(): void {
-		console.log('🧪 Testing audio system...');
+		this.conditionalLog('🧪 Testing audio system...');
 		this.audioSystem.testAudio();
 	}
 }

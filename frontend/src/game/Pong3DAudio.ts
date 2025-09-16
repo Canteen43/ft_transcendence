@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import { conditionalError, conditionalWarn } from './Logger';
 
 /**
  * Pong3DAudio - Handles all game audio including sound effects and background music
@@ -44,7 +45,7 @@ export class Pong3DAudio {
 		try {
 			this.audioEngine = await BABYLON.CreateAudioEngineAsync();
 		} catch (error) {
-			console.warn(
+			conditionalWarn(
 				'🔊 Failed to initialize Babylon.js audio engine:',
 				error
 			);
@@ -85,7 +86,7 @@ export class Pong3DAudio {
 
 			sound.play();
 		} catch (error) {
-			console.error(`🔊 Failed to play sound ${name}:`, error);
+			conditionalError(`🔊 Failed to play sound ${name}:`, error);
 		}
 	}
 
@@ -108,7 +109,9 @@ export class Pong3DAudio {
 			pitch: pitch,
 			volume: options.volume,
 		});
-	} /** Play a sound effect with pitch modification */
+	}
+
+	/** Play a sound effect with pitch modification */
 	public async playSoundEffectWithPitch(
 		name: string,
 		pitchCents: number
@@ -137,7 +140,7 @@ export class Pong3DAudio {
 
 			sound.play();
 		} catch (error) {
-			console.error(
+			conditionalError(
 				`🔊 Failed to play sound ${name} with pitch ${pitchCents}:`,
 				error
 			);
@@ -159,7 +162,7 @@ export class Pong3DAudio {
 				'./src/game/sounds/victory.mp3'
 			);
 		} catch (error) {
-			console.warn('🔊 Audio loading failed:', error);
+			conditionalWarn('🔊 Audio loading failed:', error);
 		}
 	}
 
@@ -173,7 +176,7 @@ export class Pong3DAudio {
 			const sound = await BABYLON.CreateSoundAsync(name, url);
 			this.sounds.set(name, sound);
 		} catch (error) {
-			console.warn(`🔊 Failed to load sound ${name}:`, error);
+			conditionalWarn(`🔊 Failed to load sound ${name}:`, error);
 		}
 	}
 

@@ -3,6 +3,7 @@ import { MESSAGE_GAME_STATE } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
+import { conditionalLog, conditionalWarn } from './Logger';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import type { NetworkGameState } from './Pong3DGameLoopBase';
 
@@ -44,7 +45,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	 */
 	start(): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log('🌐 Master Mode: Local Game + Network');
+			conditionalLog('🌐 Master Mode: Local Game + Network');
 		}
 
 		// Start EXACTLY the same as local mode
@@ -93,32 +94,35 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		const paddlePositions: [number, number][] = [];
 
 		if (this.pong3DInstance && this.pong3DInstance.paddles) {
-			console.log(
+			conditionalLog(
 				'Master pong3DInstance.paddles:',
 				this.pong3DInstance.paddles
 			);
 			for (let i = 0; i < this.pong3DInstance.playerCount; i++) {
 				const paddle = this.pong3DInstance.paddles[i];
-				console.log(`Master paddle ${i}:`, paddle ? 'EXISTS' : 'NULL');
+				conditionalLog(
+					`Master paddle ${i}:`,
+					paddle ? 'EXISTS' : 'NULL'
+				);
 				if (paddle) {
 					const pos: [number, number] = [
 						networkNumber(paddle.position.x),
 						networkNumber(paddle.position.z),
 					];
 					paddlePositions.push(pos);
-					console.log(
+					conditionalLog(
 						`Master paddle ${i} position: [${paddle.position.x.toFixed(3)}, ${paddle.position.z.toFixed(3)}] -> network [${pos[0]}, ${pos[1]}]`
 					);
 				}
 			}
 		} else {
-			console.log(
+			conditionalLog(
 				'Master pong3DInstance or paddles is null:',
 				this.pong3DInstance
 			);
 		}
 
-		console.log('📡 Master sending pd:', paddlePositions);
+		conditionalLog('📡 Master sending pd:', paddlePositions);
 
 		return {
 			b: ballPosition,
@@ -150,7 +154,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 					webSocket.send(msg);
 				} catch (err) {
 					if (GameConfig.isDebugLoggingEnabled()) {
-						console.warn(
+						conditionalWarn(
 							'Failed to send gamestate over websocket',
 							err
 						);
@@ -160,7 +164,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		}, 1000 / this.NETWORK_UPDATE_RATE);
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`📡 Network updates started at ${this.NETWORK_UPDATE_RATE}Hz`
 			);
 		}
@@ -188,7 +192,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 			this.gamestateLogInterval = setInterval(() => {
 				if (this.getGameState().isRunning) {
 					const networkGameState = this.convertToNetworkFormat();
-					console.log(
+					conditionalLog(
 						'📡 Master gamestate (network format):',
 						networkGameState
 					);
@@ -196,7 +200,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 			}, 1000 / this.GAMESTATE_LOG_RATE);
 
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log(
+				conditionalLog(
 					`📊 Gamestate logging started at ${this.GAMESTATE_LOG_RATE}Hz`
 				);
 			}
@@ -220,7 +224,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		// Validate input
 		if (input.k < 0 || input.k > 2) {
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.warn(
+				conditionalWarn(
 					`⚠️ Invalid input from player ${playerId}: ${input.k}`
 				);
 			}
@@ -228,7 +232,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		}
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🎮 Processing input from player ${playerId}: ${input.k}`
 			);
 		}
@@ -265,7 +269,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 			);
 
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log(
+				conditionalLog(
 					`🎮 Player ${playerId} network input: left=${leftPressed}, right=${rightPressed}`
 				);
 			}

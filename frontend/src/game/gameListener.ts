@@ -11,6 +11,7 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
+import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
 export function gameListener(event: MessageEvent) {
 	try {
@@ -50,7 +51,7 @@ export function gameListener(event: MessageEvent) {
 					try {
 						moveData = JSON.parse(movePayload);
 					} catch (e) {
-						console.warn('Failed to parse move JSON string:', e);
+						conditionalWarn('Failed to parse move JSON string:', e);
 						break;
 					}
 				} else {
@@ -63,12 +64,12 @@ export function gameListener(event: MessageEvent) {
 					typeof moveData.playerId === 'number' &&
 					moveData.input
 				) {
-					console.debug('Move received:', moveData);
+					conditionalLog('Move received:', moveData);
 					document.dispatchEvent(
 						new CustomEvent('remoteMove', { detail: moveData })
 					);
 				} else {
-					console.warn('Invalid move message format:', moveData);
+					conditionalWarn('Invalid move message format:', moveData);
 				}
 				break;
 
@@ -86,7 +87,7 @@ export function gameListener(event: MessageEvent) {
 					} catch (e) {
 						// fallback to raw string if parsing fails
 						payload = rawPayload;
-						console.warn(
+						conditionalWarn(
 							'Failed to parse game state JSON string:',
 							e
 						);
@@ -94,7 +95,7 @@ export function gameListener(event: MessageEvent) {
 				} else {
 					payload = rawPayload;
 				}
-				console.debug('Game State received:', payload);
+				conditionalLog('Game State received:', payload);
 				document.dispatchEvent(
 					new CustomEvent('remoteGameState', { detail: payload })
 				);
@@ -103,23 +104,23 @@ export function gameListener(event: MessageEvent) {
 			case MESSAGE_POINT:
 				// Extract the scoring player's UID from the message
 				const scoringPlayerUID = (msg as any).d;
-				console.log('🎯 MESSAGE_POINT received:', msg);
-				console.log('🎯 Scoring player UID:', scoringPlayerUID);
-				console.log('🎯 Full message object:', JSON.stringify(msg));
+				conditionalLog('🎯 MESSAGE_POINT received:', msg);
+				conditionalLog('🎯 Scoring player UID:', scoringPlayerUID);
+				conditionalLog('🎯 Full message object:', JSON.stringify(msg));
 				if (scoringPlayerUID && typeof scoringPlayerUID === 'string') {
-					console.log(
+					conditionalLog(
 						'Score update received for player UID:',
 						scoringPlayerUID
 					);
-					console.log('🎯 Dispatching remoteScoreUpdate event');
+					conditionalLog('🎯 Dispatching remoteScoreUpdate event');
 					document.dispatchEvent(
 						new CustomEvent('remoteScoreUpdate', {
 							detail: { scoringPlayerUID },
 						})
 					);
-					console.log('🎯 remoteScoreUpdate event dispatched');
+					conditionalLog('🎯 remoteScoreUpdate event dispatched');
 				} else {
-					console.warn(
+					conditionalWarn(
 						'Invalid MESSAGE_POINT format - missing UID:',
 						msg
 					);
@@ -127,9 +128,9 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			default:
-				console.warn('Unknown message type:', msg);
+				conditionalWarn('Unknown message type:', msg);
 		}
 	} catch (err) {
-		console.error('Invalid message received:', event.data, err);
+		conditionalError('Invalid message received:', event.data, err);
 	}
 }

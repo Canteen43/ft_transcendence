@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
+import { conditionalLog } from './Logger';
 
 export interface GameState {
 	ball: {
@@ -51,7 +52,7 @@ export abstract class Pong3DGameLoopBase {
 		this.gameState.ball.position = ballMesh.position.clone();
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				'🏐 Ball mesh set, original position:',
 				this.originalBallPosition
 			);
@@ -78,7 +79,7 @@ export abstract class Pong3DGameLoopBase {
 			this.gameState.ball.velocity =
 				this.generateRandomStartingVelocity(10); // Increased speed for custom physics
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log('🏐 Ball reset to original position');
+				conditionalLog('🏐 Ball reset to original position');
 			}
 		}
 	}

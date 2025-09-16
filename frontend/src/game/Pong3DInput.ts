@@ -10,6 +10,7 @@
  * Additional Controls:
  * - Double-click canvas: Toggle fullscreen
  */
+import { conditionalWarn } from './Logger';
 
 export interface KeyState {
 	p1Left: boolean;
@@ -110,7 +111,7 @@ export class Pong3DInput {
 		if (!document.fullscreenElement) {
 			this.canvas
 				.requestFullscreen()
-				.catch(err => console.warn('Fullscreen failed:', err));
+				.catch(err => conditionalWarn('Fullscreen failed:', err));
 		} else {
 			document.exitFullscreen();
 		}
