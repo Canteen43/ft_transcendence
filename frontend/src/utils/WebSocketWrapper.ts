@@ -47,7 +47,7 @@ export class WebSocketWrapper {
 			original: message,
 			serialized: jsonMessage,
 		});
-		this.ws.send(JSON.stringify(message));
+		this.ws.send(jsonMessage);
 	}
 
 	close(): void {
