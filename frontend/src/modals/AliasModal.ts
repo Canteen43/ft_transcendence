@@ -56,7 +56,7 @@ export class AliasModal extends Modal {
 		if (state.gameMode === 'local') {
 			location.hash = '#game';
 		} else {
-			this.joinGame(state.targetSize);
+			this.joinGame(state.playerCount);
 			new WaitingModal(this.parent);
 		}
 		this.destroy();
