@@ -215,7 +215,6 @@ export class GameProtocol {
 		logger.debug('websocket: pause message received.');
 		const match = this.getMatchObject(connectionId);
 		this.sendMatchMessage(message, match.players);
-		this.updateMatchStatus(match.matchId, MatchStatus.Paused);
 	}
 
 	private createMatchObject(match: MatchFromSchema, creator: UUID): Match {
