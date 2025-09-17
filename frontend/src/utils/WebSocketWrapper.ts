@@ -4,8 +4,12 @@ import { regListener } from './regListener';
 
 const WS_ADDRESS = `ws://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}/websocket`;
 
+// INFO: A webSocket object opens automatically at creation.
+// That's why a wrapper class is used. It can be created without opening the connection.
+
 export class WebSocketWrapper {
 	public ws: WebSocket | null = null;
+	public targetState: 'open' | 'closed' | null = null;
 
 	constructor() {
 		if (sessionStorage.getItem('token')) {
@@ -13,62 +17,72 @@ export class WebSocketWrapper {
 		}
 	}
 
-	open(): void {
+	// Event handlers
+	private onOpen(): void {
+		console.info('WebSocket connection opened successfully.');
+	}
+
+	private onClose(): void {
+		console.info('WebSocket connection closed.');
+		this.ws = null;
+		// Trying to reopen after 3 seconds if target state is 'open'
+		if (this.targetState === 'open') {
+			setTimeout(() => this.open(), 3000);
+		}
+	}
+
+	private async onMessage(event: MessageEvent): Promise<void> {
+		console.debug('WebSocket message received:', event.data);
+		if (location.hash === '#game') {
+			console.debug('Routing to in-game ws-handler.');
+			gameListener(event);
+		} else {
+			console.debug('Routing to non-game ws-handler.');
+			await regListener(event);
+		}
+	}
+
+	private onError(error: Event): void {
+		console.error('WebSocket error:', error);
+	}
+
+	// Public methods
+	public open(): void {
+		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
 		let token = sessionStorage.getItem('token');
 		if (!token) {
-			console.error("Couldn't open WS. No token found");
+			console.warn("Couldn't open WS. No token found");
 			return;
 		}
 		const wsUrl = `${WS_ADDRESS}?token=${token}`;
+
+		this.targetState = 'open';
+
+		console.info('Trying to open WebSocket');
 		this.ws = new WebSocket(wsUrl);
 
-		this.ws.addEventListener('message', event => this.routeListener(event));
-
-		this.ws.addEventListener('close', () => {
-			console.info('WebSocket connection closed.');
-			if (sessionStorage.getItem('token')) {
-				console.info('Reconnecting WebSocket...');
-				this.open();
-			}
-		});
-
-		this.ws.addEventListener('open', () => {
-			console.info('WebSocket connection opened successfully');
-		});
-
-		this.ws.addEventListener('error', error => {
-			console.error('WebSocket error:', error);
-		});
+		this.ws.addEventListener('open', () => this.onOpen());
+		this.ws.addEventListener('close', () => this.onClose());
+		this.ws.addEventListener('message', event => this.onMessage(event));
+		this.ws.addEventListener('error', error => this.onError(error));
 	}
 
-	send(message: Message): void {
+	public close(): void {
+		this.targetState = 'closed';
+		this.ws?.close();
+	}
+
+	public send(message: Message): void {
 		if (!this.ws) {
 			console.warn('Websocket not opened. Message not sent.');
 			return;
 		}
 		const jsonMessage = JSON.stringify(message);
-		console.info('Sending WebSocket message:', {
+		console.debug('Sending WebSocket message:', {
 			original: message,
 			serialized: jsonMessage,
 		});
 		this.ws.send(jsonMessage);
-	}
-
-	close(): void {
-		if (this.ws) {
-			this.ws.close();
-			this.ws = null;
-		}
-	}
-
-	private async routeListener(event: MessageEvent): Promise<void> {
-		if (location.hash === '#game') {
-			console.log('Routing to game listener');
-			gameListener(event);
-		} else {
-			console.log('Routing to registration listener');
-			await regListener(event);
-		}
 	}
 
 	public simulateMessage(msg: Message) {
@@ -76,7 +90,7 @@ export class WebSocketWrapper {
 		const event = new MessageEvent('message', {
 			data: JSON.stringify(msg),
 		});
-		this.routeListener(event);
+		this.onMessage(event);
 	}
 }
 
