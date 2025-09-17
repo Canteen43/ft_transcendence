@@ -11,7 +11,7 @@ import {
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 
-import { setMatchData } from '../utils/setMatchData';
+import { setMatchData } from './setMatchDataNew';
 
 // TODO: add logic for the Quit event?
 export async function regListener(event: MessageEvent): Promise<void> {
