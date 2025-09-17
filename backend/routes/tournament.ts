@@ -64,7 +64,7 @@ async function joinTournament(
 		authRequest.user.userId,
 		request.body.alias
 	);
-	const queue = TournamentService.getQueue(request.body.size);
+	const queue = await TournamentService.getQueue(request.body.size);
 	return { queue: Array.from(queue).map(user => user.userId) };
 }
 
