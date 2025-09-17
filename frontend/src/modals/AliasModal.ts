@@ -1,14 +1,16 @@
 import { z } from 'zod';
 import {
+	FullTournamentSchema,
+	JoinTournamentSchema,
 	CreateTournamentApiSchema,
 	TournamentQueueSchema,
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button';
 import { ReadyModal } from '../modals/ReadyModal';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
+import { Modal } from './Modal';
 import { WaitingModal } from './WaitingModal';
 
 export class AliasModal extends Modal {
@@ -18,7 +20,7 @@ export class AliasModal extends Modal {
 		super(parent);
 
 		const username = sessionStorage.getItem('username') ?? '';
-		const alias = sessionStorage.getItem('alias') ?? '';
+		const alias = sessionStorage.getItem('alias1') ?? '';
 		const aliases = [
 			sessionStorage.getItem('alias1') ?? '',
 			sessionStorage.getItem('alias2') ?? '',
@@ -79,23 +81,24 @@ export class AliasModal extends Modal {
 	// TODO: function to seperate file to separate concerns?
 	private async joinGame(targetSize: number) {
 		// API call to join a tournament
-		// send 2 or 4, receive the array of players in that tournament
+		// send 2 or 4 + alias, receive the array of players in that tournament
 
-		// const joinData = { size: targetSize }; // overkill - we are sending a nuber
-		// const parseInput = JoinTournamentSchema.safeParse(joinData);
-		// if (!parseInput.success) {
-		// 	alert('Invalid tournament format');
-		// 	console.error(
-		// 		'Request validation failed:',
-		// 		z.treeifyError(parseInput.error)
-		// 	);
-		// 	return;
-		// }
+		const joinData = { size: targetSize, alias: sessionStorage.getItem('alias1') }; // overkill - we are sending a nuber
+		const parseInput = JoinTournamentSchema.safeParse(joinData);
+		if (!parseInput.success) {
+			alert('Invalid tournament format');
+			console.error(
+				'Request validation failed:',
+				z.treeifyError(parseInput.error)
+			);
+			return;
+		}
+		console.debug('Sending to /tounaments/join:', joinData);
 		const playerQueue = await apiCall(
 			'POST',
 			`/tournaments/join`,
 			TournamentQueueSchema,
-			{ size: targetSize }
+			joinData
 		);
 		if (!playerQueue) {
 			console.error('No response from tournament creation');
@@ -118,11 +121,11 @@ export class AliasModal extends Modal {
 		// Validation overkill? it has been validated as a return schema already
 		if (isTournamentReady) {
 			const body = {
-				creator: sessionStorage.getItem('id') || '',
+				creator: sessionStorage.getItem('userID') || '',
 				participants: playerQueue.queue,
 			};
 			const parseInput2 = CreateTournamentApiSchema.safeParse(body);
-			console.log('Sending to /tournaments/join:', body);
+			console.log('Sending to /tournaments:', body);
 			if (!parseInput2.success) {
 				alert('Invalid tournament creation data');
 				console.error(

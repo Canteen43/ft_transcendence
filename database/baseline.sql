@@ -55,6 +55,7 @@ CREATE TABLE tournament_participant (
 	),
 	tournament_id TEXT REFERENCES tournament(id),
 	user_id TEXT REFERENCES "user"(id),
+	alias TEXT,
 	CONSTRAINT unique_tournament_user UNIQUE (tournament_id, user_id)
 );
 
@@ -72,7 +73,7 @@ CREATE TABLE tournament_match (
 	participant_2_id TEXT REFERENCES tournament_participant(id),
 	participant_1_score INTEGER,
 	participant_2_score INTEGER,
-	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished')),
+	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished', 'cancelled')),
 	CONSTRAINT check_different_participants CHECK (
 		participant_1_id != participant_2_id
 	)

@@ -1,7 +1,7 @@
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
+import { Button } from '../buttons/Button';
 import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
+import { Modal } from './Modal';
 
 export class RemoteGameModal extends Modal {
 	constructor(parent: HTMLElement) {
@@ -17,10 +17,22 @@ export class RemoteGameModal extends Modal {
 
 		const btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
 		const btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
-		btn2plyr.element.style.width = '400px'; // button width
-		btn2plyr.element.style.height = '150px'; // button height
-		btnTourn.element.style.width = '400px'; // button width
-		btnTourn.element.style.height = '150px'; // button height
+
+		// fixed button size
+		[btn2plyr, btnTourn].forEach(btn => {
+			btn.element.classList.add(
+				'w-[300px]',
+				'h-[120px]',
+				'flex',
+				'items-center',
+				'justify-center',
+				'hover:bg-[var(--color1bis)]',
+				'transition-colors',
+				'duration-300'
+			);
+		});
+
+		// modal box background
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 	}
@@ -28,6 +40,7 @@ export class RemoteGameModal extends Modal {
 	private logicRemote(tournamentSize: number) {
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
+		sessionStorage.setItem('playerCount', '2');
 		this.destroy();
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
 		new AliasModal(this.parent, 1);

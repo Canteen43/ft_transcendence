@@ -1,11 +1,12 @@
-import { jelly, newtonsCradle } from 'ldrs';
-import { Modal } from '../components/Modal';
+import { jelly, newtonsCradle, hourglass } from 'ldrs';
 import { apiCall } from '../utils/apiCall';
 import { AliasModal } from './AliasModal';
+import { Modal } from './Modal';
 import { ReadyModal } from './ReadyModal';
 
 newtonsCradle.register();
 jelly.register();
+hourglass.register();
 
 // Waiting for players, event listener for game Ready
 export class WaitingModal extends Modal {

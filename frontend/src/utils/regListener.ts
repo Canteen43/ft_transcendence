@@ -11,6 +11,8 @@ import {
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 
+import { setMatchData } from './setMatchDataNew';
+
 // TODO: add logic for the Quit event?
 export async function regListener(event: MessageEvent): Promise<void> {
 	try {
@@ -37,9 +39,9 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				);
 				if (tournData) {
 					console.log('Tournament data received:', tournData);
-					state.storeTournData(tournData);
-					state.storeCurrentMatch();
-					state.printTournament();
+					setMatchData(tournData);
+					// state.storeCurrentMatch();
+					// state.printTournament();
 				} else {
 					console.error('No tournament data received', tournData);
 					return;
