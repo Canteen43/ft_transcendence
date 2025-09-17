@@ -250,7 +250,9 @@ NICE_TO_HAVE:
 
 
 TODO:
-- pull and merge
+- API-call:create-tournament fails -> leave queue
+- API-call:get-tournament-data fails -> quit tournament
+- Modal:Ready click away -> quit tournament
 - build 2fa
 
 
