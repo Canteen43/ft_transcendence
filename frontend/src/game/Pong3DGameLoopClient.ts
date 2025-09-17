@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
+import { conditionalLog, conditionalWarn } from './Logger';
 import { Pong3DGameLoopBase } from './Pong3DGameLoopBase';
 
 /**
@@ -42,7 +43,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		);
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🎮 Client Mode: Player ${thisPlayerId} (render only, no physics)`
 			);
 		}
@@ -53,7 +54,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	 */
 	start(): void {
 		if (this.renderObserver) {
-			console.warn('Client game loop already running');
+			conditionalWarn('Client game loop already running');
 			return;
 		}
 
@@ -68,7 +69,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		this.setupKeyboardInput();
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🎮 Client rendering started for Player ${this.thisPlayerId}`
 			);
 		}
@@ -153,7 +154,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		);
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(`🎮 Client stopped for Player ${this.thisPlayerId}`);
+			conditionalLog(`🎮 Client stopped for Player ${this.thisPlayerId}`);
 		}
 	}
 
@@ -165,10 +166,10 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		b: [number, number];
 		pd: [number, number][];
 	}): void {
-		console.log('📡 Client received pd:', gameStateMessage.pd);
+		conditionalLog('📡 Client received pd:', gameStateMessage.pd);
 
 		if (GameConfig.isGamestateLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`📡 Player ${this.thisPlayerId} received:`,
 				gameStateMessage
 			);
@@ -182,14 +183,14 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		if (this.ballMesh) {
 			const ballY = this.ballMesh.position.y; // Preserve Y position from GLB
 			this.ballMesh.position.set(
-				gameStateMessage.b[0]*(-1), // X from network
+				gameStateMessage.b[0] * -1, // X from network
 				ballY, // Y preserved
 				gameStateMessage.b[1] // Z from network
 			);
 
 			// Update internal game state
 			this.gameState.ball.position.set(
-				gameStateMessage.b[0]*(-1),
+				gameStateMessage.b[0] * -1,
 				ballY,
 				gameStateMessage.b[1]
 			);
@@ -198,7 +199,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		// Update all paddle positions from network
 		if (this.pong3DInstance && this.pong3DInstance.paddles) {
 			if (shouldLogDetails) {
-				console.log(
+				conditionalLog(
 					'Client pong3DInstance.paddles:',
 					this.pong3DInstance.paddles
 				);
@@ -206,7 +207,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			gameStateMessage.pd.forEach((paddlePos, index) => {
 				const paddle = this.pong3DInstance.paddles[index];
 				if (shouldLogDetails) {
-					console.log(
+					conditionalLog(
 						`Client paddle ${index}:`,
 						paddle ? 'EXISTS' : 'NULL',
 						paddlePos
@@ -224,13 +225,13 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 					// Update mesh position only (client is viewer, no physics needed)
 					paddle.position.copyFrom(newPosition);
 					if (shouldLogDetails) {
-						console.log(
+						conditionalLog(
 							`Client updated paddle ${index} from [${oldPos.x.toFixed(3)}, ${oldPos.z.toFixed(3)}] to [${paddlePos[0].toFixed(3)}, ${paddlePos[1].toFixed(3)}]`
 						);
 					}
 
 					if (GameConfig.isDebugLoggingEnabled()) {
-						console.log(
+						conditionalLog(
 							`🎮 Client updated paddle ${index + 1} position: [${paddlePos[0]}, ${paddlePos[1]}]`
 						);
 					}
@@ -238,7 +239,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			});
 		} else {
 			if (shouldLogDetails) {
-				console.log(
+				conditionalLog(
 					'Client pong3DInstance or paddles is null:',
 					this.pong3DInstance
 				);
@@ -257,7 +258,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 
 			const inputCommand = { k: keyInput };
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log(
+				conditionalLog(
 					`📡 Player ${this.thisPlayerId} input:`,
 					inputCommand
 				);
@@ -276,7 +277,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	setBallVelocity(_velocity: BABYLON.Vector3): void {
 		// Client doesn't run physics - velocity is controlled by master
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🎮 Client ignoring setBallVelocity - physics controlled by master`
 			);
 		}

@@ -11,7 +11,7 @@ import { ParticipantSchema } from './participant.js';
 export const TournamentSchema = z.object({
 	id: zUUID,
 	size: z.number().int(),
-	settings: zUUID,
+	settings_id: zUUID,
 	status: z.enum(TournamentStatus),
 });
 

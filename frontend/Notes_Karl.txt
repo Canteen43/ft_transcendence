@@ -213,30 +213,56 @@ LEARNED:
 TODO:
 
 Solo:
-- find out how to play on two computers when testing
+- Make todo list for frontend flow
 
 Group:
-- Talk about Module ideas
 
 Rufus:
-- Help him get remote game to work
 
 Helene:
-- Talk about her new changes
-- Talk about concrete frontend objectives
-	- Add "No running tournament" label on T-screen
-	- What should happen when navigating straight to #game?
-	- Do we need a state?
-	- What should happen when playing quits waiting list?
+- Talk about frontend todo
 - Talk about particle ideas
 	- adding more colors
 	- highlight instead of repulse (bubble mode)
 	- add repulse to push to keep nice click effect
 
 Wouter:
-- talk about quitting wait
-	- API to get off the waiting list when player closes modal
 
+Problem:
+- We can't attach quitting logic to home screen only.
+- It will not trigger when navigating back from game screen to tournament screen
+- We can't also attach it to tournament screen because then the tournament would quit itself.
+
+Solution:
+Game
+- Set up beforeunload that destroys screen
+- if WS:incoming:S (Start game signal)
+	state var gameOngoing = true;
+- GameScreen.destroy():
+	- if (gameOngoing)
+		Send "Q"
+- This will catch all forms of navigating away.
+- Button:Home with warning when in game
+Tournament
+- if WS:incoming:ST
+	session var tournamentOngoing = true;
+- new Button:Leave-Tournament
+	- session var tournamentOngoing = false;
+	- possibly: add warning depending on player having lost a game
+
+Frontend TODO:
++ add Api-Call:Leave-Tournament to quitting Modal:Waiting
++ Set up Eventhook:beforeunload
++ Create StateVar:gameOngoing
++ Add gameOngoing=false to end of game (Rufus)
++ Add WS:outgoing:Q to GameScreen.destroy()
++ Add warning to Button:Home when in game
++ insert Modal:Alias before Modal:Waiting
++ add reloading for websocket after f5
+- debug: make sure tournament is actually created
+- add Attribute:Alias to Api-Call:Join-Tournament
+- Add quitting logic to Modal:Ready?
+- Add Button:Leave-Tournament to Screen:Tournament (Helene?)
 
 Commands to test WebSocket:
 Game Ready:

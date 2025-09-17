@@ -3,8 +3,8 @@ import { AuthComponent } from './buttons/AuthButton';
 import { HomeButton } from './buttons/HomeButton';
 import { createParticlesBackground, initParticles } from './visual/Particles';
 
-import { Router } from './utils/Router';
 import './style.css';
+import { Router } from './utils/Router';
 // Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
 import '@babylonjs/loaders';
 
@@ -23,7 +23,7 @@ requestAnimationFrame(() => {
 	void initParticles();
 });
 
+new Router();
 new AuthComponent(app);
 new HomeButton(app);
-new Router();
 // new Video();

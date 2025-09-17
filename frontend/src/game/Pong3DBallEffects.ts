@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
+import { conditionalLog } from './Logger';
 
 /**
  * Pong3DBallEffects - Handles all ball physics effects including spin, Magnus force,
@@ -42,7 +43,7 @@ export class Pong3DBallEffects {
 		this.rallyHitCount = 0;
 		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🔄 Rally speed reset: ${this.currentBallSpeed} units/s`
 			);
 		}
@@ -62,7 +63,7 @@ export class Pong3DBallEffects {
 		);
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🚀 Rally hit #${this.rallyHitCount}: Speed increased to ${this.currentBallSpeed.toFixed(1)} units/s`
 			);
 		}
@@ -96,7 +97,7 @@ export class Pong3DBallEffects {
 		this.spinDelayActive = true;
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(`🌪️ Spin applied: ${this.ballSpin.toString()}`);
+			conditionalLog(`🌪️ Spin applied: ${this.ballSpin.toString()}`);
 		}
 	}
 
@@ -113,7 +114,7 @@ export class Pong3DBallEffects {
 			if (!this.spinDelayActive && this.spinActivationTime > 0) {
 				this.spinDelayActive = true;
 				if (GameConfig.isDebugLoggingEnabled()) {
-					console.log(
+					conditionalLog(
 						`🕐 Spin delay active - Magnus effect starts in ${this.SPIN_DELAY}ms`
 					);
 				}
@@ -129,7 +130,7 @@ export class Pong3DBallEffects {
 		if (this.spinDelayActive) {
 			this.spinDelayActive = false;
 			if (GameConfig.isDebugLoggingEnabled()) {
-				console.log(
+				conditionalLog(
 					`🌪️ Spin delay ended - Magnus effect now active! Spin: ${spinMagnitude.toFixed(3)}`
 				);
 			}
@@ -192,7 +193,7 @@ export class Pong3DBallEffects {
 		this.resetRallySpeed();
 
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(`🔄 All ball effects reset`);
+			conditionalLog(`🔄 All ball effects reset`);
 		}
 	}
 
@@ -238,7 +239,7 @@ export class Pong3DBallEffects {
 		this.BALL_VELOCITY_CONSTANT = Math.max(1, Math.min(50, speed)); // Clamp between 1 and 50
 		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`⚽ Ball base speed set to ${this.BALL_VELOCITY_CONSTANT}`
 			);
 		}
@@ -250,7 +251,7 @@ export class Pong3DBallEffects {
 			Math.min(100, percentage)
 		); // Clamp between 0 and 100
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🏎️ Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`
 			);
 		}
@@ -262,14 +263,16 @@ export class Pong3DBallEffects {
 			Math.min(100, maxSpeed)
 		); // Clamp between base speed and 100
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`);
+			conditionalLog(
+				`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`
+			);
 		}
 	}
 
 	public setSpinTransferFactor(factor: number): void {
 		this.SPIN_TRANSFER_FACTOR = Math.max(0, Math.min(5, factor)); // Clamp between 0 and 5
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🌪️ Spin transfer factor set to ${this.SPIN_TRANSFER_FACTOR}`
 			);
 		}
@@ -278,7 +281,7 @@ export class Pong3DBallEffects {
 	public setMagnusCoefficient(coefficient: number): void {
 		this.MAGNUS_COEFFICIENT = Math.max(0, Math.min(1, coefficient)); // Clamp between 0 and 1
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`🧲 Magnus coefficient set to ${this.MAGNUS_COEFFICIENT}`
 			);
 		}
@@ -287,7 +290,7 @@ export class Pong3DBallEffects {
 	public setSpinDecayFactor(factor: number): void {
 		this.SPIN_DECAY_FACTOR = Math.max(0.9, Math.min(1, factor)); // Clamp between 0.9 and 1
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(
+			conditionalLog(
 				`⏳ Spin decay factor set to ${this.SPIN_DECAY_FACTOR}`
 			);
 		}
@@ -296,7 +299,7 @@ export class Pong3DBallEffects {
 	public setSpinDelay(delayMs: number): void {
 		this.SPIN_DELAY = Math.max(0, Math.min(1000, delayMs)); // Clamp between 0 and 1000ms
 		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(`⏱️ Spin delay set to ${this.SPIN_DELAY}ms`);
+			conditionalLog(`⏱️ Spin delay set to ${this.SPIN_DELAY}ms`);
 		}
 	}
 

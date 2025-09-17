@@ -84,7 +84,7 @@ export default class TournamentService {
 
 		const createTournament = CreateTournamentSchema.parse({
 			size: users.length,
-			settings: settings.id,
+			settings_id: settings.id,
 			status: TournamentStatus.InProgress,
 		});
 

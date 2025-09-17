@@ -10,7 +10,7 @@ export class GameConfig {
 	private static readonly DEFAULT_GAME_MODE = 'local'; // Team convention: string values
 
 	// Debug/Logging controls
-	private static readonly DEFAULT_DEBUG_LOGGING = true; // Master switch for all debug logging
+	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
 	private static readonly DEFAULT_GAMESTATE_LOGGING = false; // Show gamestate updates even when debug is off
 
 	/**
@@ -102,6 +102,23 @@ export class GameConfig {
 	}
 
 	/**
+	 * Get player UID from sessionStorage (stored as player1, player2, etc.)
+	 */
+	static getPlayerUID(playerIndex: 1 | 2 | 3 | 4): string | null {
+		const keys = ['player1', 'player2', 'player3', 'player4'];
+		return sessionStorage.getItem(keys[playerIndex - 1]);
+	}
+
+	/**
+	 * Set player UID in sessionStorage (stored as player1, player2, etc.)
+	 */
+	static setPlayerUID(playerIndex: 1 | 2 | 3 | 4, uid: string): void {
+		const keys = ['player1', 'player2', 'player3', 'player4'];
+		sessionStorage.setItem(keys[playerIndex - 1], uid);
+		console.log(`🎮 Player ${playerIndex} UID set to: ${uid}`);
+	}
+
+	/**
 	 * Get all current game configuration as an object
 	 */
 	static getGameConfig() {
@@ -115,6 +132,12 @@ export class GameConfig {
 				this.getPlayerName(2),
 				this.getPlayerName(3),
 				this.getPlayerName(4),
+			],
+			playerUIDs: [
+				this.getPlayerUID(1),
+				this.getPlayerUID(2),
+				this.getPlayerUID(3),
+				this.getPlayerUID(4),
 			],
 			debugLogging: this.isDebugLoggingEnabled(),
 			gamestateLogging: this.isGamestateLoggingEnabled(),
@@ -181,6 +204,10 @@ export class GameConfig {
 		sessionStorage.removeItem('player2Name');
 		sessionStorage.removeItem('player3Name');
 		sessionStorage.removeItem('player4Name');
+		sessionStorage.removeItem('player1');
+		sessionStorage.removeItem('player2');
+		sessionStorage.removeItem('player3');
+		sessionStorage.removeItem('player4');
 		sessionStorage.removeItem('debugLogging');
 		sessionStorage.removeItem('gamestateLogging');
 		console.log('🎮 GameConfig cleared from sessionStorage');
