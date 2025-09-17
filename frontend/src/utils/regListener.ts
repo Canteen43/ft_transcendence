@@ -13,6 +13,7 @@ import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 
 import { TextModal } from '../modals/TextModal';
+import { router } from './Router';
 import { setMatchData } from './setMatchDataNew';
 import { webSocket } from './WebSocketWrapper';
 
@@ -71,8 +72,10 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			case MESSAGE_QUIT:
 				console.info('Received quit message:', msg);
 				location.hash = '#home';
-				alert('The game has been quit.');
-				// void new TextModal(this.element, 'You have quit the game.');
+				void new TextModal(
+					router.currentScreen!.element,
+					'The game has been quit.'
+				);
 				break;
 
 			default:
