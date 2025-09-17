@@ -250,15 +250,4 @@ NICE_TO_HAVE:
 
 
 TODO:
-- API-call:create-tournament fails -> leave queue
-- API-call:get-tournament-data fails -> quit tournament
-- Modal:Ready click away -> quit tournament
 - build 2fa
-
-
-WebSocket:
-
-ws.readyState === WebSocket.CONNECTING   // 0
-ws.readyState === WebSocket.OPEN         // 1
-ws.readyState === WebSocket.CLOSING      // 2
-ws.readyState === WebSocket.CLOSED       // 3

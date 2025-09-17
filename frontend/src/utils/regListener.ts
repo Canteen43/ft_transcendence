@@ -1,4 +1,5 @@
 import {
+	MESSAGE_QUIT,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -11,7 +12,9 @@ import {
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 
+import { TextModal } from '../modals/TextModal';
 import { setMatchData } from './setMatchDataNew';
+import { webSocket } from './WebSocketWrapper';
 
 // TODO: add logic for the Quit event?
 export async function regListener(event: MessageEvent): Promise<void> {
@@ -43,7 +46,10 @@ export async function regListener(event: MessageEvent): Promise<void> {
 					// state.storeCurrentMatch();
 					// state.printTournament();
 				} else {
-					console.error('No tournament data received', tournData);
+					console.error(
+						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
+					);
+					webSocket.send({ t: MESSAGE_QUIT });
 					return;
 				}
 				if (tournData.matches.length === 1) {
@@ -60,6 +66,13 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				state.gameOngoing = true;
 				state.gameMode = 'remote';
 				location.hash = '#game';
+				break;
+
+			case MESSAGE_QUIT:
+				console.info('Received quit message:', msg);
+				location.hash = '#home';
+				alert('The game has been quit.');
+				// void new TextModal(this.element, 'You have quit the game.');
 				break;
 
 			default:
