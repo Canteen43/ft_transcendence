@@ -73,7 +73,7 @@ CREATE TABLE tournament_match (
 	participant_2_id TEXT REFERENCES tournament_participant(id),
 	participant_1_score INTEGER,
 	participant_2_score INTEGER,
-	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished')),
+	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished', 'cancelled')),
 	CONSTRAINT check_different_participants CHECK (
 		participant_1_id != participant_2_id
 	)
