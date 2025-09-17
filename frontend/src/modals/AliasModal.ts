@@ -22,10 +22,10 @@ export class AliasModal extends Modal {
 		const username = sessionStorage.getItem('username') ?? '';
 		const alias = sessionStorage.getItem('alias1') ?? '';
 		const aliases = [
-			sessionStorage.getItem('alias1') ?? '',
-			sessionStorage.getItem('alias2') ?? '',
-			sessionStorage.getItem('alias3') ?? '',
-			sessionStorage.getItem('alias4') ?? '',
+			sessionStorage.getItem('player1Alias') ?? '',
+			sessionStorage.getItem('player2Alias') ?? '',
+			sessionStorage.getItem('player3Alias') ?? '',
+			sessionStorage.getItem('player4Alias') ?? '',
 		];
 
 		for (let i = 0; i < n; i++) {

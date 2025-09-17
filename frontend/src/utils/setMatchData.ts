@@ -26,8 +26,8 @@ export function setMatchData(tournData: any): void {
 		sessionStorage.setItem('matchID', matchID);
 		sessionStorage.setItem('player1', player1);
 		sessionStorage.setItem('player2', player2);
-		sessionStorage.setItem('player1Alias', player1Alias || player1);
-		sessionStorage.setItem('player2Alias', player2Alias || player2);
+		sessionStorage.setItem('Alias1', player1Alias || player1);
+		sessionStorage.setItem('Alias2', player2Alias || player2);
 		
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
 	}
