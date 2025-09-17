@@ -1,29 +1,23 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import z from 'zod';
-import { AuthenticationError } from '../../shared/exceptions.js';
-import { UUID } from '../../shared/types.js';
-import {
-	addConnection,
-	handleClose,
-	handleMessage,
-} from '../connection_manager/connection_manager.js';
+import { addConnection } from '../connection_manager/connection_manager.js';
 import { authenticateRequest } from '../hooks/auth.js';
+import { LockService, LockType } from '../services/lock_service.js';
 import { GameSocket } from '../types/interfaces.js';
 import { routeConfig } from '../utils/http_utils.js';
 import { getAuthData } from '../utils/utils.js';
 
-function handleIncomingConnection(
+async function handleIncomingConnection(
 	webSocket: WebSocket,
 	request: FastifyRequest<{ Querystring: { token: string } }>
 ) {
 	request.headers['authorization'] = `Bearer ${request.query.token}`;
 	authenticateRequest(request);
-
 	const authRequest = getAuthData(request);
-	const socket = webSocket as GameSocket;
-	socket.addEventListener('message', handleMessage);
-	socket.addEventListener('close', handleClose);
-	addConnection(authRequest.user.userId, socket);
+
+	await LockService.withLock(LockType.Auth, async () =>
+		addConnection(authRequest.user.userId, webSocket as GameSocket)
+	);
 }
 
 export default async function websocketRoutes(

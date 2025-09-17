@@ -38,6 +38,9 @@ export const ERROR_FAILED_TO_UPDATE_PARTICIPANT =
 	'Failed to update participant';
 export const ERROR_FAILED_TO_UPDATE_TOURNAMENT = 'Failed to update tournament';
 export const ERROR_PLAYER_NOT_FOUND = 'Player not found in match';
+export const ERROR_USER_ALREADY_CONNECTED = 'User already connected';
+
+export const WS_CLOSE_POLICY_VIOLATION = 1008;
 
 export const TOKEN_VALIDITY_PERIOD = '1h';
 

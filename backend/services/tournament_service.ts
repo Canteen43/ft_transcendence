@@ -25,11 +25,22 @@ import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import { QueuedUser } from '../types/interfaces.js';
+import { LockService, LockType } from './lock_service.js';
 
 export default class TournamentService {
 	private static tournamentQueues: Map<number, Set<QueuedUser>> = new Map();
 
 	static joinQueue(size: number, userId: UUID, alias: string) {
+		LockService.withLock(LockType.Queue, async () =>
+			this.joinQueueWithLock(size, userId, alias)
+		);
+	}
+
+	private static joinQueueWithLock(
+		size: number,
+		userId: UUID,
+		alias: string
+	) {
 		let queue = this.tournamentQueues.get(size);
 		if (!queue) {
 			queue = new Set<QueuedUser>();
@@ -41,13 +52,22 @@ export default class TournamentService {
 	}
 
 	static leaveQueue(userId: UUID) {
+		LockService.withLock(LockType.Queue, async () =>
+			this.leaveQueueWithLock(userId)
+		);
+	}
+
+	private static leaveQueueWithLock(userId: UUID) {
 		for (const [size, queue] of this.tournamentQueues) {
 			const userToRemove = this.findInQueue(queue, userId);
 			if (userToRemove) queue.delete(userToRemove);
 		}
 	}
 
-	static getQueue(size: number): Set<QueuedUser> {
+	static async getQueue(size: number): Promise<Set<QueuedUser>> {
+		const result = await LockService.withLock(LockType.Queue, async () =>
+			this.tournamentQueues.get(size)
+		);
 		return this.tournamentQueues.get(size) || new Set();
 	}
 
