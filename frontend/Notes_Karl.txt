@@ -250,8 +250,7 @@ NICE_TO_HAVE:
 
 
 TODO:
-- look at multiple ws connection attempts
-- pull
+- pull and merge
 - build 2fa
 
 
