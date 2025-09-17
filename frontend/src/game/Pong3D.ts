@@ -7,6 +7,7 @@ import * as CANNON from 'cannon-es';
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
 import {
+	DEFAULT_MAX_SCORE,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_POINT,
@@ -185,7 +186,7 @@ export class Pong3D {
 	// === GAME PHYSICS CONFIGURATION ===
 
 	// Ball settings (non-effects)
-	public WINNING_SCORE = 10; // Points needed to win the game
+	public WINNING_SCORE = DEFAULT_MAX_SCORE; // Points needed to win the game
 	private static readonly OUT_OF_BOUNDS_DISTANCE = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
@@ -362,6 +363,18 @@ export class Pong3D {
 				this.gameMode
 			);
 		}
+
+		// Listen for remote game state updates from WebSocket (both master and client modes)
+		document.addEventListener('remoteGameState', (event: Event) => {
+			const customEvent = event as CustomEvent<any>;
+			const gameState = customEvent.detail;
+			this.conditionalLog('📡 remoteGameState received:', gameState);
+
+			// Handle sound effects if present in the game state
+			if (gameState && typeof gameState.s === 'number') {
+				this.handleRemoteSoundEffect(gameState.s);
+			}
+		});
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
@@ -1100,6 +1113,11 @@ export class Pong3D {
 		// Play ping sound effect with harmonic variation
 		this.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
 
+		// Send sound effect to clients (master mode only)
+		if (this.gameMode === 'master') {
+			this.sendSoundEffectToClients(0); // 0 = paddle ping
+		}
+
 		const paddle = this.paddles[paddleIndex]!;
 		if (!paddle.physicsImpostor?.physicsBody) return;
 
@@ -1712,6 +1730,9 @@ export class Pong3D {
 		// Play pitched-down ping sound for wall collision with harmonic variation
 		this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
 
+		// Send sound effect to clients (Master mode only)
+		this.sendSoundEffectToClients(1); // 1 = wall ping
+
 		// Position correction: move ball slightly away from wall to prevent embedding
 		if (this.ballMesh && ballImpostor) {
 			const velocity = ballImpostor.getLinearVelocity();
@@ -1862,12 +1883,11 @@ export class Pong3D {
 					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
 				);
 				if (sessionStorage.getItem('tournament') === '1') {
-				location.hash = '#tournament';
-			}
+					location.hash = '#tournament';
+				}
 			}, 7000);
 
 			// if we are in a tournament redirect to tournament page
-			
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
@@ -3855,21 +3875,58 @@ export class Pong3D {
 	}
 
 	/**
-	 * Send score update to clients (Master mode only)
-	 * Sends MESSAGE_POINT with the scoring player's UID
+	 * Send sound effect to clients (Master mode only)
 	 */
-	private sendScoreUpdateToClients(scoringPlayerIndex: number): void {
-		this.conditionalLog(
-			'📡 sendScoreUpdateToClients called with scoringPlayerIndex:',
-			scoringPlayerIndex
-		);
+	private sendSoundEffectToClients(soundType: number): void {
 		if (this.gameMode !== 'master') {
-			this.conditionalLog(
-				'📡 Not master mode, skipping score update send'
-			);
-			return; // Only master sends score updates
+			return; // Only master sends sound effects
 		}
 
+		try {
+			// Send via WebSocket using game's message format
+			const soundData = { s: soundType }; // s = sound, 0 = paddle ping, 1 = wall ping
+			const payloadString = JSON.stringify(soundData);
+			const message: Message = {
+				t: MESSAGE_GAME_STATE,
+				d: payloadString,
+			} as unknown as Message;
+			webSocket.send(message);
+
+			this.conditionalLog(
+				`🔊 Master sent sound effect ${soundType} to clients`
+			);
+		} catch (err) {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalWarn(
+					'Failed to send sound effect to clients over websocket',
+					err
+				);
+			}
+		}
+	}
+
+	/**
+	 * Handle remote sound effect from WebSocket (both master and client modes)
+	 */
+	private handleRemoteSoundEffect(soundType: number): void {
+		this.conditionalLog(`🔊 Remote sound effect received: ${soundType}`);
+
+		// Play the appropriate sound effect based on type
+		if (soundType === 0) {
+			// Paddle ping
+			this.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
+		} else if (soundType === 1) {
+			// Wall ping
+			this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
+		} else {
+			this.conditionalWarn(`Unknown sound effect type: ${soundType}`);
+		}
+	}
+
+	/**
+	 * Send score update to clients (Master mode only)
+	 */
+	private sendScoreUpdateToClients(scoringPlayerIndex: number): void {
 		try {
 			// Log current sessionStorage state for debugging
 			this.conditionalLog('📡 Current sessionStorage UIDs:');
