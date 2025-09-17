@@ -2,14 +2,12 @@ import type { Message } from '../../../shared/schemas/message';
 import { gameListener } from '../game/gameListener';
 import { regListener } from './regListener';
 
-// import { AliasModal } from '../modals/AliasModal';
+const WS_ADDRESS = `ws://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}/websocket`;
 
 export class WebSocketWrapper {
 	public ws: WebSocket | null = null;
-	private address: string;
 
-	constructor(address: string) {
-		this.address = address;
+	constructor() {
 		if (sessionStorage.getItem('token')) {
 			this.open();
 		}
@@ -21,7 +19,7 @@ export class WebSocketWrapper {
 			console.error("Couldn't open WS. No token found");
 			return;
 		}
-		const wsUrl = `${this.address}?token=${token}`;
+		const wsUrl = `${WS_ADDRESS}?token=${token}`;
 		this.ws = new WebSocket(wsUrl);
 
 		this.ws.addEventListener('message', event => this.routeListener(event));
@@ -82,6 +80,4 @@ export class WebSocketWrapper {
 	}
 }
 
-export const webSocket = new WebSocketWrapper(`ws://localhost:8080/websocket`);
-// TODO: Avoid hardcoding port
-// Access to environment variables is needed for that
+export const webSocket = new WebSocketWrapper();
