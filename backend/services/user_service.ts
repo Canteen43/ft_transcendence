@@ -18,9 +18,18 @@ import {
 } from '../../shared/schemas/user.js';
 import UserRepository from '../repositories/user_repository.js';
 import { AuthPayload } from '../types/interfaces.js';
+import { LockService, LockType } from './lock_service.js';
 
 export default class UserService {
 	static async authenticate(authRequest: AuthRequest): Promise<AuthResponse> {
+		return await LockService.withLock(LockType.Auth, () =>
+			this.authenticateWithLock(authRequest)
+		);
+	}
+
+	private static async authenticateWithLock(
+		authRequest: AuthRequest
+	): Promise<AuthResponse> {
 		if (!process.env.JWT_SECRET)
 			throw new AuthenticationError(
 				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST

@@ -82,3 +82,10 @@ export class UserNotQueuedError extends Error {
 		this.name = 'UserNotQueuedError';
 	}
 }
+
+export class UserAlreadyConnectedError extends Error {
+	constructor(userId: string) {
+		super(`User already connected: ${userId}`);
+		this.name = 'UserAlreadyConnectedError';
+	}
+}
