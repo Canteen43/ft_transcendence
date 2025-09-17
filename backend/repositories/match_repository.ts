@@ -65,7 +65,8 @@ export default class MatchRepository {
 
 	static getTournamentMatches(
 		tournament_id: UUID,
-		tournament_round?: number
+		tournament_round?: number,
+		user_id?: UUID
 	): MatchWithUserId[] {
 		var query =
 			this.matchPlusUserIdQuery +
@@ -78,31 +79,13 @@ export default class MatchRepository {
 			query += ` AND tournament_round = ?`;
 			params.push(tournament_round);
 		}
+		if (user_id !== undefined) {
+			query += ` AND user_id = ?`;
+			params.push(user_id);
+		}
 
 		const result = db.queryAll<MatchWithUserId>(query, params);
 		return z.array(MatchSchemaWithUserId).parse(result);
-	}
-
-	static getNumberOfUnfinishedMatches(
-		tournament_id: UUID,
-		tournament_round?: number
-	): number {
-		var query = `
-		SELECT COUNT(*) as count
-		FROM ${this.table}
-		WHERE tournament_id = ? AND status != ?`;
-
-		const params: any[] = [tournament_id, MatchStatus.Finished];
-
-		if (tournament_round !== undefined) {
-			query += ` AND tournament_round = ?`;
-			params.push(tournament_round);
-		}
-
-		const result = db.queryOne<{ count: number }>(query, params) as {
-			count: number;
-		};
-		return result.count;
 	}
 
 	static getWinners(tournament_id: UUID, round: number): UUID[] {

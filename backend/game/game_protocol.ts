@@ -208,7 +208,26 @@ export class GameProtocol {
 	private handleQuit(connectionId: UUID, message: Message) {
 		logger.debug('websocket: quit message received.');
 		const match = this.matches.get(connectionId);
-		if (match) this.endMatch(match);
+		if (match) {
+			this.endMatch(match);
+			const participants = this.getTournamentParticipants(match.matchId);
+			this.sendTournamentMessage(message, participants);
+		} else {
+			const socket = this.getSocket(connectionId);
+			const tournamentId = 'A' as UUID; // TODO: Retrieve tournament ID
+			if (
+				MatchService.userStillHasMatchesToPlay(
+					tournamentId,
+					socket.userId
+				)
+			) {
+				const participants =
+					ParticipantRepository.getTournamentParticipants(
+						tournamentId
+					);
+				this.sendTournamentMessage(message, participants);
+			}
+		}
 	}
 
 	private handlePause(connectionId: UUID, message: Message) {
@@ -246,8 +265,6 @@ export class GameProtocol {
 
 	private endMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
-		const outgoing_message: Message = { t: MESSAGE_QUIT };
-		this.sendMatchMessage(outgoing_message, match.players);
 
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {
