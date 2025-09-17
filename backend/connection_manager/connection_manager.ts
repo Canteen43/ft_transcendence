@@ -1,7 +1,13 @@
 import { randomUUID } from 'crypto';
-import { ERROR_USER_CONNECTION_NOT_FOUND } from '../../shared/constants.js';
-import { ConnectionError } from '../../shared/exceptions.js';
-import { logger } from '../../shared/logger.js';
+import {
+	ERROR_USER_ALREADY_CONNECTED,
+	ERROR_USER_CONNECTION_NOT_FOUND,
+	WS_CLOSE_POLICY_VIOLATION,
+} from '../../shared/constants.js';
+import {
+	ConnectionError,
+	UserAlreadyConnectedError,
+} from '../../shared/exceptions.js';
 import { UUID } from '../../shared/types.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import TournamentService from '../services/tournament_service.js';
@@ -30,12 +36,19 @@ export function getConnectionByUserId(userId: UUID) {
 	return socket;
 }
 
-export function addConnection(user_id: UUID, socket: GameSocket): UUID {
+export function addConnection(userId: UUID, socket: GameSocket): UUID {
+	if (userIdToConnectionMap.get(userId)) {
+		socket.close(WS_CLOSE_POLICY_VIOLATION, ERROR_USER_ALREADY_CONNECTED);
+		throw new UserAlreadyConnectedError(userId);
+	}
+	socket.addEventListener('message', handleMessage);
+	socket.addEventListener('close', handleClose);
+
 	const id = generateId();
 	socket.socketId = id;
-	socket.userId = user_id;
+	socket.userId = userId;
 	connections.set(id, socket);
-	userIdToConnectionMap.set(user_id, socket);
+	userIdToConnectionMap.set(userId, socket);
 	return id;
 }
 
