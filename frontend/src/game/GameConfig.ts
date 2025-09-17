@@ -86,7 +86,7 @@ export class GameConfig {
 	 * Default names: Player 1 = "cat", Player 2 = "dog", Player 3 = "monkey", Player 4 = "goat"
 	 */
 	static getPlayerName(playerIndex: 1 | 2 | 3 | 4): string {
-		const keys = ['alias1', 'alias2', 'alias3', 'alias4'];
+		const keys = ['player1Alias', 'player2Alias', 'player3Alias', 'player4Alias'];
 		const defaultNames = ['player 1', 'player 2', 'player 3', 'player 4'];
 		const stored = sessionStorage.getItem(keys[playerIndex - 1]);
 		return stored || defaultNames[playerIndex - 1];
