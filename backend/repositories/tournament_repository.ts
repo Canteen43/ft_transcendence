@@ -39,7 +39,7 @@ export default class TournamentRepository {
 		user_id: UUID,
 		status?: TournamentStatus
 	): Tournament[] {
-		let query = `SELECT id, size, settings_id, status
+		let query = `SELECT tournament.id, size, settings_id, status
 			FROM ${this.table} tournament
 			INNER JOIN ${ParticipantRepository.table} participant
 				ON tournament.id = participant.tournament_id

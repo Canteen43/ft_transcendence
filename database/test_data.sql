@@ -2,7 +2,7 @@ INSERT INTO settings (id, max_score)
 VALUES 	('b0dde6bd-135a-4fb5-a71b-2331babae5d4', 3),
 		('550e8400-e29b-41d4-a716-446655450001', 3),
 		('550e8400-e29b-41d4-a716-446655450002', 3),
-		('550e8400-e29b-41d4-a716-446655450003', 3);
+		('550e8400-e29b-41d4-a716-446655450003', 3),
 		('550e8400-e29b-41d4-a716-446655450004', 3);
 
 INSERT INTO "user" (id, login, first_name, last_name, email, password_hash, settings_id)
