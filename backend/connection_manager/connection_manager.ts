@@ -26,15 +26,11 @@ function generateId(): UUID {
 }
 
 export function getConnection(connectionId: UUID) {
-	const socket = connections.get(connectionId);
-	if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
-	return socket;
+	return connections.get(connectionId);
 }
 
 export function getConnectionByUserId(userId: UUID) {
-	const socket = userIdToConnectionMap.get(userId);
-	if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
-	return socket;
+	return userIdToConnectionMap.get(userId);
 }
 
 export function addConnection(userId: UUID, socket: GameSocket): UUID {
@@ -55,10 +51,10 @@ export function addConnection(userId: UUID, socket: GameSocket): UUID {
 
 export function handleClose(event: CloseEvent) {
 	const socket = event.target as GameSocket;
-	connections.delete(socket.socketId);
-	userIdToConnectionMap.delete(socket.userId);
 	TournamentService.leaveQueue(socket.userId);
 	GameProtocol.getInstance().handleClose(socket.socketId);
+	connections.delete(socket.socketId);
+	userIdToConnectionMap.delete(socket.userId);
 }
 
 export function handleMessage(event: MessageEvent) {

@@ -39,6 +39,8 @@ export const ERROR_FAILED_TO_UPDATE_PARTICIPANT =
 export const ERROR_FAILED_TO_UPDATE_TOURNAMENT = 'Failed to update tournament';
 export const ERROR_PLAYER_NOT_FOUND = 'Player not found in match';
 export const ERROR_USER_ALREADY_CONNECTED = 'User already connected';
+export const ERROR_MESSAGE_HANDLE = 'Error while handling websocket message';
+export const ERROR_QUIT = 'Error while trying to end tournament';
 
 export const WS_CLOSE_POLICY_VIOLATION = 1008;
 export const WS_AUTHENTICATION_FAILED = 4001;
@@ -74,7 +76,7 @@ export const MESSAGE_FINISH = 'f';
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const MATCH_FINISH_MESSAGE: Message = { t: MESSAGE_FINISH };
-export const MATCH_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
+export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 
