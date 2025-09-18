@@ -15,7 +15,7 @@
  * - Double-click canvas: Toggle fullscreen
  */
 import { conditionalWarn } from './Logger';
-import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3dAI';
+import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3DAI';
 
 export interface KeyState {
 	p1Left: boolean;

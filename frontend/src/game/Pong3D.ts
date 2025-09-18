@@ -37,7 +37,7 @@ import {
 	type GameStateForAI,
 	getAIDifficultyFromName,
 	Pong3DAI,
-} from './pong3dAI';
+} from './pong3DAI';
 
 // ============================================================================
 
