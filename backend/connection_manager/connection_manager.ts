@@ -55,6 +55,7 @@ export function addConnection(userId: UUID, socket: GameSocket): UUID {
 export function handleClose(event: CloseEvent) {
 	const socket = event.target as GameSocket;
 	connections.delete(socket.socketId);
+	userIdToConnectionMap.delete(socket.userId);
 	TournamentService.leaveQueue(socket.userId);
 	GameProtocol.getInstance().handleClose(socket.socketId);
 }
