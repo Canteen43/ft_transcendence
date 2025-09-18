@@ -1,3 +1,4 @@
+import z from 'zod';
 import { ERROR_FAILED_TO_CREATE_TOURNAMENT } from '../../shared/constants.js';
 import { TournamentStatus } from '../../shared/enums.js';
 import { DatabaseError } from '../../shared/exceptions.js';
@@ -34,22 +35,25 @@ export default class TournamentRepository {
 		return TournamentSchema.parse(result);
 	}
 
-	static getPendingTournament(userId: UUID): Tournament | null {
-		const result = db.queryOne<Tournament>(
-			`SELECT ${this.table}.id,
-				${this.table}.size,
-				${this.table}.settings_id,
-				${this.table}.status
-			FROM ${this.table}
-			INNER JOIN ${ParticipantRepository.table}
-			ON ${this.table}.id = ${ParticipantRepository.table}.tournament_id
-			WHERE ${this.table}.status = ?
-			AND   ${ParticipantRepository.table}.user_id = ?`,
-			[TournamentStatus.Pending, userId]
-		);
+	static getTournamentsForUser(
+		user_id: UUID,
+		status?: TournamentStatus
+	): Tournament[] {
+		let query = `SELECT id, size, settings_id, status
+			FROM ${this.table} tournament
+			INNER JOIN ${ParticipantRepository.table} participant
+				ON tournament.id = participant.tournament_id
+			WHERE participant.user_id = ?`;
 
-		if (!result) return null;
-		return TournamentSchema.parse(result);
+		let params: any[] = [user_id];
+
+		if (status !== undefined) {
+			query += ` AND status = ?`;
+			params.push(status);
+		}
+
+		const result = db.queryAll<Tournament>(query, params);
+		return z.array(TournamentSchema).parse(result);
 	}
 
 	static createTournament(src: CreateTournament): Tournament {

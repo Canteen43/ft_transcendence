@@ -4,6 +4,7 @@ import {
 	ERROR_PLAYER_NOT_FOUND,
 	ERROR_USER_CONNECTION_NOT_FOUND,
 	MATCH_FINISH_MESSAGE,
+	MATCH_QUIT_MESSAGE,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
 	MESSAGE_GAME_STATE,
@@ -36,6 +37,7 @@ import {
 } from '../connection_manager/connection_manager.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
+import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
 import { formatError } from '../utils/utils.js';
@@ -210,20 +212,22 @@ export class GameProtocol {
 		const match = this.matches.get(connectionId);
 		if (match) {
 			this.endMatch(match);
-			const participants = this.getTournamentParticipants(match.matchId);
-			this.sendTournamentMessage(message, participants);
 		} else {
 			const socket = this.getSocket(connectionId);
-			const tournamentId = 'A' as UUID; // TODO: Retrieve tournament ID
+			const activeTournaments =
+				TournamentRepository.getTournamentsForUser(socket.userId);
+			if (activeTournaments.length != 1)
+				throw new TournamentNotFoundError('user id', socket.userId);
+
 			if (
 				MatchService.userStillHasMatchesToPlay(
-					tournamentId,
+					activeTournaments[0].id,
 					socket.userId
 				)
 			) {
 				const participants =
 					ParticipantRepository.getTournamentParticipants(
-						tournamentId
+						activeTournaments[0].id
 					);
 				this.sendTournamentMessage(message, participants);
 			}
@@ -265,6 +269,8 @@ export class GameProtocol {
 
 	private endMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
+		const participants = this.getTournamentParticipants(match.matchId);
+		this.sendTournamentMessage(MATCH_QUIT_MESSAGE, participants);
 
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {

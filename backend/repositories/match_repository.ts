@@ -68,7 +68,7 @@ export default class MatchRepository {
 		tournament_round?: number,
 		user_id?: UUID
 	): MatchWithUserId[] {
-		var query =
+		let query =
 			this.matchPlusUserIdQuery +
 			`
 			WHERE ${this.table}.tournament_id = ?`;

@@ -41,8 +41,11 @@ export const ERROR_PLAYER_NOT_FOUND = 'Player not found in match';
 export const ERROR_USER_ALREADY_CONNECTED = 'User already connected';
 
 export const WS_CLOSE_POLICY_VIOLATION = 1008;
+export const WS_AUTHENTICATION_FAILED = 4001;
+export const WS_TOKEN_EXPIRED = 4002;
+export const WS_ALREADY_CONNECTED = 4003;
 
-export const TOKEN_VALIDITY_PERIOD = '1h';
+export const TOKEN_VALIDITY_PERIOD = '1d';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
 export const FIELD_WIDTH = 1800;
@@ -71,6 +74,7 @@ export const MESSAGE_FINISH = 'f';
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const MATCH_FINISH_MESSAGE: Message = { t: MESSAGE_FINISH };
+export const MATCH_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 
