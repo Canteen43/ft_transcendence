@@ -1,5 +1,11 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import z from 'zod';
+import {
+	ERROR_AUTHENTICATION_FAILED,
+	ERROR_TOKEN_EXPIRED,
+	WS_AUTHENTICATION_FAILED,
+	WS_TOKEN_EXPIRED,
+} from '../../shared/constants.js';
 import { addConnection } from '../connection_manager/connection_manager.js';
 import { authenticateRequest } from '../hooks/auth.js';
 import { LockService, LockType } from '../services/lock_service.js';
@@ -12,7 +18,19 @@ async function handleIncomingConnection(
 	request: FastifyRequest<{ Querystring: { token: string } }>
 ) {
 	request.headers['authorization'] = `Bearer ${request.query.token}`;
-	authenticateRequest(request);
+
+	try {
+		authenticateRequest(request);
+	} catch (error) {
+		const message =
+			error instanceof Error
+				? error.message
+				: ERROR_AUTHENTICATION_FAILED;
+		if (message == ERROR_TOKEN_EXPIRED)
+			webSocket.close(WS_TOKEN_EXPIRED, message);
+		else webSocket.close(WS_AUTHENTICATION_FAILED, message);
+		return;
+	}
 	const authRequest = getAuthData(request);
 
 	await LockService.withLock(LockType.Auth, async () =>

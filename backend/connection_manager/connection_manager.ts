@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import {
 	ERROR_USER_ALREADY_CONNECTED,
 	ERROR_USER_CONNECTION_NOT_FOUND,
+	WS_ALREADY_CONNECTED,
 	WS_CLOSE_POLICY_VIOLATION,
 } from '../../shared/constants.js';
 import {
@@ -25,20 +26,16 @@ function generateId(): UUID {
 }
 
 export function getConnection(connectionId: UUID) {
-	const socket = connections.get(connectionId);
-	if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
-	return socket;
+	return connections.get(connectionId);
 }
 
 export function getConnectionByUserId(userId: UUID) {
-	const socket = userIdToConnectionMap.get(userId);
-	if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
-	return socket;
+	return userIdToConnectionMap.get(userId);
 }
 
 export function addConnection(userId: UUID, socket: GameSocket): UUID {
 	if (userIdToConnectionMap.get(userId)) {
-		socket.close(WS_CLOSE_POLICY_VIOLATION, ERROR_USER_ALREADY_CONNECTED);
+		socket.close(WS_ALREADY_CONNECTED, ERROR_USER_ALREADY_CONNECTED);
 		throw new UserAlreadyConnectedError(userId);
 	}
 	socket.addEventListener('message', handleMessage);
@@ -54,9 +51,10 @@ export function addConnection(userId: UUID, socket: GameSocket): UUID {
 
 export function handleClose(event: CloseEvent) {
 	const socket = event.target as GameSocket;
-	connections.delete(socket.socketId);
 	TournamentService.leaveQueue(socket.userId);
 	GameProtocol.getInstance().handleClose(socket.socketId);
+	connections.delete(socket.socketId);
+	userIdToConnectionMap.delete(socket.userId);
 }
 
 export function handleMessage(event: MessageEvent) {

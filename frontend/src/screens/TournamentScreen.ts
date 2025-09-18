@@ -1,6 +1,7 @@
 import { ReadyButton } from '../buttons/ReadyButton';
 import { Screen } from './Screen';
 
+
 export class TournamentScreen extends Screen {
 	constructor() {
 		super();
