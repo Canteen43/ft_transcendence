@@ -1,7 +1,9 @@
 import {
 	EMPTY_PLAYER,
 	EMPTY_UUID,
+	ERROR_MESSAGE_HANDLE,
 	ERROR_PLAYER_NOT_FOUND,
+	ERROR_QUIT,
 	ERROR_USER_CONNECTION_NOT_FOUND,
 	MATCH_FINISH_MESSAGE,
 	MATCH_START_MESSAGE,
@@ -12,8 +14,9 @@ import {
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_START_TOURNAMENT,
+	TOURNAMENT_QUIT_MESSAGE,
 } from '../../shared/constants.js';
-import { MatchStatus } from '../../shared/enums.js';
+import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	ConnectionError,
 	MatchNotFoundError,
@@ -29,6 +32,10 @@ import {
 } from '../../shared/schemas/match.js';
 import { Message } from '../../shared/schemas/message.js';
 import { Participant } from '../../shared/schemas/participant.js';
+import {
+	Tournament,
+	UpdateTournamentSchema,
+} from '../../shared/schemas/tournament.js';
 import { UUID } from '../../shared/types.js';
 import {
 	getConnection,
@@ -36,6 +43,7 @@ import {
 } from '../connection_manager/connection_manager.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
+import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
 import { formatError } from '../utils/utils.js';
@@ -64,36 +72,23 @@ export class GameProtocol {
 	}
 
 	handleMessage(connectionId: UUID, message: string) {
-		logger.trace(
-			`GameProtocol.handleMessage: Received message from connection ${connectionId}`
-		);
-		logger.trace(`GameProtocol.handleMessage: Raw message: ${message}`);
+		logger.trace(`websocket: message received: ${message}`);
 		const json = JSON.parse(message);
-		logger.trace(
-			`GameProtocol.handleMessage: Parsed message type: ${json.t}`
-		);
 		const handler =
 			this.protocolFunctionMap[
 				json.t as keyof typeof this.protocolFunctionMap
 			];
 		if (handler) {
-			logger.trace(
-				`GameProtocol.handleMessage: Found handler for message type ${json.t}`
-			);
 			try {
 				handler.call(this, connectionId, json);
 			} catch (error) {
-				logger.warn(
-					`Error while handling websocket message: ${formatError(error)}`
-				);
+				logger.warn(`${ERROR_MESSAGE_HANDLE}: ${formatError(error)}`);
 				const match = this.matches.get(connectionId);
 				if (match) {
 					try {
-						this.endMatch(match);
+						this.quitAll(connectionId);
 					} catch (error) {
-						logger.warn(
-							`Error while trying to end match: ${formatError(error)}`
-						);
+						logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
 					}
 				}
 			}
@@ -103,8 +98,12 @@ export class GameProtocol {
 	}
 
 	handleClose(connectionId: UUID) {
-		const match = this.matches.get(connectionId);
-		if (match) this.endMatch(match);
+		logger.debug('websocket: close event received.');
+		try {
+			this.quitAll(connectionId);
+		} catch (error) {
+			logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
+		}
 	}
 
 	sendTournamentStart(participants: Participant[], tournament_id: UUID) {
@@ -156,9 +155,9 @@ export class GameProtocol {
 	}
 
 	private handleGameState(connectionId: UUID, message: Message) {
-		logger.trace('websocket: game state message received.');
-		// log message
-		logger.trace('Game state message:' + JSON.stringify(message));
+		logger.trace(
+			'websocket: game state message received:' + JSON.stringify(message)
+		);
 		const match = this.matches.get(connectionId);
 		if (!match) throw new MatchNotFoundError();
 		this.sendMatchMessage(message, match.players);
@@ -168,33 +167,18 @@ export class GameProtocol {
 		// TODO: check if message comes from game creator?
 		logger.debug('websocket: point scored message received.');
 		const userId = message.d as UUID;
-		logger.debug(`MESSAGE_POINT: userId from message: ${userId}`);
 		const match = this.getMatchObject(connectionId);
-		logger.debug(
-			`MESSAGE_POINT: match found with ${match.players.length} players`
-		);
-		match.players.forEach((p, i) => {
-			logger.debug(
-				`MESSAGE_POINT: player ${i}: userId=${p.userId}, score=${p.score}`
-			);
-		});
 		const player = match.players.find(p => p.userId === userId);
 		if (!player) {
-			logger.error(
+			logger.warn(
 				`MESSAGE_POINT: Player not found for userId: ${userId}`
 			);
 			throw new ProtocolError(ERROR_PLAYER_NOT_FOUND + ': ' + userId);
 		}
-		logger.debug(
-			`MESSAGE_POINT: Found player, incrementing score from ${player.score} to ${player.score + 1}`
-		);
 		player.score++;
 		const matchFinished = MatchService.processPointAndCheckMatchFinished(
 			match.matchId,
 			userId
-		);
-		logger.debug(
-			`MESSAGE_POINT: Forwarding message to ${match.players.length} players`
 		);
 		this.sendMatchMessage(message, match.players);
 		if (matchFinished) {
@@ -207,14 +191,41 @@ export class GameProtocol {
 
 	private handleQuit(connectionId: UUID, message: Message) {
 		logger.debug('websocket: quit message received.');
-		const match = this.matches.get(connectionId);
-		if (match) this.endMatch(match);
+		this.quitAll(connectionId);
 	}
 
 	private handlePause(connectionId: UUID, message: Message) {
 		logger.debug('websocket: pause message received.');
 		const match = this.getMatchObject(connectionId);
 		this.sendMatchMessage(message, match.players);
+	}
+
+	private quitAll(connectionId: UUID) {
+		const match = this.matches.get(connectionId);
+		if (match) this.endMatch(match);
+
+		const socket = getConnection(connectionId);
+		if (!socket) {
+			logger.warn(ERROR_USER_CONNECTION_NOT_FOUND);
+			return;
+		}
+
+		const activeTournaments = TournamentRepository.getTournamentsForUser(
+			socket.userId,
+			TournamentStatus.InProgress
+		);
+
+		if (activeTournaments.length != 1)
+			throw new TournamentNotFoundError('user id', socket.userId);
+
+		if (
+			MatchService.userStillHasMatchesToPlay(
+				activeTournaments[0].id,
+				socket.userId
+			)
+		) {
+			this.endTournament(activeTournaments[0]);
+		}
 	}
 
 	private createMatchObject(match: MatchFromSchema, creator: UUID): Match {
@@ -246,8 +257,8 @@ export class GameProtocol {
 
 	private endMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
-		const outgoing_message: Message = { t: MESSAGE_QUIT };
-		this.sendMatchMessage(outgoing_message, match.players);
+		const participants = this.getTournamentParticipants(match.matchId);
+		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
 
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {
@@ -256,29 +267,30 @@ export class GameProtocol {
 		for (const key of keysToDelete) this.matches.delete(key);
 	}
 
+	private endTournament(tournament: Tournament) {
+		const participants = ParticipantRepository.getTournamentParticipants(
+			tournament.id
+		);
+		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
+		tournament.status = TournamentStatus.Cancelled;
+		const update = UpdateTournamentSchema.strip().parse(tournament);
+		TournamentRepository.updateTournament(tournament.id, update);
+	}
+
 	private sendMatchMessage(message: Message, players: Player[]) {
-		logger.debug(
+		logger.trace(
 			`sendMatchMessage: Sending ${message.t} to ${players.length} players`
 		);
 		players.forEach((p, index) => {
 			try {
-				logger.debug(
-					`sendMatchMessage: Sending to player ${index} (userId: ${p.userId})`
-				);
 				const connection = getConnectionByUserId(p.userId);
 				if (!connection) {
-					logger.error(
+					logger.warn(
 						`sendMatchMessage: No connection found for userId: ${p.userId}`
 					);
 					return;
 				}
-				logger.debug(
-					`sendMatchMessage: Connection found, sending message`
-				);
 				connection.send(JSON.stringify(message));
-				logger.debug(
-					`sendMatchMessage: Message sent successfully to userId: ${p.userId}`
-				);
 			} catch (error) {
 				logger.warn(
 					`Failed to send websocket message to user id ${p.userId}: ${formatError(error)}`
@@ -286,7 +298,6 @@ export class GameProtocol {
 				if (!(error instanceof ConnectionError)) throw error;
 			}
 		});
-		logger.debug('sendMatchMessage: Finished sending to all players');
 	}
 
 	private sendTournamentMessage(

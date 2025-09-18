@@ -8,7 +8,11 @@ import {
 	MatchNotFoundError,
 	SettingsNotFoundError,
 } from '../../shared/exceptions.js';
-import { Match, UpdateMatchSchema } from '../../shared/schemas/match.js';
+import {
+	Match,
+	MatchWithUserId,
+	UpdateMatchSchema,
+} from '../../shared/schemas/match.js';
 import type { UpdateMatchArray } from '../../shared/types.js';
 import { UUID } from '../../shared/types.js';
 import MatchRepository from '../repositories/match_repository.js';
@@ -46,6 +50,26 @@ export default class MatchService {
 		return matchFinished;
 	}
 
+	static userStillHasMatchesToPlay(
+		tournament_id: UUID,
+		userId: UUID
+	): boolean {
+		const matches = MatchRepository.getTournamentMatches(tournament_id);
+		const lost = matches.filter(m => this.lostMatch(m, userId));
+		const pending = matches.filter(m => m.status == MatchStatus.Pending);
+		return lost.length == 0 && pending.length > 0;
+	}
+
+	private static lostMatch(m: MatchWithUserId, userId: UUID) {
+		return (
+			m.status == MatchStatus.Finished &&
+			((m.participant_1_user_id == userId &&
+				m.participant_1_score < m.participant_2_score) ||
+				(m.participant_2_user_id == userId &&
+					m.participant_2_score < m.participant_1_score))
+		);
+	}
+
 	private static checkMatchFinished(match: Match) {
 		const updateMatches: UpdateMatchArray = [];
 		let tournamentFinished = false;
@@ -70,24 +94,24 @@ export default class MatchService {
 	}
 
 	private static checkRoundFinished(
-		tournament_id: UUID,
-		tournament_round: number
+		tournamentId: UUID,
+		tournamentRound: number
 	): [newRound: UpdateMatchArray, tournamentFinished: boolean] {
 		var tournamentFinished = false;
 		const newRound: UpdateMatchArray = [];
-		const unfinished = MatchRepository.getNumberOfUnfinishedMatches(
-			tournament_id,
-			tournament_round
+		const matches = MatchRepository.getTournamentMatches(
+			tournamentId,
+			tournamentRound
 		);
 
 		// Current match status hasn't been updated yet,
 		// so unfinished == 1 means round is over
-		if (unfinished <= 1) {
-			const rounds = TournamentService.getNumberOfRounds(tournament_id);
-			if (tournament_round == rounds) tournamentFinished = true;
+		if (matches.filter(m => m.status != MatchStatus.Finished).length == 1) {
+			const rounds = TournamentService.getNumberOfRounds(tournamentId);
+			if (tournamentRound == rounds) tournamentFinished = true;
 			else {
 				newRound.push(
-					...this.startNewRound(tournament_id, tournament_round + 1)
+					...this.startNewRound(tournamentId, tournamentRound + 1)
 				);
 			}
 		}
@@ -95,17 +119,14 @@ export default class MatchService {
 	}
 
 	private static startNewRound(
-		tournament_id: UUID,
+		tournamentId: UUID,
 		round: number
 	): UpdateMatchArray {
-		var participants = MatchRepository.getWinners(tournament_id, round);
+		var participants = MatchRepository.getWinners(tournamentId, round);
 		if (!participants.length)
 			throw new DatabaseError(ERROR_RETRIEVING_WINNERS);
 
-		var matches = MatchRepository.getTournamentMatches(
-			tournament_id,
-			round
-		);
+		var matches = MatchRepository.getTournamentMatches(tournamentId, round);
 		if (!matches.length)
 			throw new DatabaseError(ERROR_RETRIEVING_NEXT_ROUND);
 
@@ -124,15 +145,15 @@ export default class MatchService {
 	}
 
 	private static matchFinished(
-		tournament_id: UUID,
-		score_1: number,
-		score_2: number
+		tournamentId: UUID,
+		score1: number,
+		score2: number
 	): boolean {
 		const settings =
-			SettingsRepository.getSettingsByTournamentId(tournament_id);
+			SettingsRepository.getSettingsByTournamentId(tournamentId);
 		if (!settings)
-			throw new SettingsNotFoundError('tournament', tournament_id);
-		if (score_1 == settings.max_score || score_2 == settings.max_score)
+			throw new SettingsNotFoundError('tournament', tournamentId);
+		if (score1 == settings.max_score || score2 == settings.max_score)
 			return true;
 		return false;
 	}

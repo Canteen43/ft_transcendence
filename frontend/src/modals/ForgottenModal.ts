@@ -20,3 +20,5 @@ export class ForgottenModal extends Modal {
 		this.box.appendChild(message);
 	}
 }
+
+	

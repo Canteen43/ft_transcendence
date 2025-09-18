@@ -14,7 +14,7 @@ import { state } from '../utils/State';
 
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
-import { setMatchData } from './setMatchDataNew';
+import { setMatchData } from './setMatchData';
 import { webSocket } from './WebSocketWrapper';
 
 // TODO: add logic for the Quit event?

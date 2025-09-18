@@ -42,7 +42,7 @@ CREATE TABLE tournament (
 	),
 	size INTEGER,
 	settings_id TEXT,
-	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished'))
+	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished', 'cancelled'))
 );
 
 CREATE TABLE tournament_participant (
