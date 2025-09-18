@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import {
+	CreateTournamentApiSchema,
 	FullTournamentSchema,
 	JoinTournamentSchema,
-	CreateTournamentApiSchema,
 	TournamentQueueSchema,
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
@@ -83,7 +83,10 @@ export class AliasModal extends Modal {
 		// API call to join a tournament
 		// send 2 or 4 + alias, receive the array of players in that tournament
 
-		const joinData = { size: targetSize, alias: sessionStorage.getItem('alias1') }; // overkill - we are sending a nuber
+		const joinData = {
+			size: targetSize,
+			alias: sessionStorage.getItem('alias1'),
+		}; // overkill - we are sending a nuber
 		const parseInput = JoinTournamentSchema.safeParse(joinData);
 		if (!parseInput.success) {
 			alert('Invalid tournament format');
@@ -144,7 +147,10 @@ export class AliasModal extends Modal {
 				console.info('Tournament created with ID:', tournament.id);
 				// sessionStorage.setItem('tournamentId', tournament.id);
 			} else {
-				console.error('Failed to create tournament');
+				console.error(
+					'Failed to create tournament as last player. Leaving queue.'
+				);
+				apiCall('POST', `/tournaments/leave`);
 			}
 		}
 	}

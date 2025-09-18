@@ -1,5 +1,5 @@
 export class Screen {
-	protected element: HTMLDivElement;
+	public element: HTMLDivElement;
 
 	constructor() {
 		this.element = document.createElement('div');
