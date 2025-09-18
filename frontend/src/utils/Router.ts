@@ -4,9 +4,9 @@ import { Screen } from '../screens/Screen';
 import { TournamentScreen } from '../screens/TournamentScreen';
 
 export class Router {
-	private currentScreen: Screen | null = null;
+	public currentScreen: Screen | null = null;
 
-	constructor() {
+	public init() {
 		// This will ensure destroy functions are called
 		window.addEventListener('beforeunload', () => {
 			if (this.currentScreen) {
@@ -44,3 +44,5 @@ export class Router {
 		}
 	}
 }
+
+export const router = new Router();
