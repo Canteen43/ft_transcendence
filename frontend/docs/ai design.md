@@ -113,7 +113,7 @@ Future extension possibilities:
 
 ### Phase 1: Core AI System
 
-1. **Create pong3dAI.ts**: Dedicated AI module for clean separation of concerns
+1. **Create pong3DAI.ts**: Dedicated AI module for clean separation of concerns
 2. **AI Detection**: Check player names for `*` prefix during game initialization
 3. **Input Override**: Replace human input with AI decisions for AI players
 4. **Basic Tracking**: Implement X-coordinate ball tracking with boundary limits for 2-player mode
@@ -137,11 +137,11 @@ Future extension possibilities:
 
 ## Technical Implementation
 
-### pong3dAI.ts Structure
+### pong3DAI.ts Structure
 
 ## File Structure
 
-### pong3dAI.ts
+### pong3DAI.ts
 
 Main AI module containing:
 

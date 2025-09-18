@@ -213,10 +213,10 @@ export class Pong3D {
 	private ANGULAR_RETURN_LIMIT = Math.PI / 4; // 60 degrees
 
 	// Paddle physics settings
-	private PADDLE_MASS = 3; // Paddle mass for collision response
+	private PADDLE_MASS = 2.8; // Paddle mass for collision response
 	private PADDLE_FORCE = 15; // Force applied when moving
 	private PADDLE_RANGE = 5; // Movement range from center
-	private PADDLE_MAX_VELOCITY = 12; // Maximum paddle speed
+	private PADDLE_MAX_VELOCITY = 13; // Maximum paddle speed
 	private PADDLE_BRAKING_FACTOR = 0.8; // Velocity multiplier per frame when no input (0.92 = 8% reduction per frame)
 
 	// === END CONFIGURATION ===
