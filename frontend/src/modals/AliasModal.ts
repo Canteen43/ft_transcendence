@@ -20,12 +20,12 @@ export class AliasModal extends Modal {
 		super(parent);
 
 		const username = sessionStorage.getItem('username') ?? '';
-		const alias = sessionStorage.getItem('alias1') ?? '';
+		const alias = sessionStorage.getItem('alias') ?? '';
 		const aliases = [
-			sessionStorage.getItem('player1Alias') ?? '',
-			sessionStorage.getItem('player2Alias') ?? '',
-			sessionStorage.getItem('player3Alias') ?? '',
-			sessionStorage.getItem('player4Alias') ?? '',
+			sessionStorage.getItem('alias1') ?? '',
+			sessionStorage.getItem('alias2') ?? '',
+			sessionStorage.getItem('alias3') ?? '',
+			sessionStorage.getItem('alias4') ?? '',
 		];
 
 		for (let i = 0; i < n; i++) {
@@ -48,16 +48,24 @@ export class AliasModal extends Modal {
 	}
 
 	private async handleAlias() {
+		
 		const tournament = sessionStorage.getItem('tournament') ?? '';
 		const gameMode = sessionStorage.getItem('gameMode') ?? '';
-
-		this.aliasFields.forEach((field, index) => {
+		
+		if (state.gameMode === 'local') {
+			this.aliasFields.forEach((field, index) => {
 			const alias = field.value.trim() || `Player${index + 1}`;
 			sessionStorage.setItem(`alias${index + 1}`, alias);
-		});
-		if (state.gameMode === 'local') {
+			});
 			location.hash = '#game';
 		} else {
+			const alias = this.aliasFields[0].value.trim() || `Player${0 + 1}`;
+			sessionStorage.setItem('alias', alias);
+			sessionStorage.removeItem('alias1');
+			sessionStorage.removeItem('alias2');
+			sessionStorage.removeItem('alias3');
+			sessionStorage.removeItem('alias4');
+
 			this.joinGame(state.tournamentSize);
 			new WaitingModal(this.parent);
 		}
@@ -82,10 +90,9 @@ export class AliasModal extends Modal {
 	private async joinGame(targetSize: number) {
 		// API call to join a tournament
 		// send 2 or 4 + alias, receive the array of players in that tournament
-
 		const joinData = {
 			size: targetSize,
-			alias: sessionStorage.getItem('alias1'),
+			alias: sessionStorage.getItem('alias'),
 		}; // overkill - we are sending a nuber
 		const parseInput = JoinTournamentSchema.safeParse(joinData);
 		if (!parseInput.success) {
