@@ -21,12 +21,7 @@ export class AliasModal extends Modal {
 
 		const username = sessionStorage.getItem('username') ?? '';
 		const alias = sessionStorage.getItem('alias') ?? '';
-		const aliases = [
-			sessionStorage.getItem('alias1') ?? '',
-			sessionStorage.getItem('alias2') ?? '',
-			sessionStorage.getItem('alias3') ?? '',
-			sessionStorage.getItem('alias4') ?? '',
-		];
+		const aliases = ['↑←↓→', 'wasd', 'ijkl', '8456'];
 
 		for (let i = 0; i < n; i++) {
 			let defaultValue = '';
