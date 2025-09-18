@@ -1,5 +1,6 @@
 import { th } from 'zod/v4/locales';
 import { LeaveGameConfirmationModal } from '../modals/LeaveGameConfirmationModal';
+import { state } from '../utils/State';
 
 export class HomeButton {
 	private button: HTMLButtonElement;
@@ -36,7 +37,7 @@ export class HomeButton {
 	}
 
 	private handleHomeClick = () => {
-		if (location.hash === '#game') {
+		if (location.hash === '#game' || state.gameOngoing) {
 			new LeaveGameConfirmationModal(this.button.parentElement!);
 		} else location.hash = '#home';
 	};
