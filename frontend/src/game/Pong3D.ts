@@ -13,6 +13,8 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { ReplayModal } from '../modals/ReplayModal';
+import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
@@ -56,6 +58,7 @@ export interface Pong3DOptions {
 	modelUrlOverride?: string; // Override automatic model selection
 	local?: boolean; // Local 2-player mode vs network play (only applies when playerCount = 2)
 	outOfBoundsDistance?: number; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
+	gameScreen?: GameScreen; // Reference to GameScreen for modal management
 }
 
 // Game state - simplified to arrays for uniform handling
@@ -73,9 +76,6 @@ interface BoundingInfo {
 export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
-
-	// Simple ball radius for physics impostor
-	private static readonly BALL_RADIUS = 0.3;
 
 	// Debug helper method - now uses GameConfig
 	private debugLog(...args: any[]): void {
@@ -185,6 +185,9 @@ export class Pong3D {
 
 	// === GAME PHYSICS CONFIGURATION ===
 
+	// Simple ball radius for physics impostor
+	private static readonly BALL_RADIUS = 0.3;
+
 	// Ball settings (non-effects)
 	public WINNING_SCORE = DEFAULT_MAX_SCORE; // Points needed to win the game
 	private static readonly OUT_OF_BOUNDS_DISTANCE = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
@@ -260,6 +263,9 @@ export class Pong3D {
 
 	// Resize handler reference for cleanup
 	private resizeHandler: (() => void) | null = null;
+
+	// GameScreen reference for modal management
+	private gameScreen: GameScreen | null = null;
 
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
@@ -386,6 +392,7 @@ export class Pong3D {
 		if (options?.outOfBoundsDistance !== undefined) {
 			this.outOfBoundsDistance = options.outOfBoundsDistance; // Override default if provided
 		}
+		this.gameScreen = options?.gameScreen || null; // Store GameScreen reference for modal management
 		const modelUrl =
 			options?.modelUrlOverride ||
 			this.getModelUrlForPlayerCount(this.playerCount);
@@ -1859,19 +1866,15 @@ export class Pong3D {
 				this.uiHandles.showWinner(scoringPlayer, playerName);
 			}
 
-			// Mark game as ended - ball will freeze immediately on winning goal
+			// Mark game as ended - disable physics engine instead of just freezing ball
 			this.gameEnded = true;
 
-			// Stop the ball immediately when game ends (freeze it in place)
-			if (this.ballMesh && this.ballMesh.physicsImpostor) {
-				this.ballMesh.physicsImpostor.setLinearVelocity(
-					BABYLON.Vector3.Zero()
-				);
-				this.ballMesh.physicsImpostor.setAngularVelocity(
-					BABYLON.Vector3.Zero()
-				);
-				this.conditionalLog(`🏆 Ball frozen in place - game ended`);
-			}
+			// Stop the physics engine entirely when game ends (ball will stay in place)
+			const physicsEngine = this.scene.getPhysicsEngine();
+			if (physicsEngine) {
+				this.scene.disablePhysicsEngine();
+				this.conditionalLog(`🏆 Physics engine disabled - game ended`);
+			} 
 
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
@@ -1884,6 +1887,15 @@ export class Pong3D {
 				);
 				if (sessionStorage.getItem('tournament') === '1') {
 					location.hash = '#tournament';
+				}
+				if (this.gameMode == 'local') {
+					if (this.gameScreen) {
+						new ReplayModal(this.gameScreen);
+					} else {
+						this.conditionalWarn(
+							'GameScreen reference not available for ReplayModal'
+						);
+					}
 				}
 			}, 7000);
 

@@ -86,19 +86,10 @@ export class GameConfig {
 	 * Default names: Player 1 = "cat", Player 2 = "dog", Player 3 = "monkey", Player 4 = "goat"
 	 */
 	static getPlayerName(playerIndex: 1 | 2 | 3 | 4): string {
-		const keys = ['player1Alias', 'player2Alias', 'player3Alias', 'player4Alias'];
+		const keys = ['alias1', 'alias2', 'alias3', 'alias4'];
 		const defaultNames = ['player 1', 'player 2', 'player 3', 'player 4'];
 		const stored = sessionStorage.getItem(keys[playerIndex - 1]);
 		return stored || defaultNames[playerIndex - 1];
-	}
-
-	/**
-	 * Set player name in sessionStorage
-	 */
-	static setPlayerName(playerIndex: 1 | 2 | 3 | 4, name: string): void {
-		const keys = ['alias1', 'alias2', 'alias3', 'alias4'];
-		sessionStorage.setItem(keys[playerIndex - 1], name);
-		console.log(`🎮 Player ${playerIndex} name set to: ${name}`);
 	}
 
 	/**
@@ -107,15 +98,6 @@ export class GameConfig {
 	static getPlayerUID(playerIndex: 1 | 2 | 3 | 4): string | null {
 		const keys = ['player1', 'player2', 'player3', 'player4'];
 		return sessionStorage.getItem(keys[playerIndex - 1]);
-	}
-
-	/**
-	 * Set player UID in sessionStorage (stored as player1, player2, etc.)
-	 */
-	static setPlayerUID(playerIndex: 1 | 2 | 3 | 4, uid: string): void {
-		const keys = ['player1', 'player2', 'player3', 'player4'];
-		sessionStorage.setItem(keys[playerIndex - 1], uid);
-		console.log(`🎮 Player ${playerIndex} UID set to: ${uid}`);
 	}
 
 	/**
@@ -200,10 +182,10 @@ export class GameConfig {
 		sessionStorage.removeItem('playerCount');
 		sessionStorage.removeItem('thisPlayer');
 		sessionStorage.removeItem('gameMode');
-		sessionStorage.removeItem('player1Name');
-		sessionStorage.removeItem('player2Name');
-		sessionStorage.removeItem('player3Name');
-		sessionStorage.removeItem('player4Name');
+		sessionStorage.removeItem('alias1');
+		sessionStorage.removeItem('alias2');
+		sessionStorage.removeItem('alias3');
+		sessionStorage.removeItem('alias4');
 		sessionStorage.removeItem('player1');
 		sessionStorage.removeItem('player2');
 		sessionStorage.removeItem('player3');
