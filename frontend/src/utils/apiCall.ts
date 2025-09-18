@@ -1,14 +1,6 @@
 import { ZodType, z } from 'zod';
-// z is a namespace containing all Zod functions and helpers. Toolbox that has
-// all the functions to create schemas and helpers. TypeScript can infer the
-// schema type automatically with z.infer<typeof schema>
 
-// ZodType<T> is the TypeScript type representing a Zod schema.
-// use ZodType<T> when you need to type a function parameter or a variable that
-// can accept any Zod schema.
-
-// const API_BASE = `http://localhost:${Number(process.env.PORT)}`;
-const API_BASE = `http://localhost:8080`;
+const API_BASE = `http://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}`;
 
 export async function apiCall<T>(
 	method: string,
