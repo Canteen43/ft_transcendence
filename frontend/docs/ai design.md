@@ -3,6 +3,7 @@
 ## Overview
 
 This document outlines the design for an AI system in Pong3D that allows computer-controlled players in local multiplayer games. The AI is designed as a pe### Advanced AI Features
+
 - **Ball Trajectory Prediction**: Calculate interception points using ball position and velocity vectors
 - **Ray Casting Algorithm**: Cast rays along ball trajectory, accounting for court boundaries and reflections
 - **Predictive Positioning**: Move paddle toward predicted ball crossing point rather than current position
@@ -10,6 +11,14 @@ This document outlines the design for an AI system in Pong3D that allows compute
 - **Opponent Modeling**: Learn human player patterns
 - **Cooperative AI**: Coordinate with other AI players
 - **Adaptive Difficulty**: Adjust parameters based on player performanceical exercise to demonstrate basic AI concepts while maintaining game balance and fairness.
+
+## Game Mechanics
+
+The AI design assumes the following game mechanics:
+
+- The ball moves only in the x-z plane.
+- Paddles move only along the x-axis.
+- The AI logic is currently implemented only for 2-player mode.
 
 ## Core Concept
 
@@ -20,12 +29,15 @@ AI players are identified by player names that begin with an asterisk (`*`). Whe
 ## AI Architecture
 
 ### Sample-Based Control
+
 - **Sample Rate**: Configurable sampling frequency (default: 1 Hz / once per second)
 - **Difficulty Tuning**: Lower sample rates = easier AI (more predictable), higher rates = harder AI (more responsive)
 - **Real-time Processing**: AI decisions are made at sample intervals, not continuously
 
 ### Input System
+
 The AI has access to **exactly the same 3-input system as human players**:
+
 - **Left**: Move paddle left
 - **Right**: Move paddle right
 - **Stop**: No movement (neutral position)
@@ -35,18 +47,22 @@ The AI has access to **exactly the same 3-input system as human players**:
 ### Decision Algorithm
 
 #### 2-Player Mode
+
 For 2-player games, the AI uses a simple **ball-tracking algorithm**:
 
 1. **Sample ball position** at configured intervals
 2. **Extract X-coordinate** of ball position
 3. **Compare to paddle X-position**
-4. **Apply deadzone logic**:
-   - If ball X is within `central_limit` of paddle X → **Stop**
-   - If ball X is left of paddle X → **Left**
-   - If ball X is right of paddle X → **Right**
+4. **Apply deadzone and boundary logic**:
+    - If ball X is within `central_limit` of paddle X → **Stop**
+    - If ball X is left of paddle X AND paddle X > -x_limit → **Left**
+    - If ball X is right of paddle X AND paddle X < x_limit → **Right**
+    - Otherwise → **Stop**
 
 #### Multi-Player Modes (3-4 Players)
+
 Future extension possibilities:
+
 - Track ball trajectory prediction
 - Prioritize based on ball direction
 - Coordinate with other AI players
@@ -54,6 +70,7 @@ Future extension possibilities:
 ## Configuration Parameters
 
 ### AI_Sample_Rate
+
 - **Type**: `number` (Hz)
 - **Default**: `1.0`
 - **Range**: `0.1` to `10.0`
@@ -61,6 +78,7 @@ Future extension possibilities:
 - **Difficulty Impact**: Higher values = more responsive/faster AI
 
 ### AI_Central_Limit
+
 - **Type**: `number` (units)
 - **Default**: `0.5`
 - **Range**: `0.1` to `2.0`
@@ -68,6 +86,7 @@ Future extension possibilities:
 - **Difficulty Impact**: Larger values = more forgiving AI positioning
 
 ### AI_Input_Duration_Base
+
 - **Type**: `number` (milliseconds)
 - **Default**: `300`
 - **Range**: `50` to `1000`
@@ -75,22 +94,33 @@ Future extension possibilities:
 - **Difficulty Impact**: Longer base duration = more aggressive movement
 
 ### AI_Input_Duration_Scale
+
 - **Type**: `number` (multiplier)
 - **Default**: `2.0`
 - **Range**: `0.5` to `5.0`
 - **Description**: How much pulse duration scales with distance to target
 - **Difficulty Impact**: Higher values = longer pulses for large corrections
 
+### AI_X_Limit
+
+- **Type**: `number` (units)
+- **Default**: `5.0`
+- **Range**: `1.0` to `10.0`
+- **Description**: Maximum X-coordinate limit for paddle movement (symmetric around center, paddle X constrained to [-x_limit, x_limit])
+- **Difficulty Impact**: Smaller values = more restricted AI movement range, larger values = wider paddle coverage
+
 ## Implementation Plan
 
 ### Phase 1: Core AI System
+
 1. **Create pong3dAI.ts**: Dedicated AI module for clean separation of concerns
 2. **AI Detection**: Check player names for `*` prefix during game initialization
 3. **Input Override**: Replace human input with AI decisions for AI players
-4. **Basic Tracking**: Implement X-coordinate ball tracking for 2-player mode
+4. **Basic Tracking**: Implement X-coordinate ball tracking with boundary limits for 2-player mode
 5. **Sample Timer**: Implement configurable sampling system
 
 ### Phase 2: Advanced Features
+
 1. **Trajectory Prediction**: Calculate ball future position based on velocity vector and court geometry
 2. **Ray Casting**: Cast rays along ball trajectory to predict reflection points
 3. **Interception Calculation**: Determine optimal paddle position for ball interception
@@ -100,6 +130,7 @@ Future extension possibilities:
 7. **Multi-player Support**: Extend algorithm for 3-4 player courts
 
 ### Phase 3: Balancing & Tuning
+
 1. **Difficulty Presets**: Easy/Medium/Hard configurations
 2. **Performance Testing**: Ensure AI doesn't impact game performance
 3. **Balance Validation**: Test against human players
@@ -108,48 +139,19 @@ Future extension possibilities:
 
 ### pong3dAI.ts Structure
 
-```typescript
-// AI input types
-export enum AIInput {
-    LEFT = 'left',
-    RIGHT = 'right', 
-    STOP = 'stop'
-}
-
-// AI configuration interface
-export interface AIConfig {
-    sampleRate: number;
-    centralLimit: number;
-    inputDurationBase: number;
-    inputDurationScale: number;
-}
-
-// Game state interface for AI
-export interface GameStateForAI {
-    ball: {
-        position: { x: number; y: number; z: number };
-        velocity: { x: number; y: number; z: number };
-    };
-    paddlePositionsX: number[];
-    paddlePositionsY: number[];
-}
-
-// Main AI controller class
-export class Pong3DAI {
-    // Implementation as shown in design above
-}
-```
-
 ## File Structure
 
 ### pong3dAI.ts
+
 Main AI module containing:
+
 - `Pong3DAI` class: Core AI controller with pulse-based input system
 - `AIConfig` interface: Configuration parameters for AI behavior
 - `AIInput` enum: Left/Right/Stop input states
 - Helper functions for trajectory calculations (Phase 2)
 
 ### Integration Points
+
 - **GameConfig**: Add AI configuration options
 - **InputHandler**: Override input for AI players
 - **GameLoop**: Provide game state to AI controllers
@@ -183,6 +185,7 @@ The pulse-based input system provides several advantages:
 ## Trajectory Prediction Enhancement
 
 ### Algorithm Overview
+
 For advanced AI that can handle Pong's physics more intelligently:
 
 1. **Ball Vector Analysis**: Access ball position and velocity vectors
@@ -194,27 +197,9 @@ For advanced AI that can handle Pong's physics more intelligently:
 7. **Proportional Movement**: Use pulse system to move toward predicted position
 
 ### Implementation Example
-```typescript
-predictInterception(gameState: GameState): number {
-    const ballPos = gameState.ball.position;
-    const ballVel = gameState.ball.velocity;
-    
-    // Cast ray along ball trajectory
-    const trajectory = this.castBallRay(ballPos, ballVel);
-    
-    // Find interception point with paddle baseline
-    const interceptionX = this.findBaselineIntersection(trajectory);
-    
-    return interceptionX;
-}
-
-castBallRay(position: Vector3, velocity: Vector3): Ray {
-    // Project ball path, accounting for boundary reflections
-    // Return predicted trajectory to baseline
-}
-```
 
 ### Benefits
+
 - **Perfect Defense**: AI can position for balls it couldn't reach with reactive control
 - **Strategic Play**: Can predict ball paths around obstacles (in 3-4 player modes)
 - **Human-like Skill**: Demonstrates expert-level paddle positioning
@@ -223,12 +208,14 @@ castBallRay(position: Vector3, velocity: Vector3): Ray {
 ## Future Enhancements
 
 ### Advanced AI Features
+
 - **Ball Trajectory Prediction**: Calculate interception points
 - **Opponent Modeling**: Learn human player patterns
 - **Cooperative AI**: Coordinate between multiple AI players
 - **Adaptive Difficulty**: Adjust parameters based on player performance
 
 ### Game Modes
+
 - **AI vs AI**: Spectate computer players
 - **Mixed Teams**: Human + AI combinations
 - **Training Mode**: Practice against progressively harder AI
@@ -236,16 +223,19 @@ castBallRay(position: Vector3, velocity: Vector3): Ray {
 ## Testing & Validation
 
 ### Unit Tests
+
 - AI decision logic accuracy
 - Sample rate timing precision
 - Deadzone boundary conditions
 
 ### Integration Tests
+
 - AI player initialization
 - Input override functionality
 - Performance impact measurement
 
 ### Playtesting
+
 - Difficulty curve validation
 - Human vs AI balance testing
 - Multi-player scenario testing

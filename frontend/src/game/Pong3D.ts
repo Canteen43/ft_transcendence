@@ -31,6 +31,13 @@ import {
 	getCameraPosition,
 } from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
+import {
+	AI_DIFFICULTY_PRESETS,
+	type AIConfig,
+	type GameStateForAI,
+	getAIDifficultyFromName,
+	Pong3DAI,
+} from './pong3dAI';
 
 // ============================================================================
 
@@ -186,7 +193,7 @@ export class Pong3D {
 	// === GAME PHYSICS CONFIGURATION ===
 
 	// Simple ball radius for physics impostor
-	private static readonly BALL_RADIUS = 0.3;
+	private static readonly BALL_RADIUS = 0.325;
 
 	// Ball settings (non-effects)
 	public WINNING_SCORE = DEFAULT_MAX_SCORE; // Points needed to win the game
@@ -194,7 +201,7 @@ export class Pong3D {
 	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 60; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_TIME_STEP = 1 / 120; // Physics update frequency (120 Hz to reduce tunneling)
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -548,6 +555,9 @@ export class Pong3D {
 		} catch (e) {
 			this.conditionalWarn('GUI setup failed:', e);
 		}
+
+		// Set up AI controllers for players with names starting with "*"
+		this.setupAIControllers();
 
 		// Reduce intensity of imported lights
 		try {
@@ -1257,20 +1267,16 @@ export class Pong3D {
 		paddleAxis = paddleAxis.normalize();
 
 		// Get paddle velocity along its movement axis
-		const paddleVelAlongAxis = BABYLON.Vector3.Dot(
-			paddleVelocity,
-			paddleAxis
-		);
+		const paddleVelAlong = BABYLON.Vector3.Dot(paddleVelocity, paddleAxis);
 
 		// Define a threshold for "significant" paddle velocity
 		// Lower threshold for 3P mode to make effects more visible
 		const VELOCITY_THRESHOLD = this.playerCount === 3 ? 0.05 : 0.1;
-		const hasPaddleVelocity =
-			Math.abs(paddleVelAlongAxis) > VELOCITY_THRESHOLD;
+		const hasPaddleVelocity = Math.abs(paddleVelAlong) > VELOCITY_THRESHOLD;
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(
-				`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlongAxis.toFixed(2)})`
+				`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlong.toFixed(2)})`
 			);
 			this.conditionalLog(
 				`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`
@@ -1288,7 +1294,7 @@ export class Pong3D {
 				`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
 			);
 			this.conditionalLog(
-				`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlongAxis).toFixed(3)}`
+				`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlong).toFixed(3)}`
 			);
 		}
 
@@ -1298,7 +1304,7 @@ export class Pong3D {
 				`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`
 			);
 			this.conditionalLog(
-				`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlongAxis.toFixed(3)}`
+				`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlong.toFixed(3)}`
 			);
 			this.conditionalLog(
 				`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`
@@ -1306,7 +1312,7 @@ export class Pong3D {
 		}
 		const velocityRatio = Math.max(
 			-1.0,
-			Math.min(1.0, paddleVelAlongAxis / this.PADDLE_MAX_VELOCITY)
+			Math.min(1.0, paddleVelAlong / this.PADDLE_MAX_VELOCITY)
 		);
 
 		// IMPORTANT: For paddle orientation consistency
@@ -1326,7 +1332,7 @@ export class Pong3D {
 				`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
 			);
 			this.conditionalLog(
-				`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlongAxis.toFixed(3)}`
+				`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlong.toFixed(3)}`
 			);
 		}
 
@@ -1353,7 +1359,7 @@ export class Pong3D {
 					}
 				}
 				this.conditionalLog(
-					`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
+					`  - Paddle velocity: ${paddleVelAlong.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
 				);
 			}
 			if (GameConfig.isDebugLoggingEnabled()) {
@@ -1376,7 +1382,7 @@ export class Pong3D {
 					);
 				}
 				this.conditionalLog(
-					`🚨 Player ${paddleIndex + 1} velocity: ${paddleVelAlongAxis.toFixed(3)}`
+					`🚨 Player ${paddleIndex + 1} velocity: ${paddleVelAlong.toFixed(3)}`
 				);
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
@@ -1683,7 +1689,7 @@ export class Pong3D {
 				);
 			}
 			this.conditionalLog(
-				`  - Paddle velocity: ${paddleVelAlongAxis.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`
+				`  - Paddle velocity: ${paddleVelAlong.toFixed(2)} (ratio: ${velocityRatio.toFixed(2)})`
 			);
 			if (hasPaddleVelocity) {
 				const velocityBasedAngle =
@@ -1874,7 +1880,7 @@ export class Pong3D {
 			if (physicsEngine) {
 				this.scene.disablePhysicsEngine();
 				this.conditionalLog(`🏆 Physics engine disabled - game ended`);
-			} 
+			}
 
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
@@ -2545,6 +2551,9 @@ export class Pong3D {
 
 		// Keep a simple render loop that updates the scene
 		this.engine.runRenderLoop(() => {
+			// Update AI controllers with current game state
+			this.updateAIControllers();
+
 			// Only update paddles in local/master modes - client receives paddle positions from network
 			if (this.gameMode !== 'client') {
 				this.updatePaddles();
@@ -2633,6 +2642,122 @@ export class Pong3D {
 		if (this.guiTexture) {
 			this.guiTexture.markAsDirty();
 		}
+	}
+
+	/**
+	 * Set up AI controllers for players with names starting with "*"
+	 */
+	private setupAIControllers(): void {
+		this.conditionalLog('🤖 Setting up AI controllers...');
+
+		for (let i = 0; i < this.playerCount; i++) {
+			const playerName = this.playerNames[i];
+			if (playerName && playerName.startsWith('*')) {
+				this.conditionalLog(
+					`🤖 Found AI player: ${playerName} (Player ${i + 1})`
+				);
+
+				// Get AI difficulty from player name
+				const difficulty = getAIDifficultyFromName(playerName);
+				const aiConfig = AI_DIFFICULTY_PRESETS[difficulty];
+
+				// Log AI config for debugging
+				this.conditionalLog(
+					`🤖 AI config for Player ${i + 1} (${difficulty}):`,
+					{
+						sampleRate: aiConfig.sampleRate,
+						impulseFrequency: aiConfig.impulseFrequency,
+						impulseDuration: aiConfig.impulseDuration,
+						centralLimit: aiConfig.centralLimit,
+						xLimit: aiConfig.xLimit,
+					}
+				);
+
+				// Set up AI controller for this player
+				this.inputHandler?.setAIController(i, aiConfig);
+
+				console.log(
+					`🤖 CONFIRMED: AI controller set up for playerIndex=${i} (Player ${i + 1})`
+				);
+
+				this.conditionalLog(
+					`🤖 AI controller set up for Player ${i + 1} with ${difficulty} difficulty`
+				);
+			}
+		}
+	}
+
+	/**
+	 * Update AI controllers with current game state in the render loop
+	 */
+	private updateAIControllers(): void {
+		if (!this.inputHandler) return;
+
+		// Get current game state for AI
+		const gameStateForAI: GameStateForAI = {
+			ball: {
+				position: this.ballMesh
+					? {
+							x: this.ballMesh.position.x,
+							y: this.ballMesh.position.y,
+							z: this.ballMesh.position.z,
+						}
+					: { x: 0, y: 0, z: 0 },
+				velocity: this.ballMesh?.physicsImpostor
+					? (() => {
+							const vel =
+								this.ballMesh!.physicsImpostor!.getLinearVelocity();
+							return vel
+								? {
+										x: vel.x,
+										y: vel.y,
+										z: vel.z,
+									}
+								: { x: 0, y: 0, z: 0 };
+						})()
+					: { x: 0, y: 0, z: 0 },
+			},
+			paddlePositionsX: [...this.gameState.paddlePositionsX],
+			courtBounds: {
+				xMin: this.boundsXMin || -5,
+				xMax: this.boundsXMax || 5,
+				zMin: this.boundsZMin || -5,
+				zMax: this.boundsZMax || 5,
+			},
+			physics: this.scene.getPhysicsEngine()
+				? {
+						engine: this.scene.getPhysicsEngine()!,
+						scene: this.scene,
+					}
+				: undefined,
+		};
+
+		// Update key state with AI inputs
+		const keyStateWithAI =
+			this.inputHandler.getKeyStateWithGameState(gameStateForAI);
+
+		// Apply AI inputs to game state (this will be used by updatePaddles)
+		// We need to update the input handler's internal key state
+		this.inputHandler.setNetworkKeyState(
+			0,
+			keyStateWithAI.p1Left,
+			keyStateWithAI.p1Right
+		);
+		this.inputHandler.setNetworkKeyState(
+			1,
+			keyStateWithAI.p2Left,
+			keyStateWithAI.p2Right
+		);
+		this.inputHandler.setNetworkKeyState(
+			2,
+			keyStateWithAI.p3Left,
+			keyStateWithAI.p3Right
+		);
+		this.inputHandler.setNetworkKeyState(
+			3,
+			keyStateWithAI.p4Left,
+			keyStateWithAI.p4Right
+		);
 	}
 
 	/** Update displayed scores (backwards compatible) */
@@ -2868,6 +2993,8 @@ export class Pong3D {
 			p4Right: false,
 		};
 
+		console.log(`🎮 Paddle update - keyState:`, keyState);
+
 		// Key state arrays for easy iteration
 		const leftKeys = [
 			keyState.p1Left,
@@ -2886,6 +3013,29 @@ export class Pong3D {
 		for (let i = 0; i < this.playerCount; i++) {
 			const paddle = this.paddles[i];
 			if (!paddle || !paddle.physicsImpostor) continue;
+
+			// SYNC: Update gameState with actual paddle positions from physics
+			if (this.playerCount === 4 && i >= 2) {
+				// 4-player mode: Players 3-4 move on Z-axis
+				this.gameState.paddlePositionsY[i] = paddle.position.z;
+			} else if (this.playerCount === 3) {
+				// 3-player mode: Project position back to rotated axis
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+				const angle = angles[i];
+				const cos = Math.cos(angle);
+				const sin = Math.sin(angle);
+				const relX = paddle.position.x - this.originalGLBPositions[i].x;
+				const relZ = paddle.position.z - this.originalGLBPositions[i].z;
+				// Project onto the rotated axis
+				this.gameState.paddlePositionsX[i] = relX * cos + relZ * sin;
+			} else {
+				// 2-player mode: X-axis movement only
+				this.gameState.paddlePositionsX[i] = paddle.position.x;
+			}
+
+			console.log(
+				`🔄 Player ${i + 1} position synced: physics=${paddle.position.x.toFixed(3)}, gameState=${this.gameState.paddlePositionsX[i]?.toFixed(3) || 'N/A'}`
+			);
 
 			// Determine movement axis
 			let axis = new BABYLON.Vector3(1, 0, 0);
@@ -2944,19 +3094,27 @@ export class Pong3D {
 			const velAlong = BABYLON.Vector3.Dot(currentVelocity, axisNorm);
 			const speedAlong = Math.abs(velAlong);
 
-			// Check bounds
+			// Check bounds - use AI xLimit for AI players, otherwise use PADDLE_RANGE
 			const posAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
 			const originAlongAxis = BABYLON.Vector3.Dot(
 				new BABYLON.Vector3(originalPos.x, 0, originalPos.z),
 				axisNorm
 			);
-			const minBound = originAlongAxis - this.PADDLE_RANGE;
-			const maxBound = originAlongAxis + this.PADDLE_RANGE;
+			const paddleRange = this.inputHandler?.hasAIController(i)
+				? this.inputHandler.getAIControllerConfig(i)?.xLimit ||
+					this.PADDLE_RANGE
+				: this.PADDLE_RANGE;
+			const minBound = originAlongAxis - paddleRange;
+			const maxBound = originAlongAxis + paddleRange;
 			const isOutOfBounds =
 				posAlongAxis < minBound || posAlongAxis > maxBound;
 
 			// Get player input
 			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
+
+			console.log(
+				`🎮 Player ${i + 1} input: left=${leftKeys[i]}, right=${rightKeys[i]}, inputDir=${inputDir}`
+			);
 
 			// GRADUAL BRAKING: Apply braking force instead of instant stop
 			if (inputDir === 0 && !isOutOfBounds) {
@@ -3221,9 +3379,14 @@ export class Pong3D {
 	/** Set individual paddle position */
 	public setPaddlePosition(index: number, position: number): void {
 		if (index >= 0 && index < 4) {
+			// Use AI xLimit for AI players, otherwise use PADDLE_RANGE
+			const rangeLimit = this.inputHandler?.hasAIController(index)
+				? this.inputHandler.getAIControllerConfig(index)?.xLimit ||
+					this.PADDLE_RANGE
+				: this.PADDLE_RANGE;
 			const clampedPosition = Math.max(
-				-this.PADDLE_RANGE,
-				Math.min(this.PADDLE_RANGE, position)
+				-rangeLimit,
+				Math.min(rangeLimit, position)
 			);
 
 			if (this.playerCount === 4 && index >= 2) {
