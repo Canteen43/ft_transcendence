@@ -60,7 +60,8 @@ export class TournamentScreen extends Screen {
 		this.renderBracket(bracketGrid);
 
 		// Ready button
-		new ReadyButton(this.element);
+		const matchID = sessionStorage.getItem('matchID');
+		if (matchID) new ReadyButton(this.element);
 	}
 
 	private renderBracket(parent: HTMLElement) {
