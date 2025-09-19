@@ -15,7 +15,7 @@ import { state } from '../utils/State';
 
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
-import { updateTournamentMatchData } from './updateTournamentMatchData';
+import { updateTournamentMatchData } from './updateTurnMatchData';
 import { webSocket } from './WebSocketWrapper';
 
 
