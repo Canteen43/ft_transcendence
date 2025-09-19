@@ -86,19 +86,10 @@ export class GameConfig {
 	 * Default names: Player 1 = "cat", Player 2 = "dog", Player 3 = "monkey", Player 4 = "goat"
 	 */
 	static getPlayerName(playerIndex: 1 | 2 | 3 | 4): string {
-		const keys = ['player1Alias', 'player2Alias', 'player3Alias', 'player4Alias'];
+		const keys = ['alias1', 'alias2', 'alias3', 'alias4'];
 		const defaultNames = ['player 1', 'player 2', 'player 3', 'player 4'];
 		const stored = sessionStorage.getItem(keys[playerIndex - 1]);
 		return stored || defaultNames[playerIndex - 1];
-	}
-
-	/**
-	 * Set player name in sessionStorage
-	 */
-	static setPlayerName(playerIndex: 1 | 2 | 3 | 4, name: string): void {
-		const keys = ['alias1', 'alias2', 'alias3', 'alias4'];
-		sessionStorage.setItem(keys[playerIndex - 1], name);
-		console.log(`🎮 Player ${playerIndex} name set to: ${name}`);
 	}
 
 	/**
@@ -107,15 +98,6 @@ export class GameConfig {
 	static getPlayerUID(playerIndex: 1 | 2 | 3 | 4): string | null {
 		const keys = ['player1', 'player2', 'player3', 'player4'];
 		return sessionStorage.getItem(keys[playerIndex - 1]);
-	}
-
-	/**
-	 * Set player UID in sessionStorage (stored as player1, player2, etc.)
-	 */
-	static setPlayerUID(playerIndex: 1 | 2 | 3 | 4, uid: string): void {
-		const keys = ['player1', 'player2', 'player3', 'player4'];
-		sessionStorage.setItem(keys[playerIndex - 1], uid);
-		console.log(`🎮 Player ${playerIndex} UID set to: ${uid}`);
 	}
 
 	/**
@@ -200,16 +182,166 @@ export class GameConfig {
 		sessionStorage.removeItem('playerCount');
 		sessionStorage.removeItem('thisPlayer');
 		sessionStorage.removeItem('gameMode');
-		sessionStorage.removeItem('player1Name');
-		sessionStorage.removeItem('player2Name');
-		sessionStorage.removeItem('player3Name');
-		sessionStorage.removeItem('player4Name');
+		sessionStorage.removeItem('alias1');
+		sessionStorage.removeItem('alias2');
+		sessionStorage.removeItem('alias3');
+		sessionStorage.removeItem('alias4');
 		sessionStorage.removeItem('player1');
 		sessionStorage.removeItem('player2');
 		sessionStorage.removeItem('player3');
 		sessionStorage.removeItem('player4');
 		sessionStorage.removeItem('debugLogging');
 		sessionStorage.removeItem('gamestateLogging');
+		sessionStorage.removeItem('aiSampleRate');
+		sessionStorage.removeItem('aiCentralLimit');
+		sessionStorage.removeItem('aiInputDurationBase');
+		sessionStorage.removeItem('aiInputDurationScale');
 		console.log('🎮 GameConfig cleared from sessionStorage');
+	}
+
+	// ============================================================================
+	// AI CONFIGURATION
+	// ============================================================================
+
+	// Default AI values
+	private static readonly DEFAULT_AI_SAMPLE_RATE = 10.0;
+	private static readonly DEFAULT_AI_CENTRAL_LIMIT = 0.5;
+	private static readonly DEFAULT_AI_INPUT_DURATION_BASE = 100;
+	private static readonly DEFAULT_AI_INPUT_DURATION_SCALE = 1.0;
+	private static readonly DEFAULT_AI_X_LIMIT = 5.0;
+
+	/**
+	 * Get AI sample rate (how often AI makes decisions per second)
+	 */
+	static getAISampleRate(): number {
+		const stored = sessionStorage.getItem('aiSampleRate');
+		const parsed = Number(stored);
+		return isNaN(parsed) || parsed < 0.1 || parsed > 10.0
+			? this.DEFAULT_AI_SAMPLE_RATE
+			: parsed;
+	}
+
+	/**
+	 * Set AI sample rate
+	 */
+	static setAISampleRate(rate: number): void {
+		const clamped = Math.max(0.1, Math.min(10.0, rate));
+		sessionStorage.setItem('aiSampleRate', clamped.toString());
+		console.log(`🤖 AI sample rate set to: ${clamped} Hz`);
+	}
+
+	/**
+	 * Get AI central limit (deadzone where AI doesn't move)
+	 */
+	static getAICentralLimit(): number {
+		const stored = sessionStorage.getItem('aiCentralLimit');
+		const parsed = Number(stored);
+		return isNaN(parsed) || parsed < 0.1 || parsed > 2.0
+			? this.DEFAULT_AI_CENTRAL_LIMIT
+			: parsed;
+	}
+
+	/**
+	 * Set AI central limit
+	 */
+	static setAICentralLimit(limit: number): void {
+		const clamped = Math.max(0.1, Math.min(2.0, limit));
+		sessionStorage.setItem('aiCentralLimit', clamped.toString());
+		console.log(`🤖 AI central limit set to: ${clamped} units`);
+	}
+
+	/**
+	 * Get AI input duration base (base pulse length in ms)
+	 */
+	static getAIInputDurationBase(): number {
+		const stored = sessionStorage.getItem('aiInputDurationBase');
+		const parsed = Number(stored);
+		return isNaN(parsed) || parsed < 50 || parsed > 1000
+			? this.DEFAULT_AI_INPUT_DURATION_BASE
+			: parsed;
+	}
+
+	/**
+	 * Set AI input duration base
+	 */
+	static setAIInputDurationBase(duration: number): void {
+		const clamped = Math.max(50, Math.min(1000, duration));
+		sessionStorage.setItem('aiInputDurationBase', clamped.toString());
+		console.log(`🤖 AI input duration base set to: ${clamped} ms`);
+	}
+
+	/**
+	 * Get AI input duration scale (how much duration scales with distance)
+	 */
+	static getAIInputDurationScale(): number {
+		const stored = sessionStorage.getItem('aiInputDurationScale');
+		const parsed = Number(stored);
+		return isNaN(parsed) || parsed < 0.5 || parsed > 5.0
+			? this.DEFAULT_AI_INPUT_DURATION_SCALE
+			: parsed;
+	}
+
+	/**
+	 * Set AI input duration scale
+	 */
+	static setAIInputDurationScale(scale: number): void {
+		const clamped = Math.max(0.5, Math.min(5.0, scale));
+		sessionStorage.setItem('aiInputDurationScale', clamped.toString());
+		console.log(`🤖 AI input duration scale set to: ${clamped}x`);
+	}
+
+	/**
+	 * Get AI X limit (maximum paddle movement range)
+	 */
+	static getAIXLimit(): number {
+		const stored = sessionStorage.getItem('aiXLimit');
+		const parsed = Number(stored);
+		return isNaN(parsed) || parsed < 1.0 || parsed > 10.0
+			? this.DEFAULT_AI_X_LIMIT
+			: parsed;
+	}
+
+	/**
+	 * Set AI X limit
+	 */
+	static setAIXLimit(limit: number): void {
+		const clamped = Math.max(1.0, Math.min(10.0, limit));
+		sessionStorage.setItem('aiXLimit', clamped.toString());
+		console.log(`🤖 AI X limit set to: ${clamped} units`);
+	}
+
+	/**
+	 * Get complete AI configuration object
+	 */
+	static getAIConfig() {
+		return {
+			sampleRate: this.getAISampleRate(),
+			centralLimit: this.getAICentralLimit(),
+			inputDurationBase: this.getAIInputDurationBase(),
+			inputDurationScale: this.getAIInputDurationScale(),
+			xLimit: this.getAIXLimit(),
+		};
+	}
+
+	/**
+	 * Set complete AI configuration
+	 */
+	static setAIConfig(config: {
+		sampleRate?: number;
+		centralLimit?: number;
+		inputDurationBase?: number;
+		inputDurationScale?: number;
+		xLimit?: number;
+	}): void {
+		if (config.sampleRate !== undefined)
+			this.setAISampleRate(config.sampleRate);
+		if (config.centralLimit !== undefined)
+			this.setAICentralLimit(config.centralLimit);
+		if (config.inputDurationBase !== undefined)
+			this.setAIInputDurationBase(config.inputDurationBase);
+		if (config.inputDurationScale !== undefined)
+			this.setAIInputDurationScale(config.inputDurationScale);
+		if (config.xLimit !== undefined) this.setAIXLimit(config.xLimit);
+		console.log('🤖 AI configuration updated');
 	}
 }

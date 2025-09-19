@@ -10,12 +10,12 @@ export class GameScreen extends Screen {
 	constructor() {
 		super();
 		// Initialize 3D pong
-		this.pong3DInstance = new Pong3D(this.element);
+		this.pong3DInstance = new Pong3D(this.element, { gameScreen: this });
 	}
 
 	public reloadPong() {
 		this.pong3DInstance.dispose();
-		this.pong3DInstance = new Pong3D(this.element);
+		this.pong3DInstance = new Pong3D(this.element, { gameScreen: this });
 	}
 
 	// Override destroy to properly clean up Pong3D resources

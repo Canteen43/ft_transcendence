@@ -49,6 +49,8 @@ export class RegisterModal extends Modal {
 		);
 		new Button('Register', () => this.handleRegister(parent), this.box);
 		this.createLinks(parent);
+
+		this.UsernameField.focus();
 	}
 
 	private formatZodErrors(error: z.ZodError): string {

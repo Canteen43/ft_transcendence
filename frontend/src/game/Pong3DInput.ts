@@ -1,5 +1,5 @@
 /**
- * Pong3DInput - Handles keyboard input for up to 4 players
+ * Pong3DInput - Handles keyboard input for up to 4 players with AI integration
  *
  * Key Bindings:
  * - Player 1: Arrow Right/Up (left) Arrow Left/Down (right)
@@ -7,10 +7,15 @@
  * - Player 3: J/I (left) L/K (right)
  * - Player 4: 4/8 (left) 6/5 (right)
  *
+ * AI Integration:
+ * - Players with names starting with '*' use AI control
+ * - AI provides the same input interface as human players
+ *
  * Additional Controls:
  * - Double-click canvas: Toggle fullscreen
  */
 import { conditionalWarn } from './Logger';
+import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3DAI';
 
 export interface KeyState {
 	p1Left: boolean;
@@ -42,6 +47,7 @@ export class Pong3DInput {
 	};
 
 	private canvas: HTMLCanvasElement;
+	private aiControllers: (Pong3DAI | null)[] = [null, null, null, null];
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -118,7 +124,50 @@ export class Pong3DInput {
 	}
 
 	public getKeyState(): KeyState {
-		return { ...this.keyState };
+		// Start with keyboard state
+		let currentState = { ...this.keyState };
+
+		// Override with AI input where AI controllers exist
+		for (let i = 0; i < 4; i++) {
+			if (this.aiControllers[i]) {
+				// AI controller exists - we need game state to get AI input
+				// For now, return keyboard state; AI will be integrated in getKeyStateWithGameState
+				continue;
+			}
+		}
+
+		return currentState;
+	}
+
+	/**
+	 * Get key state with AI integration - requires game state for AI decision making
+	 */
+	public getKeyStateWithGameState(gameState: GameStateForAI): KeyState {
+		// Start with keyboard state
+		let currentState = { ...this.keyState };
+
+		// Override with AI input where AI controllers exist
+		const playerKeys = [
+			{ left: 'p1Left', right: 'p1Right' },
+			{ left: 'p2Left', right: 'p2Right' },
+			{ left: 'p3Left', right: 'p3Right' },
+			{ left: 'p4Left', right: 'p4Right' },
+		];
+
+		for (let i = 0; i < 4; i++) {
+			if (this.aiControllers[i]) {
+				const aiInput = this.aiControllers[i]!.update(gameState);
+				console.log(`🤖 AI Player ${i + 1} input: ${aiInput}`);
+
+				// Override keyboard input with AI input
+				currentState[playerKeys[i].left as keyof KeyState] =
+					aiInput === AIInput.LEFT;
+				currentState[playerKeys[i].right as keyof KeyState] =
+					aiInput === AIInput.RIGHT;
+			}
+		}
+
+		return currentState;
 	}
 
 	public setNetworkKeyState(
@@ -148,9 +197,65 @@ export class Pong3DInput {
 		}
 	}
 
+	/**
+	 * Set up AI controller for a specific player
+	 */
+	public setAIController(playerIndex: number, config: AIConfig): void {
+		if (playerIndex >= 0 && playerIndex < 4) {
+			this.aiControllers[playerIndex] = new Pong3DAI(playerIndex, config);
+			console.log(
+				`🤖 AI controller set up for player ${playerIndex + 1}`
+			);
+		}
+	}
+
+	/**
+	 * Remove AI controller for a specific player
+	 */
+	public removeAIController(playerIndex: number): void {
+		if (playerIndex >= 0 && playerIndex < 4) {
+			this.aiControllers[playerIndex] = null;
+			console.log(
+				`🤖 AI controller removed for player ${playerIndex + 1}`
+			);
+		}
+	}
+
+	/**
+	 * Check if a player has AI control
+	 */
+	public hasAIController(playerIndex: number): boolean {
+		return (
+			playerIndex >= 0 &&
+			playerIndex < 4 &&
+			this.aiControllers[playerIndex] !== null
+		);
+	}
+
+	/**
+	 * Get AI controller config for a player
+	 */
+	public getAIControllerConfig(playerIndex: number): AIConfig | null {
+		if (this.hasAIController(playerIndex)) {
+			return this.aiControllers[playerIndex]!.getConfig();
+		}
+		return null;
+	}
+
+	/**
+	 * Reset all AI controllers (useful when restarting games)
+	 */
+	public resetAIControllers(): void {
+		this.aiControllers.forEach(ai => ai?.reset());
+		console.log('🤖 All AI controllers reset');
+	}
+
 	public cleanup(): void {
 		window.removeEventListener('keydown', this.handleKeyDown);
 		window.removeEventListener('keyup', this.handleKeyUp);
 		this.canvas.removeEventListener('dblclick', this.toggleFullscreen);
+
+		// Clean up AI controllers
+		this.aiControllers = [null, null, null, null];
 	}
 }
