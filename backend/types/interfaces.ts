@@ -3,6 +3,11 @@ import { JwtPayload } from 'jsonwebtoken';
 import { PlayerStatus } from '../../shared/enums.js';
 import { UUID } from '../../shared/types.js';
 
+export interface UserAuth {
+	id: UUID;
+	password_hash: string;
+}
+
 export interface AuthPayload extends JwtPayload {
 	userId: string;
 }
