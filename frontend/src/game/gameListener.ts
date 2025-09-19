@@ -15,7 +15,14 @@ import { MessageSchema } from '../../../shared/schemas/message';
 import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
+import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
+// import { updateTournamentScreen } from '../utils/updateTurnScreen';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
+import {
+	FullTournamentSchema,
+	TournamentQueueSchema,
+} from '../../../shared/schemas/tournament';
+import { apiCall } from '../utils/apiCall';
 
 export function gameListener(event: MessageEvent) {
 	try {
@@ -52,9 +59,24 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_FINISH:
-				alert('Finish: ' + JSON.stringify(msg));
-				updateTournamentScreen();
-				updateTournamentMatchData();
+				console.info('Received finish message:', msg);
+				const tournData2 = apiCall(
+					'GET',
+					`/tournaments/${msg.d}`,
+					FullTournamentSchema
+				);
+				if (tournData2) {
+					console.log('Tournament data received:', tournData2);
+					updateTournamentMatchData(tournData2);
+					// updateTournamentScreen(tournData2);
+				} else {
+					console.error(
+						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
+					);
+					// webSocket.send({ t: MESSAGE_QUIT });
+					return;
+				}
+				break;
 				break;
 
 			case MESSAGE_MOVE:
