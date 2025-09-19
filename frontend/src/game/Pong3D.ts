@@ -1886,6 +1886,7 @@ export class Pong3D {
 			this.updatePlayerInfoDisplay();
 
 			// Wait 7 seconds for victory music to finish, then set game status
+			// HELENE: i think it would be nice to have the button right away
 			setTimeout(() => {
 				state.gameOngoing = false;
 				this.conditionalLog(
