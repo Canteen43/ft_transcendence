@@ -30,6 +30,9 @@ export class LoginModal extends Modal {
 		);
 		new Button('Login', () => this.handleLogin(), this.box);
 		this.createLinks(parent);
+
+		this.UsernameField.focus();
+		this.UsernameField.select(); 
 	}
 
 	private async handleLogin() {

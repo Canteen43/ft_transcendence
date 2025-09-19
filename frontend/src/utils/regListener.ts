@@ -1,4 +1,5 @@
 import {
+	MESSAGE_FINISH,
 	MESSAGE_QUIT,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
@@ -14,10 +15,10 @@ import { state } from '../utils/State';
 
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
-import { setMatchData } from './setMatchData';
+import { updateTournamentMatchData } from './updateTurnMatchData';
 import { webSocket } from './WebSocketWrapper';
 
-// TODO: add logic for the Quit event?
+
 export async function regListener(event: MessageEvent): Promise<void> {
 	try {
 		console.log('Processing message in regListener...');
@@ -43,7 +44,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				);
 				if (tournData) {
 					console.log('Tournament data received:', tournData);
-					setMatchData(tournData);
+					updateTournamentMatchData(tournData);
 					// state.storeCurrentMatch();
 					// state.printTournament();
 				} else {
@@ -76,6 +77,26 @@ export async function regListener(event: MessageEvent): Promise<void> {
 					router.currentScreen!.element,
 					'The game has been quit.'
 				);
+				break;
+
+			case MESSAGE_FINISH:
+				console.info('Received quit message:', msg);
+				const tournData2 = await apiCall(
+					'GET',
+					`/tournaments/${msg.d}`,
+					FullTournamentSchema
+				);
+				if (tournData2) {
+					console.log('Tournament data received:', tournData2);
+					updateTournamentMatchData(tournData2);
+					// updateTournamentScreen();
+				} else {
+					console.error(
+						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
+					);
+					webSocket.send({ t: MESSAGE_QUIT });
+					return;
+				}
 				break;
 
 			default:

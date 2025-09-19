@@ -1,6 +1,7 @@
 // gameListener.ts
 import {
 	MESSAGE_ACCEPT,
+	MESSAGE_FINISH,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
@@ -11,6 +12,9 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
+import { TextModal } from '../modals/TextModal';
+import { router } from '../utils/Router';
+import { state } from '../utils/State';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
 export function gameListener(event: MessageEvent) {
@@ -39,7 +43,18 @@ export function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_QUIT:
-				alert('Quit: ' + JSON.stringify(msg));
+				// alert('Quit: ' + JSON.stringify(msg));
+				location.hash = '#home';
+				void new TextModal(
+					router.currentScreen!.element,
+					'The game has been quit.'
+				);
+				break;
+
+			case MESSAGE_FINISH:
+				alert('Finish: ' + JSON.stringify(msg));
+				updateTournamentScreen();
+				updateTournamentMatchData();
 				break;
 
 			case MESSAGE_MOVE:

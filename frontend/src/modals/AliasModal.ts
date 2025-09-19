@@ -46,8 +46,9 @@ export class AliasModal extends Modal {
 			input.title = aliasHints[i] || '';
 			this.aliasFields.push(input);
 		}
-
-
+		
+		this.aliasFields[0].focus();
+		this.aliasFields[0].select(); 
 		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 

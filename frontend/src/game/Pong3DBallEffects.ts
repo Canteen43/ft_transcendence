@@ -14,8 +14,8 @@ export class Pong3DBallEffects {
 	public SPIN_DELAY = 200; // Delay in milliseconds before spin effect activates
 
 	// Rally speed system
-	public RALLY_SPEED_INCREMENT_PERCENT = 10; // Percentage speed increase per paddle hit during rally
-	public MAX_BALL_SPEED = 24; // Maximum ball speed to prevent tunneling
+	public RALLY_SPEED_INCREMENT_PERCENT = 11; // Percentage speed increase per paddle hit during rally
+	public MAX_BALL_SPEED = 25; // Maximum ball speed to prevent tunneling
 	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
 	private currentBallSpeed = 12; // Current ball speed (starts at base speed)
 	private rallyHitCount = 0; // Number of paddle hits in current rally
