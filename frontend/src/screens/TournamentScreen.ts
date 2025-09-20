@@ -74,13 +74,13 @@ export class TournamentScreen extends Screen {
 		leftSide.appendChild(
 			this.createPlayerSlot(
 				'player1',
-				sessionStorage.getItem('alias1') || 'Player 1'
+				sessionStorage.getItem('p1') || 'Player 1'
 			)
 		);
 		leftSide.appendChild(
 			this.createPlayerSlot(
 				'player2',
-				sessionStorage.getItem('alias2') || 'Player 2'
+				sessionStorage.getItem('p2') || 'Player 2'
 			)
 		);
 
@@ -93,13 +93,12 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1'
 		);
-		const winner1 = this.createElement(
-			winner1Container,
-			'div',
-			'player-slot rounded-lg px-4 py-3 text-center font-semibold text-lg opacity-50'
+		const winner1 = this.createPlayerSlot(
+			'winner1',
+			sessionStorage.getItem('w1') || ''
 		);
-		winner1.id = 'winner1';
-		winner1.textContent = 'Winner 1';
+		winner1.classList.add('semi-winner');
+		winner1Container.appendChild(winner1);
 
 		// Final match (empty column)
 		this.createElement(parent, 'div', 'col-span-1');
@@ -110,13 +109,12 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1'
 		);
-		const winner2 = this.createElement(
-			winner2Container,
-			'div',
-			'player-slot rounded-lg px-4 py-3 text-center font-semibold text-lg opacity-50'
+		const winner2 = this.createPlayerSlot(
+			'winner2',
+			sessionStorage.getItem('w2') || ''
 		);
-		winner2.id = 'winner2';
-		winner2.textContent = 'Winner 2';
+		winner2.classList.add('semi-winner');
+		winner2Container.appendChild(winner2);
 
 		// Right connector
 		this.renderConnector(parent, 'right');
@@ -130,13 +128,13 @@ export class TournamentScreen extends Screen {
 		rightSide.appendChild(
 			this.createPlayerSlot(
 				'player3',
-				sessionStorage.getItem('alias3') || 'Player 3'
+				sessionStorage.getItem('p3') || 'Player 3'
 			)
 		);
 		rightSide.appendChild(
 			this.createPlayerSlot(
 				'player4',
-				sessionStorage.getItem('alias4') || 'Player 4'
+				sessionStorage.getItem('p4') || 'Player 4'
 			)
 		);
 	}
