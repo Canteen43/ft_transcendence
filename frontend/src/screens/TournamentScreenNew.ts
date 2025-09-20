@@ -72,13 +72,13 @@ export class TournamentScreen extends Screen {
 		leftSide.appendChild(
 			this.createPlayerSlot(
 				'player1',
-				sessionStorage.getItem('alias1') || 'Player 1'
+				sessionStorage.getItem('p1') || 'Player 1'
 			)
 		);
 		leftSide.appendChild(
 			this.createPlayerSlot(
 				'player2',
-				sessionStorage.getItem('alias2') || 'Player 2'
+				sessionStorage.getItem('p2') || 'Player 2'
 			)
 		);
 
@@ -128,13 +128,13 @@ export class TournamentScreen extends Screen {
 		rightSide.appendChild(
 			this.createPlayerSlot(
 				'player3',
-				sessionStorage.getItem('alias3') || 'Player 3'
+				sessionStorage.getItem('p3') || 'Player 3'
 			)
 		);
 		rightSide.appendChild(
 			this.createPlayerSlot(
 				'player4',
-				sessionStorage.getItem('alias4') || 'Player 4'
+				sessionStorage.getItem('p4') || 'Player 4'
 			)
 		);
 	}
