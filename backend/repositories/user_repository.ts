@@ -11,6 +11,7 @@ import {
 	UserSchema,
 } from '../../shared/schemas/user.js';
 import { UUID } from '../../shared/types.js';
+import { UserAuth } from '../types/interfaces.js';
 import * as db from '../utils/db.js';
 import SettingsRepository from './settings_repository.js';
 
@@ -68,17 +69,21 @@ export default class UserRepository {
 	}
 
 	static async authenticateUser(request: AuthRequest): Promise<User | null> {
-		const hash = await bcrypt.hash(request.password, 10);
 		const query = `
-			SELECT ${this.fields}
+			SELECT id, password_hash
 			FROM ${this.table}
-			WHERE login = ? AND password_hash = ?`;
-		let row = db.queryOne<User>(query, [request.login, hash]);
-
-		if (!row && process.env.NODE_ENV == 'development')
-			row = db.queryOne<User>(query, [request.login, request.password]);
+			WHERE login = ? `;
+		let row = db.queryOne<UserAuth>(query, [request.login]);
 
 		if (!row) return null;
-		return UserSchema.parse(row);
+
+		let valid = await bcrypt.compare(request.password, row.password_hash);
+
+		if (!valid && process.env.NODE_ENV == 'development')
+			valid = request.password == row.password_hash;
+
+		if (!valid) return null;
+
+		return this.getUser(row.id);
 	}
 }
