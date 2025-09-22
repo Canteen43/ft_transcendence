@@ -6,15 +6,16 @@ export class ReplayModal extends Modal {
 	constructor(gameScreen: GameScreen) {
 		super(gameScreen.element);
 
-		// Text
-		const message = document.createElement('p');
-		message.textContent = 'Do you want to play again?';
-		message.className = 'text-xl font-semibold text-center mb-4';
-		this.box.appendChild(message);
+		// Override positioning to center horizontally and position just below vertical center
+		this.overlay.className = this.overlay.className.replace(
+			'items-center',
+			'items-start pt-50'
+		);
+
 
 		// Buttons container
 		const buttons = document.createElement('div');
-		buttons.className = 'flex gap-6 mt-4';
+		buttons.className = 'flex gap-4 mt-4';
 		this.box.appendChild(buttons);
 
 		// Play Again button
@@ -27,14 +28,5 @@ export class ReplayModal extends Modal {
 			buttons
 		);
 
-		// Leave button
-		new Button(
-			'Leave',
-			() => {
-				location.hash = '#home';
-				this.destroy();
-			},
-			buttons
-		);
 	}
 }
