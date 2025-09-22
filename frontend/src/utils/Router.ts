@@ -3,6 +3,8 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { Screen } from '../screens/Screen';
 import { TournamentScreen } from '../screens/TournamentScreen';
 
+
+
 export class Router {
 	public currentScreen: Screen | null = null;
 
