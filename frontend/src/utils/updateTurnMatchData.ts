@@ -68,6 +68,9 @@ export function updateTournamentMatchData(tournData: any): void {
 		const match1_finished =
 			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
 			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
+		const match2_finished =
+			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
+			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
 
 		if (match0_finished) {
 			const winner1UserId =
@@ -88,6 +91,16 @@ export function updateTournamentMatchData(tournData: any): void {
 			sessionStorage.setItem('w2', winner2Alias || winner2UserId);
 		} else {
 			sessionStorage.setItem('w2', 'Winner 2');
+		}
+
+		if (match2_finished) {
+			const tournamentwinnerUserId =
+				tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE
+					? tournData.matches[2].participant_1_user_id
+					: tournData.matches[2].participant_2_user_id;
+			const tournWinnerAlias = getAliasFromUserId(tournamentwinnerUserId);
+			sessionStorage.setItem('winner', tournWinnerAlias || tournamentwinnerUserId);
+			// TODO delete some data from session storage here?
 		}
 
 		// Tournament first round

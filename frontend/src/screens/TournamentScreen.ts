@@ -11,15 +11,16 @@ export class TournamentScreen extends Screen {
 		this.initializeAsync();
 	}
 
+	// needs to wait for the data to be loaded before rendering
 	private async initializeAsync() {
 		await this.init();
 		this.render();
 	}
 
+	// API call
 	private async init() {
 		const tournID = sessionStorage.getItem("tournamentID");
 		console.debug('Calling tourn details API from ');
-
 		const tournData = await apiCall(
 			'GET',
 			`/tournaments/${tournID}`,
@@ -30,7 +31,7 @@ export class TournamentScreen extends Screen {
 			updateTournamentMatchData(tournData);
 		} else {
 			console.error(
-				'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
+				'Getting tournament data failed.'
 			);
 			return;
 		}

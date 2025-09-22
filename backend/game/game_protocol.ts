@@ -182,6 +182,12 @@ export class GameProtocol {
 		);
 		this.sendMatchMessage(message, match.players);
 		if (matchFinished) {
+			const keysToDelete: UUID[] = [];
+			for (const [k, m] of this.matches) {
+				if (m.matchId === match.matchId) keysToDelete.push(k);
+			}
+			for (const key of keysToDelete) this.matches.delete(key);
+
 			this.sendTournamentMessage(
 				MATCH_FINISH_MESSAGE,
 				this.getTournamentParticipants(match.matchId)
@@ -202,7 +208,7 @@ export class GameProtocol {
 
 	private quitAll(connectionId: UUID) {
 		const match = this.matches.get(connectionId);
-		if (match) this.endMatch(match);
+		if (match) this.quitMatch(match);
 
 		const socket = getConnection(connectionId);
 		if (!socket) {
@@ -224,7 +230,7 @@ export class GameProtocol {
 				socket.userId
 			)
 		) {
-			this.endTournament(activeTournaments[0]);
+			this.quitTournament(activeTournaments[0]);
 		}
 	}
 
@@ -255,10 +261,10 @@ export class GameProtocol {
 		this.sendMatchMessage(MATCH_START_MESSAGE, match.players);
 	}
 
-	private endMatch(match: Match) {
+	private quitMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
 		const participants = this.getTournamentParticipants(match.matchId);
-		this.sendTournamentMessage(MATCH_FINISH_MESSAGE, participants);
+		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
 
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {
@@ -267,11 +273,11 @@ export class GameProtocol {
 		for (const key of keysToDelete) this.matches.delete(key);
 	}
 
-	private endTournament(tournament: Tournament) {
+	private quitTournament(tournament: Tournament) {
 		const participants = ParticipantRepository.getTournamentParticipants(
 			tournament.id
 		);
-		this.sendTournamentMessage(MATCH_FINISH_MESSAGE, participants);
+		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
 		tournament.status = TournamentStatus.Cancelled;
 		const update = UpdateTournamentSchema.strip().parse(tournament);
 		TournamentRepository.updateTournament(tournament.id, update);

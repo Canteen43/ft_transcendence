@@ -122,7 +122,7 @@ export default class MatchService {
 		tournamentId: UUID,
 		round: number
 	): UpdateMatchArray {
-		var participants = MatchRepository.getWinners(tournamentId, round);
+		var participants = MatchRepository.getWinners(tournamentId, round - 1);
 		if (!participants.length)
 			throw new DatabaseError(ERROR_RETRIEVING_WINNERS);
 
