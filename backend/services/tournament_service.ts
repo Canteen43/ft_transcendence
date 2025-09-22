@@ -6,6 +6,7 @@ import {
 	UserAlreadyQueuedError,
 	UserNotQueuedError,
 } from '../../shared/exceptions.js';
+import { logger } from '../../shared/logger.js';
 import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
@@ -31,6 +32,7 @@ export default class TournamentService {
 	private static tournamentQueues: Map<number, Set<QueuedUser>> = new Map();
 
 	static joinQueue(size: number, userId: UUID, alias: string) {
+		logger.debug('Join tournament request received');
 		LockService.withLock(LockType.Queue, async () =>
 			this.joinQueueWithLock(size, userId, alias)
 		);
@@ -52,6 +54,7 @@ export default class TournamentService {
 	}
 
 	static leaveQueue(userId: UUID) {
+		logger.debug('Leave tournament request received');
 		LockService.withLock(LockType.Queue, async () =>
 			this.leaveQueueWithLock(userId)
 		);
@@ -95,6 +98,7 @@ export default class TournamentService {
 	}
 
 	static createTournament(creator: UUID, users: UUID[]): Tournament {
+		logger.debug('Create tournament request received');
 		const tournamentUsers = this.validateAndRemoveFromQueue(
 			users.length,
 			users
@@ -129,7 +133,13 @@ export default class TournamentService {
 		const tournament = TournamentRepository.getTournament(tournament_id);
 		if (!tournament)
 			throw new TournamentNotFoundError('tournament id', tournament_id);
-		return this.numberOfRounds(tournament.size);
+
+		let result = 1;
+		while (tournament.size > 2) {
+			result += 1;
+			tournament.size /= 2;
+		}
+		return result;
 	}
 
 	static randomParticipant(participants: UUID[]) {
@@ -200,15 +210,6 @@ export default class TournamentService {
 		if (participants.length > 2) {
 			var matches = this.createMatchesForRound(participants, 2);
 			result.push(...matches);
-		}
-		return result;
-	}
-
-	private static numberOfRounds(size: number): number {
-		var result = 1;
-		while (size > 2) {
-			result += size / 2;
-			size /= 2;
 		}
 		return result;
 	}

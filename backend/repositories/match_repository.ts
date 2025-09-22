@@ -98,8 +98,8 @@ export default class MatchRepository {
 			FROM ${this.table}
 			WHERE tournament_id = ?
 				AND tournament_round = ?
-				AND status IN (?, ?)`,
-			[tournament_id, round, MatchStatus.Finished, MatchStatus.InProgress]
+				AND status = ?`,
+			[tournament_id, round, MatchStatus.Finished]
 		) as { winner_id: UUID }[];
 		return result.map(row => row.winner_id);
 	}
