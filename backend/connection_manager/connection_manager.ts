@@ -9,6 +9,7 @@ import {
 	ConnectionError,
 	UserAlreadyConnectedError,
 } from '../../shared/exceptions.js';
+import { logger } from '../../shared/logger.js';
 import { UUID } from '../../shared/types.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import TournamentService from '../services/tournament_service.js';
@@ -35,9 +36,11 @@ export function getConnectionByUserId(userId: UUID) {
 
 export function addConnection(userId: UUID, socket: GameSocket): UUID {
 	if (userIdToConnectionMap.get(userId)) {
-		socket.close(WS_ALREADY_CONNECTED, ERROR_USER_ALREADY_CONNECTED);
 		throw new UserAlreadyConnectedError(userId);
 	}
+
+	logger.debug('websocket: Incoming connection');
+
 	socket.addEventListener('message', handleMessage);
 	socket.addEventListener('close', handleClose);
 
@@ -50,6 +53,7 @@ export function addConnection(userId: UUID, socket: GameSocket): UUID {
 }
 
 export function handleClose(event: CloseEvent) {
+	logger.debug('websocket: close event received.');
 	const socket = event.target as GameSocket;
 	TournamentService.leaveQueue(socket.userId);
 	GameProtocol.getInstance().handleClose(socket.socketId);

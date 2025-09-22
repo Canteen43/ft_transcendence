@@ -100,7 +100,6 @@ export class GameProtocol {
 	}
 
 	handleClose(connectionId: UUID) {
-		logger.debug('websocket: close event received.');
 		try {
 			this.quitAll(connectionId);
 		} catch (error) {

@@ -3,7 +3,10 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
-import { AuthenticationFailedError } from '../../shared/exceptions.js';
+import {
+	AuthenticationFailedError,
+	UserAlreadyExistsError,
+} from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import {
 	AuthRequest,
@@ -63,8 +66,6 @@ async function getOnlineUsersHandler(request: FastifyRequest): Promise<User[]> {
 	try {
 		const users = getOnlineUsers()
 			.map(uuid => UserRepository.getUser(uuid))
-			// Null shouldn't be possible, but if it happens,
-			// I don't think we want to throw an error in this case
 			.filter((u): u is User => u !== null);
 		return users;
 	} catch (error) {
@@ -78,10 +79,13 @@ async function getOnlineUsersHandler(request: FastifyRequest): Promise<User[]> {
 async function createUser(
 	request: FastifyRequest<{ Body: CreateUser }>
 ): Promise<User> {
+	logger.debug('Create user request received');
 	try {
 		const user: User = await UserRepository.createUser(request.body);
 		return user;
-	} catch (error) {
+	} catch (error: any) {
+		if (error instanceof UserAlreadyExistsError)
+			throw request.server.httpErrors.conflict(error.message);
 		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
 			constants.ERROR_REQUEST_FAILED
@@ -92,8 +96,9 @@ async function createUser(
 async function authenticate(
 	request: FastifyRequest<{ Body: AuthRequest }>
 ): Promise<AuthResponse> {
+	logger.debug('Authenticate request received');
 	try {
-		const authResponse = UserService.authenticate(request.body);
+		const authResponse = await UserService.authenticate(request.body);
 		return authResponse;
 	} catch (error) {
 		if (error instanceof AuthenticationFailedError)

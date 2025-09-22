@@ -7,8 +7,6 @@ const dbPath = path.resolve(
 	'../' + (process.env.DATABASE_PATH || DEFAULT_DATABASE_PATH)
 );
 
-console.log(dbPath);
-
 const db = new Database(dbPath);
 
 export function queryOne<T>(sql: string, params: any[] = []): T | undefined {

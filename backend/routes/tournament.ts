@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import * as constants from '../../shared/constants.js';
+import { ERROR_USER_ALREADY_QUEUED } from '../../shared/constants.js';
+import { UserAlreadyQueuedError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import {
 	CreateTournamentApi,
@@ -16,12 +18,14 @@ import {
 } from '../../shared/schemas/tournament.js';
 import { UUID, zUUID } from '../../shared/types.js';
 import TournamentService from '../services/tournament_service.js';
+import { QueuedUser } from '../types/interfaces.js';
 import { routeConfig } from '../utils/http_utils.js';
 import { getAuthData } from '../utils/utils.js';
 
 async function createTournament(
 	request: FastifyRequest<{ Body: CreateTournamentApi }>
 ): Promise<Tournament> {
+	logger.debug('Create tournament request received');
 	try {
 		const tournament = TournamentService.createTournament(
 			request.body.creator,
@@ -58,18 +62,29 @@ async function getTournament(
 async function joinTournament(
 	request: FastifyRequest<{ Body: JoinTournament }>
 ): Promise<TournamentQueue> {
+	logger.debug('Join tournament request received');
 	const authRequest = getAuthData(request);
-	TournamentService.joinQueue(
-		request.body.size,
-		authRequest.user.userId,
-		request.body.alias
-	);
+
+	try {
+		await TournamentService.joinQueue(
+			request.body.size,
+			authRequest.user.userId,
+			request.body.alias
+		);
+	} catch (error: any) {
+		if (error instanceof UserAlreadyQueuedError)
+			throw request.server.httpErrors.conflict(ERROR_USER_ALREADY_QUEUED);
+		logger.error(error);
+		throw error;
+	}
+
 	const queue = await TournamentService.getQueue(request.body.size);
 	return { queue: Array.from(queue).map(user => user.userId) };
 }
 
 async function leaveQueue(request: FastifyRequest) {
 	const authRequest = getAuthData(request);
+	logger.debug('Leave queue request received');
 	TournamentService.leaveQueue(authRequest.user.userId);
 	//TournamentService.quitCurrentTournament(authRequest.user.userId);
 }
