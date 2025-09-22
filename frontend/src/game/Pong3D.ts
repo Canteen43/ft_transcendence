@@ -278,6 +278,7 @@ export class Pong3D {
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
 	private secondLastPlayerToHitBall: number = -1; // Track which player hit the ball before the last hitter (0-based index)
+	private currentServer: number = -1; // Track which player should serve next (the one who conceded last)
 	private onGoalCallback:
 		| ((scoringPlayer: number, goalPlayer: number) => void)
 		| null = null;
@@ -287,7 +288,9 @@ export class Pong3D {
 	private pendingGoalData: {
 		scoringPlayer: number;
 		goalPlayer: number;
+		wasOwnGoal: boolean;
 	} | null = null; // Store goal data for delayed reset
+	private lastConcedingPlayer: number = -1; // Store the player who conceded the last goal for serve system
 
 	/** Get the appropriate GLB model URL based on player count */
 	private getModelUrlForPlayerCount(playerCount: number): string {
@@ -451,7 +454,7 @@ export class Pong3D {
 
 		// Initialize appropriate game loop based on mode
 		if (this.gameMode === 'local') {
-			this.gameLoop = new Pong3DGameLoop(this.scene);
+			this.gameLoop = new Pong3DGameLoop(this.scene, this);
 		} else if (this.gameMode === 'master') {
 			this.gameLoop = new Pong3DGameLoopMaster(
 				this.scene,
@@ -621,9 +624,13 @@ export class Pong3D {
 
 		// Auto-start the game loop after everything is loaded
 		if (this.gameLoop) {
+			// Set a random server for the initial serve
+			this.currentServer = Math.floor(Math.random() * this.playerCount);
 			if (GameConfig.isDebugLoggingEnabled()) {
 				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog('🚀 Auto-starting game loop...');
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with random server: Player ${this.currentServer + 1}...`
+					);
 				}
 			}
 			this.gameLoop.start();
@@ -1120,8 +1127,11 @@ export class Pong3D {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(`🏓 Ball hit by Player ${paddleIndex + 1}`);
 		}
-		// Shift last hitter to second last hitter, then set new last hitter
-		this.secondLastPlayerToHitBall = this.lastPlayerToHitBall;
+		// Only shift last hitter to second last if it's a different player
+		// If the same player hits twice in succession, they only become the last hitter
+		if (this.lastPlayerToHitBall !== paddleIndex) {
+			this.secondLastPlayerToHitBall = this.lastPlayerToHitBall;
+		}
 		this.lastPlayerToHitBall = paddleIndex;
 		this.conditionalLog(
 			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}, Second last: ${this.secondLastPlayerToHitBall}`
@@ -1787,6 +1797,9 @@ export class Pong3D {
 			);
 		}
 
+		// Store the conceding player for serve system
+		this.lastConcedingPlayer = goalIndex;
+
 		// Check cooldown to prevent multiple triggers
 		const currentTime = performance.now();
 		if (currentTime - this.lastGoalTime < this.GOAL_COOLDOWN_MS) {
@@ -1795,9 +1808,11 @@ export class Pong3D {
 		}
 
 		// goalIndex is the player whose goal was hit (they conceded)
-		// The scoring player is the one who last hit the ball
+		// Check for own goals using secondLastPlayerToHitBall
 		let scoringPlayer = this.lastPlayerToHitBall;
 		const goalPlayer = goalIndex;
+		let wasOwnGoal = false;
+		let wasDirectServeOwnGoal = false;
 
 		this.conditionalLog(`Last player to hit ball: ${scoringPlayer}`);
 		this.conditionalLog(
@@ -1806,53 +1821,106 @@ export class Pong3D {
 		this.conditionalLog(`Goal player (conceding): ${goalPlayer}`);
 		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
-		if (scoringPlayer === -1) {
-			// Ball went into goal without being hit - no score
-			this.conditionalWarn(
-				`Ball went into goal without being hit - no score`
-			);
-			return;
-		}
-
-		// Handle own goals: if last hitter hit their own goal, award to second last hitter (if exists)
+		// Check for own goal: if the player who last hit the ball is the same as the goal player
 		if (scoringPlayer === goalPlayer) {
-			if (this.secondLastPlayerToHitBall !== -1) {
-				// Award point to second last hitter for the own goal
-				scoringPlayer = this.secondLastPlayerToHitBall;
+			wasOwnGoal = true;
+			// For own goals, pick a random server from players that have paddles
+			const validServers = [];
+			for (let i = 0; i < this.playerCount; i++) {
+				if (this.paddles[i]) {
+					validServers.push(i);
+				}
+			}
+			if (validServers.length > 0) {
+				this.currentServer =
+					validServers[
+						Math.floor(Math.random() * validServers.length)
+					];
+			} else {
+				// Fallback to random if no valid paddles (shouldn't happen)
+				this.currentServer = Math.floor(
+					Math.random() * this.playerCount
+				);
+			}
+			this.conditionalLog(
+				`🏴 OWN GOAL: Random server selected from ${validServers.length} valid paddles - Player ${this.currentServer + 1} will serve next`
+			);
+
+			// Check if this is a direct serve into own goal (no other players hit the ball)
+			if (this.secondLastPlayerToHitBall === -1) {
+				wasDirectServeOwnGoal = true;
+				// Direct serve own goal - no points awarded, but ball still travels to boundary
 				this.conditionalLog(
-					`Own goal! Awarding point to second last hitter (Player ${scoringPlayer + 1})`
+					`🏴 DIRECT SERVE OWN GOAL! Player ${goalPlayer + 1} served directly into their own goal - no point awarded, ball will travel to boundary`
 				);
 			} else {
-				// No second last hitter, no score for own goal
-				this.conditionalWarn(
-					`Player ${scoringPlayer + 1} hit their own goal with no previous hitter - no score`
+				// Normal own goal after rally - award to second last player
+				scoringPlayer = this.secondLastPlayerToHitBall;
+				this.conditionalLog(
+					`🏴 OWN GOAL! Player ${goalPlayer + 1} scored in their own goal. Awarding point to Player ${scoringPlayer + 1} (second last hitter)`
 				);
-				return;
 			}
 		}
 
-		// Check if last hitter and second last hitter are the same (invalid goal)
-		if (scoringPlayer === this.secondLastPlayerToHitBall) {
-			this.conditionalWarn(
-				`Player ${scoringPlayer + 1} hit the ball twice in a row - no score`
+		// Check if the server hit the ball into their own goal - no point awarded
+		if (
+			this.currentServer === goalPlayer &&
+			this.lastPlayerToHitBall === this.currentServer &&
+			this.secondLastPlayerToHitBall !== -1 // Only if ball was hit by someone else first
+		) {
+			this.conditionalLog(
+				`🏓 SERVER OWN GOAL! Player ${goalPlayer + 1} (server) hit the ball into their own goal after being hit by others - no point awarded`
 			);
-			return;
+			// Skip awarding the point and just reset for next rally
+			this.currentServer = goalPlayer; // Conceding player serves next
+			this.secondLastPlayerToHitBall = -1;
+			this.lastGoalTime = performance.now();
+			return; // Exit without awarding points
 		}
 
-		// Play goal sound effect only for legitimate scoring goals
+		// Check if the same player hit the ball twice in a row - no point awarded
+		if (
+			scoringPlayer === this.secondLastPlayerToHitBall &&
+			scoringPlayer !== -1
+		) {
+			this.conditionalLog(
+				`🚫 DOUBLE HIT! Player ${scoringPlayer + 1} hit the ball twice in a row - no point awarded`
+			);
+			// Skip awarding the point and just reset for next rally
+			this.currentServer = goalPlayer; // Conceding player serves next
+			this.secondLastPlayerToHitBall = -1;
+			this.lastGoalTime = performance.now();
+			return; // Exit without awarding points
+		}
+
+		if (scoringPlayer === -1) {
+			// Ball went into goal without being hit - award to conceding player
+			scoringPlayer = goalPlayer;
+			this.conditionalLog(
+				`Ball went into goal without being hit - awarding to conceding player ${scoringPlayer + 1}`
+			);
+		}
+
+		// Play goal sound effect
 		this.audioSystem.playSoundEffect('goal');
 
-		// Award point to the scoring player
-		this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
-		this.playerScores[scoringPlayer]++;
-		this.conditionalLog(`New scores after goal:`, this.playerScores);
+		// Award point to the scoring player (skip for direct serve own goals)
+		if (!wasDirectServeOwnGoal) {
+			this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
+			this.playerScores[scoringPlayer]++;
+			this.conditionalLog(`New scores after goal:`, this.playerScores);
 
-		// Send score update to clients (only in master mode)
-		this.conditionalLog(
-			'🏆 sendScoreUpdateToClients called with scoringPlayer:',
-			scoringPlayer
-		);
-		this.sendScoreUpdateToClients(scoringPlayer);
+			// Send score update to clients (only in master mode)
+			this.conditionalLog(
+				'🏆 sendScoreUpdateToClients called with scoringPlayer:',
+				scoringPlayer
+			);
+			this.sendScoreUpdateToClients(scoringPlayer);
+		} else {
+			this.conditionalLog(
+				`🏴 DIRECT SERVE OWN GOAL: Skipping point award for invalid serve`
+			);
+		}
 
 		// Check if player has won (configurable winning score)
 		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
@@ -1885,18 +1953,17 @@ export class Pong3D {
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
-			
 			// HELENE: i think it would be nice to have the button right away
 			if (this.gameMode == 'local') {
-					if (this.gameScreen) {
-						new ReplayModal(this.gameScreen);
-					} else {
-						this.conditionalWarn(
-							'GameScreen reference not available for ReplayModal'
-						);
-					}
+				if (this.gameScreen) {
+					new ReplayModal(this.gameScreen);
+				} else {
+					this.conditionalWarn(
+						'GameScreen reference not available for ReplayModal'
+					);
 				}
-				// Wait 7 seconds for victory music to finish, then set game status
+			}
+			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
 				state.gameOngoing = false;
 				this.conditionalLog(
@@ -1905,7 +1972,6 @@ export class Pong3D {
 				if (sessionStorage.getItem('tournament') === '1') {
 					location.hash = '#tournament';
 				}
-				
 			}, 7000);
 
 			// if we are in a tournament redirect to tournament page
@@ -1951,14 +2017,38 @@ export class Pong3D {
 		// Instead of immediately resetting the ball, let it continue to the boundary
 		// Store the goal data for later processing when the ball reaches the boundary
 		this.goalScored = true;
-		this.pendingGoalData = { scoringPlayer, goalPlayer };
+		this.pendingGoalData = { scoringPlayer, goalPlayer, wasOwnGoal };
 
 		this.conditionalLog(
 			`🚀 Goal scored! Ball will continue to boundary before reset...`
 		);
 
-		// Reset the last player tracker and set cooldown
-		this.lastPlayerToHitBall = -1;
+		// Reset the last player tracker - conceding player becomes the server for next rally (unless it was an own goal)
+		if (!wasOwnGoal) {
+			this.currentServer = goalPlayer; // Conceding player serves next
+		} else {
+			// For own goals, pick a random server from players that have paddles
+			const validServers = [];
+			for (let i = 0; i < this.playerCount; i++) {
+				if (this.paddles[i]) {
+					validServers.push(i);
+				}
+			}
+			if (validServers.length > 0) {
+				this.currentServer =
+					validServers[
+						Math.floor(Math.random() * validServers.length)
+					];
+			} else {
+				// Fallback to random if no valid paddles (shouldn't happen)
+				this.currentServer = Math.floor(
+					Math.random() * this.playerCount
+				);
+			}
+			this.conditionalLog(
+				`🏴 OWN GOAL: Random server selected from ${validServers.length} valid paddles - Player ${this.currentServer + 1} will serve next`
+			);
+		}
 		this.secondLastPlayerToHitBall = -1;
 		this.lastGoalTime = performance.now();
 	}
@@ -2061,9 +2151,18 @@ export class Pong3D {
 
 			this.conditionalLog(`🔄 Resetting ball for new rally...`);
 
-			// Now reset the ball (normal gameplay)
+			// Now reset the ball (normal gameplay) with serve system
 			if (this.gameLoop) {
-				this.gameLoop.resetBall();
+				// For own goals, serve from random server like at game start. For regular goals, serve from conceding player's paddle
+				const wasOwnGoal = this.pendingGoalData?.wasOwnGoal || false;
+				if (wasOwnGoal) {
+					this.gameLoop.resetBall(this.currentServer); // Serve from random server for own goals
+					this.conditionalLog(
+						`🏴 OWN GOAL: Ball served from random server Player ${this.currentServer + 1}`
+					);
+				} else {
+					this.gameLoop.resetBall(this.lastConcedingPlayer); // Serve from conceding player's paddle
+				}
 			}
 
 			// Reset rally speed system - new rally starts
@@ -3632,13 +3731,38 @@ export class Pong3D {
 
 	/** Start the game loop */
 	public startGame(): void {
+		// If no current server is set (first game), pick a random player to serve from those with paddles
+		if (this.currentServer === -1) {
+			const validServers = [];
+			for (let i = 0; i < this.playerCount; i++) {
+				if (this.paddles[i]) {
+					validServers.push(i);
+				}
+			}
+			if (validServers.length > 0) {
+				this.currentServer =
+					validServers[
+						Math.floor(Math.random() * validServers.length)
+					];
+			} else {
+				// Fallback to random if no valid paddles (shouldn't happen)
+				this.currentServer = Math.floor(
+					Math.random() * this.playerCount
+				);
+			}
+		}
+
 		if (this.gameLoop) {
 			this.gameLoop.start();
 		}
 
-		// Reset last player to hit ball for clean game start
+		// Reset hit tracking for new game
 		this.lastPlayerToHitBall = -1;
 		this.secondLastPlayerToHitBall = -1;
+
+		this.conditionalLog(
+			`🎮 Game started: First server is Player ${this.currentServer + 1} (index ${this.currentServer})`
+		);
 
 		// Ensure ball effects start fresh when game begins
 		this.ballEffects.resetAllEffects();
@@ -3951,6 +4075,11 @@ export class Pong3D {
 			);
 			return null;
 		}
+	}
+
+	/** Set the last player to hit the ball (used by game loop for serve tracking) */
+	public setLastPlayerToHitBall(playerIndex: number): void {
+		this.lastPlayerToHitBall = playerIndex;
 	}
 
 	/**

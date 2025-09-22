@@ -25,8 +25,8 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		networkUpdateCallback: (gameState: any) => void,
 		pong3DInstance?: any
 	) {
-		// EXACTLY the same as local mode
-		super(scene);
+		// Pass pong3DInstance to parent constructor for paddle access in serve system
+		super(scene, pong3DInstance);
 		this.networkUpdateCallback = networkUpdateCallback;
 		this.pong3DInstance = pong3DInstance;
 
@@ -135,7 +135,10 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		}
 
 		this.networkUpdateInterval = setInterval(() => {
-			if (this.getGameState().isRunning && !this.pong3DInstance?.gameEnded) {
+			if (
+				this.getGameState().isRunning &&
+				!this.pong3DInstance?.gameEnded
+			) {
 				// Convert to network format as per design document
 				const networkGameState = this.convertToNetworkFormat();
 
@@ -190,7 +193,10 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 
 		if (GameConfig.isGamestateLoggingEnabled()) {
 			this.gamestateLogInterval = setInterval(() => {
-				if (this.getGameState().isRunning && !this.pong3DInstance?.gameEnded) {
+				if (
+					this.getGameState().isRunning &&
+					!this.pong3DInstance?.gameEnded
+				) {
 					const networkGameState = this.convertToNetworkFormat();
 					conditionalLog(
 						'📡 Master gamestate (network format):',
