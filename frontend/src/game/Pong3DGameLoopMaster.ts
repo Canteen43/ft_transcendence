@@ -135,7 +135,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		}
 
 		this.networkUpdateInterval = setInterval(() => {
-			if (this.getGameState().isRunning) {
+			if (this.getGameState().isRunning && !this.pong3DInstance?.gameEnded) {
 				// Convert to network format as per design document
 				const networkGameState = this.convertToNetworkFormat();
 
@@ -190,7 +190,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 
 		if (GameConfig.isGamestateLoggingEnabled()) {
 			this.gamestateLogInterval = setInterval(() => {
-				if (this.getGameState().isRunning) {
+				if (this.getGameState().isRunning && !this.pong3DInstance?.gameEnded) {
 					const networkGameState = this.convertToNetworkFormat();
 					conditionalLog(
 						'📡 Master gamestate (network format):',

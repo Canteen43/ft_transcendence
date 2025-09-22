@@ -51,7 +51,7 @@ export function gameListener(event: MessageEvent) {
 
 			case MESSAGE_QUIT:
 				// alert('Quit: ' + JSON.stringify(msg));
-				location.hash = '#home';
+				// location.hash = '#home';
 				void new TextModal(
 					router.currentScreen!.element,
 					'The game has been quit.'
