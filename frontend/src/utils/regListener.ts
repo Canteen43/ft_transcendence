@@ -16,6 +16,7 @@ import { state } from '../utils/State';
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
 import { updateTournamentMatchData } from './updateTurnMatchData';
+// import { updateTournamentScreen } from './updateTurnScreen';
 import { webSocket } from './WebSocketWrapper';
 
 
@@ -80,7 +81,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				break;
 
 			case MESSAGE_FINISH:
-				console.info('Received quit message:', msg);
+				console.info('Received finish message:', msg);
 				const tournData2 = await apiCall(
 					'GET',
 					`/tournaments/${msg.d}`,
@@ -89,7 +90,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				if (tournData2) {
 					console.log('Tournament data received:', tournData2);
 					updateTournamentMatchData(tournData2);
-					// updateTournamentScreen();
+					// updateTournamentScreen(tournData2);
 				} else {
 					console.error(
 						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
