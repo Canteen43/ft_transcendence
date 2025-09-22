@@ -23,6 +23,7 @@ import {
 	MatchNotReadyError,
 	ParticipantNotFoundError,
 	ProtocolError,
+	SettingsNotFoundError,
 	TournamentNotFoundError,
 } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
@@ -43,6 +44,7 @@ import {
 } from '../connection_manager/connection_manager.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
+import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
@@ -176,23 +178,25 @@ export class GameProtocol {
 			throw new ProtocolError(ERROR_PLAYER_NOT_FOUND + ': ' + userId);
 		}
 		player.score++;
-		const matchFinished = MatchService.processPointAndCheckMatchFinished(
-			match.matchId,
-			userId
-		);
 		this.sendMatchMessage(message, match.players);
+		const matchFinished = this.matchFinished(match);
+		MatchService.processPoint(match, matchFinished);
 		if (matchFinished) {
-			const keysToDelete: UUID[] = [];
-			for (const [k, m] of this.matches) {
-				if (m.matchId === match.matchId) keysToDelete.push(k);
-			}
-			for (const key of keysToDelete) this.matches.delete(key);
-
+			this.deleteMatchObject(match.matchId);
 			this.sendTournamentMessage(
 				MATCH_FINISH_MESSAGE,
 				this.getTournamentParticipants(match.matchId)
 			);
 		}
+	}
+
+	private matchFinished(match: Match): boolean {
+		const settings = SettingsRepository.getSettingsByTournamentId(
+			match.tournamentId
+		);
+		if (!settings)
+			throw new SettingsNotFoundError('tournament', match.tournamentId);
+		return match.players.some(p => p.score === settings.max_score);
 	}
 
 	private handleQuit(connectionId: UUID, message: Message) {
@@ -248,12 +252,19 @@ export class GameProtocol {
 				participant1 ? match.participant_2_id : match.participant_1_id,
 				'participant_id'
 			);
-		const match_object = new Match(
-			match.id,
-			[participant1.user_id, participant2.user_id],
-			creator
-		);
+		const match_object = new Match(match.id, match.tournament_id, [
+			participant1.user_id,
+			participant2.user_id,
+		]);
 		return match_object;
+	}
+
+	private deleteMatchObject(matchId: UUID) {
+		const keysToDelete: UUID[] = [];
+		for (const [k, m] of this.matches) {
+			if (m.matchId === matchId) keysToDelete.push(k);
+		}
+		for (const key of keysToDelete) this.matches.delete(key);
 	}
 
 	private startMatch(match: Match) {
@@ -265,12 +276,7 @@ export class GameProtocol {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
 		const participants = this.getTournamentParticipants(match.matchId);
 		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
-
-		const keysToDelete: UUID[] = [];
-		for (const [k, m] of this.matches) {
-			if (m.matchId === match.matchId) keysToDelete.push(k);
-		}
-		for (const key of keysToDelete) this.matches.delete(key);
+		this.deleteMatchObject(match.matchId);
 	}
 
 	private quitTournament(tournament: Tournament) {

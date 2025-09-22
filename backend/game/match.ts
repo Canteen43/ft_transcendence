@@ -4,10 +4,12 @@ import { Player } from '../types/interfaces.js';
 
 export class Match {
 	matchId: UUID;
+	tournamentId: UUID;
 	players: Player[];
 
-	constructor(match_id: UUID, users: UUID[], creator: UUID) {
-		this.matchId = match_id;
+	constructor(matchId: UUID, tournamentId: UUID, users: UUID[]) {
+		this.matchId = matchId;
+		this.tournamentId = tournamentId;
 		this.players = users.map(userId => ({
 			userId: userId,
 			score: 0,
@@ -27,5 +29,11 @@ export class Match {
 
 	allAccepted(): boolean {
 		return this.players.every(p => p.status === PlayerStatus.Accepted);
+	}
+
+	getWinner(): Player {
+		return this.players.reduce((winner, player) =>
+			player.score > winner.score ? player : winner
+		);
 	}
 }
