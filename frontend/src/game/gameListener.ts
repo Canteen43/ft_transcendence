@@ -17,12 +17,12 @@ import { router } from '../utils/Router';
 import { state } from '../utils/State';
 import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
 // import { updateTournamentScreen } from '../utils/updateTurnScreen';
-import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 import {
 	FullTournamentSchema,
 	TournamentQueueSchema,
 } from '../../../shared/schemas/tournament';
 import { apiCall } from '../utils/apiCall';
+import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
 export function gameListener(event: MessageEvent) {
 	try {
@@ -48,24 +48,25 @@ export function gameListener(event: MessageEvent) {
 			case MESSAGE_PAUSE:
 				alert('Pause: ' + JSON.stringify(msg));
 				break;
-
 			case MESSAGE_QUIT:
-				// alert('Quit: ' + JSON.stringify(msg));
-				// location.hash = '#home';
-				void new TextModal(
-					router.currentScreen!.element,
-					'The game has been quit.'
-				);
+				location.hash = '#home';
+				setTimeout(() => {
+					void new TextModal(
+						router.currentScreen!.element,
+						'The game has been quit.'
+					);
+				}, 100);
 				break;
-
 			case MESSAGE_FINISH:
 				console.info('Received finish message:', msg);
 				if (location.hash != '#game') {
-					console.debug('Finish messages while not on the game screen -> refresh tournament');
+					console.debug(
+						'Finish messages while not on the game screen -> refresh tournament'
+					);
 					location.hash = '';
 					location.hash = '#tournament';
 				}
-  
+
 				break;
 
 			case MESSAGE_MOVE:
