@@ -45,7 +45,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				if (tournData) {
 					console.log('Tournament data received:', tournData);
 					sessionStorage.setItem('tournamentID', `${msg.d}`);
-					// updateTournamentMatchData(tournData);
+					updateTournamentMatchData(tournData);
 				} else {
 					console.error(
 						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'

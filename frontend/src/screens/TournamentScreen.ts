@@ -19,7 +19,8 @@ export class TournamentScreen extends Screen {
 
 	// API call
 	private async init() {
-		const tournID = sessionStorage.getItem("tournamentID");
+		const tournID = sessionStorage.getItem('tournamentID');
+		if (!tournID) return;
 		console.debug('Calling tourn details API from ');
 		const tournData = await apiCall(
 			'GET',
@@ -30,9 +31,7 @@ export class TournamentScreen extends Screen {
 			console.log('Tournament data received:', tournData);
 			updateTournamentMatchData(tournData);
 		} else {
-			console.error(
-				'Getting tournament data failed.'
-			);
+			console.error('Getting tournament data failed.');
 			return;
 		}
 	}
@@ -88,8 +87,9 @@ export class TournamentScreen extends Screen {
 
 		// Ready button - now this will work because init() has completed
 		const matchID = sessionStorage.getItem('matchID');
+		const winner = sessionStorage.getItem('winner');
 		console.log('Checking for matchID at render time:', matchID);
-		if (matchID) {
+		if (matchID && !winner) {
 			console.log('Creating ReadyButton');
 			new ReadyButton(this.element);
 		} else {
@@ -98,24 +98,30 @@ export class TournamentScreen extends Screen {
 	}
 
 	private renderBracket(parent: HTMLElement) {
+		const w1 = sessionStorage.getItem('w1');
+		const w2 = sessionStorage.getItem('w2');
+		const p1 = sessionStorage.getItem('p1') || 'Player 1';
+		const p2 = sessionStorage.getItem('p2') || 'Player 2';
+		const p3 = sessionStorage.getItem('p3') || 'Player 3';
+		const p4 = sessionStorage.getItem('p4') || 'Player 4';
+
 		// Left side players (match 0)
 		const leftSide = this.createElement(
 			parent,
 			'div',
 			'col-span-1 space-y-8'
 		);
-		leftSide.appendChild(
-			this.createPlayerSlot(
-				'player1',
-				sessionStorage.getItem('p1') || 'Player 1'
-			)
-		);
-		leftSide.appendChild(
-			this.createPlayerSlot(
-				'player2',
-				sessionStorage.getItem('p2') || 'Player 2'
-			)
-		);
+		const player1Slot = this.createPlayerSlot('player1', p1);
+		const player2Slot = this.createPlayerSlot('player2', p2);
+
+		// Highlight winners from first match
+		if (w1 && w1 !== 'Winner 1') {
+			if (p1 === w1) player1Slot.classList.add('winner');
+			if (p2 === w1) player2Slot.classList.add('winner');
+		}
+
+		leftSide.appendChild(player1Slot);
+		leftSide.appendChild(player2Slot);
 
 		// Left connector
 		this.renderConnector(parent, 'left');
@@ -126,11 +132,12 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1'
 		);
-		const winner1 = this.createPlayerSlot(
-			'winner1',
-			sessionStorage.getItem('w1') || ''
-		);
+		const winner1 = this.createPlayerSlot('winner1', w1 || 'Winner 1');
 		winner1.classList.add('semi-winner');
+		// Highlight if this winner has a real name (not placeholder)
+		if (w1 && w1 !== 'Winner 1') {
+			winner1.classList.add('winner');
+		}
 		winner1Container.appendChild(winner1);
 
 		// Final match (empty column)
@@ -142,11 +149,12 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1'
 		);
-		const winner2 = this.createPlayerSlot(
-			'winner2',
-			sessionStorage.getItem('w2') || ''
-		);
+		const winner2 = this.createPlayerSlot('winner2', w2 || 'Winner 2');
 		winner2.classList.add('semi-winner');
+		// Highlight if this winner has a real name (not placeholder)
+		if (w2 && w2 !== 'Winner 2') {
+			winner2.classList.add('winner');
+		}
 		winner2Container.appendChild(winner2);
 
 		// Right connector
@@ -158,18 +166,17 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1 space-y-8'
 		);
-		rightSide.appendChild(
-			this.createPlayerSlot(
-				'player3',
-				sessionStorage.getItem('p3') || 'Player 3'
-			)
-		);
-		rightSide.appendChild(
-			this.createPlayerSlot(
-				'player4',
-				sessionStorage.getItem('p4') || 'Player 4'
-			)
-		);
+		const player3Slot = this.createPlayerSlot('player3', p3);
+		const player4Slot = this.createPlayerSlot('player4', p4);
+
+		// Highlight winners from second match
+		if (w2 && w2 !== 'Winner 2') {
+			if (p3 === w2) player3Slot.classList.add('winner');
+			if (p4 === w2) player4Slot.classList.add('winner');
+		}
+
+		rightSide.appendChild(player3Slot);
+		rightSide.appendChild(player4Slot);
 	}
 
 	private renderConnector(parent: HTMLElement, side: 'left' | 'right') {

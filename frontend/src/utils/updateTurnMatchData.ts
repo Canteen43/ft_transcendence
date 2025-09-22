@@ -1,22 +1,21 @@
-import { DEFAULT_MAX_SCORE } from "../../../shared/constants"
-
+import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
+import { clearMatchData } from './cleanSessionStorage';
+import { state } from '../utils/State';
 
 export function updateTournamentMatchData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');
 
 	const userID = sessionStorage.getItem('userID');
-	const isTourn = tournData.matches.length > 1;
+	// const isTourn = tournData.matches.length > 1;
+	const isTourn = state.tournamentOngoing;
+	const isGame = state.gameOngoing;
 
 	console.debug('userID =', userID);
 	console.debug('isTourn =', isTourn);
+	console.debug('isGame =', isTourn);
 	console.debug('tournData =', tournData);
 
-	sessionStorage.removeItem('matchID');
-	sessionStorage.removeItem('thisPlayer');
-	sessionStorage.removeItem('player1');
-	sessionStorage.removeItem('player2');
-	sessionStorage.removeItem('alias1');
-	sessionStorage.removeItem('alias2');
+	clearMatchData();
 
 	// Helper function to get alias from user_id
 	const getAliasFromUserId = (userId: string): string | null => {
@@ -27,7 +26,7 @@ export function updateTournamentMatchData(tournData: any): void {
 	};
 
 	// Two player game
-	if (!isTourn) {
+	if (isGame) {
 		const player1 = tournData.matches[0].participant_1_user_id;
 		const player2 = tournData.matches[0].participant_2_user_id;
 		const player1Alias = getAliasFromUserId(player1);
@@ -44,8 +43,8 @@ export function updateTournamentMatchData(tournData: any): void {
 
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
 	}
-	// Tournament mode
-	else {
+	// Tournament mode 
+	else if (isTourn) {
 		// for tournament SCREEN : aliases
 		const tournPlyr1 = tournData.matches[0].participant_1_user_id;
 		const tournPlyr2 = tournData.matches[0].participant_2_user_id;
@@ -69,8 +68,8 @@ export function updateTournamentMatchData(tournData: any): void {
 			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
 			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
 		const match2_finished =
-			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
-			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
+			tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE ||
+			tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE;
 
 		if (match0_finished) {
 			const winner1UserId =
@@ -99,8 +98,12 @@ export function updateTournamentMatchData(tournData: any): void {
 					? tournData.matches[2].participant_1_user_id
 					: tournData.matches[2].participant_2_user_id;
 			const tournWinnerAlias = getAliasFromUserId(tournamentwinnerUserId);
-			sessionStorage.setItem('winner', tournWinnerAlias || tournamentwinnerUserId);
-			// TODO delete some data from session storage here?
+			sessionStorage.setItem(
+				'winner',
+				tournWinnerAlias || tournamentwinnerUserId
+			);
+			// TODO delete some data from session storage here? we could keep
+			// the page with the last tournament
 		}
 
 		// Tournament first round
@@ -181,6 +184,10 @@ export function updateTournamentMatchData(tournData: any): void {
 		}
 	}
 
+	else {
+		console.error("No game ongoing, no tournament ongoing.");
+	}
+
 	console.log(
 		'DEBUG: updated current sessionStorage matchID:',
 		sessionStorage.getItem('matchID')
@@ -192,5 +199,6 @@ export function updateTournamentMatchData(tournData: any): void {
 		p4: sessionStorage.getItem('p4'),
 		w1: sessionStorage.getItem('w1'),
 		w2: sessionStorage.getItem('w2'),
+		winner: sessionStorage.getItem('winner'),
 	});
 }
