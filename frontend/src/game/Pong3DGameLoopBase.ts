@@ -72,7 +72,7 @@ export abstract class Pong3DGameLoopBase {
 	/**
 	 * Reset ball to original position with new random velocity
 	 */
-	resetBall(): void {
+	resetBall(servingPlayerIndex?: number): void {
 		if (this.ballMesh) {
 			this.ballMesh.position = this.originalBallPosition.clone();
 			this.gameState.ball.position = this.originalBallPosition.clone();

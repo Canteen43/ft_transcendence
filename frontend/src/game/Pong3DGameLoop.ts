@@ -12,9 +12,11 @@ export class Pong3DGameLoop {
 		0,
 		0
 	);
+	private pong3D: any; // Reference to main Pong3D instance for paddle access
 
-	constructor(scene: BABYLON.Scene) {
+	constructor(scene: BABYLON.Scene, pong3D?: any) {
 		this.scene = scene;
+		this.pong3D = pong3D;
 
 		// Initialize game state - will be updated when ball mesh is set
 		this.gameState = {
@@ -54,8 +56,34 @@ export class Pong3DGameLoop {
 		// conditionalLog("🎾 Starting Pong3D Game Loop with Physics Engine");
 		this.gameState.isRunning = true;
 
-		// The physics engine runs in the background. We just need to apply initial velocity.
-		this.resetBall();
+		// Check if there's a designated server from the pong3D instance
+		let initialServingPlayer: number | undefined;
+		if (this.pong3D && this.pong3D.currentServer >= 0) {
+			initialServingPlayer = this.pong3D.currentServer;
+			if (GameConfig.isDebugLoggingEnabled()) {
+				conditionalLog(
+					`🎾 FIRST SERVE: Starting with Player ${initialServingPlayer! + 1} as initial server`
+				);
+			}
+		}
+
+		// Only reset ball if we have a designated server (actual game start)
+		// During auto-start in onModelLoaded, currentServer is -1, so don't reset ball
+		if (initialServingPlayer !== undefined) {
+			// Add 1-second delay before the first serve
+			setTimeout(() => {
+				if (this.gameState.isRunning) {
+					// Check if game is still running
+					this.resetBall(initialServingPlayer);
+				}
+			}, 1000); // 1 second delay
+		} else {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				conditionalLog(
+					`🎾 INITIALIZATION: Game loop started without designated server - ball will remain at current position`
+				);
+			}
+		}
 
 		// Register the render loop to sync our gameState with the physics simulation
 		this.scene.registerBeforeRender(() => {
@@ -82,16 +110,79 @@ export class Pong3DGameLoop {
 	}
 
 	/**
-	 * Reset ball to center with initial velocity
+	 * Reset ball to center with initial velocity, or serve from paddle position if servingPlayerIndex provided
 	 */
-	resetBall(): void {
+	resetBall(servingPlayerIndex?: number): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
+
+		let servePosition: BABYLON.Vector3;
+		let serveVelocity: BABYLON.Vector3;
+
+		if (servingPlayerIndex !== undefined && this.pong3D) {
+			// SERVE SYSTEM: Reset ball from paddle position toward court center
+			const paddle = this.pong3D.getPaddle(servingPlayerIndex);
+			if (paddle) {
+				// Update hit tracking - the server "hit" the ball
+				this.pong3D.setLastPlayerToHitBall(servingPlayerIndex);
+
+				// Position ball at paddle origin
+				servePosition = paddle.position.clone();
+
+				// Calculate direction toward court center (0, 0, 0)
+				const courtCenter = BABYLON.Vector3.Zero();
+				let directionToCenter = courtCenter.subtract(servePosition);
+				directionToCenter.y = 0; // Keep in X-Z plane
+				directionToCenter = directionToCenter.normalize();
+
+				// Add 20-degree random spread
+				const spreadAngle =
+					(Math.random() - 0.5) * ((20 * Math.PI) / 180); // ±20 degrees in radians
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(
+					BABYLON.Vector3.Up(),
+					spreadAngle
+				);
+				const spreadDirection = BABYLON.Vector3.TransformCoordinates(
+					directionToCenter,
+					rotationMatrix
+				);
+
+				// Set serve speed (can be adjusted)
+				const serveSpeed = 5;
+				serveVelocity = spreadDirection.scale(serveSpeed);
+
+				if (GameConfig.isDebugLoggingEnabled()) {
+					conditionalLog(
+						`🎾 SERVE: Player ${servingPlayerIndex + 1} serving from paddle position toward center`
+					);
+					conditionalLog(
+						`🎾 Serve position: (${servePosition.x.toFixed(2)}, ${servePosition.y.toFixed(2)}, ${servePosition.z.toFixed(2)})`
+					);
+					conditionalLog(
+						`🎾 Serve direction: (${spreadDirection.x.toFixed(2)}, ${spreadDirection.y.toFixed(2)}, ${spreadDirection.z.toFixed(2)})`
+					);
+					conditionalLog(
+						`🎾 Spread angle: ${((spreadAngle * 180) / Math.PI).toFixed(1)}°`
+					);
+				}
+			} else {
+				// Fallback to center if paddle not found
+				servePosition = this.originalBallPosition.clone();
+				serveVelocity = this.generateRandomStartingVelocity(5);
+				conditionalLog(
+					`⚠️ SERVE: Paddle ${servingPlayerIndex} not found, falling back to center reset`
+				);
+			}
+		} else {
+			// NORMAL RESET: Reset to center with random velocity
+			servePosition = this.originalBallPosition.clone();
+			serveVelocity = this.generateRandomStartingVelocity(5);
+		}
 
 		// Reset position via the mesh, which the physics engine will pick up
 		this.ballMesh.position.set(
-			this.originalBallPosition.x,
-			this.originalBallPosition.y,
-			this.originalBallPosition.z
+			servePosition.x,
+			servePosition.y,
+			servePosition.z
 		);
 
 		// Stop any existing motion
@@ -100,17 +191,15 @@ export class Pong3DGameLoop {
 			BABYLON.Vector3.Zero()
 		);
 
-		// Set new random starting velocity by applying an impulse.
-		// Impulse is better than setting velocity directly for a more realistic start.
-		const startingVelocity = this.generateRandomStartingVelocity(5);
+		// Apply the serve velocity as an impulse
 		this.ballMesh.physicsImpostor.applyImpulse(
-			startingVelocity,
+			serveVelocity,
 			this.ballMesh.getAbsolutePosition()
 		);
 
 		// Sync gameState
 		this.gameState.ball.position = this.ballMesh.position.clone();
-		this.gameState.ball.velocity = startingVelocity;
+		this.gameState.ball.velocity = serveVelocity;
 
 		// conditionalLog(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
 	}
