@@ -2,6 +2,7 @@ import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Screen } from '../screens/Screen';
 import { TournamentScreen } from '../screens/TournamentScreen';
+import { TrophyScreen } from '../screens/TrophyScreen';
 
 
 
@@ -39,6 +40,9 @@ export class Router {
 				break;
 			case '#tournament':
 				this.currentScreen = new TournamentScreen();
+				break;
+			case '#trophy':			
+				this.currentScreen = new TrophyScreen();
 				break;
 			default:
 				alert('Unknown route: ' + hash + '. Redirected to home.');
