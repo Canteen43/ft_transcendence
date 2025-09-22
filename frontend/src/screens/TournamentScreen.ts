@@ -1,13 +1,39 @@
+import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
+import { apiCall } from '../utils/apiCall';
+import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
 import { Screen } from './Screen';
-
 
 export class TournamentScreen extends Screen {
 	constructor() {
 		super();
-
-		this.render();
 		this.addStyles();
+		this.initializeAsync();
+	}
+
+	private async initializeAsync() {
+		await this.init();
+		this.render();
+	}
+
+	private async init() {
+		const tournID = sessionStorage.getItem("tournamentID");
+		console.debug('Calling tourn details API from ');
+
+		const tournData = await apiCall(
+			'GET',
+			`/tournaments/${tournID}`,
+			FullTournamentSchema
+		);
+		if (tournData) {
+			console.log('Tournament data received:', tournData);
+			updateTournamentMatchData(tournData);
+		} else {
+			console.error(
+				'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
+			);
+			return;
+		}
 	}
 
 	private createElement(
@@ -59,9 +85,15 @@ export class TournamentScreen extends Screen {
 		);
 		this.renderBracket(bracketGrid);
 
-		// Ready button
+		// Ready button - now this will work because init() has completed
 		const matchID = sessionStorage.getItem('matchID');
-		if (matchID) new ReadyButton(this.element);
+		console.log('Checking for matchID at render time:', matchID);
+		if (matchID) {
+			console.log('Creating ReadyButton');
+			new ReadyButton(this.element);
+		} else {
+			console.log('No matchID found, ReadyButton not created');
+		}
 	}
 
 	private renderBracket(parent: HTMLElement) {

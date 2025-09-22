@@ -19,7 +19,6 @@ import { updateTournamentMatchData } from './updateTurnMatchData';
 // import { updateTournamentScreen } from './updateTurnScreen';
 import { webSocket } from './WebSocketWrapper';
 
-
 export async function regListener(event: MessageEvent): Promise<void> {
 	try {
 		console.log('Processing message in regListener...');
@@ -45,9 +44,8 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				);
 				if (tournData) {
 					console.log('Tournament data received:', tournData);
-					updateTournamentMatchData(tournData);
-					// state.storeCurrentMatch();
-					// state.printTournament();
+					sessionStorage.setItem('tournamentID', `${msg.d}`);
+					// updateTournamentMatchData(tournData);
 				} else {
 					console.error(
 						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
@@ -82,21 +80,13 @@ export async function regListener(event: MessageEvent): Promise<void> {
 
 			case MESSAGE_FINISH:
 				console.info('Received finish message:', msg);
-				const tournData2 = await apiCall(
-					'GET',
-					`/tournaments/${msg.d}`,
-					FullTournamentSchema
-				);
-				if (tournData2) {
-					console.log('Tournament data received:', tournData2);
-					updateTournamentMatchData(tournData2);
-					// updateTournamentScreen(tournData2);
+				const tourn = sessionStorage.getItem('tournament');
+				console.debug({ tourn });
+				if (tourn) {
+					location.hash = '';
+					location.hash = '#tournament';
 				} else {
-					console.error(
-						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
-					);
-					webSocket.send({ t: MESSAGE_QUIT });
-					return;
+					location.hash = '#home';
 				}
 				break;
 

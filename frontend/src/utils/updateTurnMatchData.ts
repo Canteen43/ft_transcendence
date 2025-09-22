@@ -1,3 +1,6 @@
+import { DEFAULT_MAX_SCORE } from "../../../shared/constants"
+
+
 export function updateTournamentMatchData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');
 
@@ -60,15 +63,15 @@ export function updateTournamentMatchData(tournData: any): void {
 		sessionStorage.setItem('p4', tournPlyr4Alias || tournPlyr4);
 
 		const match0_finished =
-			tournData.matches[0].participant_1_score == 10 ||
-			tournData.matches[0].participant_2_score == 10;
+			tournData.matches[0].participant_1_score == DEFAULT_MAX_SCORE ||
+			tournData.matches[0].participant_2_score == DEFAULT_MAX_SCORE;
 		const match1_finished =
-			tournData.matches[1].participant_1_score == 10 ||
-			tournData.matches[1].participant_2_score == 10;
+			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
+			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
 
 		if (match0_finished) {
 			const winner1UserId =
-				tournData.matches[0].participant_1_score == 10
+				tournData.matches[0].participant_1_score == DEFAULT_MAX_SCORE
 					? tournData.matches[0].participant_1_user_id
 					: tournData.matches[0].participant_2_user_id;
 			const winner1Alias = getAliasFromUserId(winner1UserId);
@@ -78,7 +81,7 @@ export function updateTournamentMatchData(tournData: any): void {
 		}
 		if (match1_finished) {
 			const winner2UserId =
-				tournData.matches[1].participant_1_score == 10
+				tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE
 					? tournData.matches[1].participant_1_user_id
 					: tournData.matches[1].participant_2_user_id;
 			const winner2Alias = getAliasFromUserId(winner2UserId);
@@ -166,7 +169,7 @@ export function updateTournamentMatchData(tournData: any): void {
 	}
 
 	console.log(
-		'DEBUG: Final sessionStorage matchID:',
+		'DEBUG: updated current sessionStorage matchID:',
 		sessionStorage.getItem('matchID')
 	);
 	console.log('DEBUG: Tournament display data:', {

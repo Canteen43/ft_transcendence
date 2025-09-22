@@ -258,7 +258,7 @@ export class GameProtocol {
 	private endMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
 		const participants = this.getTournamentParticipants(match.matchId);
-		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
+		this.sendTournamentMessage(MATCH_FINISH_MESSAGE, participants);
 
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {
@@ -271,7 +271,7 @@ export class GameProtocol {
 		const participants = ParticipantRepository.getTournamentParticipants(
 			tournament.id
 		);
-		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
+		this.sendTournamentMessage(MATCH_FINISH_MESSAGE, participants);
 		tournament.status = TournamentStatus.Cancelled;
 		const update = UpdateTournamentSchema.strip().parse(tournament);
 		TournamentRepository.updateTournament(tournament.id, update);

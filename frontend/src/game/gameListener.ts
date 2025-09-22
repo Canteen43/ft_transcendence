@@ -60,23 +60,12 @@ export function gameListener(event: MessageEvent) {
 
 			case MESSAGE_FINISH:
 				console.info('Received finish message:', msg);
-				const tournData2 = apiCall(
-					'GET',
-					`/tournaments/${msg.d}`,
-					FullTournamentSchema
-				);
-				if (tournData2) {
-					console.log('Tournament data received:', tournData2);
-					updateTournamentMatchData(tournData2);
-					// updateTournamentScreen(tournData2);
-				} else {
-					console.error(
-						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
-					);
-					// webSocket.send({ t: MESSAGE_QUIT });
-					return;
+				if (location.hash != '#game') {
+					console.debug('Finish messages while not on the game screen -> refresh tournament');
+					location.hash = '';
+					location.hash = '#tournament';
 				}
-				break;
+  
 				break;
 
 			case MESSAGE_MOVE:
