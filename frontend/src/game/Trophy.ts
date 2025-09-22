@@ -246,7 +246,7 @@ export class Trophy {
 
 	private addDefaultLighting(): void {
 		// General ambient light for the entire scene
-		this.scene.ambientColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+		this.scene.ambientColor = new BABYLON.Color3(1, 1, 1);
 
 		const ambientLight = new BABYLON.HemisphericLight(
 			'ambientLight',
@@ -310,8 +310,8 @@ export class Trophy {
 					'winnerTextMaterial',
 					this.scene
 				);
-				textMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
-				textMaterial.emissiveColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+				textMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0); // Silver/grey text
+				textMaterial.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7); // Subtle silver glow
 				this.winnerTextMesh.material = textMaterial;
 
 				this.winnerTextMesh.rotation.set(0, 0, 0);
