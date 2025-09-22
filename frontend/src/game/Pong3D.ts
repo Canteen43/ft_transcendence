@@ -1885,17 +1885,9 @@ export class Pong3D {
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
-			// Wait 7 seconds for victory music to finish, then set game status
+			
 			// HELENE: i think it would be nice to have the button right away
-			setTimeout(() => {
-				state.gameOngoing = false;
-				this.conditionalLog(
-					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
-				);
-				if (sessionStorage.getItem('tournament') === '1') {
-					location.hash = '#tournament';
-				}
-				if (this.gameMode == 'local') {
+			if (this.gameMode == 'local') {
 					if (this.gameScreen) {
 						new ReplayModal(this.gameScreen);
 					} else {
@@ -1904,6 +1896,16 @@ export class Pong3D {
 						);
 					}
 				}
+				// Wait 7 seconds for victory music to finish, then set game status
+			setTimeout(() => {
+				state.gameOngoing = false;
+				this.conditionalLog(
+					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
+				);
+				if (sessionStorage.getItem('tournament') === '1') {
+					location.hash = '#tournament';
+				}
+				
 			}, 7000);
 
 			// if we are in a tournament redirect to tournament page
