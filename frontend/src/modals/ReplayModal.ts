@@ -6,32 +6,26 @@ export class ReplayModal extends Modal {
 	constructor(gameScreen: GameScreen) {
 		super(gameScreen.element);
 
-		// Text
-		const message = document.createElement('p');
-		message.textContent = 'Do you want to play again?';
-		message.className = 'text-xl font-semibold text-center mb-4';
-		this.box.appendChild(message);
+		// Remove the overlay background and override positioning for replay modal
+		this.overlay.className = this.overlay.className
+			.replace('bg-black/50', 'bg-transparent')
+			.replace('items-center', 'items-center mt-80');
 
-		// Buttons container
+		// Reduce padding and gap within the modal box
+		this.box.className = this.box.className
+			.replace('p-10', 'p-6')
+			.replace('gap-4', 'gap-2');
+
+		// Buttons container with reduced top margin
 		const buttons = document.createElement('div');
-		buttons.className = 'flex gap-6 mt-4';
+		buttons.className = 'flex gap-4 mt-2';
 		this.box.appendChild(buttons);
 
 		// Play Again button
 		new Button(
-			'Play Again',
+			'Play Again!',
 			() => {
 				gameScreen.reloadPong();
-				this.destroy();
-			},
-			buttons
-		);
-
-		// Leave button
-		new Button(
-			'Leave',
-			() => {
-				location.hash = '#home';
 				this.destroy();
 			},
 			buttons
