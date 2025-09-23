@@ -1,3 +1,4 @@
+import { MESSAGE_GAME_STATE } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { gameListener } from '../game/gameListener';
 import { regListener } from './regListener';

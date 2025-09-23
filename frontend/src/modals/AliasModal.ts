@@ -157,7 +157,7 @@ export class AliasModal extends Modal {
 			);
 			if (tournament) {
 				console.info('Tournament created with ID:', tournament.id);
-				// sessionStorage.setItem('tournamentId', tournament.id);
+				sessionStorage.setItem('tournamentID', tournament.id);
 			} else {
 				console.error(
 					'Failed to create tournament as last player. Leaving queue.'

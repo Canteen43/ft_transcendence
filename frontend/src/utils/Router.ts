@@ -4,8 +4,6 @@ import { Screen } from '../screens/Screen';
 import { TournamentScreen } from '../screens/TournamentScreen';
 // import { TrophyScreen } from '../screens/TrophyScreen';
 
-
-
 export class Router {
 	public currentScreen: Screen | null = null;
 
@@ -33,17 +31,17 @@ export class Router {
 
 		switch (hash) {
 			case '#home':
+				console.info('Switching to #HOME');
 				this.currentScreen = new HomeScreen();
 				break;
 			case '#game':
+				console.info('Switching to #GAME');
 				this.currentScreen = new GameScreen();
 				break;
 			case '#tournament':
+				console.info('Switching to #TOURNAMENT');
 				this.currentScreen = new TournamentScreen();
 				break;
-			// case '#trophy':			
-			// 	this.currentScreen = new TrophyScreen();
-			// 	break;
 			default:
 				alert('Unknown route: ' + hash + '. Redirected to home.');
 				location.hash = '#home';

@@ -57,13 +57,14 @@ export function gameListener(event: MessageEvent) {
 					);
 				}, 100);
 				break;
+				// TODO : maybe remove the refreshing and redirecting when we are on the game
 			case MESSAGE_FINISH:
 				console.info('Received finish message:', msg);
-				if (location.hash != '#game') {
+				if (state.gameOngoing = false) {
 					console.debug(
-						'Finish messages while not on the game screen -> refresh tournament'
+						'Finish messages while on the game screen, game finished -> refresh tournament'
 					);
-					location.hash = '';
+					// location.hash = '';
 					location.hash = '#tournament';
 				}
 

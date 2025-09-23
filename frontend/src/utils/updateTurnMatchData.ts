@@ -1,18 +1,38 @@
 import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
-import { clearMatchData, clearTournData } from './cleanSessionStorage';
 import { state } from '../utils/State';
+import { clearMatchData, clearTournData } from './cleanSessionStorage';
+import { apiCall } from '../utils/apiCall';
+import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
+
+export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
+
+		const tournID = sessionStorage.getItem('tournamentID');
+		// const isTourn = state.tournamentOngoing;
+		// if (!isTourn) return;
+		console.debug('Calling tourn details API');
+		const tournData = await apiCall(
+			'GET',
+			`/tournaments/${tournID}`,
+			FullTournamentSchema
+		);
+		if (tournData) {
+			console.log('Tournament data received:', tournData);
+			updateTournamentMatchData(tournData);
+		} else {
+			console.error('Getting tournament data failed.');
+			return;
+		}
+	}
 
 export function updateTournamentMatchData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');
 
 	const userID = sessionStorage.getItem('userID');
-	// const isTourn = tournData.matches.length > 1;
-	const isTourn = state.tournamentOngoing;
-	const isGame = state.gameOngoing;
+	const isTourn = tournData.matches.length > 1;
+	// const isTourn = state.tournamentOngoing;
 
 	console.debug('userID =', userID);
 	console.debug('isTourn =', isTourn);
-	console.debug('isGame =', isTourn);
 	console.debug('tournData =', tournData);
 
 	clearMatchData();
@@ -28,7 +48,7 @@ export function updateTournamentMatchData(tournData: any): void {
 
 	//////////////////
 	// Two player game
-	if (isGame) {
+	if (!isTourn) {
 		const player1 = tournData.matches[0].participant_1_user_id;
 		const player2 = tournData.matches[0].participant_2_user_id;
 		const player1Alias = getAliasFromUserId(player1);
@@ -44,13 +64,11 @@ export function updateTournamentMatchData(tournData: any): void {
 		sessionStorage.setItem('alias2', player2Alias || player2);
 
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
-		state.gameOngoing = false;
 	}
 
 	//////////////////
-	// Tournament mode 
+	// Tournament mode
 	else if (isTourn) {
-
 		// for tournament SCREEN : aliases
 		const tournPlyr1 = tournData.matches[0].participant_1_user_id;
 		const tournPlyr2 = tournData.matches[0].participant_2_user_id;
@@ -186,10 +204,8 @@ export function updateTournamentMatchData(tournData: any): void {
 				// User is not in the finale
 			}
 		}
-	}
-
-	else {
-		console.error("No game ongoing, no tournament ongoing.");
+	} else {
+		console.error('No game ongoing, no tournament ongoing.');
 	}
 
 	console.log(
