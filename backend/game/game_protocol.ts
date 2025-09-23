@@ -5,9 +5,9 @@ import {
 	ERROR_PLAYER_NOT_FOUND,
 	ERROR_QUIT,
 	ERROR_USER_CONNECTION_NOT_FOUND,
-	MATCH_FINISH_MESSAGE,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
+	MESSAGE_FINISH,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
@@ -182,8 +182,9 @@ export class GameProtocol {
 		MatchService.processPoint(match, matchFinished);
 		if (matchFinished) {
 			this.deleteMatchObject(match.matchId);
+			const message: Message = { t: MESSAGE_FINISH, d: match.matchId };
 			this.sendTournamentMessage(
-				MATCH_FINISH_MESSAGE,
+				message,
 				this.getTournamentParticipants(match.matchId)
 			);
 		}
