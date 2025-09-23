@@ -15,9 +15,21 @@ import { WaitingModal } from './WaitingModal';
 
 export class AliasModal extends Modal {
 	private aliasFields: HTMLInputElement[] = [];
+	private dropdownContainers: HTMLDivElement[] = [];
+	private openDropdownIndex: number | null = null;
+	private readonly aiOptions: { label: string; value: string }[] = [
+		{ label: 'Circe', value: '*Circe' },
+		{ label: 'Merlin', value: '*Merlin' },
+		{ label: 'Morgana', value: '*Morgana' },
+		{ label: 'Gandalf', value: '*Gandalf' },
+	];
+	private documentClickHandler: (event: MouseEvent) => void;
 
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
+
+		this.documentClickHandler = this.handleDocumentClick.bind(this);
+		document.addEventListener('click', this.documentClickHandler);
 
 		const username = sessionStorage.getItem('username') ?? '';
 		const alias = sessionStorage.getItem('alias') ?? '';
@@ -38,13 +50,58 @@ export class AliasModal extends Modal {
 				defaultValue = aliases[i] || `player${i + 1}`;
 			}
 
+			const row = document.createElement('div');
+			row.className = 'flex items-center gap-2 w-full relative';
+			this.box.appendChild(row);
+
 			const input = this.myCreateInput(
 				'text',
 				`username${i + 1}`,
-				defaultValue
+				defaultValue,
+				row
 			);
 			input.title = aliasHints[i] || '';
 			this.aliasFields.push(input);
+
+			const aiButton = document.createElement('button');
+			aiButton.type = 'button';
+			aiButton.className =
+				'flex items-center gap-2 border border-[var(--color3)] rounded px-2 py-0 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
+			const aiIcon = document.createElement('img');
+			aiIcon.src = '/ai.png';
+			aiIcon.alt = 'AI options';
+			aiIcon.className = 'w-10 h-10';
+			const arrow = document.createElement('span');
+			arrow.textContent = '▾';
+			aiButton.appendChild(aiIcon);
+			aiButton.appendChild(arrow);
+			row.appendChild(aiButton);
+
+			const dropdown = document.createElement('div');
+			dropdown.className =
+				'hidden absolute right-0 top-full mt-1 min-w-[8rem] bg-white border border-[var(--color3)] rounded shadow-md z-50 flex flex-col';
+			row.appendChild(dropdown);
+			this.dropdownContainers.push(dropdown);
+
+			this.aiOptions.forEach(option => {
+				const optionButton = document.createElement('button');
+				optionButton.type = 'button';
+				optionButton.innerText = option.label;
+				optionButton.className =
+					'px-3 py-2 text-left text-sm hover:bg-[var(--color3)]/10 transition-colors';
+				optionButton.addEventListener('click', () => {
+					input.value = option.value;
+					this.closeAllDropdowns();
+					input.focus();
+				});
+				dropdown.appendChild(optionButton);
+			});
+
+			aiButton.addEventListener('click', event => {
+				event.preventDefault();
+				event.stopPropagation();
+				this.toggleDropdown(i);
+			});
 		}
 		
 		this.aliasFields[0].focus();
@@ -77,18 +134,49 @@ export class AliasModal extends Modal {
 		this.destroy();
 	}
 
+	public destroy(): void {
+		document.removeEventListener('click', this.documentClickHandler);
+		this.closeAllDropdowns();
+		super.destroy();
+	}
+
 	private myCreateInput(
 		type: string,
 		id: string,
-		defaultValue: string
+		defaultValue: string,
+		parent: HTMLElement = this.box
 	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
 		input.id = id;
 		input.value = defaultValue;
-		input.className = 'border border-[var(--color3)] rounded p-2';
-		this.box.appendChild(input);
+		input.className = 'border border-[var(--color3)] rounded p-2 flex-1';
+		parent.appendChild(input);
 		return input;
+	}
+
+	private toggleDropdown(index: number): void {
+		const dropdown = this.dropdownContainers[index];
+		if (!dropdown) return;
+		const isOpen = this.openDropdownIndex === index;
+		this.closeAllDropdowns();
+		if (!isOpen) {
+			dropdown.classList.remove('hidden');
+			this.openDropdownIndex = index;
+		}
+	}
+
+	private closeAllDropdowns(): void {
+		this.dropdownContainers.forEach(container => {
+			container.classList.add('hidden');
+		});
+		this.openDropdownIndex = null;
+	}
+
+	private handleDocumentClick(event: MouseEvent): void {
+		if (!this.box.contains(event.target as Node)) {
+			this.closeAllDropdowns();
+		}
 	}
 
 	// TODO: function to seperate file to separate concerns?
