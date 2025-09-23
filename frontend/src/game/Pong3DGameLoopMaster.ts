@@ -93,13 +93,11 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		// Paddle positions [[x1,z1], [x2,z2], ...] - network optimized
 		const paddlePositions: [number, number][] = [];
 
-		if (this.pong3DInstance && this.pong3DInstance.paddles) {
-			conditionalLog(
-				'Master pong3DInstance.paddles:',
-				this.pong3DInstance.paddles
-			);
+		const paddles = this.pong3DInstance?.paddles;
+		if (Array.isArray(paddles) && paddles.length > 0) {
+			conditionalLog('Master pong3DInstance.paddles:', paddles);
 			for (let i = 0; i < this.pong3DInstance.playerCount; i++) {
-				const paddle = this.pong3DInstance.paddles[i];
+				const paddle = paddles[i];
 				conditionalLog(
 					`Master paddle ${i}:`,
 					paddle ? 'EXISTS' : 'NULL'
@@ -116,10 +114,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 				}
 			}
 		} else {
-			conditionalLog(
-				'Master pong3DInstance or paddles is null:',
-				this.pong3DInstance
-			);
+			conditionalLog('Master pong3DInstance or paddles unavailable');
 		}
 
 		conditionalLog('📡 Master sending pd:', paddlePositions);
@@ -135,9 +130,13 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		}
 
 		this.networkUpdateInterval = setInterval(() => {
+			const gameState = this.getGameState();
+			const paddles = this.pong3DInstance?.paddles;
 			if (
-				this.getGameState().isRunning &&
-				!this.pong3DInstance?.gameEnded
+				gameState.isRunning &&
+				!this.pong3DInstance?.gameEnded &&
+				Array.isArray(paddles) &&
+				paddles.length > 0
 			) {
 				// Convert to network format as per design document
 				const networkGameState = this.convertToNetworkFormat();
@@ -163,6 +162,8 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 						);
 					}
 				}
+			} else {
+				this.stopNetworkUpdates();
 			}
 		}, 1000 / this.NETWORK_UPDATE_RATE);
 
@@ -193,15 +194,15 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 
 		if (GameConfig.isGamestateLoggingEnabled()) {
 			this.gamestateLogInterval = setInterval(() => {
-				if (
-					this.getGameState().isRunning &&
-					!this.pong3DInstance?.gameEnded
-				) {
+				const gameState = this.getGameState();
+				if (gameState.isRunning && !this.pong3DInstance?.gameEnded) {
 					const networkGameState = this.convertToNetworkFormat();
 					conditionalLog(
 						'📡 Master gamestate (network format):',
 						networkGameState
 					);
+				} else {
+					this.stopGamestateLogging();
 				}
 			}, 1000 / this.GAMESTATE_LOG_RATE);
 

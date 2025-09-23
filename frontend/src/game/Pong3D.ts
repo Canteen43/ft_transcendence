@@ -1950,6 +1950,11 @@ export class Pong3D {
 				this.conditionalLog(`🏆 Physics engine disabled - game ended`);
 			}
 
+			// Stop the active game loop so no further updates or network messages are emitted
+			if (this.gameLoop) {
+				this.gameLoop.stop();
+			}
+
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
@@ -3136,6 +3141,13 @@ export class Pong3D {
 	}
 
 	private updatePaddles(): void {
+		if (this.gameEnded) {
+			return;
+		}
+		const loopRunning = this.gameLoop?.getGameState().isRunning ?? true;
+		if (!loopRunning) {
+			return;
+		}
 		// Maintain constant ball velocity
 		this.maintainConstantBallVelocity();
 
@@ -3151,7 +3163,7 @@ export class Pong3D {
 			p4Right: false,
 		};
 
-		console.log(`🎮 Paddle update - keyState:`, keyState);
+		this.conditionalLog(`🎮 Paddle update - keyState:`, keyState);
 
 		// Key state arrays for easy iteration
 		const leftKeys = [
@@ -3191,7 +3203,7 @@ export class Pong3D {
 				this.gameState.paddlePositionsX[i] = paddle.position.x;
 			}
 
-			console.log(
+			this.conditionalLog(
 				`🔄 Player ${i + 1} position synced: physics=${paddle.position.x.toFixed(3)}, gameState=${this.gameState.paddlePositionsX[i]?.toFixed(3) || 'N/A'}`
 			);
 
@@ -3270,7 +3282,7 @@ export class Pong3D {
 			// Get player input
 			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
 
-			console.log(
+			this.conditionalLog(
 				`🎮 Player ${i + 1} input: left=${leftKeys[i]}, right=${rightKeys[i]}, inputDir=${inputDir}`
 			);
 

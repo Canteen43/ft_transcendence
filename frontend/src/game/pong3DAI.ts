@@ -4,6 +4,8 @@
 
 import * as BABYLON from '@babylonjs/core';
 import * as CANNON from 'cannon-es';
+import { GameConfig } from './GameConfig';
+import { conditionalLog } from './Logger';
 
 /**
  * Global AI configuration constants
@@ -149,9 +151,11 @@ export interface GameStateForAI {
 				// Offset direction depends on target sign to align paddle center with target
 				predictedTarget +=
 					predictedTarget > 0 ? -paddleOffset : paddleOffset;
-				console.log(
-					`🤖 Player ${this.playerIndex + 1} offset: ${originalTarget.toFixed(3)} -> ${predictedTarget.toFixed(3)} (offset: ${(predictedTarget - originalTarget).toFixed(3)})`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					conditionalLog(
+						`🤖 Player ${this.playerIndex + 1} offset: ${originalTarget.toFixed(3)} -> ${predictedTarget.toFixed(3)} (offset: ${(predictedTarget - originalTarget).toFixed(3)})`
+					);
+				}
 			}
 
 			this.currentTargetX = predictedTarget;
@@ -168,9 +172,11 @@ export interface GameStateForAI {
 					const paddlePosition = this.getPaddlePositionAlongAxis(gameState);
 					const deltaX = this.currentTargetX - paddlePosition;
 
-					console.log(
-						`🤖 Player ${this.playerIndex + 1} movement: paddle=${paddlePosition.toFixed(3)}, target=${this.currentTargetX.toFixed(3)}, delta=${deltaX.toFixed(3)}`
-					);
+					if (GameConfig.isDebugLoggingEnabled()) {
+						conditionalLog(
+							`🤖 Player ${this.playerIndex + 1} movement: paddle=${paddlePosition.toFixed(3)}, target=${this.currentTargetX.toFixed(3)}, delta=${deltaX.toFixed(3)}`
+						);
+					}
 
 				// Within deadzone - no movement needed
 				if (Math.abs(deltaX) <= this.config.centralLimit) {
