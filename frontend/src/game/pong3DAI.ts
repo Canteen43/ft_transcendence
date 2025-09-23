@@ -76,7 +76,7 @@ export interface GameStateForAI {
  * - Issues short input pulses proportional to distance
  * - Returns to neutral between pulses
  */
-export class Pong3DAI {
+	export class Pong3DAI {
 	private config: AIConfig;
 	private playerIndex: number;
 	private lastSampleTime: number;
@@ -89,6 +89,7 @@ export class Pong3DAI {
 	private wizardExtraRays: BABYLON.LinesMesh[];
 	private wizardBounceDots: BABYLON.Mesh[];
 	private wizardGoalDot: BABYLON.Mesh | null;
+	private static wizardVisualizationEnabled = false;
 
 	constructor(playerIndex: number, config: AIConfig) {
 		this.playerIndex = playerIndex;
@@ -103,6 +104,20 @@ export class Pong3DAI {
 		this.wizardExtraRays = [];
 		this.wizardBounceDots = [];
 		this.wizardGoalDot = null;
+	}
+
+	public static toggleWizardVisualization(force?: boolean): boolean {
+		if (typeof force === 'boolean') {
+			Pong3DAI.wizardVisualizationEnabled = force;
+		} else {
+			Pong3DAI.wizardVisualizationEnabled =
+				!Pong3DAI.wizardVisualizationEnabled;
+		}
+		return Pong3DAI.wizardVisualizationEnabled;
+	}
+
+	public static isWizardVisualizationEnabled(): boolean {
+		return Pong3DAI.wizardVisualizationEnabled;
 	}
 
 	/**
@@ -430,9 +445,13 @@ export class Pong3DAI {
 			displayStart = flattenedHit.clone();
 		}
 
-		this.updateWizardLines(segments, scene);
-		this.updateWizardBounceDots(bouncePoints, scene, planeY);
-		this.updateWizardGoalDot(goalPoint, scene, planeY);
+		if (Pong3DAI.isWizardVisualizationEnabled()) {
+			this.updateWizardLines(segments, scene);
+			this.updateWizardBounceDots(bouncePoints, scene, planeY);
+			this.updateWizardGoalDot(goalPoint, scene, planeY);
+		} else {
+			this.disableWizardVisuals();
+		}
 
 		const lastSegment = segments.length > 0 ? segments[segments.length - 1] : null;
 		const finalPoint = goalPoint ?? lastSegment?.end ?? null;
