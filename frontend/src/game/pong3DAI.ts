@@ -809,7 +809,7 @@ export const AI_DIFFICULTY_PRESETS = {
 		style: 'standard',
 	} as AIConfig,
 
-	WIZARD: {
+	CIRCE: {
 		sampleRate: 1.0,
 		impulseFrequency: 30,
 		impulseDuration: 20,
@@ -819,8 +819,8 @@ export const AI_DIFFICULTY_PRESETS = {
 		predictionRayLength: 20,
 	} as AIConfig,
 
-	RADAGAST: {
-		sampleRate: 2.0,
+	MERLIN: {
+		sampleRate: 1.4,
 		impulseFrequency: 30,
 		impulseDuration: 20,
 		centralLimit: 0.35,
@@ -829,8 +829,8 @@ export const AI_DIFFICULTY_PRESETS = {
 		predictionRayLength: 20,
 	} as AIConfig,
 
-	SAURUMAN: {
-		sampleRate: 3.0,
+	MORGANA: {
+		sampleRate: 1.8,
 		impulseFrequency: 30,
 		impulseDuration: 20,
 		centralLimit: 0.35,
@@ -840,7 +840,7 @@ export const AI_DIFFICULTY_PRESETS = {
 	} as AIConfig,
 
 	GANDALF: {
-		sampleRate: 4.0,
+		sampleRate: 2.5,
 		impulseFrequency: 30,
 		impulseDuration: 20,
 		centralLimit: 0.35,
@@ -868,10 +868,10 @@ export function getAIDifficultyFromName(
 		return 'MEDIUM'; // Default for non-AI players
 	}
 
-	const difficultyPart = playerName.substring(1).toUpperCase();
-	if (difficultyPart in AI_DIFFICULTY_PRESETS) {
-		return difficultyPart as keyof typeof AI_DIFFICULTY_PRESETS;
-	}
-
-	return 'MEDIUM'; // Default fallback
+	const difficultyPart = playerName.substring(1);
+	const availableKeys = Object.keys(AI_DIFFICULTY_PRESETS);
+	const match = availableKeys.find(
+		key => key.toUpperCase() === difficultyPart.toUpperCase()
+	);
+	return (match as keyof typeof AI_DIFFICULTY_PRESETS) ?? 'MEDIUM';
 }
