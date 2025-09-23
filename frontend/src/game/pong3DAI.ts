@@ -493,7 +493,7 @@ export class Pong3DAI {
 			`aiWizardRay_player${this.playerIndex}`,
 			primaryPoints,
 			scene,
-			new BABYLON.Color3(0.2, 0.8, 1.0)
+			this.getWizardLineColor()
 		);
 
 		const extraCount = segments.length - 1;
@@ -507,7 +507,7 @@ export class Pong3DAI {
 				name,
 				points,
 				scene,
-				new BABYLON.Color3(1, 0.6, 0.1)
+				this.getWizardLineColor()
 			);
 			this.wizardExtraRays[i] = updated;
 		}
@@ -611,6 +611,21 @@ export class Pong3DAI {
 		existing.color = color;
 		existing.setEnabled(true);
 		return existing;
+	}
+
+	private getWizardLineColor(): BABYLON.Color3 {
+		switch (this.playerIndex) {
+			case 0:
+				return new BABYLON.Color3(1, 0, 0); // Red
+			case 1:
+				return new BABYLON.Color3(0, 0.388, 1); // Blue
+			case 2:
+				return new BABYLON.Color3(0, 1, 0); // Green
+			case 3:
+				return new BABYLON.Color3(0, 1, 1); // Cyan
+			default:
+				return new BABYLON.Color3(1, 1, 1);
+		}
 	}
 
 	/**
@@ -771,6 +786,36 @@ export const AI_DIFFICULTY_PRESETS = {
 
 	WIZARD: {
 		sampleRate: 1.0,
+		impulseFrequency: 30,
+		impulseDuration: 20,
+		centralLimit: 0.35,
+		xLimit: 3.5,
+		style: 'wizard',
+		predictionRayLength: 20,
+	} as AIConfig,
+
+	RADAGAST: {
+		sampleRate: 2.0,
+		impulseFrequency: 30,
+		impulseDuration: 20,
+		centralLimit: 0.35,
+		xLimit: 3.5,
+		style: 'wizard',
+		predictionRayLength: 20,
+	} as AIConfig,
+
+	SAURUMAN: {
+		sampleRate: 3.0,
+		impulseFrequency: 30,
+		impulseDuration: 20,
+		centralLimit: 0.35,
+		xLimit: 3.5,
+		style: 'wizard',
+		predictionRayLength: 20,
+	} as AIConfig,
+
+	GANDALF: {
+		sampleRate: 4.0,
 		impulseFrequency: 30,
 		impulseDuration: 20,
 		centralLimit: 0.35,
