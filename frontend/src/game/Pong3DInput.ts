@@ -67,6 +67,11 @@ export class Pong3DInput {
 
 	private handleKeyDown(e: KeyboardEvent): void {
 		const k = e.key;
+		if (k === '\\' && !e.repeat) {
+			const enabled = Pong3DAI.toggleWizardVisualization();
+			console.log(`✨ Wizard traces ${enabled ? 'enabled' : 'disabled'}`);
+			return;
+		}
 		// Player 1: Arrow keys (left/right swapped)
 		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = true;
 		if (k === 'ArrowLeft' || k === 'ArrowDown')
