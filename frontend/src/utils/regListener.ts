@@ -37,27 +37,25 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			// apicall to get the full game / tournament data
 			case MESSAGE_START_TOURNAMENT:
 				console.info('Received "st":', msg);
+				sessionStorage.setItem('tournamentID', `${msg.d}`);
+
 				const tournData = await apiCall(
 					'GET',
 					`/tournaments/${msg.d}`,
 					FullTournamentSchema
 				);
-				if (tournData) {
-					console.log('Tournament data received:', tournData);
-					sessionStorage.setItem('tournamentID', `${msg.d}`);
-					updateTournamentMatchData(tournData);
-				} else {
-					console.error(
-						'Getting tournament data failed. Sending WS:MESSAGE_QUIT'
-					);
+
+				if (!tournData) {
+					console.error('Getting tournament data failed, QUIT sent');
 					webSocket.send({ t: MESSAGE_QUIT });
 					return;
-				}
-				if (tournData.matches.length === 1) {
+				} else if (tournData.matches.length === 1) {
+					updateTournamentMatchData(tournData);
 					document.dispatchEvent(new Event('gameReady'));
 				} else {
 					location.hash = '#tournament';
 				}
+
 				break;
 
 			// s: case MESSAGE_START (all players ready)
@@ -82,12 +80,9 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				console.info('Received finish message:', msg);
 				const tourn = sessionStorage.getItem('tournament');
 				console.debug({ tourn });
-				if (tourn) {
-					location.hash = '';
-					location.hash = '#tournament';
-				} else {
-					location.hash = '#home';
-				}
+				setTimeout(() => {
+					document.dispatchEvent(new Event('tournament-updated'));
+				}, 50);
 				break;
 
 			default:

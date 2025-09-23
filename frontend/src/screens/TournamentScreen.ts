@@ -1,41 +1,31 @@
-import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
-import { apiCall } from '../utils/apiCall';
-import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
+import { state } from '../utils/State';
+import { fetchAndUpdateTournamentMatchData } from '../utils/updateTurnMatchData';
 import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
 
 export class TournamentScreen extends Screen {
 	private trophyInstance?: Trophy;
 	private readyButton?: ReadyButton;
+
+	// Handler for tournament updates
+	private tournUpdHandler = async () => {
+		await fetchAndUpdateTournamentMatchData();
+		this.render();
+	};
+
 	constructor() {
 		super();
 		this.addStyles();
-		this.initializeAsync();
+		document.addEventListener('tournament-updated', this.tournUpdHandler);
+		this.initialize();
 	}
 
-	// ASYNC INIT RENDER (needs to wait for the data to be loaded before render)
-	private async initializeAsync() {
-		await this.init();
+	// ASYNC INIT RENDER (waits for data before rendering)
+	private async initialize() {
+		console.log('Initializing TournamentScreen...');
+		await fetchAndUpdateTournamentMatchData();
 		this.render();
-	}
-	// API call
-	private async init() {
-		const tournID = sessionStorage.getItem('tournamentID');
-		if (!tournID) return;
-		console.debug('Calling tourn details API from ');
-		const tournData = await apiCall(
-			'GET',
-			`/tournaments/${tournID}`,
-			FullTournamentSchema
-		);
-		if (tournData) {
-			console.log('Tournament data received:', tournData);
-			updateTournamentMatchData(tournData);
-		} else {
-			console.error('Getting tournament data failed.');
-			return;
-		}
 	}
 
 	// HELPER
@@ -69,6 +59,8 @@ export class TournamentScreen extends Screen {
 	}
 
 	private render() {
+		 this.element.innerHTML = '';
+
 		this.element.className =
 			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
 
@@ -94,7 +86,7 @@ export class TournamentScreen extends Screen {
 		console.log('Checking for matchID at render time:', matchID);
 		if (matchID && !winner) {
 			console.log('Creating ReadyButton');
-			new ReadyButton(this.element);
+			this.readyButton = new ReadyButton(this.element);
 		} else {
 			console.log('No matchID found, ReadyButton not created');
 		}
@@ -273,6 +265,7 @@ export class TournamentScreen extends Screen {
 
 	// Override destroy to properly clean up Trophy resources + Readybutton
 	public destroy() {
+		console.log('Destroying TournamentScreen...');
 		if (this.trophyInstance) {
 			this.trophyInstance.dispose();
 			this.trophyInstance = undefined;
@@ -281,6 +274,11 @@ export class TournamentScreen extends Screen {
 			this.readyButton.destroy();
 			this.readyButton = undefined;
 		}
+
+		document.removeEventListener(
+			'tournament-updated',
+			this.tournUpdHandler
+		);
 		super.destroy();
 	}
 }

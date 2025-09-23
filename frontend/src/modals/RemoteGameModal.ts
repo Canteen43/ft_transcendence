@@ -15,7 +15,6 @@ export class RemoteGameModal extends Modal {
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();
-		state.gameOngoing = false;
 		state.tournamentOngoing = false;
 
 		const img2 = document.createElement('img');
@@ -50,11 +49,12 @@ export class RemoteGameModal extends Modal {
 
 	private logicRemote(tournamentSize: number) {
 		state.gameMode = 'remote';
+		state.tournamentOngoing = true;
 		state.tournamentSize = tournamentSize;
 		if (tournamentSize == 4) {
 			state.tournamentOngoing = true;
 		} else {
-			state.gameOngoing = true;
+			state.tournamentOngoing = false;
 		}
 		sessionStorage.setItem('playerCount', '2');
 		this.destroy();
