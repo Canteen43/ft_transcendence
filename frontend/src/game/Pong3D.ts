@@ -2796,6 +2796,59 @@ export class Pong3D {
 		if (!this.inputHandler) return;
 
 		// Get current game state for AI
+		const paddleAxes = Array.from({ length: 4 }, (_, i) => {
+			if (this.playerCount === 3) {
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+				const angle = angles[i] ?? 0;
+				return {
+					x: Math.cos(angle),
+					z: Math.sin(angle),
+				};
+			}
+			if (this.playerCount === 4) {
+				return i >= 2
+					? { x: 0, z: 1 }
+					: { x: 1, z: 0 };
+			}
+			return { x: 1, z: 0 };
+		});
+
+		const paddleOrigins = Array.from({ length: 4 }, (_, i) => {
+			const origin = this.originalGLBPositions[i];
+			return origin
+				? { x: origin.x, z: origin.z }
+				: { x: 0, z: 0 };
+		});
+
+		const paddlePositionsAlongAxis = Array.from({ length: 4 }, (_, i) => {
+			const axis = paddleAxes[i];
+			const origin = paddleOrigins[i];
+			if (!axis) {
+				return this.gameState.paddlePositionsX[i] || 0;
+			}
+			const axisVec = new BABYLON.Vector3(axis.x, 0, axis.z);
+			if (axisVec.lengthSquared() <= 1e-6) {
+				return this.gameState.paddlePositionsX[i] || 0;
+			}
+			axisVec.normalize();
+			const originVec = new BABYLON.Vector3(origin.x, 0, origin.z);
+			const paddle = this.paddles[i];
+			if (paddle) {
+				const relative = new BABYLON.Vector3(
+					paddle.position.x - originVec.x,
+					0,
+					paddle.position.z - originVec.z
+				);
+				return BABYLON.Vector3.Dot(relative, axisVec);
+			}
+			// Fallback: derive from stored game state values
+			if (this.playerCount === 4 && i >= 2) {
+				const storedZ = this.gameState.paddlePositionsY?.[i] || 0;
+				return storedZ - originVec.z;
+			}
+			return this.gameState.paddlePositionsX[i] || 0;
+		});
+
 		const gameStateForAI: GameStateForAI = {
 			ball: {
 				position: this.ballMesh
@@ -2820,6 +2873,9 @@ export class Pong3D {
 					: { x: 0, y: 0, z: 0 },
 			},
 			paddlePositionsX: [...this.gameState.paddlePositionsX],
+			paddlePositionsAlongAxis,
+			paddleAxes,
+			paddleOrigins,
 			courtBounds: {
 				xMin: this.boundsXMin || -5,
 				xMax: this.boundsXMax || 5,

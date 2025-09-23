@@ -43,6 +43,11 @@ export interface GameStateForAI {
 		velocity: { x: number; y: number; z: number };
 	};
 	paddlePositionsX: number[];
+	paddlePositionsAlongAxis: number[];
+	/** Normalized lateral movement axis for each paddle projected onto XZ plane */
+	paddleAxes: { x: number; z: number }[];
+	/** World-space origin each paddle oscillates around (XZ plane) */
+	paddleOrigins: { x: number; z: number }[];
 	/** Court boundaries for ray casting */
 	courtBounds: {
 		xMin: number;
@@ -128,14 +133,13 @@ export class Pong3DAI {
 			this.lastImpulseTime = now;
 
 			// Every impulse cycle: calculate movement toward current target
-			if (this.currentTargetX !== null) {
-				const paddleX =
-					gameState.paddlePositionsX[this.playerIndex] || 0;
-				const deltaX = this.currentTargetX - paddleX;
+				if (this.currentTargetX !== null) {
+					const paddlePosition = this.getPaddlePositionAlongAxis(gameState);
+					const deltaX = this.currentTargetX - paddlePosition;
 
-				console.log(
-					`🤖 Player ${this.playerIndex + 1} movement: paddle=${paddleX.toFixed(3)}, target=${this.currentTargetX.toFixed(3)}, delta=${deltaX.toFixed(3)}`
-				);
+					console.log(
+						`🤖 Player ${this.playerIndex + 1} movement: paddle=${paddlePosition.toFixed(3)}, target=${this.currentTargetX.toFixed(3)}, delta=${deltaX.toFixed(3)}`
+					);
 
 				// Within deadzone - no movement needed
 				if (Math.abs(deltaX) <= this.config.centralLimit) {
@@ -144,11 +148,11 @@ export class Pong3DAI {
 				}
 
 				// Check boundary limits before moving
-				let desiredInput = AIInput.STOP;
-				if (deltaX < 0 && paddleX > -this.config.xLimit) {
-					desiredInput = AIInput.LEFT;
-				} else if (deltaX > 0 && paddleX < this.config.xLimit) {
-					desiredInput = AIInput.RIGHT;
+					let desiredInput = AIInput.STOP;
+					if (deltaX < 0 && paddlePosition > -this.config.xLimit) {
+						desiredInput = AIInput.LEFT;
+					} else if (deltaX > 0 && paddlePosition < this.config.xLimit) {
+						desiredInput = AIInput.RIGHT;
 				}
 
 				// Issue a new impulse with configured duration
@@ -163,19 +167,88 @@ export class Pong3DAI {
 	}
 
 	/**
-	 * Get the X-axis distance between ball and paddle
-	 * Positive = ball is to the right of paddle
-	 * Negative = ball is to the left of paddle
+	 * Resolve the player's movement axis from the shared game state.
 	 */
-	private getTargetDeltaX(gameState: GameStateForAI): number {
-		const ballX = gameState.ball.position.x;
-		const paddleX = gameState.paddlePositionsX[this.playerIndex] || 0;
-		return ballX - paddleX;
+	private getPlayerAxis(gameState: GameStateForAI): BABYLON.Vector3 {
+		const axisData = gameState.paddleAxes?.[this.playerIndex];
+		if (axisData) {
+			const axisVec = new BABYLON.Vector3(axisData.x, 0, axisData.z);
+			if (axisVec.lengthSquared() > 1e-6) {
+				return BABYLON.Vector3.Normalize(axisVec);
+			}
+		}
+		return BABYLON.Vector3.Right();
+	}
+
+	/** Get the world-space origin the paddle oscillates around. */
+	private getPlayerOrigin(gameState: GameStateForAI): BABYLON.Vector3 {
+		const originData = gameState.paddleOrigins?.[this.playerIndex];
+		if (originData) {
+			return new BABYLON.Vector3(originData.x, 0, originData.z);
+		}
+		return BABYLON.Vector3.Zero();
+	}
+
+	/** Project an arbitrary point onto the player's local movement axis. */
+	private projectOntoAxis(
+		position: BABYLON.Vector3,
+		origin: BABYLON.Vector3,
+		axis: BABYLON.Vector3
+	): number {
+		const axisLengthSq = axis.lengthSquared();
+		if (axisLengthSq <= 1e-6) {
+			// Fallback to world X displacement if axis data is unavailable
+			return position.x - origin.x;
+		}
+		const axisNorm = axisLengthSq === 1
+			? axis
+			: BABYLON.Vector3.Normalize(axis);
+		const relative = position.subtract(origin);
+		return BABYLON.Vector3.Dot(relative, axisNorm);
+	}
+
+	private getBallPositionAlongAxis(gameState: GameStateForAI): number {
+		const paddleAxis = this.getPlayerAxis(gameState);
+		const paddleOrigin = this.getPlayerOrigin(gameState);
+		const ballPos = new BABYLON.Vector3(
+			gameState.ball.position.x,
+			0,
+			gameState.ball.position.z
+		);
+		return this.projectOntoAxis(ballPos, paddleOrigin, paddleAxis);
+	}
+
+	private getPaddlePositionAlongAxis(gameState: GameStateForAI): number {
+		return (
+			gameState.paddlePositionsAlongAxis?.[this.playerIndex] ??
+			gameState.paddlePositionsX[this.playerIndex] ??
+			0
+		);
 	}
 
 	/**
-	 * Predict where the ball will intersect the goal
-	 * Simplified version - just return current ball position, or center if ball is too far out
+	 * Get the distance between ball and paddle along the paddle's movement axis.
+	 * Positive = ball is toward the paddle's "right" direction.
+	 */
+	private getTargetDeltaX(gameState: GameStateForAI): number {
+		const ballAlongAxis = this.getBallPositionAlongAxis(gameState);
+		const paddleAlongAxis = this.getPaddlePositionAlongAxis(gameState);
+		return ballAlongAxis - paddleAlongAxis;
+	}
+
+	/** Convert a local-axis displacement back to world coordinates. */
+	private getWorldPositionFromAxis(
+		localPosition: number,
+		gameState: GameStateForAI
+	): BABYLON.Vector3 {
+		const axis = this.getPlayerAxis(gameState);
+		const origin = this.getPlayerOrigin(gameState);
+		return origin.add(axis.scale(localPosition));
+	}
+
+	/**
+	 * Predict where the ball will intersect the goal along the paddle's axis.
+	 * Simplified version - just return current projected ball position, or center if ball is too far out
 	 */
 	private predictBallTrajectory(gameState: GameStateForAI): number | null {
 		const ballX = gameState.ball.position.x;
@@ -187,11 +260,11 @@ export class Pong3DAI {
 			console.log(
 				`🤖 Player ${this.playerIndex + 1} ball out of bounds (${distanceFromOrigin.toFixed(1)}m > ${BALL_OUT_DISTANCE}m), targeting center`
 			);
-			return 0; // Target center of court
+			return 0; // Target center of court in local coordinates
 		}
 
-		// Ball is in normal range, track its current position
-		return ballX;
+		// Ball is in normal range, project its position onto the paddle axis
+		return this.getBallPositionAlongAxis(gameState);
 	}
 
 	/**
@@ -227,11 +300,18 @@ export class Pong3DAI {
 		// Position the dot at the target X location, slightly above paddle level
 		// For 2-player mode: position at Y=0.2, Z=0
 		// For 3/4-player modes: we'll need to adjust based on player position
-		let dotY = 0.2; // Default height above paddle
-		let dotZ = 0; // Default depth
+		const dotY = 0.2; // Default height above paddle
+		const targetWorldPos = this.getWorldPositionFromAxis(
+			this.currentTargetX,
+			gameState
+		);
 
-		// Position dot at target location
-		this.targetDot.position.set(this.currentTargetX, dotY, dotZ);
+		// Position the dot at the target location projected into world space
+		this.targetDot.position.set(
+			targetWorldPos.x,
+			dotY,
+			targetWorldPos.z
+		);
 		this.targetDot.setEnabled(true);
 	}
 
