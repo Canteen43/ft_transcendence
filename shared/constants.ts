@@ -49,7 +49,7 @@ export const WS_AUTHENTICATION_FAILED = 4001;
 export const WS_TOKEN_EXPIRED = 4002;
 export const WS_ALREADY_CONNECTED = 4003;
 
-export const TOKEN_VALIDITY_PERIOD = '1m';
+export const TOKEN_VALIDITY_PERIOD = '1d';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
 export const FIELD_WIDTH = 1800;
@@ -81,4 +81,4 @@ export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 
-export const DEFAULT_MAX_SCORE = 30;
+export const DEFAULT_MAX_SCORE = 3;
