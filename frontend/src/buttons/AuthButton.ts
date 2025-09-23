@@ -14,8 +14,8 @@ export class AuthComponent {
 	constructor(parent: HTMLElement) {
 		this.parent = parent;
 		this.render();
-		document.addEventListener('login-success', () => this.renderHandler);
-		document.addEventListener('logout-success', () => this.renderHandler);
+		document.addEventListener('login-success', this.renderHandler);
+		document.addEventListener('logout-success', this.renderHandler);
 	}
 
 	private renderHandler = () => this.render();
