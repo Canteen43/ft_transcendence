@@ -50,13 +50,6 @@ export class TournamentScreen extends Screen {
 		return element;
 	}
 
-	// trophy
-	public loadTrophy() {
-		const winner = sessionStorage.getItem('winner') || 'Player1';
-		if (this.trophyInstance) this.trophyInstance.dispose();
-		this.trophyInstance = new Trophy(this.element, { winner });
-	}
-
 	private addStyles() {
 		const style = document.createElement('style');
 		style.textContent = `
@@ -191,7 +184,21 @@ export class TournamentScreen extends Screen {
 
 		if (winner) {
 			if (this.trophyInstance) this.trophyInstance.dispose();
-			this.trophyInstance = new Trophy(this.element, { winner });
+
+			const trophyContainer = this.createElement(this.element, 'div', '');
+			Object.assign(trophyContainer.style, {
+				position: 'fixed',
+				top: '0',
+				left: '0',
+				width: '100vw',
+				height: '100vh',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				pointerEvents: 'none', // ou 'auto' si tu veux capturer les clics
+				zIndex: '9999',
+			});
+			this.trophyInstance = new Trophy(trophyContainer, { winner });
 		}
 	}
 
