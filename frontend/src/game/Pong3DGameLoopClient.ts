@@ -162,10 +162,18 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	 * Receive gamestate from master and update positions directly
 	 * Format: { "b": [x, z], "pd": [[x1,z1], [x2,z2], ...] }
 	 */
-	receiveGameState(gameStateMessage: {
+	receiveGameState(gameStateMessage?: {
 		b: [number, number];
 		pd: [number, number][];
 	}): void {
+		if (
+			!gameStateMessage ||
+			!Array.isArray(gameStateMessage.b) ||
+			gameStateMessage.b.length < 2 ||
+			!Array.isArray(gameStateMessage.pd)
+		) {
+			return;
+		}
 		conditionalLog('📡 Client received pd:', gameStateMessage.pd);
 
 		if (GameConfig.isGamestateLoggingEnabled()) {
@@ -197,15 +205,19 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		}
 
 		// Update all paddle positions from network
-		if (this.pong3DInstance && this.pong3DInstance.paddles) {
+		const paddles = this.pong3DInstance?.paddles;
+		if (Array.isArray(paddles)) {
 			if (shouldLogDetails) {
 				conditionalLog(
 					'Client pong3DInstance.paddles:',
-					this.pong3DInstance.paddles
+					paddles
 				);
 			}
 			gameStateMessage.pd.forEach((paddlePos, index) => {
-				const paddle = this.pong3DInstance.paddles[index];
+				if (!Array.isArray(paddlePos) || paddlePos.length < 2) {
+					return;
+				}
+				const paddle = paddles[index];
 				if (shouldLogDetails) {
 					conditionalLog(
 						`Client paddle ${index}:`,
