@@ -77,7 +77,6 @@ export const MESSAGE_POINT = 'x';
 export const MESSAGE_FINISH = 'f';
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
-export const MATCH_FINISH_MESSAGE: Message = { t: MESSAGE_FINISH };
 export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
 
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
