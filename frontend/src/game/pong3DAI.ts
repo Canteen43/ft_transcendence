@@ -3,6 +3,7 @@
 // ============================================================================
 
 import * as BABYLON from '@babylonjs/core';
+import * as CANNON from 'cannon-es';
 
 /**
  * Global AI configuration constants
@@ -31,6 +32,10 @@ export interface AIConfig {
 	centralLimit: number;
 	/** Maximum X-coordinate limit for paddle movement (symmetric around center) */
 	xLimit: number;
+	/** Optional AI behaviour style overrides */
+	style?: 'standard' | 'wizard';
+	/** Optional debug ray length for predictive aiming (meters) */
+	predictionRayLength?: number;
 }
 
 /**
@@ -80,6 +85,10 @@ export class Pong3DAI {
 	private currentInput: AIInput;
 	private inputEndTime: number;
 	private targetDot: BABYLON.Mesh | null;
+	private predictionRay: BABYLON.LinesMesh | null;
+	private wizardExtraRays: BABYLON.LinesMesh[];
+	private wizardBounceDots: BABYLON.Mesh[];
+	private wizardGoalDot: BABYLON.Mesh | null;
 
 	constructor(playerIndex: number, config: AIConfig) {
 		this.playerIndex = playerIndex;
@@ -90,6 +99,10 @@ export class Pong3DAI {
 		this.currentInput = AIInput.STOP;
 		this.inputEndTime = 0;
 		this.targetDot = null;
+		this.predictionRay = null;
+		this.wizardExtraRays = [];
+		this.wizardBounceDots = [];
+		this.wizardGoalDot = null;
 	}
 
 	/**
@@ -108,7 +121,10 @@ export class Pong3DAI {
 		if (now - this.lastSampleTime >= 1000 / this.config.sampleRate) {
 			this.lastSampleTime = now;
 			// Update target position using advanced prediction
-			let predictedTarget = this.predictBallTrajectory(gameState);
+			let predictedTarget =
+				this.config.style === 'wizard'
+					? this.performWizardPrediction(gameState)
+					: this.predictBallTrajectory(gameState);
 
 			// Apply paddle center offset correction (paddle width = 1.5m, so half = 0.75m)
 			// The paddle positioning system uses center reference, so we need to adjust target
@@ -247,6 +263,357 @@ export class Pong3DAI {
 	}
 
 	/**
+	 * Perform wizard-style prediction: trace the ball path with reflections until a goal hit.
+	 * Returns the local-axis target position for the paddle.
+	 */
+	private performWizardPrediction(gameState: GameStateForAI): number | null {
+		const physics = gameState.physics;
+		if (!physics || !physics.scene) {
+			this.disableWizardVisuals();
+			return this.getBallPositionAlongAxis(gameState);
+		}
+
+		const ballPosition = new BABYLON.Vector3(
+			gameState.ball.position.x,
+			gameState.ball.position.y,
+			gameState.ball.position.z
+		);
+		const ballVelocity = new BABYLON.Vector3(
+			gameState.ball.velocity.x,
+			gameState.ball.velocity.y,
+			gameState.ball.velocity.z
+		);
+		const planeY = ballPosition.y;
+
+		if (ballVelocity.lengthSquared() <= 1e-6) {
+			this.disableWizardVisuals();
+			return this.getBallPositionAlongAxis(gameState);
+		}
+
+		const scene = physics.scene;
+		const physicsEngine = scene.getPhysicsEngine();
+		const plugin = physicsEngine?.getPhysicsPlugin?.();
+		const world: CANNON.World | undefined = (plugin as any)?.world;
+
+		const maxBounces = 8;
+		const raySegmentLength = this.config.predictionRayLength ?? 20;
+		const predicate = (mesh: BABYLON.AbstractMesh): boolean => {
+			if (!mesh.physicsImpostor) return false;
+			if (mesh.physicsImpostor.type !== BABYLON.PhysicsImpostor.MeshImpostor)
+				return false;
+			const name = mesh.name?.toLowerCase() || '';
+			return /wall/.test(name) || /goal/.test(name);
+		};
+
+		const segments: Array<{
+			start: BABYLON.Vector3;
+			end: BABYLON.Vector3;
+		}> = [];
+		const bouncePoints: BABYLON.Vector3[] = [];
+		let goalPoint: BABYLON.Vector3 | null = null;
+
+		let currentOrigin = ballPosition.clone();
+		let currentDirection = ballVelocity.normalize();
+		let displayStart = new BABYLON.Vector3(ballPosition.x, planeY, ballPosition.z);
+
+		for (let bounce = 0; bounce < maxBounces; bounce++) {
+			const segmentStart = displayStart.clone();
+			let hitPoint3D: BABYLON.Vector3 | null = null;
+			let hitNormal: BABYLON.Vector3 | null = null;
+			let hitMesh: BABYLON.AbstractMesh | null = null;
+
+			if (world) {
+				const result = new CANNON.RaycastResult();
+				const fromVec = new CANNON.Vec3(
+					currentOrigin.x,
+					currentOrigin.y,
+					currentOrigin.z
+				);
+				const toVec = new CANNON.Vec3(
+					currentOrigin.x + currentDirection.x * raySegmentLength,
+					currentOrigin.y + currentDirection.y * raySegmentLength,
+					currentOrigin.z + currentDirection.z * raySegmentLength
+				);
+				world.raycastClosest(fromVec, toVec, { skipBackfaces: false } as any, result);
+				if (result.hasHit) {
+					hitPoint3D = new BABYLON.Vector3(
+						result.hitPointWorld.x,
+						result.hitPointWorld.y,
+						result.hitPointWorld.z
+					);
+					hitNormal = new BABYLON.Vector3(
+						result.hitNormalWorld.x,
+						result.hitNormalWorld.y,
+						result.hitNormalWorld.z
+					);
+					if (hitNormal.lengthSquared() > 1e-6) {
+						hitNormal = hitNormal.normalize();
+					}
+					hitMesh = this.findMeshForPhysicsBody(scene, result.body);
+				}
+			}
+
+			const ray = new BABYLON.Ray(
+				currentOrigin.clone(),
+				currentDirection.clone(),
+				raySegmentLength
+			);
+			const pick = scene.pickWithRay(ray, predicate, false);
+
+			if (!hitPoint3D && pick?.hit && pick.pickedPoint) {
+				hitPoint3D = pick.pickedPoint.clone();
+			}
+			if (pick?.hit && pick.pickedPoint) {
+				if (!hitMesh) {
+					hitMesh = pick.pickedMesh || null;
+				}
+				if ((!hitNormal || hitNormal.lengthSquared() <= 1e-6)) {
+					const pickNormal =
+						pick.getNormal(true, true) || pick.getNormal(true);
+					if (pickNormal && pickNormal.lengthSquared() > 1e-6) {
+						hitNormal = BABYLON.Vector3.Normalize(pickNormal);
+					}
+				}
+			}
+
+			if (!hitPoint3D) {
+				const endPoint = currentOrigin.add(currentDirection.scale(raySegmentLength));
+				segments.push({
+					start: segmentStart,
+					end: new BABYLON.Vector3(endPoint.x, planeY, endPoint.z),
+				});
+				break;
+			}
+
+			const meshName = hitMesh?.name?.toLowerCase() || '';
+			const isGoalHit = /goal/.test(meshName);
+			const isWallHit = /wall/.test(meshName);
+
+			const flattenedHit = new BABYLON.Vector3(
+				hitPoint3D.x,
+				planeY,
+				hitPoint3D.z
+			);
+			segments.push({ start: segmentStart, end: flattenedHit.clone() });
+
+			if (!isGoalHit && !isWallHit) {
+				currentOrigin = hitPoint3D.add(currentDirection.scale(0.05));
+				displayStart = flattenedHit.clone();
+				continue;
+			}
+
+			if (!hitNormal || hitNormal.lengthSquared() <= 1e-6) {
+				break;
+			}
+			if (BABYLON.Vector3.Dot(hitNormal, currentDirection) > 0) {
+				hitNormal = hitNormal.negate();
+			}
+
+			if (isGoalHit) {
+				goalPoint = flattenedHit.clone();
+				break;
+			}
+
+			const reflection = BABYLON.Vector3.Reflect(
+				currentDirection,
+				hitNormal
+			);
+			if (reflection.lengthSquared() <= 1e-6) {
+				break;
+			}
+
+			bouncePoints.push(flattenedHit.clone());
+
+			const reflectionDirection = reflection.normalize();
+			currentOrigin = hitPoint3D.add(reflectionDirection.scale(0.05));
+			currentDirection = reflectionDirection;
+			displayStart = flattenedHit.clone();
+		}
+
+		this.updateWizardLines(segments, scene);
+		this.updateWizardBounceDots(bouncePoints, scene, planeY);
+		this.updateWizardGoalDot(goalPoint, scene, planeY);
+
+		const lastSegment = segments.length > 0 ? segments[segments.length - 1] : null;
+		const finalPoint = goalPoint ?? lastSegment?.end ?? null;
+		if (!finalPoint) {
+			return this.getBallPositionAlongAxis(gameState);
+		}
+
+		const paddleAxis = this.getPlayerAxis(gameState);
+		const paddleOrigin = this.getPlayerOrigin(gameState);
+		const flattenedTarget = new BABYLON.Vector3(finalPoint.x, 0, finalPoint.z);
+		return this.projectOntoAxis(flattenedTarget, paddleOrigin, paddleAxis);
+	}
+
+	private findMeshForPhysicsBody(
+		scene: BABYLON.Scene,
+		body: CANNON.Body | null
+	): BABYLON.AbstractMesh | null {
+		if (!body) return null;
+		for (const mesh of scene.meshes) {
+			if (mesh.physicsImpostor?.physicsBody === body) {
+				return mesh;
+			}
+		}
+		return null;
+	}
+
+	private disableWizardVisuals(): void {
+		if (this.predictionRay) {
+			this.predictionRay.setEnabled(false);
+		}
+		for (const line of this.wizardExtraRays) {
+			if (line && !line.isDisposed()) {
+				line.setEnabled(false);
+			}
+		}
+		for (const dot of this.wizardBounceDots) {
+			if (dot && !dot.isDisposed()) {
+				dot.setEnabled(false);
+			}
+		}
+		if (this.wizardGoalDot && !this.wizardGoalDot.isDisposed()) {
+			this.wizardGoalDot.setEnabled(false);
+		}
+	}
+
+	private updateWizardLines(
+		segments: Array<{ start: BABYLON.Vector3; end: BABYLON.Vector3 }>,
+		scene: BABYLON.Scene
+	): void {
+		if (segments.length === 0) {
+			this.disableWizardVisuals();
+			return;
+		}
+
+		const primaryPoints = [segments[0].start, segments[0].end];
+		this.predictionRay = this.updateLineMesh(
+			this.predictionRay,
+			`aiWizardRay_player${this.playerIndex}`,
+			primaryPoints,
+			scene,
+			new BABYLON.Color3(0.2, 0.8, 1.0)
+		);
+
+		const extraCount = segments.length - 1;
+		for (let i = 0; i < extraCount; i++) {
+			const segment = segments[i + 1];
+			const points = [segment.start, segment.end];
+			const name = `aiWizardRay_player${this.playerIndex}_seg${i + 1}`;
+			const existing = this.wizardExtraRays[i] || null;
+			const updated = this.updateLineMesh(
+				existing,
+				name,
+				points,
+				scene,
+				new BABYLON.Color3(1, 0.6, 0.1)
+			);
+			this.wizardExtraRays[i] = updated;
+		}
+
+		for (let i = extraCount; i < this.wizardExtraRays.length; i++) {
+			const line = this.wizardExtraRays[i];
+			if (line && !line.isDisposed()) {
+				line.setEnabled(false);
+			}
+		}
+	}
+
+	private updateWizardBounceDots(
+		points: BABYLON.Vector3[],
+		scene: BABYLON.Scene,
+		planeY: number
+	): void {
+		for (let i = 0; i < points.length; i++) {
+			const point = points[i];
+			point.y = planeY;
+			let dot = this.wizardBounceDots[i];
+			if (!dot || dot.isDisposed()) {
+				dot = BABYLON.MeshBuilder.CreateSphere(
+					`aiWizardBounce_player${this.playerIndex}_${i}`,
+					{ diameter: 0.12 },
+					scene
+				);
+				const material = new BABYLON.StandardMaterial(
+					`aiWizardBounceMat_player${this.playerIndex}_${i}`,
+					scene
+				);
+				material.emissiveColor = new BABYLON.Color3(1, 0.078, 0.576);
+				material.disableLighting = true;
+				dot.material = material;
+				this.wizardBounceDots[i] = dot;
+			}
+			dot.position.copyFrom(point);
+			dot.setEnabled(true);
+		}
+
+		for (let i = points.length; i < this.wizardBounceDots.length; i++) {
+			const dot = this.wizardBounceDots[i];
+			if (dot && !dot.isDisposed()) {
+				dot.setEnabled(false);
+			}
+		}
+	}
+
+	private updateWizardGoalDot(
+		goalPoint: BABYLON.Vector3 | null,
+		scene: BABYLON.Scene,
+		planeY: number
+	): void {
+		if (!goalPoint) {
+			if (this.wizardGoalDot && !this.wizardGoalDot.isDisposed()) {
+				this.wizardGoalDot.setEnabled(false);
+			}
+			return;
+		}
+
+		if (!this.wizardGoalDot || this.wizardGoalDot.isDisposed()) {
+			this.wizardGoalDot = BABYLON.MeshBuilder.CreateSphere(
+				`aiWizardGoal_player${this.playerIndex}`,
+				{ diameter: 0.18 },
+				scene
+			);
+			const material = new BABYLON.StandardMaterial(
+				`aiWizardGoalMat_player${this.playerIndex}`,
+				scene
+			);
+			material.emissiveColor = new BABYLON.Color3(0.2, 1, 0.2);
+			material.disableLighting = true;
+			this.wizardGoalDot.material = material;
+		}
+
+		const dotPosition = new BABYLON.Vector3(goalPoint.x, planeY, goalPoint.z);
+		this.wizardGoalDot.position.copyFrom(dotPosition);
+		this.wizardGoalDot.setEnabled(true);
+	}
+
+	private updateLineMesh(
+		existing: BABYLON.LinesMesh | null,
+		name: string,
+		points: BABYLON.Vector3[],
+		scene: BABYLON.Scene,
+		color: BABYLON.Color3
+	): BABYLON.LinesMesh {
+		if (!existing || existing.isDisposed()) {
+			existing = BABYLON.MeshBuilder.CreateLines(
+				name,
+				{ points, updatable: true },
+				scene
+			);
+		} else {
+			BABYLON.MeshBuilder.CreateLines(
+				name,
+				{ points, instance: existing },
+				undefined
+			);
+		}
+		existing.color = color;
+		existing.setEnabled(true);
+		return existing;
+	}
+
+	/**
 	 * Predict where the ball will intersect the goal along the paddle's axis.
 	 * Simplified version - just return current projected ball position, or center if ball is too far out
 	 */
@@ -342,7 +709,24 @@ export class Pong3DAI {
 		if (this.targetDot) {
 			this.targetDot.setEnabled(false);
 		}
+		if (this.predictionRay) {
+			this.predictionRay.dispose(false, true);
+			this.predictionRay = null;
+		}
+		for (const line of this.wizardExtraRays) {
+			line.dispose(false, true);
+		}
+		this.wizardExtraRays = [];
+		for (const dot of this.wizardBounceDots) {
+			dot.dispose(false, true);
+		}
+		this.wizardBounceDots = [];
+		if (this.wizardGoalDot) {
+			this.wizardGoalDot.dispose(false, true);
+			this.wizardGoalDot = null;
+		}
 	}
+
 }
 
 /**
@@ -355,6 +739,7 @@ export const AI_DIFFICULTY_PRESETS = {
 		impulseDuration: 20,
 		centralLimit: 0.5,
 		xLimit: 3.5,
+		style: 'standard',
 	} as AIConfig,
 
 	MEDIUM: {
@@ -363,6 +748,7 @@ export const AI_DIFFICULTY_PRESETS = {
 		impulseDuration: 20,
 		centralLimit: 0.4,
 		xLimit: 3.5,
+		style: 'standard',
 	} as AIConfig,
 
 	HARD: {
@@ -371,6 +757,7 @@ export const AI_DIFFICULTY_PRESETS = {
 		impulseDuration: 20,
 		centralLimit: 0.3,
 		xLimit: 3.5,
+		style: 'standard',
 	} as AIConfig,
 
 	EXPERT: {
@@ -379,7 +766,18 @@ export const AI_DIFFICULTY_PRESETS = {
 		impulseDuration: 20,
 		centralLimit: 0.3,
 		xLimit: 3.5,
-    } as AIConfig,
+		style: 'standard',
+	} as AIConfig,
+
+	WIZARD: {
+		sampleRate: 1.0,
+		impulseFrequency: 30,
+		impulseDuration: 20,
+		centralLimit: 0.35,
+		xLimit: 3.5,
+		style: 'wizard',
+		predictionRayLength: 20,
+	} as AIConfig,
 } as const;
 
 /**
