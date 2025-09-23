@@ -1,6 +1,6 @@
+import { SqliteError } from 'better-sqlite3';
 import { FastifyRequest, RouteGenericInterface } from 'fastify';
 import { AuthenticationError } from '../../shared/exceptions.js';
-import { logger } from '../../shared/logger.js';
 import { AuthenticatedRequest } from '../types/interfaces.js';
 
 export function formatError(error: unknown): string {

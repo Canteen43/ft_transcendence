@@ -38,7 +38,9 @@ export const ERROR_FAILED_TO_UPDATE_PARTICIPANT =
 	'Failed to update participant';
 export const ERROR_FAILED_TO_UPDATE_TOURNAMENT = 'Failed to update tournament';
 export const ERROR_PLAYER_NOT_FOUND = 'Player not found in match';
+export const ERROR_USER_ALREADY_EXISTS = 'User already exists';
 export const ERROR_USER_ALREADY_CONNECTED = 'User already connected';
+export const ERROR_USER_ALREADY_QUEUED = 'User already in queue';
 export const ERROR_MESSAGE_HANDLE = 'Error while handling websocket message';
 export const ERROR_QUIT = 'Error while trying to end tournament';
 

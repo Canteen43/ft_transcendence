@@ -3,6 +3,8 @@ import z from 'zod';
 import {
 	ERROR_AUTHENTICATION_FAILED,
 	ERROR_TOKEN_EXPIRED,
+	ERROR_USER_ALREADY_CONNECTED,
+	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_TOKEN_EXPIRED,
 } from '../../shared/constants.js';
@@ -33,9 +35,13 @@ async function handleIncomingConnection(
 	}
 	const authRequest = getAuthData(request);
 
-	await LockService.withLock(LockType.Auth, async () =>
-		addConnection(authRequest.user.userId, webSocket as GameSocket)
-	);
+	try {
+		await LockService.withLock(LockType.Auth, async () =>
+			addConnection(authRequest.user.userId, webSocket as GameSocket)
+		);
+	} catch (error) {
+		webSocket.close(WS_ALREADY_CONNECTED, ERROR_USER_ALREADY_CONNECTED);
+	}
 }
 
 export default async function websocketRoutes(

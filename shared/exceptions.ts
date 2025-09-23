@@ -69,6 +69,20 @@ export class AuthenticationFailedError extends Error {
 	}
 }
 
+export class UserAlreadyExistsError extends Error {
+	constructor(login: string) {
+		super(`User already exists: ${login}`);
+		this.name = 'UserAlreadyExistsError';
+	}
+}
+
+export class UserAlreadyConnectedError extends Error {
+	constructor(userId: string) {
+		super(`User already connected: ${userId}`);
+		this.name = 'UserAlreadyConnectedError';
+	}
+}
+
 export class UserAlreadyQueuedError extends Error {
 	constructor(userId: string) {
 		super(`User already in queue: ${userId}`);
@@ -80,12 +94,5 @@ export class UserNotQueuedError extends Error {
 	constructor(userId: string) {
 		super(`User not in queue: ${userId}`);
 		this.name = 'UserNotQueuedError';
-	}
-}
-
-export class UserAlreadyConnectedError extends Error {
-	constructor(userId: string) {
-		super(`User already connected: ${userId}`);
-		this.name = 'UserAlreadyConnectedError';
 	}
 }
