@@ -41,6 +41,7 @@ export const UserSchema = z.object({
 	last_name: z.string().nullable(),
 	email: z.string().nullable(),
 	settings_id: zUUID,
+	two_factor_enabled: z.boolean(),
 });
 
 export const CreateUserSchema = z.object({
@@ -49,6 +50,7 @@ export const CreateUserSchema = z.object({
 	last_name: z.string().pipe(nameSchema).nullable(),
 	email: z.email().nullable(),
 	password: z.string().pipe(passwordSchema),
+	two_factor_enabled: z.boolean(),
 });
 
 export const AuthRequestSchema = z.object({
@@ -56,13 +58,35 @@ export const AuthRequestSchema = z.object({
 	password: z.string(),
 });
 
-export const AuthResponseSchema = z.object({
-	login: z.string(),
-	user_id: zUUID,
-	token: z.string(),
-});
+export const AuthResponseSchema = z
+	.object({
+		login: z.string(),
+		user_id: zUUID,
+		token: z.string().optional(),
+		two_factor_enabled: z.boolean(),
+	})
+	.refine(data => data.two_factor_enabled || data.token !== undefined);
+
+export const TwoFactorUpdateSchema = z
+	.object({
+		two_factor_enabled: z.boolean().optional(),
+		two_factor_temp_secret: z.string().nullable().optional(),
+		two_factor_secret: z.string().nullable().optional(),
+	})
+	.refine(
+		data =>
+			data.two_factor_enabled !== undefined ||
+			data.two_factor_temp_secret !== undefined ||
+			data.two_factor_secret !== undefined,
+		{ message: 'At least one field must be provided' }
+	)
+	.refine(data => !data.two_factor_enabled || !!data.two_factor_secret, {
+		message:
+			'two_factor_secret is required when two_factor_enabled is true',
+	});
 
 export type User = z.infer<typeof UserSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateUser = z.infer<typeof CreateUserSchema>;
+export type TwoFactorUpdate = z.infer<typeof TwoFactorUpdateSchema>;

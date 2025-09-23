@@ -35,3 +35,9 @@ export interface AuthenticatedRequest<
 		userId: UUID;
 	};
 }
+
+export interface TwoFactorSecret {
+	secret: string;
+	otpauthUrl: string;
+	qrCodeDataUrl: string;
+}

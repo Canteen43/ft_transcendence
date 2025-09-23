@@ -28,6 +28,9 @@ CREATE TABLE "user" (
 	last_name TEXT,
 	email TEXT,
 	settings_id TEXT REFERENCES settings(id),
+	two_factor_enabled INT NOT NULL,
+	two_factor_temp_secret TEXT,
+	two_factor_secret TEXT,
 	password_hash TEXT NOT NULL,
 	CONSTRAINT unique_user_login UNIQUE (login)
 );

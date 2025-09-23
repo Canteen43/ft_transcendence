@@ -43,6 +43,10 @@ export const ERROR_USER_ALREADY_CONNECTED = 'User already connected';
 export const ERROR_USER_ALREADY_QUEUED = 'User already in queue';
 export const ERROR_MESSAGE_HANDLE = 'Error while handling websocket message';
 export const ERROR_QUIT = 'Error while trying to end tournament';
+export const ERROR_NO_2FA_IN_PROGRESS =
+	'No two factor authentication setup in progress';
+export const ERROR_2FA_NOT_CONFIGURED =
+	'Two factor authentication has not been setup for this account';
 
 export const WS_CLOSE_POLICY_VIOLATION = 1008;
 export const WS_AUTHENTICATION_FAILED = 4001;
