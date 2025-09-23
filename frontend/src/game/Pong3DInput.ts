@@ -15,6 +15,7 @@
  * - Double-click canvas: Toggle fullscreen
  */
 import { conditionalWarn } from './Logger';
+import { GameConfig } from './GameConfig';
 import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3DAI';
 
 export interface KeyState {
@@ -72,50 +73,64 @@ export class Pong3DInput {
 			console.log(`✨ Wizard traces ${enabled ? 'enabled' : 'disabled'}`);
 			return;
 		}
+
+		const allowAll = this.shouldAllowFullMasterControl();
 		// Player 1: Arrow keys (left/right swapped)
 		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = true;
 		if (k === 'ArrowLeft' || k === 'ArrowDown')
 			this.keyState.p1Right = true;
 
 		// Player 2: WASD
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W')
+		if (allowAll && (k === 'a' || k === 'A' || k === 'w' || k === 'W'))
 			this.keyState.p2Left = true;
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S')
+		if (allowAll && (k === 'd' || k === 'D' || k === 's' || k === 'S'))
 			this.keyState.p2Right = true;
 
 		// Player 3: IJKL keys
-		if (k === 'j' || k === 'J' || k === 'i' || k === 'I')
+		if (allowAll && (k === 'j' || k === 'J' || k === 'i' || k === 'I'))
 			this.keyState.p3Left = true;
-		if (k === 'l' || k === 'L' || k === 'k' || k === 'K')
+		if (allowAll && (k === 'l' || k === 'L' || k === 'k' || k === 'K'))
 			this.keyState.p3Right = true;
 
 		// Player 4: Number pad 8456
-		if (k === '4' || k === '8') this.keyState.p4Left = true;
-		if (k === '6' || k === '5') this.keyState.p4Right = true;
+		if (allowAll && (k === '4' || k === '8')) this.keyState.p4Left = true;
+		if (allowAll && (k === '6' || k === '5')) this.keyState.p4Right = true;
 	}
 
 	private handleKeyUp(e: KeyboardEvent): void {
 		const k = e.key;
+		const allowAll = this.shouldAllowFullMasterControl();
 		// Player 1: Arrow keys (left/right swapped)
 		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = false;
 		if (k === 'ArrowLeft' || k === 'ArrowDown')
 			this.keyState.p1Right = false;
 
 		// Player 2: WASD
-		if (k === 'a' || k === 'A' || k === 'w' || k === 'W')
+		if (allowAll && (k === 'a' || k === 'A' || k === 'w' || k === 'W'))
 			this.keyState.p2Left = false;
-		if (k === 'd' || k === 'D' || k === 's' || k === 'S')
+		if (allowAll && (k === 'd' || k === 'D' || k === 's' || k === 'S'))
 			this.keyState.p2Right = false;
 
 		// Player 3: IJKL keys
-		if (k === 'j' || k === 'J' || k === 'i' || k === 'I')
+		if (allowAll && (k === 'j' || k === 'J' || k === 'i' || k === 'I'))
 			this.keyState.p3Left = false;
-		if (k === 'l' || k === 'L' || k === 'k' || k === 'K')
+		if (allowAll && (k === 'l' || k === 'L' || k === 'k' || k === 'K'))
 			this.keyState.p3Right = false;
 
 		// Player 4: Number pad 8456
-		if (k === '4' || k === '8') this.keyState.p4Left = false;
-		if (k === '6' || k === '5') this.keyState.p4Right = false;
+		if (allowAll && (k === '4' || k === '8')) this.keyState.p4Left = false;
+		if (allowAll && (k === '6' || k === '5')) this.keyState.p4Right = false;
+	}
+
+	private shouldAllowFullMasterControl(): boolean {
+		if (!GameConfig.isRemoteMode()) {
+			return true;
+		}
+		const isMaster = GameConfig.getThisPlayer() === 1;
+		if (!isMaster) {
+			return true; // clients control only their paddle via other handlers
+		}
+		return GameConfig.isMasterControlEnabled();
 	}
 
 	private toggleFullscreen(): void {
