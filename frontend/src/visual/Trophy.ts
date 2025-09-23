@@ -1,7 +1,7 @@
 // Use modular Babylon packages for better tree-shaking and smaller bundles
 import * as BABYLON from '@babylonjs/core';
 import earcut from 'earcut';
-import { GameConfig } from './GameConfig';
+import { GameConfig } from '../game/GameConfig';
 
 // Make earcut globally available for Babylon.js CreateText
 (window as any).earcut = earcut;

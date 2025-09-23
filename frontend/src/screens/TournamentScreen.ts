@@ -2,21 +2,23 @@ import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
 import { apiCall } from '../utils/apiCall';
 import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
+import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
 
 export class TournamentScreen extends Screen {
+	private trophyInstance?: Trophy;
+	private readyButton?: ReadyButton;
 	constructor() {
 		super();
 		this.addStyles();
 		this.initializeAsync();
 	}
 
-	// needs to wait for the data to be loaded before rendering
+	// ASYNC INIT RENDER (needs to wait for the data to be loaded before render)
 	private async initializeAsync() {
 		await this.init();
 		this.render();
 	}
-
 	// API call
 	private async init() {
 		const tournID = sessionStorage.getItem('tournamentID');
@@ -36,15 +38,23 @@ export class TournamentScreen extends Screen {
 		}
 	}
 
+	// HELPER
 	private createElement(
 		parent: HTMLElement,
 		tag: string,
 		className: string
 	): HTMLElement {
-		const el = document.createElement(tag);
-		el.className = className;
-		parent.appendChild(el);
-		return el;
+		const element = document.createElement(tag);
+		element.className = className;
+		parent.appendChild(element);
+		return element;
+	}
+
+	// trophy
+	public loadTrophy() {
+		const winner = sessionStorage.getItem('winner') || 'Player1';
+		if (this.trophyInstance) this.trophyInstance.dispose();
+		this.trophyInstance = new Trophy(this.element, { winner });
 	}
 
 	private addStyles() {
@@ -98,8 +108,9 @@ export class TournamentScreen extends Screen {
 	}
 
 	private renderBracket(parent: HTMLElement) {
-		const w1 = sessionStorage.getItem('w1');
-		const w2 = sessionStorage.getItem('w2');
+		const winner = sessionStorage.getItem('winner');
+		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
+		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
 		const p1 = sessionStorage.getItem('p1') || 'Player 1';
 		const p2 = sessionStorage.getItem('p2') || 'Player 2';
 		const p3 = sessionStorage.getItem('p3') || 'Player 3';
@@ -177,6 +188,11 @@ export class TournamentScreen extends Screen {
 
 		rightSide.appendChild(player3Slot);
 		rightSide.appendChild(player4Slot);
+
+		if (winner) {
+			if (this.trophyInstance) this.trophyInstance.dispose();
+			this.trophyInstance = new Trophy(this.element, { winner });
+		}
 	}
 
 	private renderConnector(parent: HTMLElement, side: 'left' | 'right') {
@@ -246,5 +262,18 @@ export class TournamentScreen extends Screen {
 		slot.textContent = playerIdText;
 		slot.setAttribute('data-player', playerId);
 		return slot;
+	}
+
+	// Override destroy to properly clean up Trophy resources + Readybutton
+	public destroy() {
+		if (this.trophyInstance) {
+			this.trophyInstance.dispose();
+			this.trophyInstance = undefined;
+		}
+		if (this.readyButton) {
+			this.readyButton.destroy();
+			this.readyButton = undefined;
+		}
+		super.destroy();
 	}
 }
