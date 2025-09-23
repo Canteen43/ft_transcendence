@@ -1,9 +1,12 @@
 import {
+	MESSAGE_START_TOURNAMENT,
+	MESSAGE_START,
 	MESSAGE_FINISH,
 	MESSAGE_QUIT,
-	MESSAGE_START,
-	MESSAGE_START_TOURNAMENT,
+	MESSAGE_GAME_STATE,
+	MESSAGE_POINT,
 } from '../../../shared/constants';
+
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
 import {
@@ -16,7 +19,6 @@ import { state } from '../utils/State';
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
 import { updateTournamentMatchData } from './updateTurnMatchData';
-// import { updateTournamentScreen } from './updateTurnScreen';
 import { webSocket } from './WebSocketWrapper';
 
 export async function regListener(event: MessageEvent): Promise<void> {
@@ -83,6 +85,18 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				setTimeout(() => {
 					document.dispatchEvent(new Event('tournament-updated'));
 				}, 50);
+				break;
+
+			// Quick fix when we arrive unexpectedly on #TOURNAMENT
+			case MESSAGE_GAME_STATE:
+				console.error('Received game message:', msg);
+				console.warn('Redirecting to #GAME');
+				location.hash = '#game';
+				break;
+			case MESSAGE_POINT:
+				console.error('Received game message:', msg);
+				console.warn('Redirecting to #GAME');
+				location.hash = '#game';
 				break;
 
 			default:

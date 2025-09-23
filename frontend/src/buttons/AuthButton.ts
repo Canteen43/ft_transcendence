@@ -16,6 +16,7 @@ export class AuthComponent {
 		this.render();
 		document.addEventListener('login-success', this.renderHandler);
 		document.addEventListener('logout-success', this.renderHandler);
+		document.addEventListener('login-failed', this.renderHandler);
 	}
 
 	private renderHandler = () => this.render();

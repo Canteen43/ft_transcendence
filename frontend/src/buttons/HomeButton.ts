@@ -1,4 +1,4 @@
-import { LeaveGameConfirmationModal } from '../modals/LeaveGameConfirmationModal';
+import { LeaveGameConfirmationModal } from '../modals/LeaveConfirmModal';
 import { state } from '../utils/State';
 
 export class HomeButton {
