@@ -1974,12 +1974,16 @@ export class Pong3D {
 				this.conditionalLog(
 					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
 				);
-				if (sessionStorage.getItem('tournament') === '1') {
+				// if we are in a tournament redirect to tournament page
+				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '1') {
 					location.hash = '#tournament';
+				}
+				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '0') {
+					location.hash = '#home';
 				}
 			}, 7000);
 
-			// if we are in a tournament redirect to tournament page
+			
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
@@ -4431,8 +4435,11 @@ export class Pong3D {
 				);
 
 				// if we are in a tournament redirect to tournament page
-				if (sessionStorage.getItem('tournament') === '1') {
+				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '1') {
 					location.hash = '#tournament';
+				}
+				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '0') {
+					location.hash = '#home';
 				}
 			}, 7000);
 		}
