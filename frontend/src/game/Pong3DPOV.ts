@@ -84,8 +84,8 @@ export function getCameraPosition(
 				// 4-player
 				return {
 					alpha: Math.PI / 2,
-					beta: defaultBeta - 0.1,
-					radius: defaultRadius + 2,
+					beta: defaultBeta -0.5 ,
+					radius: defaultRadius +9,
 					target: createTarget(defaultTargetY + 0.3),
 				};
 			}
