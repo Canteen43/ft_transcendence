@@ -1,14 +1,23 @@
+import Cryptr from 'cryptr';
 import jwt from 'jsonwebtoken';
+import { TOTP } from 'otpauth';
+import QRCode from 'qrcode';
 import {
+	ERROR_2FA_NOT_CONFIGURED,
 	ERROR_INVALID_CREDENTIALS,
 	ERROR_INVALID_TOKEN,
+	ERROR_NO_2FA_IN_PROGRESS,
 	ERROR_TOKEN_EXPIRED,
 	ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST,
+	ERROR_USER_NOT_FOUND,
 	TOKEN_VALIDITY_PERIOD,
 } from '../../shared/constants.js';
 import {
 	AuthenticationError,
 	AuthenticationFailedError,
+	TwoFactorAlreadyEnabledError,
+	TwoFactorVerificationError,
+	UserNotFoundError,
 } from '../../shared/exceptions.js';
 import {
 	AuthRequest,
@@ -16,8 +25,9 @@ import {
 	AuthResponseSchema,
 	User,
 } from '../../shared/schemas/user.js';
+import { UUID } from '../../shared/types.js';
 import UserRepository from '../repositories/user_repository.js';
-import { AuthPayload } from '../types/interfaces.js';
+import { AuthPayload, TwoFactorSecret } from '../types/interfaces.js';
 import { LockService, LockType } from './lock_service.js';
 
 export default class UserService {
@@ -39,13 +49,17 @@ export default class UserService {
 		if (!user)
 			throw new AuthenticationFailedError(ERROR_INVALID_CREDENTIALS);
 
-		const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-			expiresIn: TOKEN_VALIDITY_PERIOD,
-		});
+		let token = null;
+		if (!user.two_factor_enabled)
+			token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+				expiresIn: TOKEN_VALIDITY_PERIOD,
+			});
+
 		return AuthResponseSchema.parse({
 			login: user.login,
 			user_id: user.id,
 			token: token,
+			two_factor_enabled: user.two_factor_enabled,
 		});
 	}
 
@@ -70,5 +84,99 @@ export default class UserService {
 				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
 			);
 		}
+	}
+
+	static async getQRForEnableTwoFactor(userId: UUID): Promise<string> {
+		const user = UserRepository.getUser(userId);
+		if (!user) throw new UserNotFoundError(userId);
+		const data = await this.createTwoFactorSecret(user.login);
+		if (user.two_factor_enabled)
+			throw new TwoFactorAlreadyEnabledError(userId);
+		if (!process.env.TWO_FA_KEY)
+			throw new AuthenticationError(
+				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
+			);
+		const cryptr = new Cryptr(process.env.TWO_FA_KEY);
+		const encrypted_secret = cryptr.encrypt(data.secret);
+		UserRepository.setTwoFactor(userId, {
+			two_factor_temp_secret: encrypted_secret,
+		});
+		return data.qrCodeDataUrl;
+	}
+
+	static verifyEnableTwoFactor(userId: UUID, two_fa_token: string) {
+		const user = UserRepository.getUser(userId);
+		if (!user) throw new TwoFactorVerificationError(ERROR_USER_NOT_FOUND);
+
+		const secret = UserRepository.getTwoFactorSecret(userId, true);
+		if (!secret)
+			throw new TwoFactorVerificationError(ERROR_2FA_NOT_CONFIGURED);
+
+		if (!this.validateTwoFactorSecret(two_fa_token, secret))
+			throw new TwoFactorVerificationError(ERROR_INVALID_TOKEN);
+
+		UserRepository.setTwoFactor(userId, {
+			two_factor_enabled: true,
+			two_factor_temp_secret: null,
+			two_factor_secret: secret,
+		});
+	}
+
+	static validateTwoFactor(userId: UUID, two_fa_token: string) {
+		const user = UserRepository.getUser(userId);
+		if (!user) throw new AuthenticationError(ERROR_NO_2FA_IN_PROGRESS);
+
+		const secret = UserRepository.getTwoFactorSecret(userId, false);
+		if (!secret) throw new AuthenticationError(ERROR_NO_2FA_IN_PROGRESS);
+
+		if (!this.validateTwoFactorSecret(two_fa_token, secret))
+			throw new AuthenticationError(ERROR_INVALID_TOKEN);
+
+		if (!process.env.JWT_SECRET)
+			throw new AuthenticationError(
+				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
+			);
+
+		const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+			expiresIn: TOKEN_VALIDITY_PERIOD,
+		});
+		return AuthResponseSchema.parse({
+			login: user.login,
+			user_id: user.id,
+			token: token,
+			two_factor_enabled: user.two_factor_enabled,
+		});
+	}
+
+	private static validateTwoFactorSecret(
+		token: string,
+		encrypted_secret: string
+	): boolean {
+		if (!process.env.TWO_FA_KEY)
+			throw new AuthenticationError(
+				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
+			);
+		const cryptr = new Cryptr(process.env.TWO_FA_KEY);
+		const secret = cryptr.decrypt(encrypted_secret);
+		const totp = new TOTP({ secret });
+		const delta = totp.validate({ token, window: 1 });
+		return delta !== null;
+	}
+
+	private static async createTwoFactorSecret(
+		login: string
+	): Promise<TwoFactorSecret> {
+		const totp = new TOTP({
+			issuer: 'Space Pong',
+			label: login,
+			algorithm: 'SHA1',
+			digits: 6,
+			period: 30,
+		});
+
+		const secret = totp.secret.base32;
+		const otpauthUrl = totp.toString();
+		const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+		return { secret, otpauthUrl, qrCodeDataUrl };
 	}
 }

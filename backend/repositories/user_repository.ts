@@ -11,6 +11,7 @@ import {
 import {
 	AuthRequest,
 	CreateUser,
+	TwoFactorUpdate,
 	User,
 	UserSchema,
 } from '../../shared/schemas/user.js';
@@ -21,7 +22,8 @@ import SettingsRepository from './settings_repository.js';
 
 export default class UserRepository {
 	static table = '"user"';
-	static fields = 'id, login, first_name, last_name, email, settings_id';
+	static fields =
+		'id, login, first_name, last_name, email, settings_id, two_factor_enabled';
 
 	static getUser(id: UUID): User | null {
 		const row = db.queryOne<User>(
@@ -47,6 +49,19 @@ export default class UserRepository {
 		return UserSchema.parse(row);
 	}
 
+	static getTwoFactorSecret(userId: UUID, temp: boolean): string | null {
+		const field = temp ? 'two_factor_temp_secret' : 'two_factor_secret';
+		const row = db.queryOne<string>(
+			`SELECT ${field} AS secret
+			FROM ${this.table}
+			WHERE id = ?`,
+			[userId]
+		);
+
+		if (!row) return null;
+		return row;
+	}
+
 	static async createUser(user: CreateUser): Promise<User> {
 		const hash = await bcrypt.hash(user.password, 10);
 		const settings = { max_score: DEFAULT_MAX_SCORE };
@@ -57,8 +72,8 @@ export default class UserRepository {
 			let row: User | undefined;
 			try {
 				row = db.queryOne<User>(
-					`INSERT INTO ${this.table} (login, first_name, last_name, email, settings_id, password_hash)
-					VALUES (?, ?, ?, ?, ?, ?)
+					`INSERT INTO ${this.table} (login, first_name, last_name, email, settings_id, two_factor_enabled, password_hash)
+					VALUES (?, ?, ?, ?, ?, ?, ?)
 					RETURNING ${this.fields}`,
 					[
 						user.login,
@@ -66,6 +81,7 @@ export default class UserRepository {
 						user.last_name,
 						user.email,
 						dbSettings.id,
+						user.two_factor_enabled,
 						hash,
 					]
 				);
@@ -88,17 +104,30 @@ export default class UserRepository {
 			SELECT id, password_hash
 			FROM ${this.table}
 			WHERE login = ? `;
-		let row = db.queryOne<UserAuth>(query, [request.login]);
 
+		let row = db.queryOne<UserAuth>(query, [request.login]);
 		if (!row) return null;
 
 		let valid = await bcrypt.compare(request.password, row.password_hash);
-
 		if (!valid && process.env.NODE_ENV == 'development')
 			valid = request.password == row.password_hash;
 
 		if (!valid) return null;
-
 		return this.getUser(row.id);
+	}
+
+	static setTwoFactor(userId: UUID, update: TwoFactorUpdate) {
+		const fields = Object.entries(update).filter(
+			([key, value]) => value !== undefined
+		);
+		const set = fields.map(([key, value]) => `${key} = ?`).join(', ');
+		const values = fields.map(([key, value]) => value);
+
+		db.execute(
+			`UPDATE ${this.table}
+			 SET ${set}
+			 WHERE id = ?`,
+			[...values, userId]
+		);
 	}
 }
