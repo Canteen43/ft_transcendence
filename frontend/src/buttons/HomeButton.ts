@@ -1,10 +1,11 @@
-import { th } from 'zod/v4/locales';
 import { LeaveGameConfirmationModal } from '../modals/LeaveGameConfirmationModal';
 import { state } from '../utils/State';
 
 export class HomeButton {
 	private button: HTMLButtonElement;
 	private img: HTMLImageElement;
+	private onEnter: () => void;
+	private onLeave: () => void;
 
 	constructor(
 		parent: HTMLElement,
@@ -21,16 +22,12 @@ export class HomeButton {
 		this.img.className = 'w-16 h-16';
 		this.button.appendChild(this.img);
 
-		// change image on hover
-		this.button.addEventListener(
-			'mouseenter',
-			() => (this.img.src = hoverImgSrc)
-		);
-		this.button.addEventListener(
-			'mouseleave',
-			() => (this.img.src = imgSrc)
-		);
+		this.onEnter = () => (this.img.src = hoverImgSrc);
+		this.onLeave = () => (this.img.src = imgSrc);
 
+		// change image on hover
+		this.button.addEventListener('mouseenter', this.onEnter);
+		this.button.addEventListener('mouseleave', this.onLeave);
 		this.button.addEventListener('click', this.handleHomeClick);
 
 		parent.appendChild(this.button);
@@ -43,6 +40,8 @@ export class HomeButton {
 	};
 
 	destroy() {
+		this.button.removeEventListener('mouseenter', this.onEnter);
+		this.button.removeEventListener('mouseleave', this.onLeave);
 		this.button.removeEventListener('click', this.handleHomeClick);
 		this.button.remove();
 	}
