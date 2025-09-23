@@ -14,7 +14,7 @@
  * Additional Controls:
  * - Double-click canvas: Toggle fullscreen
  */
-import { conditionalWarn } from './Logger';
+import { conditionalLog, conditionalWarn } from './Logger';
 import { GameConfig } from './GameConfig';
 import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3DAI';
 
@@ -70,7 +70,7 @@ export class Pong3DInput {
 		const k = e.key;
 		if (k === '\\' && !e.repeat) {
 			const enabled = Pong3DAI.toggleWizardVisualization();
-			console.log(`✨ Wizard traces ${enabled ? 'enabled' : 'disabled'}`);
+			conditionalLog(`✨ Wizard traces ${enabled ? 'enabled' : 'disabled'}`);
 			return;
 		}
 
@@ -177,7 +177,9 @@ export class Pong3DInput {
 		for (let i = 0; i < 4; i++) {
 			if (this.aiControllers[i]) {
 				const aiInput = this.aiControllers[i]!.update(gameState);
-				console.log(`🤖 AI Player ${i + 1} input: ${aiInput}`);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					conditionalLog(`🤖 AI Player ${i + 1} input: ${aiInput}`);
+				}
 
 				// Override keyboard input with AI input
 				currentState[playerKeys[i].left as keyof KeyState] =
