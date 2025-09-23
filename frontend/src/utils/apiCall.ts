@@ -1,4 +1,5 @@
 import { ZodType, z } from 'zod';
+import { TextModal } from '../modals/TextModal';
 
 const API_BASE = `http://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}`;
 
@@ -24,9 +25,14 @@ export async function apiCall<T>(
 		const res = await fetch(`${API_BASE}${route}`, options);
 
 		if (!res.ok) {
-			console.warn(
+			console.error(
 				`API error: ${res.status} ${res.statusText} (${route})`
 			);
+			void new TextModal(
+								document.body,
+								`API error: ${res.status} ${res.statusText} (${route})`
+							);
+			
 			return null;
 		}
 
