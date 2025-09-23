@@ -1,5 +1,5 @@
 import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
-import { clearMatchData } from './cleanSessionStorage';
+import { clearMatchData, clearTournData } from './cleanSessionStorage';
 import { state } from '../utils/State';
 
 export function updateTournamentMatchData(tournData: any): void {
@@ -16,6 +16,7 @@ export function updateTournamentMatchData(tournData: any): void {
 	console.debug('tournData =', tournData);
 
 	clearMatchData();
+	clearTournData();
 
 	// Helper function to get alias from user_id
 	const getAliasFromUserId = (userId: string): string | null => {
@@ -25,6 +26,7 @@ export function updateTournamentMatchData(tournData: any): void {
 		return participant ? participant.alias : null;
 	};
 
+	//////////////////
 	// Two player game
 	if (isGame) {
 		const player1 = tournData.matches[0].participant_1_user_id;
@@ -42,9 +44,13 @@ export function updateTournamentMatchData(tournData: any): void {
 		sessionStorage.setItem('alias2', player2Alias || player2);
 
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
+		state.gameOngoing = false;
 	}
+
+	//////////////////
 	// Tournament mode 
 	else if (isTourn) {
+
 		// for tournament SCREEN : aliases
 		const tournPlyr1 = tournData.matches[0].participant_1_user_id;
 		const tournPlyr2 = tournData.matches[0].participant_2_user_id;
@@ -102,8 +108,6 @@ export function updateTournamentMatchData(tournData: any): void {
 				'winner',
 				tournWinnerAlias || tournamentwinnerUserId
 			);
-			// TODO delete some data from session storage here? we could keep
-			// the page with the last tournament
 		}
 
 		// Tournament first round

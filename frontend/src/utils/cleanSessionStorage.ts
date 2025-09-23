@@ -8,12 +8,19 @@ export function clearMatchData() {
 }
 
 export function clearTournData() {
-	sessionStorage.getItem('p1');
-	sessionStorage.getItem('p2');
-	sessionStorage.getItem('p3');
-	sessionStorage.getItem('p4');
-	sessionStorage.getItem('w1');
-	sessionStorage.getItem('w2');
-	sessionStorage.getItem('winner');
-	sessionStorage.getItem('tournamentID');
+	sessionStorage.removeItem('p1');
+	sessionStorage.removeItem('p2');
+	sessionStorage.removeItem('p3');
+	sessionStorage.removeItem('p4');
+	sessionStorage.removeItem('w1');
+	sessionStorage.removeItem('w2');
+	sessionStorage.removeItem('winner');
+}
+
+export function clearOtherGameData() {
+	sessionStorage.removeItem('targetSize');
+	sessionStorage.removeItem('tournamentID');
+	sessionStorage.removeItem('gameMode');
+	sessionStorage.removeItem('playerCount');
+	sessionStorage.setItem('tournament', '0');
 }

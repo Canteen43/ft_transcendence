@@ -1,4 +1,9 @@
 import { Button } from '../buttons/Button';
+import {
+	clearMatchData,
+	clearOtherGameData,
+	clearTournData,
+} from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
@@ -6,6 +11,12 @@ import { Modal } from './Modal';
 export class RemoteGameModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
+
+		clearMatchData();
+		clearTournData();
+		clearOtherGameData();
+		state.gameOngoing = false;
+		state.tournamentOngoing = false;
 
 		const img2 = document.createElement('img');
 		img2.src = '../../public/2_players.png';
@@ -40,8 +51,11 @@ export class RemoteGameModal extends Modal {
 	private logicRemote(tournamentSize: number) {
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
-		if (tournamentSize == 4) state.tournamentOngoing = true;
-		else state.gameOngoing = true;
+		if (tournamentSize == 4) {
+			state.tournamentOngoing = true;
+		} else {
+			state.gameOngoing = true;
+		}
 		sessionStorage.setItem('playerCount', '2');
 		this.destroy();
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
