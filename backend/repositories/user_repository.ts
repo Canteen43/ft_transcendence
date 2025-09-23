@@ -1,9 +1,13 @@
 import bcrypt from 'bcrypt';
+import { SqliteError } from 'better-sqlite3';
 import {
 	DEFAULT_MAX_SCORE,
 	ERROR_FAILED_TO_CREATE_USER,
 } from '../../shared/constants.js';
-import { DatabaseError } from '../../shared/exceptions.js';
+import {
+	DatabaseError,
+	UserAlreadyExistsError,
+} from '../../shared/exceptions.js';
 import {
 	AuthRequest,
 	CreateUser,
@@ -49,19 +53,30 @@ export default class UserRepository {
 
 		return db.executeInTransaction(() => {
 			const dbSettings = SettingsRepository.createSettings(settings);
-			const row = db.queryOne<User>(
-				`INSERT INTO ${this.table} (login, first_name, last_name, email, settings_id, password_hash)
-				VALUES (?, ?, ?, ?, ?, ?)
-				RETURNING ${this.fields}`,
-				[
-					user.login,
-					user.first_name,
-					user.last_name,
-					user.email,
-					dbSettings.id,
-					hash,
-				]
-			);
+
+			let row: User | undefined;
+			try {
+				row = db.queryOne<User>(
+					`INSERT INTO ${this.table} (login, first_name, last_name, email, settings_id, password_hash)
+					VALUES (?, ?, ?, ?, ?, ?)
+					RETURNING ${this.fields}`,
+					[
+						user.login,
+						user.first_name,
+						user.last_name,
+						user.email,
+						dbSettings.id,
+						hash,
+					]
+				);
+			} catch (error: any) {
+				if (
+					error instanceof SqliteError &&
+					error.code == 'SQLITE_CONSTRAINT_UNIQUE'
+				)
+					throw new UserAlreadyExistsError(user.login);
+				throw error;
+			}
 
 			if (!row) throw new DatabaseError(ERROR_FAILED_TO_CREATE_USER);
 			return UserSchema.parse(row);

@@ -31,9 +31,12 @@ import { LockService, LockType } from './lock_service.js';
 export default class TournamentService {
 	private static tournamentQueues: Map<number, Set<QueuedUser>> = new Map();
 
-	static joinQueue(size: number, userId: UUID, alias: string) {
-		logger.debug('Join tournament request received');
-		LockService.withLock(LockType.Queue, async () =>
+	static async joinQueue(
+		size: number,
+		userId: UUID,
+		alias: string
+	): Promise<void> {
+		return await LockService.withLock(LockType.Queue, async () =>
 			this.joinQueueWithLock(size, userId, alias)
 		);
 	}
@@ -98,7 +101,6 @@ export default class TournamentService {
 	}
 
 	static createTournament(creator: UUID, users: UUID[]): Tournament {
-		logger.debug('Create tournament request received');
 		const tournamentUsers = this.validateAndRemoveFromQueue(
 			users.length,
 			users
