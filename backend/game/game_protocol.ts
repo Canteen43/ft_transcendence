@@ -14,9 +14,12 @@ import {
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_START_TOURNAMENT,
-	TOURNAMENT_QUIT_MESSAGE,
 } from '../../shared/constants.js';
-import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
+import {
+	MatchStatus,
+	QuitReason,
+	TournamentStatus,
+} from '../../shared/enums.js';
 import {
 	ConnectionError,
 	MatchNotFoundError,
@@ -88,7 +91,7 @@ export class GameProtocol {
 				const match = this.matches.get(connectionId);
 				if (match) {
 					try {
-						this.quitAll(connectionId);
+						this.quitAll(connectionId, QuitReason.Error);
 					} catch (error) {
 						logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
 					}
@@ -101,7 +104,7 @@ export class GameProtocol {
 
 	handleClose(connectionId: UUID) {
 		try {
-			this.quitAll(connectionId);
+			this.quitAll(connectionId, QuitReason.Disconnect);
 		} catch (error) {
 			logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
 		}
@@ -201,7 +204,7 @@ export class GameProtocol {
 
 	private handleQuit(connectionId: UUID, message: Message) {
 		logger.debug('websocket: quit message received.');
-		this.quitAll(connectionId);
+		this.quitAll(connectionId, QuitReason.Quit);
 	}
 
 	private handlePause(connectionId: UUID, message: Message) {
@@ -210,7 +213,7 @@ export class GameProtocol {
 		this.sendMatchMessage(message, match.players);
 	}
 
-	private quitAll(connectionId: UUID) {
+	private quitAll(connectionId: UUID, reason: QuitReason) {
 		const match = this.matches.get(connectionId);
 		if (match) this.quitMatch(match);
 
@@ -229,12 +232,13 @@ export class GameProtocol {
 			throw new TournamentNotFoundError('user id', socket.userId);
 
 		if (
+			match ||
 			MatchService.userStillHasMatchesToPlay(
 				activeTournaments[0].id,
 				socket.userId
 			)
 		) {
-			this.quitTournament(activeTournaments[0]);
+			this.quitTournament(activeTournaments[0], socket.userId, reason);
 		}
 	}
 
@@ -274,19 +278,24 @@ export class GameProtocol {
 
 	private quitMatch(match: Match) {
 		this.updateMatchStatus(match.matchId, MatchStatus.Cancelled);
-		const participants = this.getTournamentParticipants(match.matchId);
-		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
 		this.deleteMatchObject(match.matchId);
 	}
 
-	private quitTournament(tournament: Tournament) {
+	private quitTournament(
+		tournament: Tournament,
+		userId: UUID,
+		reason: QuitReason
+	) {
 		const participants = ParticipantRepository.getTournamentParticipants(
 			tournament.id
 		);
-		this.sendTournamentMessage(TOURNAMENT_QUIT_MESSAGE, participants);
-		tournament.status = TournamentStatus.Cancelled;
-		const update = UpdateTournamentSchema.strip().parse(tournament);
-		TournamentRepository.updateTournament(tournament.id, update);
+		const message: Message = {
+			t: MESSAGE_QUIT,
+			d: userId,
+			l: [reason],
+		};
+		this.sendTournamentMessage(message, participants);
+		TournamentRepository.cancelTournament(tournament.id);
 	}
 
 	private sendMatchMessage(message: Message, players: Player[]) {
