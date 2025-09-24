@@ -80,5 +80,6 @@ export class AuthComponent {
 		this.destroyButton();
 		document.removeEventListener('login-success', this.renderHandler);
 		document.removeEventListener('logout-success', this.renderHandler);
+		document.removeEventListener('login-failed', this.renderHandler);
 	}
 }

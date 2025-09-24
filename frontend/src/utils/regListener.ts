@@ -1,10 +1,10 @@
 import {
-	MESSAGE_START_TOURNAMENT,
-	MESSAGE_START,
 	MESSAGE_FINISH,
-	MESSAGE_QUIT,
 	MESSAGE_GAME_STATE,
 	MESSAGE_POINT,
+	MESSAGE_QUIT,
+	MESSAGE_START,
+	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
 
 import type { Message } from '../../../shared/schemas/message';
@@ -41,15 +41,22 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				console.info('Received "st":', msg);
 				sessionStorage.setItem('tournamentID', `${msg.d}`);
 
-				const tournData = await apiCall(
+				const { data: tournData, error } = await apiCall(
 					'GET',
 					`/tournaments/${msg.d}`,
 					FullTournamentSchema
 				);
+				if (error) {
+					console.error('Tournament join error:', error);
+					const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+					new TextModal(router.currentScreen!.element, message);
+					return;
+				}
 
 				if (!tournData) {
 					console.error('Getting tournament data failed, QUIT sent');
 					webSocket.send({ t: MESSAGE_QUIT });
+					new TextModal(router.currentScreen!.element, 'Failed to get tournament data');
 					return;
 				} else if (tournData.matches.length === 1) {
 					updateTournamentMatchData(tournData);
@@ -72,7 +79,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			case MESSAGE_QUIT:
 				console.info('Received quit message:', msg);
 				location.hash = '#home';
-				void new TextModal(
+				new TextModal(
 					router.currentScreen!.element,
 					'The game has been quit.'
 				);
@@ -88,21 +95,22 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				break;
 
 			// Quick fix when we arrive unexpectedly on #TOURNAMENT
-			case MESSAGE_GAME_STATE:
-				console.error('Received game message:', msg);
-				console.warn('Redirecting to #GAME');
-				location.hash = '#game';
-				break;
-			case MESSAGE_POINT:
-				console.error('Received game message:', msg);
-				console.warn('Redirecting to #GAME');
-				location.hash = '#game';
-				break;
+			// case MESSAGE_GAME_STATE:
+			// 	console.error('Received game message:', msg);
+			// 	console.warn('Redirecting to #GAME');
+			// 	location.hash = '#game';
+			// 	break;
+			// case MESSAGE_POINT:
+			// 	console.error('Received game message:', msg);
+			// 	console.warn('Redirecting to #GAME');
+			// 	location.hash = '#game';
+			// 	break;
 
 			default:
 				console.warn('Unexpected websocket message received:', msg);
 		}
 	} catch (err) {
 		console.error('Invalid message received:', event.data, err);
+		new TextModal(router.currentScreen!.element, 'Received invalid message from server');
 	}
 }

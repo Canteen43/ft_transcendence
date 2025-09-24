@@ -7,10 +7,10 @@ import {
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
 import { Button } from '../buttons/Button';
-import { ReadyModal } from '../modals/ReadyModal';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 import { Modal } from './Modal';
+import { TextModal } from './TextModal';
 import { WaitingModal } from './WaitingModal';
 
 export class AliasModal extends Modal {
@@ -103,21 +103,20 @@ export class AliasModal extends Modal {
 				this.toggleDropdown(i);
 			});
 		}
-		
+
 		this.aliasFields[0].focus();
-		this.aliasFields[0].select(); 
+		this.aliasFields[0].select();
 		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 
 	private async handleAlias() {
-		
 		const tournament = sessionStorage.getItem('tournament') ?? '';
 		const gameMode = sessionStorage.getItem('gameMode') ?? '';
-		
+
 		if (state.gameMode === 'local') {
 			this.aliasFields.forEach((field, index) => {
-			const alias = field.value.trim() || `Player${index + 1}`;
-			sessionStorage.setItem(`alias${index + 1}`, alias);
+				const alias = field.value.trim() || `Player${index + 1}`;
+				sessionStorage.setItem(`alias${index + 1}`, alias);
 			});
 			location.hash = '#game';
 		} else {
@@ -180,16 +179,16 @@ export class AliasModal extends Modal {
 	}
 
 	// TODO: function to seperate file to separate concerns?
+	// API call to join a tournament
+	// send 2 or 4 + alias, receive the array of players in that tournament
 	private async joinGame(targetSize: number) {
-		// API call to join a tournament
-		// send 2 or 4 + alias, receive the array of players in that tournament
 		const joinData = {
 			size: targetSize,
 			alias: sessionStorage.getItem('alias'),
 		}; // overkill - we are sending a nuber
 		const parseInput = JoinTournamentSchema.safeParse(joinData);
 		if (!parseInput.success) {
-			alert('Invalid tournament format');
+			new TextModal(this.parent, 'Invalid tournament format');
 			console.error(
 				'Request validation failed:',
 				z.treeifyError(parseInput.error)
@@ -197,14 +196,20 @@ export class AliasModal extends Modal {
 			return;
 		}
 		console.debug('Sending to /tounaments/join:', joinData);
-		const playerQueue = await apiCall(
+		const { data: playerQueue, error } = await apiCall(
 			'POST',
 			`/tournaments/join`,
 			TournamentQueueSchema,
 			joinData
 		);
+		if (error) {
+			console.error('Tournament join error:', error);
+			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+			new TextModal(this.parent, message);
+			return;
+		}
 		if (!playerQueue) {
-			console.error('No response from tournament creation');
+			new TextModal(this.parent, 'No response from tournament creation');
 			return;
 		}
 
@@ -214,7 +219,6 @@ export class AliasModal extends Modal {
 		const isTournamentReady = currentPlayers === targetSize;
 
 		// set up some game spec
-		// TODO : move to when we receive the full tournament infos
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('targetSize', targetSize.toString());
 		sessionStorage.setItem('gameMode', 'remote');
@@ -228,29 +232,55 @@ export class AliasModal extends Modal {
 				participants: playerQueue.queue,
 			};
 			const parseInput2 = CreateTournamentApiSchema.safeParse(body);
-			console.log('Sending to /tournaments:', body);
 			if (!parseInput2.success) {
-				alert('Invalid tournament creation data');
+				new TextModal(this.parent, 'Invalid tournament creation data');
 				console.error(
 					'Tournament creation validation failed:',
 					z.treeifyError(parseInput2.error)
 				);
 				return;
 			}
-			const tournament = await apiCall(
+			console.log('Sending to /tournaments:', body);
+			const { data: tournament, error: tournamentError } = await apiCall(
 				'POST',
 				`/tournaments`,
 				TournamentSchema,
 				body
 			);
+			if (tournamentError) {
+				console.error('Tournament creation error:', tournamentError);
+				const message = `Error ${tournamentError.status}: ${tournamentError.statusText}, ${tournamentError.message}`;
+				new TextModal(this.parent, message);
+				// Leave queue on error
+				const { error } = await apiCall('POST', `/tournaments/leave`);
+				if (error) {
+					console.error('Error leaving tournament:', error);
+					new TextModal(
+						this.parent,
+						`Failed to leave tournament: ${error.message}`
+					);
+				}
+				return;
+			}
 			if (tournament) {
 				console.info('Tournament created with ID:', tournament.id);
 				sessionStorage.setItem('tournamentID', tournament.id);
 			} else {
+				new TextModal(
+					this.parent,
+					'Failed to create tournament. Leaving queue.'
+				);
 				console.error(
 					'Failed to create tournament as last player. Leaving queue.'
 				);
-				apiCall('POST', `/tournaments/leave`);
+				const { error } = await apiCall('POST', `/tournaments/leave`);
+				if (error) {
+					console.error('Error leaving tournament:', error);
+					new TextModal(
+						this.parent,
+						`Failed to leave tournament: ${error.message}`
+					);
+				}
 			}
 		}
 	}

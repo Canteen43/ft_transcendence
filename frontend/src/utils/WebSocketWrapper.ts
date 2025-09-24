@@ -9,6 +9,7 @@ import type { Message } from '../../../shared/schemas/message';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
 import { regListener } from './regListener';
+import { router } from './Router';
 
 const WS_ADDRESS = `ws://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}/websocket`;
 
@@ -51,7 +52,7 @@ export class WebSocketWrapper {
 			sessionStorage.removeItem('userID');
 			document.dispatchEvent(new CustomEvent('login-failed'));
 			void new TextModal(
-				document.body,
+				router.currentScreen?.element || document.body, 
 				'Error - 4001 - AUTHENTICATION_FAILED'
 			);
 			return;
@@ -61,7 +62,7 @@ export class WebSocketWrapper {
 			sessionStorage.removeItem('userID');
 			document.dispatchEvent(new CustomEvent('login-failed'));
 			void new TextModal(
-				document.body,
+				router.currentScreen?.element || document.body,
 				'Error: your token is expired, please re-login'
 			);
 			return;
@@ -73,7 +74,7 @@ export class WebSocketWrapper {
 			sessionStorage.removeItem('userID');
 			document.dispatchEvent(new CustomEvent('login-failed'));
 			void new TextModal(
-				document.body,
+				router.currentScreen?.element || document.body,
 				'Error - you are already logged in in another window'
 			);
 			return;
