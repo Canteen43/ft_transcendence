@@ -36,10 +36,7 @@ import {
 } from '../../shared/schemas/match.js';
 import { Message } from '../../shared/schemas/message.js';
 import { Participant } from '../../shared/schemas/participant.js';
-import {
-	Tournament,
-	UpdateTournamentSchema,
-} from '../../shared/schemas/tournament.js';
+import { Tournament } from '../../shared/schemas/tournament.js';
 import { UUID } from '../../shared/types.js';
 import {
 	getConnection,
