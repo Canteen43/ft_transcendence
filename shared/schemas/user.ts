@@ -62,7 +62,7 @@ export const AuthResponseSchema = z
 	.object({
 		login: z.string(),
 		user_id: zUUID,
-		token: z.string().optional(),
+		token: z.string(),
 		two_factor_enabled: z.boolean(),
 	})
 	.refine(data => data.two_factor_enabled || data.token !== undefined);
