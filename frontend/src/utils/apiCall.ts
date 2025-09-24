@@ -1,14 +1,31 @@
 import { ZodType, z } from 'zod';
 import { TextModal } from '../modals/TextModal';
 
+// property/method	type			meaning
+// res.ok			boolean			true if the status is in the range 200–299 (success). false otherwise.
+// res.status		number			The HTTP status code (e.g. 200, 404, 409, 500).
+// res.statusText	string			The HTTP status text (e.g. "OK", "Not Found", "Conflict").
+// res.headers		Headers object	Access to response headers. Example: res.headers.get('Content-Type').
+// res.url			string			The final URL after redirects.
+// res.redirected	boolean			true if the response came from a redirect.
+// res.type			`basic			cors
+// res.body			ReadableStream	Low-level stream of the body.
+// res.clone()		returns a new Response	Lets you read the body twice.
+
 const API_BASE = `http://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}`;
+
+type ApiError = {
+	status: number;
+	statusText: string;
+	message: string;
+};
 
 export async function apiCall<T>(
 	method: string,
 	route: string,
 	schema?: ZodType<T>,
 	body?: unknown
-): Promise<T | null> {
+): Promise<{ data: T | null; error?: ApiError }> {
 	try {
 		const token = sessionStorage.getItem('token');
 
@@ -25,33 +42,53 @@ export async function apiCall<T>(
 		const res = await fetch(`${API_BASE}${route}`, options);
 
 		if (!res.ok) {
-			console.error(
-				`API error: ${res.status} ${res.statusText} (${route})`
-			);
-			void new TextModal(
-								document.body,
-								`API error: ${res.status} ${res.statusText} (${route})`
-							);
-			
-			return null;
+			// alert(`TEMP ALERT: ${res.status} ${res.statusText}` )
+			let message = `${res.status} ${res.statusText}`;
+			const errBody = await res.json();
+			if (typeof errBody?.message === 'string') {
+				message = errBody.message;
+			}
+
+			return {
+				data: null,
+				error: {
+					status: res.status,
+					statusText: res.statusText,
+					message,
+				},
+			};
 		}
 
-		console.info(`API returned 200-OK for ${route}`);
-		if (!schema) return null;
+		if (!schema) {
+			return { data: null };
+		}
 
 		const data = await res.json();
-
 		const parsed = schema.safeParse(data);
 		if (!parsed.success) {
-			console.warn(
+			console.error(
 				'Zod validation failed:',
 				z.treeifyError(parsed.error)
 			);
-			return null;
+			return {
+				data: null,
+				error: {
+					status: 200,
+					statusText: 'OK',
+					message: 'Invalid response (schema) from server',
+				},
+			};
 		}
-		return parsed.data;
+		return { data: parsed.data };
 	} catch (err) {
-		console.warn(`Network error for ${route}:`, err);
-		return null;
+		console.error(`Network error for ${route}:`, err);
+		return {
+			data: null,
+			error: {
+				status: 0,
+				statusText: 'Network Error',
+				message: (err as Error).message,
+			},
+		};
 	}
 }

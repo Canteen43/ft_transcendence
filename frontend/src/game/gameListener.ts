@@ -15,13 +15,11 @@ import { MessageSchema } from '../../../shared/schemas/message';
 import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
-import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
-// import { updateTournamentScreen } from '../utils/updateTurnScreen';
-import {
-	FullTournamentSchema,
-	TournamentQueueSchema,
-} from '../../../shared/schemas/tournament';
-import { apiCall } from '../utils/apiCall';
+// import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
+// import {
+// 	FullTournamentSchema,
+// 	TournamentQueueSchema,
+// } from '../../../shared/schemas/tournament';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
 export function gameListener(event: MessageEvent) {
