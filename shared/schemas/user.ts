@@ -41,7 +41,10 @@ export const UserSchema = z.object({
 	last_name: z.string().nullable(),
 	email: z.string().nullable(),
 	settings_id: zUUID,
-	two_factor_enabled: z.boolean(),
+	two_factor_enabled: z.preprocess(val => {
+		const validated = z.number().min(0).max(1).parse(val);
+		return validated === 1;
+	}, z.boolean()),
 });
 
 export const CreateUserSchema = z.object({
@@ -50,7 +53,10 @@ export const CreateUserSchema = z.object({
 	last_name: z.string().pipe(nameSchema).nullable(),
 	email: z.email().nullable(),
 	password: z.string().pipe(passwordSchema),
-	two_factor_enabled: z.boolean(),
+	two_factor_enabled: z.preprocess(val => {
+		const validated = z.number().min(0).max(1).parse(val);
+		return validated === 1;
+	}, z.boolean()),
 });
 
 export const AuthRequestSchema = z.object({
