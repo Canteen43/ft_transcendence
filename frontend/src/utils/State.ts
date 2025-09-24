@@ -5,9 +5,8 @@ class State {
 	public playerCount: number = 0;
 	public tournamentSize: number = 0;
 	// debug variables
-	public normalGameReady: boolean = false;
-	public startedButtonPressed: boolean = false;
-	public playerId: string = '';
+	// public normalGameReady: boolean = false;
+	// public playerId: string = '';
 	}
 
 export const state = new State();

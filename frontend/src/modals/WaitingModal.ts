@@ -1,8 +1,8 @@
-import { jelly, newtonsCradle, hourglass } from 'ldrs';
+import { hourglass, jelly, newtonsCradle } from 'ldrs';
 import { apiCall } from '../utils/apiCall';
-import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
 import { ReadyModal } from './ReadyModal';
+import { TextModal } from './TextModal';
 
 newtonsCradle.register();
 jelly.register();
@@ -10,21 +10,31 @@ hourglass.register();
 
 // Waiting for players, event listener for game Ready
 export class WaitingModal extends Modal {
+	private gameReadyHandler = () => this.nextStep();
+
 	constructor(parent: HTMLElement) {
 		super(parent);
+		
+		document.addEventListener('gameReady', this.gameReadyHandler);
 		this.printMessageLoader();
-		document.addEventListener('gameReady', () => this.nextStep());
 	}
 
-	public quit() {
-		apiCall('POST', `/tournaments/leave`);
+	private async nextStep() {
+		new ReadyModal(this.parent);
+		this.destroy();
+	}
+
+	public async quit() {
+		const { error } = await apiCall('POST', `/tournaments/leave`);
+		if (error) {
+			console.error('Error leaving tournament:', error);
+			new TextModal(
+				this.parent,
+				`Failed to leave tournament: ${error.message}`
+			);
+		}
 		document.removeEventListener('gameReady', () => this.nextStep());
 		super.quit();
-	}
-
-	public destroy() {
-		document.removeEventListener('gameReady', () => this.nextStep());
-		super.destroy();
 	}
 
 	private async printMessageLoader() {
@@ -46,8 +56,8 @@ export class WaitingModal extends Modal {
 		this.box.appendChild(container);
 	}
 
-	private async nextStep() {
-		new ReadyModal(this.parent);
-		this.destroy();
+	public destroy() {
+		document.removeEventListener('gameReady', () => this.nextStep());
+		super.destroy();
 	}
 }
