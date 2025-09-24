@@ -13,6 +13,9 @@ export class GameConfig {
 	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
 	private static readonly DEFAULT_GAMESTATE_LOGGING = false; // Show gamestate updates even when debug is off
 
+	// enable master to control all player paddles in remote games
+	private static readonly DEFAULT_MASTER_CONTROL = false;
+
 	/**
 	 * Get the global player count from sessionStorage
 	 */
@@ -123,6 +126,7 @@ export class GameConfig {
 			],
 			debugLogging: this.isDebugLoggingEnabled(),
 			gamestateLogging: this.isGamestateLoggingEnabled(),
+			masterControl: this.isMasterControlEnabled(),
 		};
 	}
 
@@ -152,6 +156,18 @@ export class GameConfig {
 		console.log(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
 	}
 
+	static isMasterControlEnabled(): boolean {
+		const stored = sessionStorage.getItem('masterControl');
+		if (stored === 'true') return true;
+		if (stored === 'false') return false;
+		return this.DEFAULT_MASTER_CONTROL;
+	}
+
+	static setMasterControlEnabled(enabled: boolean): void {
+		sessionStorage.setItem('masterControl', enabled.toString());
+		console.log(`🎮 Master control ${enabled ? 'enabled' : 'disabled'}`);
+	}
+
 	/**
 	 * Initialize with default values if not set
 	 */
@@ -170,6 +186,9 @@ export class GameConfig {
 		}
 		if (!sessionStorage.getItem('gamestateLogging')) {
 			this.setGamestateLogging(this.DEFAULT_GAMESTATE_LOGGING);
+		}
+		if (!sessionStorage.getItem('masterControl')) {
+			this.setMasterControlEnabled(this.DEFAULT_MASTER_CONTROL);
 		}
 
 		console.log('🎮 GameConfig initialized:', this.getGameConfig());

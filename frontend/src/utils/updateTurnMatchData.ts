@@ -1,21 +1,62 @@
 import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
-import { clearMatchData } from './cleanSessionStorage';
+import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
+import { TextModal } from '../modals/TextModal';
+import { apiCall } from '../utils/apiCall';
+import { router } from '../utils/Router';
 import { state } from '../utils/State';
+import { clearMatchData, clearTournData } from './cleanSessionStorage';
+
+export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
+	const tournID = sessionStorage.getItem('tournamentID');
+	if (!tournID) {
+		console.error('No tournament ID found in session storage');
+		new TextModal(router.currentScreen!.element, 'No tournament ID found');
+		return;
+	}
+	// const isTourn = state.tournamentOngoing;
+	// if (!isTourn) return;
+	console.debug('Calling tourn details API');
+	const { data: tournData, error } = await apiCall(
+		'GET',
+		`/tournaments/${tournID}`,
+		FullTournamentSchema
+	);
+
+	if (error) {
+		console.error('Tournament fetch error:', error);
+		const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+		new TextModal(router.currentScreen!.element, message);
+		return;
+	}
+
+	if (!tournData) {
+		console.error('Getting tournament data failed - no data returned');
+		new TextModal(router.currentScreen!.element, 'Failed to get tournament data');
+		return;
+	}
+	console.log('Tournament data received:', tournData);
+	updateTournamentMatchData(tournData);
+}
 
 export function updateTournamentMatchData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');
 
 	const userID = sessionStorage.getItem('userID');
-	// const isTourn = tournData.matches.length > 1;
-	const isTourn = state.tournamentOngoing;
-	const isGame = state.gameOngoing;
+	if (!userID) {
+		console.error('No user ID found in session storage');
+		new TextModal(router.currentScreen!.element , 'User session expired. Please log in again.');
+		return;
+	}
+
+	const isTourn = tournData.matches.length > 1;
+	// const isTourn = state.tournamentOngoing;
 
 	console.debug('userID =', userID);
 	console.debug('isTourn =', isTourn);
-	console.debug('isGame =', isTourn);
 	console.debug('tournData =', tournData);
 
 	clearMatchData();
+	clearTournData();
 
 	// Helper function to get alias from user_id
 	const getAliasFromUserId = (userId: string): string | null => {
@@ -25,8 +66,9 @@ export function updateTournamentMatchData(tournData: any): void {
 		return participant ? participant.alias : null;
 	};
 
+	//////////////////
 	// Two player game
-	if (isGame) {
+	if (!isTourn) {
 		const player1 = tournData.matches[0].participant_1_user_id;
 		const player2 = tournData.matches[0].participant_2_user_id;
 		const player1Alias = getAliasFromUserId(player1);
@@ -43,7 +85,9 @@ export function updateTournamentMatchData(tournData: any): void {
 
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
 	}
-	// Tournament mode 
+
+	//////////////////
+	// Tournament mode
 	else if (isTourn) {
 		// for tournament SCREEN : aliases
 		const tournPlyr1 = tournData.matches[0].participant_1_user_id;
@@ -102,8 +146,6 @@ export function updateTournamentMatchData(tournData: any): void {
 				'winner',
 				tournWinnerAlias || tournamentwinnerUserId
 			);
-			// TODO delete some data from session storage here? we could keep
-			// the page with the last tournament
 		}
 
 		// Tournament first round
@@ -182,10 +224,8 @@ export function updateTournamentMatchData(tournData: any): void {
 				// User is not in the finale
 			}
 		}
-	}
-
-	else {
-		console.error("No game ongoing, no tournament ongoing.");
+	} else {
+		console.error('No game ongoing, no tournament ongoing.');
 	}
 
 	console.log(
