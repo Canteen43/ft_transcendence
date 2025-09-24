@@ -52,7 +52,7 @@ export class WebSocketWrapper {
 			sessionStorage.removeItem('userID');
 			document.dispatchEvent(new CustomEvent('login-failed'));
 			void new TextModal(
-				router.currentScreen?.element || document.body, 
+				router.currentScreen!.element, 
 				'Error - 4001 - AUTHENTICATION_FAILED'
 			);
 			return;
@@ -62,7 +62,7 @@ export class WebSocketWrapper {
 			sessionStorage.removeItem('userID');
 			document.dispatchEvent(new CustomEvent('login-failed'));
 			void new TextModal(
-				router.currentScreen?.element || document.body,
+				router.currentScreen!.element,
 				'Error: your token is expired, please re-login'
 			);
 			return;
@@ -74,7 +74,7 @@ export class WebSocketWrapper {
 			sessionStorage.removeItem('userID');
 			document.dispatchEvent(new CustomEvent('login-failed'));
 			void new TextModal(
-				router.currentScreen?.element || document.body,
+				router.currentScreen!.element,
 				'Error - you are already logged in in another window'
 			);
 			return;
@@ -88,7 +88,7 @@ export class WebSocketWrapper {
 	}
 
 	private async onMessage(event: MessageEvent): Promise<void> {
-		console.debug('WebSocket message received:', event.data);
+		console.debug(location.hash, 'WS message received:', event.data,);
 		if (location.hash === '#game') {
 			console.debug('Routing to in-game ws-handler.');
 			gameListener(event);

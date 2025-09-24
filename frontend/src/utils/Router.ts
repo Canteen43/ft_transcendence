@@ -2,7 +2,7 @@ import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Screen } from '../screens/Screen';
 import { TournamentScreen } from '../screens/TournamentScreen';
-// import { TrophyScreen } from '../screens/TrophyScreen';
+import { TextModal } from '../modals/TextModal';
 
 export class Router {
 	public currentScreen: Screen | null = null;
@@ -43,7 +43,8 @@ export class Router {
 				this.currentScreen = new TournamentScreen();
 				break;
 			default:
-				alert('Unknown route: ' + hash + '. Redirected to home.');
+				new TextModal (router.currentScreen!.element,
+					'Unknown route: ' + hash + '. Redirected to home.');
 				location.hash = '#home';
 		}
 	}
