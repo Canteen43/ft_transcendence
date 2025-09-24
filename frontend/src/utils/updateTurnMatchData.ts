@@ -10,8 +10,7 @@ export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
 	const tournID = sessionStorage.getItem('tournamentID');
 	if (!tournID) {
 		console.error('No tournament ID found in session storage');
-		const parent = router.currentScreen!.element;
-		new TextModal(parent, 'No tournament ID found');
+		new TextModal(router.currentScreen!.element, 'No tournament ID found');
 		return;
 	}
 	// const isTourn = state.tournamentOngoing;
@@ -32,8 +31,7 @@ export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
 
 	if (!tournData) {
 		console.error('Getting tournament data failed - no data returned');
-		const parent = router.currentScreen?.element || document.body;
-		new TextModal(parent, 'Failed to get tournament data');
+		new TextModal(router.currentScreen!.element, 'Failed to get tournament data');
 		return;
 	}
 	console.log('Tournament data received:', tournData);
@@ -49,7 +47,7 @@ export function updateTournamentMatchData(tournData: any): void {
 		new TextModal(router.currentScreen!.element , 'User session expired. Please log in again.');
 		return;
 	}
-	
+
 	const isTourn = tournData.matches.length > 1;
 	// const isTourn = state.tournamentOngoing;
 

@@ -62,6 +62,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 					updateTournamentMatchData(tournData);
 					document.dispatchEvent(new Event('gameReady'));
 				} else {
+					console.debug ("received ST during trounament-> redir to Tournament");
 					location.hash = '#tournament';
 				}
 

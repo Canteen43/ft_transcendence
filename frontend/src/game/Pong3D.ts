@@ -1975,15 +1975,22 @@ export class Pong3D {
 					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
 				);
 				// if we are in a tournament redirect to tournament page
-				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '1') {
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '1'
+				) {
+					console.debug(
+						'remote game, tourn = 1 -> redirecting to tournament'
+					);
 					location.hash = '#tournament';
 				}
-				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '0') {
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '0'
+				) {
 					location.hash = '#home';
 				}
 			}, 7000);
-
-			
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
@@ -2815,18 +2822,14 @@ export class Pong3D {
 				};
 			}
 			if (this.playerCount === 4) {
-				return i >= 2
-					? { x: 0, z: 1 }
-					: { x: 1, z: 0 };
+				return i >= 2 ? { x: 0, z: 1 } : { x: 1, z: 0 };
 			}
 			return { x: 1, z: 0 };
 		});
 
 		const paddleOrigins = Array.from({ length: 4 }, (_, i) => {
 			const origin = this.originalGLBPositions[i];
-			return origin
-				? { x: origin.x, z: origin.z }
-				: { x: 0, z: 0 };
+			return origin ? { x: origin.x, z: origin.z } : { x: 0, z: 0 };
 		});
 
 		const paddlePositionsAlongAxis = Array.from({ length: 4 }, (_, i) => {
@@ -4435,10 +4438,19 @@ export class Pong3D {
 				);
 
 				// if we are in a tournament redirect to tournament page
-				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '1') {
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '1'
+				) {
+					console.debug(
+						'remote game, tourn = 1 -> redirect to tournament'
+					);
 					location.hash = '#tournament';
 				}
-				if (sessionStorage.getItem('gameMode') === 'remote' && sessionStorage.getItem('tournament') === '0') {
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '0'
+				) {
 					location.hash = '#home';
 				}
 			}, 7000);

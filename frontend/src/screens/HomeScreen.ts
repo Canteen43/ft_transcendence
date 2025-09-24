@@ -2,6 +2,8 @@ import { isLoggedIn } from '../buttons/AuthButton';
 import { AliasModal } from '../modals/AliasModal';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
+import { TextModal } from '../modals/TextModal';
+import { router } from '../utils/Router';
 import { Screen } from './Screen';
 
 export class HomeScreen extends Screen {
@@ -49,7 +51,7 @@ export class HomeScreen extends Screen {
 
 	private remoteLogic() {
 		if (!isLoggedIn()) {
-			alert('You must be logged-in to access the remote game');
+			new TextModal(router.currentScreen!.element , 'You must be logged-in to access the remote game');
 			return;
 		}
 		new RemoteGameModal(this.element);
