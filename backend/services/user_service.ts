@@ -10,8 +10,10 @@ import {
 	ERROR_TOKEN_EXPIRED,
 	ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST,
 	ERROR_USER_NOT_FOUND,
-	TOKEN_VALIDITY_PERIOD,
+	TOKEN_VALIDITY_2FA,
+	TOKEN_VALIDITY_AUTH,
 } from '../../shared/constants.js';
+import { Token } from '../../shared/enums.js';
 import {
 	AuthenticationError,
 	AuthenticationFailedError,
@@ -49,11 +51,19 @@ export default class UserService {
 		if (!user)
 			throw new AuthenticationFailedError(ERROR_INVALID_CREDENTIALS);
 
-		let token = null;
-		if (!user.two_factor_enabled)
-			token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-				expiresIn: TOKEN_VALIDITY_PERIOD,
-			});
+		const type = user.two_factor_enabled ? Token.TwoFactor : Token.Auth;
+
+		const validity = user.two_factor_enabled
+			? TOKEN_VALIDITY_2FA
+			: TOKEN_VALIDITY_AUTH;
+
+		const token = jwt.sign(
+			{ userId: user.id, type: type },
+			process.env.JWT_SECRET,
+			{
+				expiresIn: validity,
+			}
+		);
 
 		return AuthResponseSchema.parse({
 			login: user.login,
@@ -137,9 +147,14 @@ export default class UserService {
 				ERROR_UNABLE_TO_PROCESS_AUTHENTICATION_REQUEST
 			);
 
-		const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-			expiresIn: TOKEN_VALIDITY_PERIOD,
-		});
+		const token = jwt.sign(
+			{ userId: user.id, type: Token.Auth },
+			process.env.JWT_SECRET,
+			{
+				expiresIn: TOKEN_VALIDITY_AUTH,
+			}
+		);
+
 		return AuthResponseSchema.parse({
 			login: user.login,
 			user_id: user.id,

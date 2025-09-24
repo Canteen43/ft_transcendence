@@ -18,3 +18,8 @@ export enum PlayerStatus {
 	Pending = 'pending',
 	Accepted = 'accepted',
 }
+
+export enum Token {
+	TwoFactor = '2fa',
+	Auth = 'authenticated',
+}

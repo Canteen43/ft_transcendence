@@ -1,30 +1,43 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import z from 'zod';
 import { AuthResponse, AuthResponseSchema } from '../../shared/schemas/user.js';
+import { authenticateRequest } from '../hooks/auth.js';
+import UserRepository from '../repositories/user_repository.js';
 import UserService from '../services/user_service.js';
 import { routeConfig } from '../utils/http_utils.js';
 import { getAuthData } from '../utils/utils.js';
 
 async function enable(request: FastifyRequest): Promise<string> {
 	const authRequest = getAuthData(request);
-	return UserService.getQRForEnableTwoFactor(authRequest.user.userId);
+	return UserService.getQRForEnableTwoFactor(authRequest.token.userId);
 }
 
 async function verifyEnable(
 	request: FastifyRequest<{ Body: string }>
 ): Promise<void> {
 	const authRequest = getAuthData(request);
-	UserService.verifyEnableTwoFactor(authRequest.user.userId, request.body);
+	UserService.verifyEnableTwoFactor(authRequest.token.userId, request.body);
 }
 
 async function validate(
 	request: FastifyRequest<{ Body: string }>
 ): Promise<AuthResponse> {
+	authenticateRequest(request, true); // Authenticate two factor token
 	const authRequest = getAuthData(request);
-	return UserService.validateTwoFactor(authRequest.user.userId, request.body);
+	return UserService.validateTwoFactor(
+		authRequest.token.userId,
+		request.body
+	);
 }
 
-async function disable(request: FastifyRequest): Promise<void> {}
+async function disable(request: FastifyRequest): Promise<void> {
+	const authRequest = getAuthData(request);
+	UserRepository.setTwoFactor(authRequest.token.userId, {
+		two_factor_enabled: false,
+		two_factor_temp_secret: null,
+		two_factor_secret: null,
+	});
+}
 
 export default async function twoFactorRoutes(
 	fastify: FastifyInstance,
@@ -34,7 +47,6 @@ export default async function twoFactorRoutes(
 		'/enable',
 		routeConfig({
 			response: z.string(),
-			secure: false,
 		}),
 		enable
 	);
@@ -42,7 +54,6 @@ export default async function twoFactorRoutes(
 		'/enable/verify',
 		routeConfig({
 			body: z.string(),
-			secure: false,
 		}),
 		verifyEnable
 	);
@@ -55,5 +66,5 @@ export default async function twoFactorRoutes(
 		}),
 		validate
 	);
-	fastify.post('/disable', routeConfig({ secure: false }), disable);
+	fastify.post('/disable', routeConfig({}), disable);
 }
