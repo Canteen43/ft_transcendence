@@ -40,6 +40,7 @@ export class AliasModal extends Modal {
 			sessionStorage.getItem('alias4') ?? '',
 		];
 		const aliasHints = ['↑←↓→', 'wasd', 'ijkl', '8456'];
+		const gameMode = sessionStorage.getItem('gameMode');
 
 		for (let i = 0; i < n; i++) {
 			let defaultValue = '';
@@ -63,45 +64,47 @@ export class AliasModal extends Modal {
 			input.title = aliasHints[i] || '';
 			this.aliasFields.push(input);
 
-			const aiButton = document.createElement('button');
-			aiButton.type = 'button';
-			aiButton.className =
-				'flex items-center gap-2 border border-[var(--color3)] rounded px-2 py-0 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
-			const aiIcon = document.createElement('img');
-			aiIcon.src = '/ai.png';
-			aiIcon.alt = 'AI options';
-			aiIcon.className = 'w-10 h-10';
-			const arrow = document.createElement('span');
-			arrow.textContent = '▾';
-			aiButton.appendChild(aiIcon);
-			aiButton.appendChild(arrow);
-			row.appendChild(aiButton);
+			if (gameMode === 'local') {
+				const aiButton = document.createElement('button');
+				aiButton.type = 'button';
+				aiButton.className =
+					'flex items-center gap-2 border border-[var(--color3)] rounded px-2 py-0 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
+				const aiIcon = document.createElement('img');
+				aiIcon.src = '/ai.png';
+				aiIcon.alt = 'AI options';
+				aiIcon.className = 'w-10 h-10';
+				const arrow = document.createElement('span');
+				arrow.textContent = '▾';
+				aiButton.appendChild(aiIcon);
+				aiButton.appendChild(arrow);
+				row.appendChild(aiButton);
 
-			const dropdown = document.createElement('div');
-			dropdown.className =
-				'hidden absolute right-0 top-full mt-1 min-w-[8rem] bg-white border border-[var(--color3)] rounded shadow-md z-50 flex flex-col';
-			row.appendChild(dropdown);
-			this.dropdownContainers.push(dropdown);
+				const dropdown = document.createElement('div');
+				dropdown.className =
+					'hidden absolute right-0 top-full mt-1 min-w-[8rem] bg-white border border-[var(--color3)] rounded shadow-md z-50 flex flex-col';
+				row.appendChild(dropdown);
+				this.dropdownContainers.push(dropdown);
 
-			this.aiOptions.forEach(option => {
-				const optionButton = document.createElement('button');
-				optionButton.type = 'button';
-				optionButton.innerText = option.label;
-				optionButton.className =
-					'px-3 py-2 text-left text-sm hover:bg-[var(--color3)]/10 transition-colors';
-				optionButton.addEventListener('click', () => {
-					input.value = option.value;
-					this.closeAllDropdowns();
-					input.focus();
+				this.aiOptions.forEach(option => {
+					const optionButton = document.createElement('button');
+					optionButton.type = 'button';
+					optionButton.innerText = option.label;
+					optionButton.className =
+						'px-3 py-2 text-left text-sm hover:bg-[var(--color3)]/10 transition-colors';
+					optionButton.addEventListener('click', () => {
+						input.value = option.value;
+						this.closeAllDropdowns();
+						input.focus();
+					});
+					dropdown.appendChild(optionButton);
 				});
-				dropdown.appendChild(optionButton);
-			});
 
-			aiButton.addEventListener('click', event => {
-				event.preventDefault();
-				event.stopPropagation();
-				this.toggleDropdown(i);
-			});
+				aiButton.addEventListener('click', event => {
+					event.preventDefault();
+					event.stopPropagation();
+					this.toggleDropdown(i);
+				});
+			}
 		}
 
 		this.aliasFields[0].focus();
