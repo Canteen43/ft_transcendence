@@ -3,8 +3,8 @@ import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
 import { LoginModal } from './LoginModal';
-import { TextModal } from './TextModal';
 import { Modal } from './Modal.ts';
+import { TextModal } from './TextModal';
 
 export class RegisterModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -28,11 +28,7 @@ export class RegisterModal extends Modal {
 		);
 
 		this.UsernameField = this.myCreateInput('text', 'username', 'username');
-		this.AliasField = this.myCreateInput(
-			'text',
-			'alias',
-			'game alias'
-		);
+		this.AliasField = this.myCreateInput('text', 'alias', 'game alias');
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
@@ -82,16 +78,16 @@ export class RegisterModal extends Modal {
 			new TextModal(this.parent, 'Passwords do not match');
 			return;
 		}
-		// TODO: add alias when the endpoint accepts it - if empty send username
+
 		const requestData = {
 			login: username,
-			alias: alias || username,
+			alias: alias,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
 			password: password,
 		};
-
+		console.debug(`{$requestData}`);
 		const parseResult = CreateUserSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			const errorMessage = this.formatZodErrors(parseResult.error);
