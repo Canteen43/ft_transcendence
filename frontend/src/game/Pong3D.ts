@@ -564,34 +564,17 @@ export class Pong3D {
 
 		// Reduce intensity of imported lights
 		try {
-			// Reduced logging for lights setup
-			// this.conditionalLog(`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`);
+			
 
 			scene.lights.forEach(light => {
-				// Reduced light debugging - only log on errors
-				// this.conditionalLog(`Light ${index + 1}:`, {
-				// 	name: light.name,
-				// 	type: light.getClassName(),
-				// 	intensity: (light as any).intensity,
-				// 	position:
-				// 		light instanceof BABYLON.DirectionalLight ||
-				// 		light instanceof BABYLON.SpotLight
-				// 			? (light as any).position
-				// 			: 'N/A',
-				// 	enabled: light.isEnabled(),
-				// });
+
 
 				if (light && typeof (light as any).intensity === 'number') {
 					(light as any).intensity =
 						(light as any).intensity * this.importedLightScale;
 				}
 			});
-			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(
-					'Adjusted imported light intensities by factor',
-					this.importedLightScale
-				);
-			}
+
 		} catch (e) {
 			this.conditionalWarn('Could not adjust light intensities:', e);
 		}
