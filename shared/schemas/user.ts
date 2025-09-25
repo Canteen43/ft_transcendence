@@ -37,6 +37,7 @@ const nameSchema = z
 export const UserSchema = z.object({
 	id: zUUID,
 	login: z.string(),
+	alias: z.string().nullable(),
 	first_name: z.string().nullable(),
 	last_name: z.string().nullable(),
 	email: z.string().nullable(),
@@ -45,6 +46,7 @@ export const UserSchema = z.object({
 
 export const CreateUserSchema = z.object({
 	login: z.string().pipe(loginSchema),
+	alias: z.string().pipe(loginSchema).nullable(),
 	first_name: z.string().pipe(nameSchema).nullable(),
 	last_name: z.string().pipe(nameSchema).nullable(),
 	email: z.email().nullable(),
