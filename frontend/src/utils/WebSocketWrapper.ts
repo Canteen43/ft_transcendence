@@ -29,6 +29,7 @@ const WS_ADDRESS = `ws://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE
 export class WebSocketWrapper {
 	public ws: WebSocket | null = null;
 	public targetState: 'open' | 'closed' | null = null;
+	private reconnectModal?: TextModal | null;
 
 	constructor() {
 		if (sessionStorage.getItem('token')) {
@@ -39,43 +40,38 @@ export class WebSocketWrapper {
 	// Event handlers
 	private onOpen(): void {
 		console.info('WebSocket opened');
+
+		if (this.reconnectModal) {
+			this.reconnectModal.destroy();
+			this.reconnectModal = null;
+		}
 	}
 
 	private onClose(event: CloseEvent): void {
-		console.info('WebSocket closed');
+		console.info('WebSocket closed', {
+			code: event.code,
+			reason: event.reason,
+		});
 		this.ws = null;
 
 		// Handle auth failures - don't reconnect
 		if (event.code === WS_AUTHENTICATION_FAILED) {
 			console.warn('Authentication failed: 4001 auth failed');
-			sessionStorage.removeItem('token');
-			sessionStorage.removeItem('userID');
-			document.dispatchEvent(new CustomEvent('login-failed'));
-			void new TextModal(
-				router.currentScreen!.element, 
-				'Error - 4001 - AUTHENTICATION_FAILED'
+			this.handleAuthFailure(
+				'Authentication failed. Please log in again.'
 			);
 			return;
 		} else if (event.code === WS_TOKEN_EXPIRED) {
 			console.warn('Authentication failed: 4002 token expired');
-			sessionStorage.removeItem('token');
-			sessionStorage.removeItem('userID');
-			document.dispatchEvent(new CustomEvent('login-failed'));
-			void new TextModal(
-				router.currentScreen!.element,
-				'Error: your token is expired, please re-login'
+			this.handleAuthFailure(
+				'Your session has expired. Please log in again.'
 			);
 			return;
 		}
-
 		if (event.code === WS_ALREADY_CONNECTED) {
 			console.warn('Already connected elsewhere');
-			sessionStorage.removeItem('token');
-			sessionStorage.removeItem('userID');
-			document.dispatchEvent(new CustomEvent('login-failed'));
-			void new TextModal(
-				router.currentScreen!.element,
-				'Error - you are already logged in in another window'
+			this.handleAuthFailure(
+				'You are already logged in from another location.'
 			);
 			return;
 		}
@@ -84,11 +80,22 @@ export class WebSocketWrapper {
 		if (this.targetState === 'open') {
 			console.log('Reconnecting in 3 seconds...');
 			setTimeout(() => this.open(), 3000);
+				this.reconnectModal = new TextModal(
+			router.currentScreen!.element,
+			`${event.reason}. Trying to reconnect...`
+		);
 		}
 	}
 
+	private handleAuthFailure(message: string): void {
+		sessionStorage.removeItem('token');
+		sessionStorage.removeItem('userID');
+		document.dispatchEvent(new CustomEvent('login-failed'));
+		void new TextModal(router.currentScreen!.element, message);
+	}
+
 	private async onMessage(event: MessageEvent): Promise<void> {
-		console.debug(location.hash, 'WS message received:', event.data,);
+		console.trace(location.hash, 'WS message received:', event.data);
 		if (location.hash === '#game') {
 			console.debug('Routing to in-game ws-handler.');
 			gameListener(event);
@@ -121,6 +128,7 @@ export class WebSocketWrapper {
 		const wsUrl = `${WS_ADDRESS}?token=${token}`;
 		this.targetState = 'open';
 		this.ws = new WebSocket(wsUrl);
+
 
 		this.ws.addEventListener('open', () => this.onOpen());
 		this.ws.addEventListener('close', event =>

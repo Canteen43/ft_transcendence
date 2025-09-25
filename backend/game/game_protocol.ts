@@ -260,11 +260,17 @@ export class GameProtocol {
 	}
 
 	private deleteMatchObject(matchId: UUID) {
+		logger.debug(
+			`Deleting match. Before delete ${this.matches.size} matches`
+		);
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {
 			if (m.matchId === matchId) keysToDelete.push(k);
 		}
 		for (const key of keysToDelete) this.matches.delete(key);
+		logger.debug(
+			`Deleting match. After delete ${this.matches.size} matches`
+		);
 	}
 
 	private startMatch(match: Match) {
