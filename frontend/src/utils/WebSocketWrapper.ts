@@ -1,5 +1,6 @@
 import {
 	MESSAGE_GAME_STATE,
+	MESSAGE_MOVE,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_CLOSE_POLICY_VIOLATION,
@@ -80,10 +81,10 @@ export class WebSocketWrapper {
 		if (this.targetState === 'open') {
 			console.log('Reconnecting in 3 seconds...');
 			setTimeout(() => this.open(), 3000);
-				this.reconnectModal = new TextModal(
-			router.currentScreen!.element,
-			`${event.reason}. Trying to reconnect...`
-		);
+			this.reconnectModal = new TextModal(
+				router.currentScreen!.element,
+				`${event.reason}. Trying to reconnect...`
+			);
 		}
 	}
 
@@ -95,7 +96,14 @@ export class WebSocketWrapper {
 	}
 
 	private async onMessage(event: MessageEvent): Promise<void> {
-		console.trace(location.hash, 'WS message received:', event.data);
+		const raw =
+			typeof event.data === 'string'
+				? JSON.parse(event.data)
+				: event.data;
+
+		if (raw.t != MESSAGE_GAME_STATE && raw.t != MESSAGE_MOVE) {
+			console.trace(location.hash, 'WS message received:', event.data);
+		}
 		if (location.hash === '#game') {
 			console.debug('Routing to in-game ws-handler.');
 			gameListener(event);
@@ -129,7 +137,6 @@ export class WebSocketWrapper {
 		this.targetState = 'open';
 		this.ws = new WebSocket(wsUrl);
 
-
 		this.ws.addEventListener('open', () => this.onOpen());
 		this.ws.addEventListener('close', event =>
 			this.onClose(event as CloseEvent)
@@ -149,7 +156,7 @@ export class WebSocketWrapper {
 			console.warn('Websocket not opened, message not sent.');
 			return;
 		}
-		console.debug('Sending:', message);
+		// console.debug('Sending:', message);
 		this.ws.send(JSON.stringify(message));
 	}
 

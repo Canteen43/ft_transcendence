@@ -187,6 +187,7 @@ export class GameProtocol {
 				message,
 				this.getTournamentParticipants(match.matchId)
 			);
+			logger.debug('Sending match finish message');
 		}
 	}
 
