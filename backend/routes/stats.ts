@@ -1,32 +1,28 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
-import { MatchWithUserId } from '../../shared/schemas/match.js';
+import { Ranking } from '../../shared/schemas/stats.js';
 import { UUID } from '../../shared/types.js';
-import MatchRepository from '../repositories/match_repository.js';
+import { StatsRepository } from '../repositories/stats_repository.js';
 
-async function getMatch(
+async function getRanking(
 	request: FastifyRequest<{ Params: { id: UUID } }>
-): Promise<MatchWithUserId> {
-	var result: MatchWithUserId | null;
+): Promise<Ranking> {
+	var result: Ranking | null;
 	try {
-		result = MatchRepository.getMatch(request.params.id);
+		result = StatsRepository.getRanking();
 	} catch (error) {
 		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
 			constants.ERROR_REQUEST_FAILED
 		);
 	}
-	if (!result)
-		throw request.server.httpErrors.notFound(
-			constants.ERROR_MATCH_NOT_FOUND
-		);
 	return result;
 }
 
-export default async function matchRoutes(
+export default async function statsRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	fastify.get('/:id', getMatch);
+	fastify.get('/ranking', getRanking);
 }

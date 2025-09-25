@@ -1,5 +1,5 @@
 import { MatchStatus } from '../../shared/enums.js';
-import { Ranking, RankingSchema } from '../../shared/schemas/statistics.js';
+import { Ranking, RankingSchema } from '../../shared/schemas/stats.js';
 import * as db from '../utils/db.js';
 import MatchRepository from './match_repository.js';
 import ParticipantRepository from './participant_repository.js';
@@ -17,13 +17,13 @@ export class StatsRepository {
 							ELSE 0
 						END
 		 			) AS wins,
-					COUNT(*) AS matches, 
+					COUNT(*) AS played, 
 					SUM(participant_1_score) AS goals_scored,
 					SUM(participant_2_score) AS goals_against
 				FROM ${ParticipantRepository.table} participants
 				INNER JOIN ${MatchRepository.table} matches
 					ON participants.id = matches.participant_1_id
-					AND matches.status = ${MatchStatus.Finished}
+					AND matches.status = '${MatchStatus.Finished}'
 				GROUP BY participants.user_id
 			),
 			matches_p2 AS (
@@ -35,13 +35,13 @@ export class StatsRepository {
 							ELSE 0
 						END
 		 			) AS wins,
-					COUNT(*) AS matches, 
+					COUNT(*) AS played, 
 					SUM(participant_2_score) AS goals_scored,
 					SUM(participant_1_score) AS goals_against
 				FROM ${ParticipantRepository.table} participants
 				INNER JOIN ${MatchRepository.table} matches
 					ON participants.id = matches.participant_2_id
-					AND matches.status = ${MatchStatus.Finished}
+					AND matches.status = '${MatchStatus.Finished}'
 				GROUP BY participants.user_id
 			),
 			pre_calc AS (
@@ -50,7 +50,7 @@ export class StatsRepository {
 					users.login,
 					users.alias,
 					COALESCE(matches_p1.wins, 0) + COALESCE(matches_p2.wins, 0) AS wins,
-					COALESCE(matches_p1.matches, 0) + COALESCE(matches_p2.matches, 0) AS matches,
+					COALESCE(matches_p1.played, 0) + COALESCE(matches_p2.played, 0) AS played,
 					COALESCE(matches_p1.goals_scored, 0) + COALESCE(matches_p2.goals_scored, 0) AS goals_scored,
 					COALESCE(matches_p1.goals_against, 0) + COALESCE(matches_p2.goals_against, 0) AS goals_against
 				FROM ${UserRepository.table} users
@@ -62,26 +62,33 @@ export class StatsRepository {
 			SELECT
 				ROW_NUMBER() OVER (
 					ORDER BY
-						percentage_wins DESC,
+						CASE
+							WHEN played = 0 THEN 0
+							ELSE 1.0 * wins / played
+						END DESC,
 						(goals_scored - goals_against) DESC,
 						goals_scored DESC,
 						goals_against DESC
 				) AS rank,
-				id,
+				id AS user_id,
 				login,
 				alias,
+				played,
 				wins,
-				matches - wins AS losses,
+				played - wins AS losses,
+				goals_scored,
+				goals_against,
 				CASE
-					WHEN matches = 0 THEN 0
-					ELSE 1.0 * wins / matches
+					WHEN played = 0 THEN 0
+					ELSE 1.0 * wins / played
 				END AS percentage_wins
 			FROM pre_calc
 			ORDER BY
 				percentage_wins DESC,
 				goals_scored - goals_against DESC,
 				goals_scored DESC,
-				goals_against DESC;`);
+				goals_against ASC
+			LIMIT 10;`);
 
 		return RankingSchema.parse(rows);
 	}
