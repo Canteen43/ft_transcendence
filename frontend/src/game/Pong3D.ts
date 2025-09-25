@@ -1845,24 +1845,23 @@ export class Pong3D {
 			}
 		}
 
-		// Check if the server hit the ball into their own goal - no point awarded
+		// Skip scoring only for direct-serve own goals (server never lost possession)
 		if (
 			this.currentServer === goalPlayer &&
 			this.lastPlayerToHitBall === this.currentServer &&
-			this.secondLastPlayerToHitBall !== -1 // Only if ball was hit by someone else first
+			this.secondLastPlayerToHitBall === -1
 		) {
 			this.conditionalLog(
-				`🏓 SERVER OWN GOAL! Player ${goalPlayer + 1} (server) hit the ball into their own goal after being hit by others - no point awarded`
+				`🏓 DIRECT SERVE OWN GOAL by Player ${goalPlayer + 1} - no point awarded`
 			);
-			// Skip awarding the point and just reset for next rally
-			this.currentServer = goalPlayer; // Conceding player serves next
+			this.currentServer = goalPlayer;
 			this.secondLastPlayerToHitBall = -1;
 			this.lastGoalTime = performance.now();
-			return; // Exit without awarding points
 		}
 
-		// Check if the same player hit the ball twice in a row - no point awarded
+		// Check if the same player hit the ball twice in a row - no point awarded (except own goals)
 		if (
+			!wasOwnGoal &&
 			scoringPlayer === this.secondLastPlayerToHitBall &&
 			scoringPlayer !== -1
 		) {
