@@ -34,6 +34,19 @@ export class LoginModal extends Modal {
 
 		this.UsernameField.focus();
 		this.UsernameField.select();
+
+		this.addEnterListener();
+	}
+
+	private addEnterListener() {
+		const handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleLogin();
+			}
+		};
+		this.UsernameField.addEventListener('keydown', handleEnter);
+		this.PasswordField.addEventListener('keydown', handleEnter);
 	}
 
 	private async handleLogin() {
@@ -72,10 +85,10 @@ export class LoginModal extends Modal {
 		console.log('Login successful for: ', authData.login);
 		sessionStorage.setItem('username', username);
 		this.login(authData.token, authData.user_id);
-		
+
 		this.destroy();
 	}
-	
+
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);

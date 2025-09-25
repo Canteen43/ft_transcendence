@@ -4,6 +4,7 @@ import { Modal } from '../modals/Modal';
 export class TextModal extends Modal {
 	private notification: string;
 	private textEl: HTMLParagraphElement;
+	private okayButton: Button;
 
 	constructor(parent: HTMLElement, notification: string) {
 		super(parent);
@@ -17,7 +18,9 @@ export class TextModal extends Modal {
 		this.box.appendChild(this.textEl);
 
 		// Create OK button using a class method
-		void new Button('Okay', this.onClick.bind(this), this.box);
+		this.okayButton = new Button('Okay', this.onClick.bind(this), this.box);
+		// Focus the button so that enter works
+		this.okayButton.element.focus();
 	}
 
 	private onClick(): void {

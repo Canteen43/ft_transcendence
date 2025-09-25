@@ -4390,9 +4390,13 @@ export class Pong3D {
 		console.log(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
+				console.warn(
+			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
+		);
 
 		// Update the UI
 		this.updatePlayerInfoDisplay();
+
 
 		// Check if player has won
 		if (this.playerScores[scoringPlayerIndex] >= this.WINNING_SCORE) {
@@ -4442,7 +4446,7 @@ export class Pong3D {
 				) {
 					location.hash = '#home';
 				}
-			}, 7000);
+			}, 2000);
 		}
 	}
 

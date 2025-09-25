@@ -24,6 +24,7 @@ CREATE TABLE "user" (
 		lower(hex(randomblob(6)))
 	),
 	login TEXT NOT NULL,
+	alias TEXT,
 	first_name TEXT,
 	last_name TEXT,
 	email TEXT,

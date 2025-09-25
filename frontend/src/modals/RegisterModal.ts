@@ -3,8 +3,8 @@ import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
 import { LoginModal } from './LoginModal';
-import { TextModal } from './TextModal';
 import { Modal } from './Modal.ts';
+import { TextModal } from './TextModal';
 
 export class RegisterModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -28,11 +28,7 @@ export class RegisterModal extends Modal {
 		);
 
 		this.UsernameField = this.myCreateInput('text', 'username', 'username');
-		this.AliasField = this.myCreateInput(
-			'text',
-			'alias',
-			'game alias'
-		);
+		this.AliasField = this.myCreateInput('text', 'alias', 'game alias');
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
@@ -54,10 +50,28 @@ export class RegisterModal extends Modal {
 			'passwordrepeat',
 			'password repeat'
 		);
-		new Button('Register', () => this.handleRegister(parent), this.box);
+		new Button('Register', () => this.handleRegister(), this.box);
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
+				this.addEnterListener();
+	}
+
+	private addEnterListener() {
+		const handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleRegister();
+			}
+		};
+		this.UsernameField.addEventListener('keydown', handleEnter);
+		this.AliasField.addEventListener('keydown', handleEnter);
+		this.FirstNameField.addEventListener('keydown', handleEnter);
+		this.LastNameField.addEventListener('keydown', handleEnter);
+		this.EmailField.addEventListener('keydown', handleEnter);
+		this.PasswordField.addEventListener('keydown', handleEnter);
+		this.PasswordRepeatField.addEventListener('keydown', handleEnter);
+	
 	}
 
 	private formatZodErrors(error: z.ZodError): string {
@@ -69,7 +83,7 @@ export class RegisterModal extends Modal {
 			.join('\n');
 	}
 
-	private async handleRegister(parent: HTMLElement) {
+	private async handleRegister() {
 		const username = this.UsernameField.value.trim();
 		const alias = this.AliasField.value.trim();
 		const firstName = this.FirstNameField.value.trim();
@@ -82,16 +96,16 @@ export class RegisterModal extends Modal {
 			new TextModal(this.parent, 'Passwords do not match');
 			return;
 		}
-		// TODO: add alias when the endpoint accepts it - if empty send username
+
 		const requestData = {
 			login: username,
-			//alias: alias || username,
+			alias: alias || null,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
 			password: password,
 		};
-
+		console.debug(`{$requestData}`);
 		const parseResult = CreateUserSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			const errorMessage = this.formatZodErrors(parseResult.error);
@@ -117,7 +131,7 @@ export class RegisterModal extends Modal {
 			return;
 		}
 		console.log('Registration successful for: ', regData.login);
-		new LoginModal(parent);
+		new LoginModal(this.parent);
 		this.destroy();
 	}
 
