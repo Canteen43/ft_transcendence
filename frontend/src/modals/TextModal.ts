@@ -13,7 +13,7 @@ export class TextModal extends Modal {
 		// Create text element
 		this.textEl = document.createElement('p');
 		this.textEl.textContent = this.notification;
-		this.textEl.className = 'text-center text-lg text-gray-800';
+		this.textEl.className = 'text-center text-lg text-[var(--color3)]';
 		this.box.appendChild(this.textEl);
 
 		// Create OK button using a class method
