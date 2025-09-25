@@ -85,7 +85,7 @@ export class RegisterModal extends Modal {
 		// TODO: add alias when the endpoint accepts it - if empty send username
 		const requestData = {
 			login: username,
-			//alias: alias || username,
+			alias: alias || username,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
