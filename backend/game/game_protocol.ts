@@ -47,6 +47,7 @@ import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
+import TournamentService from '../services/tournament_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
 import { formatError } from '../utils/utils.js';
 import { Match } from './match.js';
@@ -292,7 +293,7 @@ export class GameProtocol {
 			l: [reason],
 		};
 		this.sendTournamentMessage(message, participants);
-		TournamentRepository.cancelTournament(tournament.id);
+		TournamentService.cancelTournament(tournament.id);
 	}
 
 	private sendMatchMessage(message: Message, players: Player[]) {
