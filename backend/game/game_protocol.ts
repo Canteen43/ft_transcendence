@@ -184,6 +184,7 @@ export class GameProtocol {
 		if (matchFinished) {
 			this.deleteMatchObject(match.matchId);
 			const message: Message = { t: MESSAGE_FINISH, d: match.matchId };
+			logger.debug('Sending match finish message');
 			this.sendTournamentMessage(
 				message,
 				this.getTournamentParticipants(match.matchId)
