@@ -50,10 +50,28 @@ export class RegisterModal extends Modal {
 			'passwordrepeat',
 			'password repeat'
 		);
-		new Button('Register', () => this.handleRegister(parent), this.box);
+		new Button('Register', () => this.handleRegister(), this.box);
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
+				this.addEnterListener();
+	}
+
+	private addEnterListener() {
+		const handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleRegister();
+			}
+		};
+		this.UsernameField.addEventListener('keydown', handleEnter);
+		this.AliasField.addEventListener('keydown', handleEnter);
+		this.FirstNameField.addEventListener('keydown', handleEnter);
+		this.LastNameField.addEventListener('keydown', handleEnter);
+		this.EmailField.addEventListener('keydown', handleEnter);
+		this.PasswordField.addEventListener('keydown', handleEnter);
+		this.PasswordRepeatField.addEventListener('keydown', handleEnter);
+	
 	}
 
 	private formatZodErrors(error: z.ZodError): string {
@@ -65,7 +83,7 @@ export class RegisterModal extends Modal {
 			.join('\n');
 	}
 
-	private async handleRegister(parent: HTMLElement) {
+	private async handleRegister() {
 		const username = this.UsernameField.value.trim();
 		const alias = this.AliasField.value.trim();
 		const firstName = this.FirstNameField.value.trim();
@@ -81,7 +99,7 @@ export class RegisterModal extends Modal {
 
 		const requestData = {
 			login: username,
-			alias: alias,
+			alias: alias || null,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
@@ -113,7 +131,7 @@ export class RegisterModal extends Modal {
 			return;
 		}
 		console.log('Registration successful for: ', regData.login);
-		new LoginModal(parent);
+		new LoginModal(this.parent);
 		this.destroy();
 	}
 
