@@ -28,7 +28,7 @@ const nameSchema = z
 export const UserSchema = z.object({
 	id: zUUID,
 	login: z.string(),
-	alias: z.string().nullable().optional(),
+	alias: z.string().nullable(),
 	first_name: z.string().nullable(),
 	last_name: z.string().nullable(),
 	email: z.string().nullable(),
