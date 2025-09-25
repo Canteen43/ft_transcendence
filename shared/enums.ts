@@ -18,3 +18,9 @@ export enum PlayerStatus {
 	Pending = 'pending',
 	Accepted = 'accepted',
 }
+
+export enum QuitReason {
+	Quit = 0,
+	Disconnect = 1,
+	Error = 2,
+}
