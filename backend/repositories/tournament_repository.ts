@@ -121,20 +121,32 @@ export default class TournamentRepository {
 		return TournamentSchema.parse(row);
 	}
 
-	static cancelTournament(tournament_id: UUID) {
-		const tournament = this.getTournament(tournament_id);
-		if (!tournament)
-			throw new TournamentNotFoundError('tournament id', tournament_id);
-		tournament.status = TournamentStatus.Cancelled;
-		const update = UpdateTournamentSchema.strip().parse(tournament);
-		const matches = MatchRepository.getTournamentMatches(tournament_id);
-		let matchUpdate: UpdateMatch;
+	// static cancelTournament(tournament_id: UUID) {
+	// 	const tournament = this.getTournament(tournament_id);
+	// 	if (!tournament)
+	// 		throw new TournamentNotFoundError('tournament id', tournament_id);
+	// 	tournament.status = TournamentStatus.Cancelled;
+	// 	const update = UpdateTournamentSchema.strip().parse(tournament);
+	// 	const matches = MatchRepository.getTournamentMatches(tournament_id);
+	// 	db.executeInTransaction(() => {
+	// 		this.updateTournament(tournament_id, update);
+	// 		for (const match of matches) {
+	// 			match.status = MatchStatus.Cancelled;
+	// 			const matchUpdate = UpdateMatchSchema.strip().parse(match);
+	// 			MatchRepository.updateMatch(match.id, matchUpdate);
+	// 		}
+	// 	});
+	// }
+
+	static cancelTournament(
+		tournament_id: UUID,
+		tournamentUpdate: UpdateTournament,
+		matches: { id: UUID; update: UpdateMatch }[]
+	) {
 		db.executeInTransaction(() => {
-			this.updateTournament(tournament_id, update);
-			for (const match of matches) {
-				match.status = MatchStatus.Cancelled;
-				matchUpdate = UpdateMatchSchema.strip().parse(match);
-				MatchRepository.updateMatch(match.id, matchUpdate);
+			this.updateTournament(tournament_id, tournamentUpdate);
+			for (const { id, update } of matches) {
+				MatchRepository.updateMatch(id, update);
 			}
 		});
 	}
