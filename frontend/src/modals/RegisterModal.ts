@@ -3,10 +3,12 @@ import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
 import { LoginModal } from './LoginModal';
+import { TextModal } from './TextModal';
 import { Modal } from './Modal.ts';
 
 export class RegisterModal extends Modal {
 	private UsernameField: HTMLInputElement;
+	private AliasField: HTMLInputElement;
 	private FirstNameField: HTMLInputElement;
 	private LastNameField: HTMLInputElement;
 	private EmailField: HTMLInputElement;
@@ -26,6 +28,11 @@ export class RegisterModal extends Modal {
 		);
 
 		this.UsernameField = this.myCreateInput('text', 'username', 'username');
+		this.AliasField = this.myCreateInput(
+			'text',
+			'alias',
+			'game alias'
+		);
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
@@ -64,6 +71,7 @@ export class RegisterModal extends Modal {
 
 	private async handleRegister(parent: HTMLElement) {
 		const username = this.UsernameField.value.trim();
+		const alias = this.AliasField.value.trim();
 		const firstName = this.FirstNameField.value.trim();
 		const lastName = this.LastNameField.value.trim();
 		const email = this.EmailField.value.trim();
@@ -71,12 +79,13 @@ export class RegisterModal extends Modal {
 		const repeatPassword = this.PasswordRepeatField.value.trim();
 
 		if (password !== repeatPassword) {
-			alert('Passwords do not match');
+			new TextModal(this.parent, 'Passwords do not match');
 			return;
 		}
-
+		// TODO: add alias when the endpoint accepts it - if empty send username
 		const requestData = {
 			login: username,
+			//alias: alias || username,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
@@ -86,19 +95,25 @@ export class RegisterModal extends Modal {
 		const parseResult = CreateUserSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			const errorMessage = this.formatZodErrors(parseResult.error);
-			alert(errorMessage);
+			new TextModal(this.parent, errorMessage);
 			console.error('Request validation failed:', parseResult.error);
 			return;
 		}
 
-		const regData = await apiCall(
+		const { data: regData, error } = await apiCall(
 			'POST',
 			'/users/',
 			UserSchema,
 			requestData
 		);
+		if (error) {
+			console.error('Registration error:', error);
+			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+			new TextModal(this.parent, message);
+			return;
+		}
 		if (!regData) {
-			alert('Registration unsuccessful');
+			new TextModal(this.parent, 'Registration failed: no data returned');
 			return;
 		}
 		console.log('Registration successful for: ', regData.login);
