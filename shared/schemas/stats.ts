@@ -1,4 +1,5 @@
 import z from 'zod';
+import { zUUID } from '../types.js';
 
 export const WinsLossesSchema = z.object({
 	played: z.number(),
@@ -9,10 +10,14 @@ export const WinsLossesSchema = z.object({
 	percentage_wins: z.number(),
 });
 
-export const RankingSchema = z.object({
+export const RakingItemSchema = WinsLossesSchema.extend({
 	rank: z.number(),
-	data: z.array(WinsLossesSchema),
+	user_id: zUUID,
+	login: z.string(),
+	alias: z.string(),
 });
+
+export const RankingSchema = z.array(RakingItemSchema);
 
 export const RoundStatsSchema = z.object({
 	round: z.number(),
