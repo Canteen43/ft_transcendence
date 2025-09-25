@@ -201,7 +201,7 @@ export class Pong3D {
 	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 120; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -3803,6 +3803,17 @@ export class Pong3D {
 
 	/** Start the game loop */
 	public startGame(): void {
+		// Ensure remote games always start from a clean scoreboard
+		if (this.gameMode === 'master' || this.gameMode === 'client') {
+			if (this.playerScores.some(score => score !== 0)) {
+				for (let i = 0; i < this.playerScores.length; i++) {
+					this.playerScores[i] = 0;
+				}
+				this.updatePlayerInfoDisplay();
+				this.conditionalLog('🧮 Remote game start: scores reset to 0');
+			}
+		}
+
 		// If no current server is set (first game), pick a random player to serve from those with paddles
 		if (this.currentServer === -1) {
 			const validServers = [];
