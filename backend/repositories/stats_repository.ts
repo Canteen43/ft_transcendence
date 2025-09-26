@@ -82,6 +82,7 @@ export class StatsRepository {
 				goals_against,
 				1.0 * wins / NULLIF(played, 0) AS percentage_wins
 			FROM pre_calc
+			WHERE played > 10
 			ORDER BY
 				percentage_wins DESC,
 				goals_scored - goals_against DESC,
