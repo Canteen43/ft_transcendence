@@ -10,14 +10,14 @@ export const WinsLossesSchema = z.object({
 	percentage_wins: z.number(),
 });
 
-export const RakingItemSchema = WinsLossesSchema.extend({
+export const RankingItemSchema = WinsLossesSchema.extend({
 	rank: z.number(),
 	user_id: zUUID,
 	login: z.string(),
 	alias: z.string(),
 });
 
-export const RankingSchema = z.array(RakingItemSchema);
+export const RankingSchema = z.array(RankingItemSchema);
 
 export const RoundStatsSchema = z.object({
 	round: z.number(),
@@ -37,9 +37,7 @@ export const PercentageWinsSchema = z.object({
 	percentage_wins: z.number(),
 });
 
-export const PercentageWinsHistorySchema = z.object({
-	data: z.array(PercentageWinsSchema),
-});
+export const PercentageWinsHistorySchema = z.array(PercentageWinsSchema);
 
 export const MatchHistoryItemSchema = z.object({
 	first_match_timestamp: z.string(),
@@ -51,7 +49,9 @@ export const MatchHistorySchema = z.object({
 	data: z.array(MatchHistoryItemSchema),
 });
 
+export type RankingItem = z.infer<typeof RankingItemSchema>;
 export type Ranking = z.infer<typeof RankingSchema>;
 export type TournamentStats = z.infer<typeof TournamentStatsSchema>;
 export type PercentageWins = z.infer<typeof PercentageWinsSchema>;
+export type PercentageWinsHistory = z.infer<typeof PercentageWinsHistorySchema>;
 export type MatchHistory = z.infer<typeof MatchHistorySchema>;
