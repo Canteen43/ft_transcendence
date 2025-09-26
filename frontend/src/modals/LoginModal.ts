@@ -49,6 +49,8 @@ export class LoginModal extends Modal {
 		this.PasswordField.addEventListener('keydown', handleEnter);
 	}
 
+
+
 	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
 		const password = this.PasswordField.value.trim();
@@ -74,7 +76,7 @@ export class LoginModal extends Modal {
 		if (error) {
 			console.error('Registration error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-			new TextModal(this.parent, message);
+			this.errorModal(message);
 			return;
 		}
 		if (!authData) {
@@ -87,6 +89,14 @@ export class LoginModal extends Modal {
 		this.login(authData.token, authData.user_id);
 
 		this.destroy();
+	}
+
+	private errorModal (message : string) {
+		const modal = new TextModal(this.parent, message);
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		}
 	}
 
 	private login(token: string, id: string) {

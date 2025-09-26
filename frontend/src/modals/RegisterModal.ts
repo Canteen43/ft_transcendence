@@ -57,6 +57,15 @@ export class RegisterModal extends Modal {
 				this.addEnterListener();
 	}
 
+
+	private errorModal (message : string) {
+		const modal = new TextModal(this.parent, message);
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		}
+	}
+
 	private addEnterListener() {
 		const handleEnter = (e: KeyboardEvent) => {
 			if (e.key == 'Enter') {
@@ -123,11 +132,11 @@ export class RegisterModal extends Modal {
 		if (error) {
 			console.error('Registration error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-			new TextModal(this.parent, message);
+			this.errorModal(message);
 			return;
 		}
 		if (!regData) {
-			new TextModal(this.parent, 'Registration failed: no data returned');
+			this.errorModal('Registration failed: no data returned');
 			return;
 		}
 		console.log('Registration successful for: ', regData.login);
