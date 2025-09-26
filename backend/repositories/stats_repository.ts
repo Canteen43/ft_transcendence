@@ -1,5 +1,10 @@
 import { MatchStatus } from '../../shared/enums.js';
-import { Ranking, RankingSchema } from '../../shared/schemas/stats.js';
+import {
+	PercentageWinsHistorySchema,
+	Ranking,
+	RankingSchema,
+} from '../../shared/schemas/stats.js';
+import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
 import MatchRepository from './match_repository.js';
 import ParticipantRepository from './participant_repository.js';
@@ -62,10 +67,7 @@ export class StatsRepository {
 			SELECT
 				ROW_NUMBER() OVER (
 					ORDER BY
-						CASE
-							WHEN played = 0 THEN 0
-							ELSE 1.0 * wins / played
-						END DESC,
+						1.0 * wins / NULLIF(played, 0) DESC,
 						(goals_scored - goals_against) DESC,
 						goals_scored DESC,
 						goals_against DESC
@@ -78,10 +80,7 @@ export class StatsRepository {
 				played - wins AS losses,
 				goals_scored,
 				goals_against,
-				CASE
-					WHEN played = 0 THEN 0
-					ELSE 1.0 * wins / played
-				END AS percentage_wins
+				1.0 * wins / NULLIF(played, 0) AS percentage_wins
 			FROM pre_calc
 			ORDER BY
 				percentage_wins DESC,
@@ -91,5 +90,64 @@ export class StatsRepository {
 			LIMIT 10;`);
 
 		return RankingSchema.parse(rows);
+	}
+
+	static getPercentageWinsHistory(userId: UUID) {
+		const rows = db.queryAll(
+			`
+			WITH
+			matches AS (
+				SELECT  created_at AS timestamp,
+						CASE
+							WHEN participant_1_score > participant_2_score THEN 1
+							ELSE 0
+						END AS won,
+						1 AS total
+				FROM tournament_match match
+				INNER JOIN tournament
+					ON tournament.id = match.tournament_id
+				INNER JOIN tournament_participant participant
+					ON participant.id = match.participant_1_id
+				WHERE participant.user_id = ?
+
+				UNION ALL
+
+				SELECT  created_at AS timestamp,
+						CASE
+							WHEN participant_2_score > participant_1_score THEN 1
+							ELSE 0
+						END AS won,
+						1 AS total
+				FROM tournament_match match
+				INNER JOIN tournament
+					ON tournament.id = match.tournament_id
+				INNER JOIN tournament_participant participant
+					ON participant.id = match.participant_2_id
+				WHERE participant.user_id = ?
+			)
+			SELECT 
+				ROW_NUMBER() OVER (ORDER BY timestamp) AS nr,
+				MAX(timestamp) OVER (
+					ORDER BY timestamp
+					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+				) AS timestamp,
+				COUNT(*) OVER (
+					ORDER BY timestamp
+					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+				) AS total_matches,
+				SUM(won) OVER (
+					ORDER BY timestamp
+					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+				) /
+				SUM(total) OVER (
+					ORDER BY timestamp
+					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+				) AS percentage_wins
+			FROM matches
+			LIMIT 100;`,
+			[userId, userId]
+		);
+
+		return PercentageWinsHistorySchema.parse(rows);
 	}
 }
