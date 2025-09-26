@@ -25,5 +25,10 @@ export class TextModal extends Modal {
 
 	private onClick(): void {
 		this.destroy();
+		// call external callback if provided
+		if (this.onClose) this.onClose();
 	}
+
+	// optional callback fired when the modal closes
+	public onClose?: () => void;
 }

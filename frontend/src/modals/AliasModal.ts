@@ -81,7 +81,9 @@ export class AliasModal extends Modal {
 
 				const dropdown = document.createElement('div');
 				dropdown.className =
-					'hidden absolute right-0 top-full mt-1 min-w-[8rem] bg-white border border-[var(--color3)] rounded shadow-md z-50 flex flex-col';
+					'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
+					'bg-white border border-[var(--color3)] rounded shadow-md' +
+					'z-50 flex flex-col';
 				row.appendChild(dropdown);
 				this.dropdownContainers.push(dropdown);
 
@@ -134,6 +136,18 @@ export class AliasModal extends Modal {
 			new WaitingModal(this.parent);
 		}
 		this.destroy();
+	}
+
+	private addEnterListener() {
+		const handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleAlias();
+			}
+		};
+		this.aliasFields.forEach(field => {
+			field.addEventListener('keydown', handleEnter);
+		});
 	}
 
 	public destroy(): void {
