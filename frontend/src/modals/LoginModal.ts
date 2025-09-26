@@ -10,6 +10,7 @@ import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { ForgottenModal } from './ForgottenModal';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
+import { TextModal } from './TextModal';
 
 export class LoginModal extends Modal {
 	private UsernameField: HTMLInputElement;
@@ -32,8 +33,23 @@ export class LoginModal extends Modal {
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
-		this.UsernameField.select(); 
+		this.UsernameField.select();
+
+		this.addEnterListener();
 	}
+
+	private addEnterListener() {
+		const handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleLogin();
+			}
+		};
+		this.UsernameField.addEventListener('keydown', handleEnter);
+		this.PasswordField.addEventListener('keydown', handleEnter);
+	}
+
+
 
 	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
@@ -43,7 +59,7 @@ export class LoginModal extends Modal {
 
 		const parseResult = AuthRequestSchema.safeParse(requestData);
 		if (!parseResult.success) {
-			alert('Invalid login format');
+			new TextModal(this.parent, 'Invalid login format');
 			console.error(
 				'Request validation failed:',
 				z.treeifyError(parseResult.error)
@@ -51,26 +67,41 @@ export class LoginModal extends Modal {
 			return;
 		}
 
-		const authData = await apiCall(
+		const { data: authData, error } = await apiCall(
 			'POST',
 			'/users/auth',
 			AuthResponseSchema,
 			requestData
 		);
-		if (!authData) {
-			alert('Login unsuccessful');
+		if (error) {
+			console.error('Registration error:', error);
+			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+			this.errorModal(message);
 			return;
 		}
+		if (!authData) {
+			new TextModal(this.parent, 'Login unsuccessful');
+			return;
+		}
+
+		console.log('Login successful for: ', authData.login);
 		sessionStorage.setItem('username', username);
 		this.login(authData.token, authData.user_id);
 
 		this.destroy();
 	}
 
+	private errorModal (message : string) {
+		const modal = new TextModal(this.parent, message);
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		}
+	}
+
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
-		state.playerId = id;
 		webSocket.open();
 		document.dispatchEvent(new CustomEvent('login-success'));
 		console.info('Login successful');

@@ -1,50 +1,43 @@
-import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
-import { apiCall } from '../utils/apiCall';
-import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
+import { state } from '../utils/State';
+import { fetchAndUpdateTournamentMatchData } from '../utils/updateTurnMatchData';
+import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
 
 export class TournamentScreen extends Screen {
+	private trophyInstance?: Trophy;
+	private readyButton?: ReadyButton;
+
+	// Handler for tournament updates
+	private tournUpdHandler = async () => {
+		await fetchAndUpdateTournamentMatchData();
+		this.render();
+	};
+
 	constructor() {
 		super();
 		this.addStyles();
-		this.initializeAsync();
+		document.addEventListener('tournament-updated', this.tournUpdHandler);
+		this.initialize();
 	}
 
-	// needs to wait for the data to be loaded before rendering
-	private async initializeAsync() {
-		await this.init();
+	// ASYNC INIT RENDER (waits for data before rendering)
+	private async initialize() {
+		console.log('Initializing TournamentScreen...');
+		await fetchAndUpdateTournamentMatchData();
 		this.render();
 	}
 
-	// API call
-	private async init() {
-		const tournID = sessionStorage.getItem('tournamentID');
-		if (!tournID) return;
-		console.debug('Calling tourn details API from ');
-		const tournData = await apiCall(
-			'GET',
-			`/tournaments/${tournID}`,
-			FullTournamentSchema
-		);
-		if (tournData) {
-			console.log('Tournament data received:', tournData);
-			updateTournamentMatchData(tournData);
-		} else {
-			console.error('Getting tournament data failed.');
-			return;
-		}
-	}
-
+	// HELPER
 	private createElement(
 		parent: HTMLElement,
 		tag: string,
 		className: string
 	): HTMLElement {
-		const el = document.createElement(tag);
-		el.className = className;
-		parent.appendChild(el);
-		return el;
+		const element = document.createElement(tag);
+		element.className = className;
+		parent.appendChild(element);
+		return element;
 	}
 
 	private addStyles() {
@@ -66,6 +59,8 @@ export class TournamentScreen extends Screen {
 	}
 
 	private render() {
+		 this.element.innerHTML = '';
+
 		this.element.className =
 			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
 
@@ -91,15 +86,16 @@ export class TournamentScreen extends Screen {
 		console.log('Checking for matchID at render time:', matchID);
 		if (matchID && !winner) {
 			console.log('Creating ReadyButton');
-			new ReadyButton(this.element);
+			this.readyButton = new ReadyButton(this.element);
 		} else {
 			console.log('No matchID found, ReadyButton not created');
 		}
 	}
 
 	private renderBracket(parent: HTMLElement) {
-		const w1 = sessionStorage.getItem('w1');
-		const w2 = sessionStorage.getItem('w2');
+		const winner = sessionStorage.getItem('winner');
+		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
+		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
 		const p1 = sessionStorage.getItem('p1') || 'Player 1';
 		const p2 = sessionStorage.getItem('p2') || 'Player 2';
 		const p3 = sessionStorage.getItem('p3') || 'Player 3';
@@ -177,6 +173,25 @@ export class TournamentScreen extends Screen {
 
 		rightSide.appendChild(player3Slot);
 		rightSide.appendChild(player4Slot);
+
+		if (winner) {
+			if (this.trophyInstance) this.trophyInstance.dispose();
+
+			const trophyContainer = this.createElement(this.element, 'div', '');
+			Object.assign(trophyContainer.style, {
+				position: 'fixed',
+				top: '0',
+				left: '0',
+				width: '100vw',
+				height: '100vh',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				pointerEvents: 'none', // ou 'auto' si tu veux capturer les clics
+				zIndex: '9999',
+			});
+			this.trophyInstance = new Trophy(trophyContainer, { winner });
+		}
 	}
 
 	private renderConnector(parent: HTMLElement, side: 'left' | 'right') {
@@ -246,5 +261,24 @@ export class TournamentScreen extends Screen {
 		slot.textContent = playerIdText;
 		slot.setAttribute('data-player', playerId);
 		return slot;
+	}
+
+	// Override destroy to properly clean up Trophy resources + Readybutton
+	public destroy() {
+		console.log('Destroying TournamentScreen...');
+		if (this.trophyInstance) {
+			this.trophyInstance.dispose();
+			this.trophyInstance = undefined;
+		}
+		if (this.readyButton) {
+			this.readyButton.destroy();
+			this.readyButton = undefined;
+		}
+
+		document.removeEventListener(
+			'tournament-updated',
+			this.tournUpdHandler
+		);
+		super.destroy();
 	}
 }

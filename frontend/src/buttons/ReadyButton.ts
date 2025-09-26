@@ -1,15 +1,18 @@
 import { MESSAGE_ACCEPT } from '../../../shared/constants';
+import { TextModal } from '../modals/TextModal';
+import { router } from '../utils/Router';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { Button } from './Button';
 
 export class ReadyButton extends Button {
 	constructor(parent: HTMLElement) {
-		super('Start', () => this.readyClicked(), parent);
+		super('Ready', () => this.readyClicked(), parent);
 	}
 
 	private readyClicked() {
 		const matchID = sessionStorage.getItem('matchID');
 		if (!matchID) {
+			new TextModal(router.currentScreen!.element, 'No match ID found');
 			console.error('No match ID found in session storage');
 			return;
 		}

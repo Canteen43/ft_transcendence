@@ -15,13 +15,6 @@ import { MessageSchema } from '../../../shared/schemas/message';
 import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
-import { updateTournamentMatchData } from '../utils/updateTurnMatchData';
-// import { updateTournamentScreen } from '../utils/updateTurnScreen';
-import {
-	FullTournamentSchema,
-	TournamentQueueSchema,
-} from '../../../shared/schemas/tournament';
-import { apiCall } from '../utils/apiCall';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
 export function gameListener(event: MessageEvent) {
@@ -34,19 +27,19 @@ export function gameListener(event: MessageEvent) {
 
 		switch (msg.t) {
 			case MESSAGE_START_TOURNAMENT:
-				alert('Start Tournament: ' + JSON.stringify(msg));
+				alert('#GAME Start Tournament: ' + JSON.stringify(msg));
 				break;
 
 			case MESSAGE_ACCEPT:
-				alert('Accept: ' + JSON.stringify(msg));
+				alert('#GAME Accept: ' + JSON.stringify(msg));
 				break;
 
 			case MESSAGE_START:
-				alert('Start: ' + JSON.stringify(msg));
+				alert('#GAME Start: ' + JSON.stringify(msg));
 				break;
 
 			case MESSAGE_PAUSE:
-				alert('Pause: ' + JSON.stringify(msg));
+				alert('#GAME Pause: ' + JSON.stringify(msg));
 				break;
 			case MESSAGE_QUIT:
 				location.hash = '#home';
@@ -57,13 +50,13 @@ export function gameListener(event: MessageEvent) {
 					);
 				}, 100);
 				break;
+				// TODO : maybe remove the refreshing and redirecting when we are on the game
 			case MESSAGE_FINISH:
 				console.info('Received finish message:', msg);
-				if (location.hash != '#game') {
+				if (state.gameOngoing = false) {
 					console.debug(
-						'Finish messages while not on the game screen -> refresh tournament'
+						'Received finish, no game ongoing, redirecting to tournament'
 					);
-					location.hash = '';
 					location.hash = '#tournament';
 				}
 
