@@ -14,8 +14,9 @@ export class WaitingModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
-		document.addEventListener('gameReady', this.gameReadyHandler);
+		this.box.classList.add('waiting-modal');
+
+		document.addEventListener('2plyrsGameReady', this.gameReadyHandler);
 		this.printMessageLoader();
 	}
 
@@ -33,7 +34,7 @@ export class WaitingModal extends Modal {
 				`Failed to leave tournament: ${error.message}`
 			);
 		}
-		document.removeEventListener('gameReady', () => this.nextStep());
+		document.removeEventListener('2plyrsGameReady', () => this.nextStep());
 		super.quit();
 	}
 
@@ -57,7 +58,7 @@ export class WaitingModal extends Modal {
 	}
 
 	public destroy() {
-		document.removeEventListener('gameReady', () => this.nextStep());
+		document.removeEventListener('2plyrsGameReady', () => this.nextStep());
 		super.destroy();
 	}
 }

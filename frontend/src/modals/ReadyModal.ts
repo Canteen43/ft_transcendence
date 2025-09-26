@@ -6,6 +6,8 @@ import { Modal } from './Modal';
 export class ReadyModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
+		this.box.classList.add('ready-modal');
+		
 		new ReadyButton(this.box);
 	}
 

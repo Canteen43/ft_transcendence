@@ -5,17 +5,20 @@ import {
 	clearTournData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
+import { apiCall } from '../utils/apiCall';
+import { TextModal } from './TextModal';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
 
 export class RemoteGameModal extends Modal {
+	private btn2plyr: Button;
+	private btnTourn: Button;
+
 	constructor(parent: HTMLElement) {
 		super(parent);
+		this.box.classList.add('remote-modal');
 
-		clearMatchData();
-		clearTournData();
-		clearOtherGameData();
-		state.tournamentOngoing = false;
+
 
 		const img2 = document.createElement('img');
 		img2.src = '../../public/2_players.png';
@@ -25,11 +28,11 @@ export class RemoteGameModal extends Modal {
 		imgt.src = '../../public/trophy.png';
 		imgt.className = 'h-25  mx-auto';
 
-		const btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
-		const btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
+		this.btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
+		this.btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
 
 		// fixed button size
-		[btn2plyr, btnTourn].forEach(btn => {
+		[this.btn2plyr, this.btnTourn].forEach(btn => {
 			btn.element.classList.add(
 				'w-[300px]',
 				'h-[120px]',
@@ -38,16 +41,75 @@ export class RemoteGameModal extends Modal {
 				'justify-center',
 				'hover:bg-[var(--color1bis)]',
 				'transition-colors',
-				'duration-300'
+				'duration-300',
+				'focus:outline-none',
+				'focus:ring-2',
+				'focus:ring-[var(--color1)]'
 			);
 		});
 
 		// modal box background
+		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
+
+		this.btn2plyr.element.focus();
+		this.btn2plyr.element.tabIndex = 0;
+		this.btnTourn.element.tabIndex = 0;
 	}
 
-	private logicRemote(tournamentSize: number) {
+
+	private addEnterListener() {
+		const buttonConfigs = [
+			{ button: this.btn2plyr, player: 2 },
+			{ button: this.btnTourn, player: 4 },
+		];
+
+		buttonConfigs.forEach(({ button, player }) => {
+			button.element.addEventListener('keydown', (e: KeyboardEvent) => {
+
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					this.logicRemote(player);
+				}
+
+				// Arrow key navigation
+				if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+					e.preventDefault();
+					const buttons = [this.btn2plyr, this.btnTourn];
+					const currentIndex = buttons.indexOf(button);
+					const nextIndex = (currentIndex + 1) % buttons.length;
+					buttons[nextIndex].element.focus();
+				}
+
+				if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+					e.preventDefault();
+					const buttons = [this.btn2plyr, this.btnTourn];
+					const currentIndex = buttons.indexOf(button);
+					const prevIndex =
+						(currentIndex - 1 + buttons.length) % buttons.length;
+					buttons[prevIndex].element.focus();
+				}
+			});
+		});
+	}
+
+	private async logicRemote(tournamentSize: number) {
+		
+		const { error } = await apiCall('POST', `/tournaments/leave`);
+				if (error) {
+					console.error('Error leaving tournament:', error);
+					new TextModal(
+						this.parent,
+						`Failed to leave tournament: ${error.message}`
+					);
+				}
+		clearMatchData();
+		clearTournData();
+		clearOtherGameData();
+		state.tournamentOngoing = false;
+
+
 		state.gameMode = 'remote';
 		state.tournamentOngoing = true;
 		state.tournamentSize = tournamentSize;
