@@ -201,7 +201,7 @@ export class Pong3D {
 	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 120; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -564,34 +564,17 @@ export class Pong3D {
 
 		// Reduce intensity of imported lights
 		try {
-			// Reduced logging for lights setup
-			// this.conditionalLog(`🔍 Debugging lights in scene: Found ${scene.lights.length} lights total`);
+			
 
 			scene.lights.forEach(light => {
-				// Reduced light debugging - only log on errors
-				// this.conditionalLog(`Light ${index + 1}:`, {
-				// 	name: light.name,
-				// 	type: light.getClassName(),
-				// 	intensity: (light as any).intensity,
-				// 	position:
-				// 		light instanceof BABYLON.DirectionalLight ||
-				// 		light instanceof BABYLON.SpotLight
-				// 			? (light as any).position
-				// 			: 'N/A',
-				// 	enabled: light.isEnabled(),
-				// });
+
 
 				if (light && typeof (light as any).intensity === 'number') {
 					(light as any).intensity =
 						(light as any).intensity * this.importedLightScale;
 				}
 			});
-			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(
-					'Adjusted imported light intensities by factor',
-					this.importedLightScale
-				);
-			}
+
 		} catch (e) {
 			this.conditionalWarn('Could not adjust light intensities:', e);
 		}
@@ -1862,24 +1845,23 @@ export class Pong3D {
 			}
 		}
 
-		// Check if the server hit the ball into their own goal - no point awarded
+		// Skip scoring only for direct-serve own goals (server never lost possession)
 		if (
 			this.currentServer === goalPlayer &&
 			this.lastPlayerToHitBall === this.currentServer &&
-			this.secondLastPlayerToHitBall !== -1 // Only if ball was hit by someone else first
+			this.secondLastPlayerToHitBall === -1
 		) {
 			this.conditionalLog(
-				`🏓 SERVER OWN GOAL! Player ${goalPlayer + 1} (server) hit the ball into their own goal after being hit by others - no point awarded`
+				`🏓 DIRECT SERVE OWN GOAL by Player ${goalPlayer + 1} - no point awarded`
 			);
-			// Skip awarding the point and just reset for next rally
-			this.currentServer = goalPlayer; // Conceding player serves next
+			this.currentServer = goalPlayer;
 			this.secondLastPlayerToHitBall = -1;
 			this.lastGoalTime = performance.now();
-			return; // Exit without awarding points
 		}
 
-		// Check if the same player hit the ball twice in a row - no point awarded
+		// Check if the same player hit the ball twice in a row - no point awarded (except own goals)
 		if (
+			!wasOwnGoal &&
 			scoringPlayer === this.secondLastPlayerToHitBall &&
 			scoringPlayer !== -1
 		) {
@@ -1950,6 +1932,11 @@ export class Pong3D {
 				this.conditionalLog(`🏆 Physics engine disabled - game ended`);
 			}
 
+			// Stop the active game loop so no further updates or network messages are emitted
+			if (this.gameLoop) {
+				this.gameLoop.stop();
+			}
+
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
@@ -1969,12 +1956,23 @@ export class Pong3D {
 				this.conditionalLog(
 					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
 				);
-				if (sessionStorage.getItem('tournament') === '1') {
+				// if we are in a tournament redirect to tournament page
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '1'
+				) {
+					console.debug(
+						'remote game, tourn = 1 -> redirecting to tournament'
+					);
 					location.hash = '#tournament';
 				}
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '0'
+				) {
+					location.hash = '#home';
+				}
 			}, 7000);
-
-			// if we are in a tournament redirect to tournament page
 
 			// Call the goal callback for any additional handling
 			if (this.onGoalCallback) {
@@ -2796,6 +2794,55 @@ export class Pong3D {
 		if (!this.inputHandler) return;
 
 		// Get current game state for AI
+		const paddleAxes = Array.from({ length: 4 }, (_, i) => {
+			if (this.playerCount === 3) {
+				const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+				const angle = angles[i] ?? 0;
+				return {
+					x: Math.cos(angle),
+					z: Math.sin(angle),
+				};
+			}
+			if (this.playerCount === 4) {
+				return i >= 2 ? { x: 0, z: 1 } : { x: 1, z: 0 };
+			}
+			return { x: 1, z: 0 };
+		});
+
+		const paddleOrigins = Array.from({ length: 4 }, (_, i) => {
+			const origin = this.originalGLBPositions[i];
+			return origin ? { x: origin.x, z: origin.z } : { x: 0, z: 0 };
+		});
+
+		const paddlePositionsAlongAxis = Array.from({ length: 4 }, (_, i) => {
+			const axis = paddleAxes[i];
+			const origin = paddleOrigins[i];
+			if (!axis) {
+				return this.gameState.paddlePositionsX[i] || 0;
+			}
+			const axisVec = new BABYLON.Vector3(axis.x, 0, axis.z);
+			if (axisVec.lengthSquared() <= 1e-6) {
+				return this.gameState.paddlePositionsX[i] || 0;
+			}
+			axisVec.normalize();
+			const originVec = new BABYLON.Vector3(origin.x, 0, origin.z);
+			const paddle = this.paddles[i];
+			if (paddle) {
+				const relative = new BABYLON.Vector3(
+					paddle.position.x - originVec.x,
+					0,
+					paddle.position.z - originVec.z
+				);
+				return BABYLON.Vector3.Dot(relative, axisVec);
+			}
+			// Fallback: derive from stored game state values
+			if (this.playerCount === 4 && i >= 2) {
+				const storedZ = this.gameState.paddlePositionsY?.[i] || 0;
+				return storedZ - originVec.z;
+			}
+			return this.gameState.paddlePositionsX[i] || 0;
+		});
+
 		const gameStateForAI: GameStateForAI = {
 			ball: {
 				position: this.ballMesh
@@ -2820,6 +2867,9 @@ export class Pong3D {
 					: { x: 0, y: 0, z: 0 },
 			},
 			paddlePositionsX: [...this.gameState.paddlePositionsX],
+			paddlePositionsAlongAxis,
+			paddleAxes,
+			paddleOrigins,
 			courtBounds: {
 				xMin: this.boundsXMin || -5,
 				xMax: this.boundsXMax || 5,
@@ -3080,6 +3130,13 @@ export class Pong3D {
 	}
 
 	private updatePaddles(): void {
+		if (this.gameEnded) {
+			return;
+		}
+		const loopRunning = this.gameLoop?.getGameState().isRunning ?? true;
+		if (!loopRunning) {
+			return;
+		}
 		// Maintain constant ball velocity
 		this.maintainConstantBallVelocity();
 
@@ -3095,7 +3152,7 @@ export class Pong3D {
 			p4Right: false,
 		};
 
-		console.log(`🎮 Paddle update - keyState:`, keyState);
+		this.conditionalLog(`🎮 Paddle update - keyState:`, keyState);
 
 		// Key state arrays for easy iteration
 		const leftKeys = [
@@ -3135,7 +3192,7 @@ export class Pong3D {
 				this.gameState.paddlePositionsX[i] = paddle.position.x;
 			}
 
-			console.log(
+			this.conditionalLog(
 				`🔄 Player ${i + 1} position synced: physics=${paddle.position.x.toFixed(3)}, gameState=${this.gameState.paddlePositionsX[i]?.toFixed(3) || 'N/A'}`
 			);
 
@@ -3214,7 +3271,7 @@ export class Pong3D {
 			// Get player input
 			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
 
-			console.log(
+			this.conditionalLog(
 				`🎮 Player ${i + 1} input: left=${leftKeys[i]}, right=${rightKeys[i]}, inputDir=${inputDir}`
 			);
 
@@ -4299,6 +4356,13 @@ export class Pong3D {
 			return;
 		}
 
+		if (!this.gameLoop?.getGameState().isRunning || this.gameEnded) {
+			this.conditionalLog(
+				'🎮 Ignoring score update because client game is not running'
+			);
+			return;
+		}
+
 		// Find the player index from the UID
 		let scoringPlayerIndex = -1;
 		for (let i = 0; i < this.playerCount; i++) {
@@ -4323,12 +4387,16 @@ export class Pong3D {
 
 		// Update the score
 		this.playerScores[scoringPlayerIndex]++;
-		this.conditionalLog(
+		console.log(
+			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
+		);
+				console.warn(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
 
 		// Update the UI
 		this.updatePlayerInfoDisplay();
+
 
 		// Check if player has won
 		if (this.playerScores[scoringPlayerIndex] >= this.WINNING_SCORE) {
@@ -4363,10 +4431,22 @@ export class Pong3D {
 				);
 
 				// if we are in a tournament redirect to tournament page
-				if (sessionStorage.getItem('tournament') === '1') {
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '1'
+				) {
+					console.debug(
+						'remote game, tourn = 1 -> redirect to tournament'
+					);
 					location.hash = '#tournament';
 				}
-			}, 7000);
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
+					sessionStorage.getItem('tournament') === '0'
+				) {
+					location.hash = '#home';
+				}
+			}, 2000);
 		}
 	}
 

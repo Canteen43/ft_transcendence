@@ -4,6 +4,7 @@ import { Modal } from '../modals/Modal';
 export class TextModal extends Modal {
 	private notification: string;
 	private textEl: HTMLParagraphElement;
+	private okayButton: Button;
 
 	constructor(parent: HTMLElement, notification: string) {
 		super(parent);
@@ -13,14 +14,21 @@ export class TextModal extends Modal {
 		// Create text element
 		this.textEl = document.createElement('p');
 		this.textEl.textContent = this.notification;
-		this.textEl.className = 'text-center text-lg text-gray-800';
+		this.textEl.className = 'text-center text-lg text-[var(--color3)]';
 		this.box.appendChild(this.textEl);
 
 		// Create OK button using a class method
-		void new Button('Okay', this.onClick.bind(this), this.box);
+		this.okayButton = new Button('Okay', this.onClick.bind(this), this.box);
+		// Focus the button so that enter works
+		this.okayButton.element.focus();
 	}
 
 	private onClick(): void {
 		this.destroy();
+		// call external callback if provided
+		if (this.onClose) this.onClose();
 	}
+
+	// optional callback fired when the modal closes
+	public onClose?: () => void;
 }
