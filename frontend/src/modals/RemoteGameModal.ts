@@ -18,8 +18,6 @@ export class RemoteGameModal extends Modal {
 		super(parent);
 		this.box.classList.add('remote-modal');
 
-
-
 		const img2 = document.createElement('img');
 		img2.src = '../../public/2_players.png';
 		img2.className = 'h-25  mx-auto';

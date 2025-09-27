@@ -7,6 +7,7 @@ export class LocalGameModal extends Modal {
 	private btn2: Button;
 	private btn3: Button;
 	private btn4: Button;
+	private btnT: Button;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -23,13 +24,34 @@ export class LocalGameModal extends Modal {
 		img4.src = '../../public/4_players.png';
 		img4.className = 'h-[100px]';
 
+		const imgt = document.createElement('img');
+		imgt.src = '../../public/trophy.png';
+		imgt.className = 'h-[100px]';
+
 		// create buttons with images inside
-		this.btn2 = new Button(img2, () => this.setupLocalGame(2), this.box);
-		this.btn3 = new Button(img3, () => this.setupLocalGame(3), this.box);
-		this.btn4 = new Button(img4, () => this.setupLocalGame(4), this.box);
+		this.btn2 = new Button(
+			img2,
+			() => this.setupLocalGame(2, false),
+			this.box
+		);
+		this.btn3 = new Button(
+			img3,
+			() => this.setupLocalGame(3, false),
+			this.box
+		);
+		this.btn4 = new Button(
+			img4,
+			() => this.setupLocalGame(4, false),
+			this.box
+		);
+		this.btnT = new Button(
+			imgt,
+			() => this.setupLocalGame(4, true),
+			this.box
+		);
 
 		// fixed button size
-		[this.btn2, this.btn3, this.btn4].forEach(btn => {
+		[this.btn2, this.btn3, this.btn4, this.btnT].forEach(btn => {
 			btn.element.classList.add(
 				'w-[300px]',
 				'h-[120px]',
@@ -54,21 +76,22 @@ export class LocalGameModal extends Modal {
 		this.btn2.element.tabIndex = 0;
 		this.btn3.element.tabIndex = 0;
 		this.btn4.element.tabIndex = 0;
+		this.btnT.element.tabIndex = 0;
 	}
 
 	private addEnterListener() {
 		const buttonConfigs = [
-			{ button: this.btn2, player: 2 },
-			{ button: this.btn3, player: 3 },
-			{ button: this.btn4, player: 4 },
+			{ button: this.btn2, player: 2, tourn: false },
+			{ button: this.btn3, player: 3, tourn: false },
+			{ button: this.btn4, player: 4, tourn: false },
+			{ button: this.btnT, player: 4, tourn: true },
 		];
 
-		buttonConfigs.forEach(({ button, player }) => {
+		buttonConfigs.forEach(({ button, player, tourn }) => {
 			button.element.addEventListener('keydown', (e: KeyboardEvent) => {
-
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
-					this.setupLocalGame(player);
+					this.setupLocalGame(player, tourn);
 				}
 
 				// Arrow key navigation
@@ -92,12 +115,15 @@ export class LocalGameModal extends Modal {
 		});
 	}
 
-	private setupLocalGame(n: number) {
+	private setupLocalGame(n: number, tourn: boolean) {
+		state.gameMode = 'local';
+		sessionStorage.setItem('gameMode', 'local');
+		state.playerCount = n;
 		sessionStorage.setItem('playerCount', n.toString());
 		sessionStorage.setItem('thisPlayer', '1');
-		sessionStorage.setItem('gameMode', 'local');
-		state.gameMode = 'local';
-		state.playerCount = n;
+		if (tourn == true) {
+			sessionStorage.setItem('tounament', '1');
+		}
 		new AliasModal(this.parent, n);
 		this.destroy();
 	}
