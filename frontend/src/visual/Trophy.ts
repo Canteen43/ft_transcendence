@@ -123,6 +123,7 @@ export class Trophy {
 		this.canvas = document.createElement('canvas');
 		this.canvas.style.width = '100%';
 		this.canvas.style.height = '100%';
+		this.canvas.style.zIndex = '9';
 		container.appendChild(this.canvas);
 
 		// Initialize Babylon.js engine with alpha support
