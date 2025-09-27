@@ -46,27 +46,34 @@
 	--font-ignazio: 'Ignazio', sans-serif;
 	--font-justsans: 'JustSans', sans-serif;
 	--font-rubik: 'Rubik Microbe', sans-serif;
-	--font-sigmar: 'Sigmar', sans-serif; 
+	--font-sigmar: 'Sigmar', sans-serif;
 }
 
 :root {
-  --color1: #dee5e6;
-  --color1bis: rgb(0, 24, 238);
+	--color1: #dee5e6;
+	--color1bis: rgb(0, 24, 238);
 	--color2: #aeafbb;
 	--color3: #0d1453ff;
 	--color4: rgb(0, 24, 238);
-  --color5: #f7ed63;
+	--color5: #f7ed63;
 }
 
 /* ==============================
    5. Floating animation
 ============================== */
 @keyframes float {
-  0%   { transform: translate(0, 0); }
-  50%  { transform: translate(15px, -10px); }
-  100% { transform: translate(0, 0); }
+	0% {
+		transform: translate(0, 0);
+	}
+	50% {
+		transform: translate(15px, -10px);
+	}
+	100% {
+		transform: translate(0, 0);
+	}
 }
 
 .floating-title {
-  animation: float 6s ease-in-out infinite;
+	animation: float 6s ease-in-out infinite;
 }
+

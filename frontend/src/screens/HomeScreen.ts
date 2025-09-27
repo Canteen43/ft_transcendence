@@ -25,7 +25,7 @@ export class HomeScreen extends Screen {
 			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
 
 		const threeDContainer = document.createElement('div');
-		threeDContainer.className = 'w-full h-64'; // 3D title area - why 64
+		threeDContainer.className = 'w-full h-screen'; // 3D title area - why 64
 		this.element.appendChild(threeDContainer);
 		this.title3D = new Landing(threeDContainer, '/landingpage.glb', {
 			onLocalGameClick: () => this.localLogic(),

@@ -13,10 +13,11 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
-import { ReplayModal } from '../modals/ReplayModal';
+import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { Trophy } from '../visual/Trophy';
 import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
@@ -38,7 +39,6 @@ import {
 	getAIDifficultyFromName,
 	Pong3DAI,
 } from './pong3DAI';
-import { Trophy } from '../visual/Trophy';
 
 // ============================================================================
 
@@ -569,17 +569,12 @@ export class Pong3D {
 
 		// Reduce intensity of imported lights
 		try {
-			
-
 			scene.lights.forEach(light => {
-
-
 				if (light && typeof (light as any).intensity === 'number') {
 					(light as any).intensity =
 						(light as any).intensity * this.importedLightScale;
 				}
 			});
-
 		} catch (e) {
 			this.conditionalWarn('Could not adjust light intensities:', e);
 		}
@@ -1951,7 +1946,14 @@ export class Pong3D {
 			// HELENE: i think it would be nice to have the button right away
 			if (this.gameMode == 'local') {
 				if (this.gameScreen) {
-					new ReplayModal(this.gameScreen);
+					new TextModal(
+						this.gameScreen.element,
+						undefined,
+						'Play Again!',
+						() => {
+							this.gameScreen?.reloadPong();
+						}
+					);
 				} else {
 					this.conditionalWarn(
 						'GameScreen reference not available for ReplayModal'
@@ -4400,13 +4402,12 @@ export class Pong3D {
 		console.log(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
-				console.warn(
+		console.warn(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
 
 		// Update the UI
 		this.updatePlayerInfoDisplay();
-
 
 		// Check if player has won
 		if (this.playerScores[scoringPlayerIndex] >= this.WINNING_SCORE) {
@@ -4433,16 +4434,16 @@ export class Pong3D {
 				this.gameLoop.stop();
 			}
 
-				// Wait 2 seconds for victory handling before redirecting when acting as master
-				setTimeout(() => {
-					state.gameOngoing = false;
-					this.conditionalLog(
-						'🏆 Victory handler delay finished, gameOngoing set to false'
-					);
+			// Wait 2 seconds for victory handling before redirecting when acting as master
+			setTimeout(() => {
+				state.gameOngoing = false;
+				this.conditionalLog(
+					'🏆 Victory handler delay finished, gameOngoing set to false'
+				);
 
-					// if we are in a tournament redirect to tournament page
-					if (
-						sessionStorage.getItem('gameMode') === 'remote' &&
+				// if we are in a tournament redirect to tournament page
+				if (
+					sessionStorage.getItem('gameMode') === 'remote' &&
 					sessionStorage.getItem('tournament') === '1'
 				) {
 					console.debug(
@@ -4456,8 +4457,8 @@ export class Pong3D {
 				) {
 					location.hash = '#home';
 				}
-				}, 2000);
-			}
+			}, 2000);
+		}
 	}
 
 	/**
@@ -4535,7 +4536,10 @@ export class Pong3D {
 
 		const aliasKey = `alias${winningPlayerIndex + 1}`;
 		const alias = sessionStorage.getItem(aliasKey);
-		const winnerName = alias || this.playerNames[winningPlayerIndex] || `Player ${winningPlayerIndex + 1}`;
+		const winnerName =
+			alias ||
+			this.playerNames[winningPlayerIndex] ||
+			`Player ${winningPlayerIndex + 1}`;
 		sessionStorage.setItem('winner', winnerName);
 		this.showLocalTournamentTrophy(winnerName);
 	}
@@ -4550,7 +4554,8 @@ export class Pong3D {
 			this.trophyContainer = null;
 		}
 
-		const host = this.gameScreen?.element ?? this.container ?? document.body;
+		const host =
+			this.gameScreen?.element ?? this.container ?? document.body;
 		const overlay = document.createElement('div');
 		Object.assign(overlay.style, {
 			position: 'fixed',

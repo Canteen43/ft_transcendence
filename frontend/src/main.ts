@@ -18,10 +18,10 @@ const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col';
 
 // Create particles background
-createParticlesBackground(app);
-requestAnimationFrame(() => {
-	void initParticles();
-});
+// createParticlesBackground(app);
+// requestAnimationFrame(() => {
+// 	void initParticles();
+// });
 
 router.init();
 new AuthComponent(app);

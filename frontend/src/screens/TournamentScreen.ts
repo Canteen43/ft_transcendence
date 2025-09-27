@@ -46,20 +46,39 @@ export class TournamentScreen extends Screen {
 			.player-slot {
 				background: var(--color1);
 				color: var(--color3);
+				transition: all 0.3s ease;
 			}
 			.player-slot.winner {
 				background: var(--color2);
 				color: var(--color3);
-				box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+				box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.4);
+				transform: scale(1.05);
+				border: 3px solid var(--color2);
+				font-weight: bold;
+				animation: winnerPulse 2s infinite;
 			}
-			.bracket-line-horizontal { height: 4px; background-color: var(--color1); }
-			.bracket-line-vertical { width: 4px; background-color: var(--color1); }
+			@keyframes winnerPulse {
+				0%, 100% { 
+					box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.4);
+				}
+				50% { 
+					box-shadow: 0 0 40px rgba(0, 255, 136, 1), 0 0 80px rgba(0, 255, 136, 0.6);
+				}
+			}
+			.bracket-line-horizontal { 
+				height: 4px; 
+				background-color: var(--color1); 
+			}
+			.bracket-line-vertical { 
+				width: 4px; 
+				background-color: var(--color1); 
+			}
 		`;
 		document.head.appendChild(style);
 	}
 
 	private render() {
-		 this.element.innerHTML = '';
+		this.element.innerHTML = '';
 
 		this.element.className =
 			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
@@ -72,11 +91,11 @@ export class TournamentScreen extends Screen {
 		);
 		title.textContent = 'TOURNAMENT';
 
-		// Tournament bracket container
+		// Tournament bracket container - made wider for bigger slots
 		const bracketGrid = this.createElement(
 			this.element,
 			'div',
-			'bracket-grid grid grid-cols-7 gap-4 items-center max-w-6xl mx-auto mb-8'
+			'bracket-grid grid grid-cols-7 gap-6 items-center max-w-7xl mx-auto mb-8'
 		);
 		this.renderBracket(bracketGrid);
 
@@ -257,9 +276,12 @@ export class TournamentScreen extends Screen {
 	): HTMLElement {
 		const slot = document.createElement('div');
 		slot.className =
-			'player-slot rounded-lg px-4 py-3 text-center font-semibold text-lg';
+			'player-slot rounded-lg px-6 py-4 text-center font-semibold text-xl ' +
+			'min-h-[60px] min-w-[160px] flex items-center justify-center ' +
+			'truncate max-w-[200px] border-2 border-transparent';
 		slot.textContent = playerIdText;
 		slot.setAttribute('data-player', playerId);
+		slot.title = playerIdText; // Show full text on hover
 		return slot;
 	}
 

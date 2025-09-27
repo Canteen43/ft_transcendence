@@ -1,4 +1,4 @@
-import { LeaveGameConfirmationModal } from '../modals/LeaveConfirmModal';
+import { TextModal } from '../modals/TextModal';
 import { state } from '../utils/State';
 
 export class HomeButton {
@@ -35,7 +35,14 @@ export class HomeButton {
 
 	private handleHomeClick = () => {
 		if (location.hash === '#game' || state.gameOngoing) {
-			new LeaveGameConfirmationModal(this.button.parentElement!);
+			new TextModal(
+				this.button.parentElement!,
+				undefined,
+				'Leave',
+				() => {
+					location.hash = '#home';
+				}
+			);
 		} else location.hash = '#home';
 	};
 

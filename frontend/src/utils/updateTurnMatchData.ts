@@ -31,7 +31,10 @@ export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
 
 	if (!tournData) {
 		console.error('Getting tournament data failed - no data returned');
-		new TextModal(router.currentScreen!.element, 'Failed to get tournament data');
+		new TextModal(
+			router.currentScreen!.element,
+			'Failed to get tournament data'
+		);
 		return;
 	}
 	console.log('Tournament data received:', tournData);
@@ -44,7 +47,10 @@ export function updateTournamentMatchData(tournData: any): void {
 	const userID = sessionStorage.getItem('userID');
 	if (!userID) {
 		console.error('No user ID found in session storage');
-		new TextModal(router.currentScreen!.element , 'User session expired. Please log in again.');
+		new TextModal(
+			router.currentScreen!.element,
+			'User session expired. Please log in again.'
+		);
 		return;
 	}
 
@@ -146,6 +152,7 @@ export function updateTournamentMatchData(tournData: any): void {
 				'winner',
 				tournWinnerAlias || tournamentwinnerUserId
 			);
+			sessionStorage.setItem('tournament', '0');
 		}
 
 		// Tournament first round

@@ -106,7 +106,7 @@ export class AliasModal extends Modal {
 		dropdown.className = 
 			'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
 			'bg-white border border-[var(--color3)] rounded-lg shadow-lg ' +
-			'z-50 overflow-hidden';
+			'z-10 overflow-hidden';
 
 		this.aiOptions.forEach((option, i) => {
 			const optionButton = document.createElement('button');
