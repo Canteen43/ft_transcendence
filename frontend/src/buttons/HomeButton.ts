@@ -6,6 +6,8 @@ export class HomeButton {
 	private img: HTMLImageElement;
 	private onEnter: () => void;
 	private onLeave: () => void;
+	private onEnter: () => void;
+	private onLeave: () => void;
 
 	constructor(
 		parent: HTMLElement,
@@ -14,6 +16,7 @@ export class HomeButton {
 	) {
 		this.button = document.createElement('button');
 		this.button.className =
+			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
 			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
 
 		this.img = document.createElement('img');
@@ -25,7 +28,12 @@ export class HomeButton {
 		this.onEnter = () => (this.img.src = hoverImgSrc);
 		this.onLeave = () => (this.img.src = imgSrc);
 
+		this.onEnter = () => (this.img.src = hoverImgSrc);
+		this.onLeave = () => (this.img.src = imgSrc);
+
 		// change image on hover
+		this.button.addEventListener('mouseenter', this.onEnter);
+		this.button.addEventListener('mouseleave', this.onLeave);
 		this.button.addEventListener('mouseenter', this.onEnter);
 		this.button.addEventListener('mouseleave', this.onLeave);
 		this.button.addEventListener('click', this.handleHomeClick);
@@ -47,6 +55,8 @@ export class HomeButton {
 	};
 
 	destroy() {
+		this.button.removeEventListener('mouseenter', this.onEnter);
+		this.button.removeEventListener('mouseleave', this.onLeave);
 		this.button.removeEventListener('mouseenter', this.onEnter);
 		this.button.removeEventListener('mouseleave', this.onLeave);
 		this.button.removeEventListener('click', this.handleHomeClick);
