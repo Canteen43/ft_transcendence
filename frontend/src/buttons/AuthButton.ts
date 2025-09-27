@@ -37,7 +37,7 @@ export class AuthComponent {
 			'top-4',
 			'right-4',
 			'fixed',
-			'w-50',
+			'w-51',
 			'z-10',
 			'text-center',
 			'truncate'

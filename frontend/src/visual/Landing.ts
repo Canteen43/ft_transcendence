@@ -36,6 +36,7 @@ export class Landing {
 		this.canvas.style.top = '0';
 		this.canvas.style.left = '0';
 		this.canvas.style.zIndex = '1';
+
 		container.appendChild(this.canvas);
 
 		// Initialize Babylon
@@ -60,29 +61,6 @@ export class Landing {
 		window.addEventListener('resize', () => this.engine.resize());
 	}
 
-	private setupCamera(): void {
-		this.camera = new BABYLON.ArcRotateCamera(
-			'camera',
-			-Math.PI / 3, //looking from the left (-90°)
-			Math.PI / 2, // you’re looking down at an angle 60
-			7, // distance between the camera and the target
-			BABYLON.Vector3.Zero(), // pointed at the origin
-			this.scene
-		);
-
-		// Enable mouse controls
-		// hook the camera to the HTML canvas so the user can control it with mouse/touch
-		this.camera.attachControl(this.canvas, true);
-
-		// Set limits
-		this.camera.lowerRadiusLimit = 5; //smallest allowed radius (closest to target)
-		this.camera.upperRadiusLimit = 150; //largest allowed radius
-		this.camera.lowerBetaLimit = -5;
-		this.camera.upperBetaLimit = 5;
-
-		console.log('✅ Camera setup complete');
-	}
-
 	private setupLighting(): void {
 		// Bright ambient light
 		const ambientLight = new BABYLON.HemisphericLight(
@@ -100,9 +78,55 @@ export class Landing {
 		);
 		directionalLight.intensity = 1.5;
 
-		console.log('✅ Lighting setup complete');
+		// Create skybox with your background image
+		const skybox = BABYLON.MeshBuilder.CreateSphere(
+			'skybox',
+			{ diameter: 100 },
+			this.scene
+		);
+		skybox.isPickable = false;
+		const skyboxMaterial = new BABYLON.StandardMaterial(
+			'skybox',
+			this.scene
+		);
+		skyboxMaterial.backFaceCulling = false;
+		// skyboxMaterial.diffuseTexture = new BABYLON.Texture(
+		// 	'/wasteland.hdr',
+		// 	this.scene
+		// );
+		skyboxMaterial.diffuseTexture = new BABYLON.Texture(
+			'/wasteland.hdr',
+			this.scene
+		);
+		skybox.material = skyboxMaterial;
+		skybox.infiniteDistance = true;
+
+		console.log('✅ Lighting and skybox setup complete');
 	}
 
+	private setupCamera(): void {
+		this.camera = new BABYLON.ArcRotateCamera(
+			'camera',
+			-Math.PI / 3, //looking from the left
+			Math.PI / 2, // you’re looking down at an angle 60
+			7, // distance between the camera and the target
+			BABYLON.Vector3.Zero(), // pointed at the origin
+			this.scene
+		);
+
+		// Enable mouse controls
+		// hook the camera to the HTML canvas so the user can control it with mouse/touch
+		this.camera.attachControl(this.canvas, true);
+
+		// Set limits
+		this.camera.lowerRadiusLimit = 5; //smallest allowed radius (closest to target)
+		this.camera.upperRadiusLimit = 150; //largest allowed radius
+		this.camera.lowerBetaLimit = -5;
+		this.camera.upperBetaLimit = 5;
+		this.camera.minZ = 0.1;
+		this.camera.maxZ = 100000;
+		console.log('✅ Camera setup complete');
+	}
 	private setupControls(): void {
 		// Debug any pointer events
 		this.scene.onPointerObservable.add(pointerInfo => {
@@ -144,6 +168,7 @@ export class Landing {
 				this.createFallbackScene();
 			}
 		);
+		// this.fitCameraToScene([this.localGameMesh!, this.remoteGameMesh!]);
 	}
 
 	private onModelLoaded(meshes: BABYLON.AbstractMesh[]): void {
@@ -213,34 +238,34 @@ export class Landing {
 			console.log('❓ Unknown mesh clicked');
 		}
 	}
-
 	private fitCameraToScene(meshes: BABYLON.AbstractMesh[]): void {
 		if (meshes.length === 0) return;
 
-		let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
-		let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
-
-		meshes.forEach(mesh => {
-			const boundingInfo = mesh.getBoundingInfo();
-			min = BABYLON.Vector3.Minimize(
-				min,
-				boundingInfo.boundingBox.minimumWorld
-			);
-			max = BABYLON.Vector3.Maximize(
-				max,
-				boundingInfo.boundingBox.maximumWorld
-			);
-		});
+		// if meshes share a parent, use its bounding vectors
+		const rootNode = meshes[0].parent || meshes[0];
+		const { min, max } = rootNode.getHierarchyBoundingVectors();
 
 		const center = min.add(max).scale(0.5);
-		const size = max.subtract(min);
-		const maxSize = Math.max(size.x, size.y, size.z);
+		const maxSize = max.subtract(min).length();
 
+		this.camera.alpha = -Math.PI / 3;
+		this.camera.beta = Math.PI / 2;
 		this.camera.setTarget(center);
-		this.camera.radius = maxSize * 2;
+		this.camera.radius = maxSize * 1;
+		this.camera.minZ = 0.1;
+		this.camera.maxZ = 100000;
 
-		console.log('📹 Camera fitted to scene');
+		console.log(
+			'📹 Camera fitted to scene at',
+			center.toString(),
+			'radius',
+			this.camera.radius
+		);
+		this.scene.render();
+
+		console.log('📹 Camera fitted, radius', this.camera.radius);
 	}
+
 
 	private createFallbackScene(): void {
 		console.log('🔧 Creating fallback cubes...');
@@ -276,7 +301,6 @@ export class Landing {
 		);
 		remoteMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1); // Blue
 		this.remoteGameMesh.material = remoteMaterial;
-
 	}
 
 	public dispose(): void {
