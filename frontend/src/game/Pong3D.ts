@@ -14,6 +14,7 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { ReplayModal } from '../modals/ReplayModal';
+import { NextRoundModal } from '../modals/NextRoundModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
@@ -1946,12 +1947,26 @@ export class Pong3D {
 			this.updatePlayerInfoDisplay();
 
 			this.handleLocalTournamentVictory(scoringPlayer);
-			this.handleLocalTournamentElimination();
+			const eliminationResult = this.handleLocalTournamentElimination();
+			const isLocalTournament =
+				sessionStorage.getItem('gameMode') === 'local' &&
+				sessionStorage.getItem('tournament') === '1';
+			const skipModal =
+				isLocalTournament &&
+				!!eliminationResult &&
+				eliminationResult.tournamentFinished;
 
 			// HELENE: i think it would be nice to have the button right away
-			if (this.gameMode == 'local') {
+			if (this.gameMode == 'local' && !skipModal) {
 				if (this.gameScreen) {
-					new ReplayModal(this.gameScreen);
+					if (isLocalTournament && eliminationResult?.eliminatedAlias) {
+						new NextRoundModal(
+							this.gameScreen,
+							eliminationResult.eliminatedAlias
+						);
+					} else {
+						new ReplayModal(this.gameScreen);
+					}
 				} else {
 					this.conditionalWarn(
 						'GameScreen reference not available for ReplayModal'
@@ -4493,13 +4508,15 @@ export class Pong3D {
 		}
 	}
 
-	private handleLocalTournamentElimination(): void {
+	private handleLocalTournamentElimination():
+		| { eliminatedAlias: string; remainingPlayers: number; tournamentFinished: boolean }
+		| null {
 		const gameMode = sessionStorage.getItem('gameMode');
 		const tournamentFlag = sessionStorage.getItem('tournament');
-		if (gameMode !== 'local' || tournamentFlag !== '1') return;
+		if (gameMode !== 'local' || tournamentFlag !== '1') return null;
 
 		const activeScores = this.playerScores.slice(0, this.playerCount);
-		if (activeScores.length === 0) return;
+		if (activeScores.length === 0) return null;
 
 		const lowestScore = Math.min(...activeScores);
 		const lowestPlayers: number[] = [];
@@ -4507,24 +4524,33 @@ export class Pong3D {
 			if (activeScores[i] === lowestScore) lowestPlayers.push(i);
 		}
 
-		if (lowestPlayers.length !== 1) return;
+		if (lowestPlayers.length !== 1) return null;
 
 		const eliminatedIndex = lowestPlayers[0];
-		sessionStorage.removeItem(`alias${eliminatedIndex + 1}`);
+		const aliasKey = `alias${eliminatedIndex + 1}`;
+		const eliminatedAlias =
+			sessionStorage.getItem(aliasKey) ||
+			this.playerNames[eliminatedIndex] ||
+			`Player ${eliminatedIndex + 1}`;
+		sessionStorage.removeItem(aliasKey);
 
-		switch (sessionStorage.getItem('playerCount')) {
-			case '4':
-				sessionStorage.setItem('playerCount', '3');
-				break;
-			case '3':
-				sessionStorage.setItem('playerCount', '2');
-				break;
-			case '2':
-				sessionStorage.setItem('playerCount', '1');
-				break;
-			default:
-				break;
+		const currentCount = Number(
+			sessionStorage.getItem('playerCount') ?? `${this.playerCount}`
+		);
+		const tournamentFinished = currentCount <= 2;
+		let remainingPlayers = currentCount;
+
+		if (!tournamentFinished && currentCount > 0) {
+			remainingPlayers = currentCount - 1;
+			sessionStorage.setItem('playerCount', `${remainingPlayers}`);
+			this.playerCount = remainingPlayers;
+			state.playerCount = remainingPlayers;
+		} else {
+			// Keep player count at minimum 2 for the final match display
+			remainingPlayers = Math.max(currentCount, 2);
 		}
+
+		return { eliminatedAlias, remainingPlayers, tournamentFinished };
 	}
 
 	private handleLocalTournamentVictory(winningPlayerIndex: number): void {
@@ -4562,7 +4588,7 @@ export class Pong3D {
 			alignItems: 'center',
 			justifyContent: 'center',
 			pointerEvents: 'none',
-			zIndex: '9999',
+			zIndex: '9',
 		});
 		host.appendChild(overlay);
 		this.trophyContainer = overlay;
