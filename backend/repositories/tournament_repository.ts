@@ -1,16 +1,9 @@
 import z from 'zod';
 import { ERROR_FAILED_TO_CREATE_TOURNAMENT } from '../../shared/constants.js';
-import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
-import {
-	DatabaseError,
-	TournamentNotFoundError,
-} from '../../shared/exceptions.js';
+import { TournamentStatus } from '../../shared/enums.js';
+import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
-import {
-	CreateMatch,
-	UpdateMatch,
-	UpdateMatchSchema,
-} from '../../shared/schemas/match.js';
+import { CreateMatch, UpdateMatch } from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
 	Participant,
@@ -20,7 +13,6 @@ import {
 	Tournament,
 	TournamentSchema,
 	UpdateTournament,
-	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
@@ -120,23 +112,6 @@ export default class TournamentRepository {
 		if (!row) return null;
 		return TournamentSchema.parse(row);
 	}
-
-	// static cancelTournament(tournament_id: UUID) {
-	// 	const tournament = this.getTournament(tournament_id);
-	// 	if (!tournament)
-	// 		throw new TournamentNotFoundError('tournament id', tournament_id);
-	// 	tournament.status = TournamentStatus.Cancelled;
-	// 	const update = UpdateTournamentSchema.strip().parse(tournament);
-	// 	const matches = MatchRepository.getTournamentMatches(tournament_id);
-	// 	db.executeInTransaction(() => {
-	// 		this.updateTournament(tournament_id, update);
-	// 		for (const match of matches) {
-	// 			match.status = MatchStatus.Cancelled;
-	// 			const matchUpdate = UpdateMatchSchema.strip().parse(match);
-	// 			MatchRepository.updateMatch(match.id, matchUpdate);
-	// 		}
-	// 	});
-	// }
 
 	static cancelTournament(
 		tournament_id: UUID,
