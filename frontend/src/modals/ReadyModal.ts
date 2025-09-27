@@ -8,7 +8,8 @@ export class ReadyModal extends Modal {
 		super(parent);
 		this.box.classList.add('ready-modal');
 		
-		new ReadyButton(this.box);
+		const readyButton = new ReadyButton(this.box);
+		readyButton.element.focus();
 	}
 
 	public quit() {
