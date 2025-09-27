@@ -12,6 +12,7 @@ import {
 } from 'fastify-zod-openapi';
 import { authHook } from './hooks/auth.js';
 import matchRoutes from './routes/match.js';
+import statsRoutes from './routes/stats.js';
 import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
 import websocketRoutes from './routes/websocket.js';
@@ -40,7 +41,7 @@ export default async function fastifyInit(
 		...fastifyZodOpenApiTransformers,
 	});
 	await fastify.register(fastifySwaggerUI, {
-		routePrefix: '/docs'
+		routePrefix: '/docs',
 	});
 
 	// Set validators
@@ -58,6 +59,7 @@ export default async function fastifyInit(
 	await fastify.register(tournamentRoutes, { prefix: '/tournaments' });
 	await fastify.register(matchRoutes, { prefix: '/matches' });
 	await fastify.register(websocketRoutes, { prefix: '/websocket' });
+	await fastify.register(statsRoutes, { prefix: '/stats' });
 
 	fastify.addHook('preHandler', authHook);
 }

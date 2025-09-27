@@ -104,7 +104,9 @@ export class GameProtocol {
 		try {
 			this.quitAll(connectionId, QuitReason.Disconnect);
 		} catch (error) {
-			logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
+			if (error instanceof TournamentNotFoundError)
+				logger.debug(`${ERROR_QUIT}: ${formatError(error)}`);
+			else logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
 		}
 	}
 

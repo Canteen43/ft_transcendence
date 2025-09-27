@@ -41,6 +41,7 @@ CREATE TABLE tournament (
 		substr('89ab', 1 + (abs(random()) % 4), 1) || lower(substr(hex(randomblob(2)),2,3)) || '-' ||
 		lower(hex(randomblob(6)))
 	),
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	size INTEGER,
 	settings_id TEXT,
 	status TEXT CHECK (status IN ('pending', 'in_progress', 'finished', 'cancelled'))

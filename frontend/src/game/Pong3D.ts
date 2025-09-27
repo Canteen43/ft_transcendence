@@ -38,6 +38,7 @@ import {
 	getAIDifficultyFromName,
 	Pong3DAI,
 } from './pong3DAI';
+import { Trophy } from '../visual/Trophy';
 
 // ============================================================================
 
@@ -189,6 +190,9 @@ export class Pong3D {
 		| 4;
 	private local: boolean = false; // Local 2-player mode vs network play (only applies when playerCount = 2)
 	private gameEnded: boolean = false; // Flag to track if game has ended (winner declared)
+	private container: HTMLElement;
+	private trophyInstance: Trophy | null = null;
+	private trophyContainer: HTMLDivElement | null = null;
 
 	// === GAME PHYSICS CONFIGURATION ===
 
@@ -395,6 +399,7 @@ export class Pong3D {
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
 		// Player count comes from GameConfig, set by frontend when players are ready
+		this.container = container;
 		this.thisPlayer =
 			options?.thisPlayer ||
 			(GameConfig.getThisPlayer() as 1 | 2 | 3 | 4); // Set POV player (default from GameConfig)
@@ -1939,6 +1944,9 @@ export class Pong3D {
 
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
+
+			this.handleLocalTournamentVictory(scoringPlayer);
+			this.handleLocalTournamentElimination();
 
 			// HELENE: i think it would be nice to have the button right away
 			if (this.gameMode == 'local') {
@@ -3788,6 +3796,7 @@ export class Pong3D {
 
 	/** Start the game loop */
 	public startGame(): void {
+		this.clearLocalTournamentTrophy();
 		// If no current server is set (first game), pick a random player to serve from those with paddles
 		if (this.currentServer === -1) {
 			const validServers = [];
@@ -4145,6 +4154,7 @@ export class Pong3D {
 	 */
 	public dispose(): void {
 		this.conditionalLog('🧹 Disposing Pong3D instance...');
+		this.clearLocalTournamentTrophy();
 
 		// Stop the render loop first
 		if (this.engine) {
@@ -4423,16 +4433,16 @@ export class Pong3D {
 				this.gameLoop.stop();
 			}
 
-			// Wait 7 seconds for victory music to finish, then set game status and redirect if tournament
-			setTimeout(() => {
-				state.gameOngoing = false;
-				this.conditionalLog(
-					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
-				);
+				// Wait 2 seconds for victory handling before redirecting when acting as master
+				setTimeout(() => {
+					state.gameOngoing = false;
+					this.conditionalLog(
+						'🏆 Victory handler delay finished, gameOngoing set to false'
+					);
 
-				// if we are in a tournament redirect to tournament page
-				if (
-					sessionStorage.getItem('gameMode') === 'remote' &&
+					// if we are in a tournament redirect to tournament page
+					if (
+						sessionStorage.getItem('gameMode') === 'remote' &&
 					sessionStorage.getItem('tournament') === '1'
 				) {
 					console.debug(
@@ -4446,8 +4456,8 @@ export class Pong3D {
 				) {
 					location.hash = '#home';
 				}
-			}, 2000);
-		}
+				}, 2000);
+			}
 	}
 
 	/**
@@ -4480,6 +4490,93 @@ export class Pong3D {
 					err
 				);
 			}
+		}
+	}
+
+	private handleLocalTournamentElimination(): void {
+		const gameMode = sessionStorage.getItem('gameMode');
+		const tournamentFlag = sessionStorage.getItem('tournament');
+		if (gameMode !== 'local' || tournamentFlag !== '1') return;
+
+		const activeScores = this.playerScores.slice(0, this.playerCount);
+		if (activeScores.length === 0) return;
+
+		const lowestScore = Math.min(...activeScores);
+		const lowestPlayers: number[] = [];
+		for (let i = 0; i < activeScores.length; i++) {
+			if (activeScores[i] === lowestScore) lowestPlayers.push(i);
+		}
+
+		if (lowestPlayers.length !== 1) return;
+
+		const eliminatedIndex = lowestPlayers[0];
+		sessionStorage.removeItem(`alias${eliminatedIndex + 1}`);
+
+		switch (sessionStorage.getItem('playerCount')) {
+			case '4':
+				sessionStorage.setItem('playerCount', '3');
+				break;
+			case '3':
+				sessionStorage.setItem('playerCount', '2');
+				break;
+			case '2':
+				sessionStorage.setItem('playerCount', '1');
+				break;
+			default:
+				break;
+		}
+	}
+
+	private handleLocalTournamentVictory(winningPlayerIndex: number): void {
+		const gameMode = sessionStorage.getItem('gameMode');
+		const tournamentFlag = sessionStorage.getItem('tournament');
+		if (gameMode !== 'local' || tournamentFlag !== '1') return;
+		if (this.playerCount !== 2) return;
+
+		const aliasKey = `alias${winningPlayerIndex + 1}`;
+		const alias = sessionStorage.getItem(aliasKey);
+		const winnerName = alias || this.playerNames[winningPlayerIndex] || `Player ${winningPlayerIndex + 1}`;
+		sessionStorage.setItem('winner', winnerName);
+		this.showLocalTournamentTrophy(winnerName);
+	}
+
+	private showLocalTournamentTrophy(winnerName: string): void {
+		if (this.trophyInstance) {
+			this.trophyInstance.dispose();
+			this.trophyInstance = null;
+		}
+		if (this.trophyContainer) {
+			this.trophyContainer.remove();
+			this.trophyContainer = null;
+		}
+
+		const host = this.gameScreen?.element ?? this.container ?? document.body;
+		const overlay = document.createElement('div');
+		Object.assign(overlay.style, {
+			position: 'fixed',
+			top: '0',
+			left: '0',
+			width: '100vw',
+			height: '100vh',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			pointerEvents: 'none',
+			zIndex: '9999',
+		});
+		host.appendChild(overlay);
+		this.trophyContainer = overlay;
+		this.trophyInstance = new Trophy(overlay, { winner: winnerName });
+	}
+
+	private clearLocalTournamentTrophy(): void {
+		if (this.trophyInstance) {
+			this.trophyInstance.dispose();
+			this.trophyInstance = null;
+		}
+		if (this.trophyContainer) {
+			this.trophyContainer.remove();
+			this.trophyContainer = null;
 		}
 	}
 
