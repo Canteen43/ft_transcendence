@@ -26,21 +26,21 @@ export function gameListener(event: MessageEvent) {
 		const msg: Message = MessageSchema.parse(raw);
 
 		switch (msg.t) {
-			case MESSAGE_START_TOURNAMENT:
-				alert('#GAME Start Tournament: ' + JSON.stringify(msg));
-				break;
+			// case MESSAGE_START_TOURNAMENT:
+			// 	alert('#GAME Start Tournament: ' + JSON.stringify(msg));
+			// 	break;
 
-			case MESSAGE_ACCEPT:
-				alert('#GAME Accept: ' + JSON.stringify(msg));
-				break;
+			// case MESSAGE_ACCEPT:
+			// 	alert('#GAME Accept: ' + JSON.stringify(msg));
+			// 	break;
 
-			case MESSAGE_START:
-				alert('#GAME Start: ' + JSON.stringify(msg));
-				break;
+			// case MESSAGE_START:
+			// 	alert('#GAME Start: ' + JSON.stringify(msg));
+			// 	break;
 
-			case MESSAGE_PAUSE:
-				alert('#GAME Pause: ' + JSON.stringify(msg));
-				break;
+			// case MESSAGE_PAUSE:
+			// 	alert('#GAME Pause: ' + JSON.stringify(msg));
+			// 	break;
 			case MESSAGE_QUIT:
 				location.hash = '#home';
 				setTimeout(() => {
@@ -51,16 +51,16 @@ export function gameListener(event: MessageEvent) {
 				}, 100);
 				break;
 				// TODO : maybe remove the refreshing and redirecting when we are on the game
-			case MESSAGE_FINISH:
-				console.info('Received finish message:', msg);
-				if (state.gameOngoing = false) {
-					console.debug(
-						'Received finish, no game ongoing, redirecting to tournament'
-					);
-					location.hash = '#tournament';
-				}
+			// case MESSAGE_FINISH:
+			// 	console.info('Received finish message:', msg);
+			// 	if (state.gameOngoing = false) {
+			// 		console.debug(
+			// 			'Received finish, no game ongoing, redirecting to tournament'
+			// 		);
+			// 		location.hash = '#tournament';
+			// 	}
 
-				break;
+			// 	break;
 
 			case MESSAGE_MOVE:
 				// Extract player ID and input from the message
