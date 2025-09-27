@@ -13,6 +13,11 @@ import {
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
 import { TextModal } from '../modals/TextModal';
+import {
+	clearMatchData,
+	clearOtherGameData,
+	clearTournData,
+} from '../utils/cleanSessionStorage';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
@@ -43,6 +48,9 @@ export function gameListener(event: MessageEvent) {
 			// 	break;
 			case MESSAGE_QUIT:
 				location.hash = '#home';
+				clearMatchData();
+				clearTournData();
+				clearOtherGameData();
 				setTimeout(() => {
 					void new TextModal(
 						router.currentScreen!.element,
