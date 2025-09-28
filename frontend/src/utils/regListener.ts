@@ -18,7 +18,7 @@ import { state } from '../utils/State';
 
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
-import { updateTournamentMatchData } from './updateTurnMatchData';
+import { updateTournData } from '../utils/updateTurnMatchData.js';
 import { webSocket } from './WebSocketWrapper';
 
 export async function regListener(event: MessageEvent): Promise<void> {
@@ -49,7 +49,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				if (error) {
 					console.error('Tournament join error:', error);
 					const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-					new TextModal(router.currentScreen!.element, message);
+					new TextModal(router.currentScreen!.element, message, undefined);
 					return;
 				}
 
@@ -61,12 +61,13 @@ export async function regListener(event: MessageEvent): Promise<void> {
 						'Failed to get tournament data'
 					);
 					return;
+
 				} else if (tournData.matches.length === 1) {
-					updateTournamentMatchData(tournData);
+					updateTournData(tournData);
 					document.dispatchEvent(new Event('2plyrsGameReady'));
 				} else {
 					console.debug(
-						'received ST during trounament-> redir to Tournament'
+						'received ST during Tournament-> redir to Tournament'
 					);
 					location.hash = '#tournament';
 				}

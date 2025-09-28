@@ -1,57 +1,9 @@
 import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
-import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { TextModal } from '../modals/TextModal';
-import { apiCall } from '../utils/apiCall';
 import { router } from '../utils/Router';
-import { state } from '../utils/State';
 import { clearMatchData, clearTournData } from './cleanSessionStorage';
 
-function errorModal(parent: HTMLElement, message: string) {
-	const modal = new TextModal(parent, message, undefined, () => {
-		location.hash = '#home';
-	});
-	modal.onClose = () => {
-		location.hash = '#home';
-	};
-}
-
-export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
-	const tournID = sessionStorage.getItem('tournamentID');
-	if (!tournID) {
-		console.error('No tournament ID found in session storage');
-		errorModal(router.currentScreen!.element, 'No tournament found');
-		return;
-	}
-	// const isTourn = state.tournamentOngoing;
-	// if (!isTourn) return;
-	console.debug('Calling tourn details API');
-	const { data: tournData, error } = await apiCall(
-		'GET',
-		`/tournaments/${tournID}`,
-		FullTournamentSchema
-	);
-
-	if (error) {
-		console.error('Tournament fetch error:', error);
-		const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-		errorModal(router.currentScreen!.element, message);
-		return;
-	}
-
-	if (!tournData) {
-		console.error('Getting tournament data failed - no data returned');
-		errorModal(
-			router.currentScreen!.element,
-			'Failed to get tournament data'
-		);
-
-		return;
-	}
-	console.log('Tournament data received:', tournData);
-	updateTournamentMatchData(tournData);
-}
-
-export function updateTournamentMatchData(tournData: any): void {
+export function updateTournData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');
 
 	const userID = sessionStorage.getItem('userID');
@@ -65,7 +17,6 @@ export function updateTournamentMatchData(tournData: any): void {
 	}
 
 	const isTourn = tournData.matches.length > 1;
-	// const isTourn = state.tournamentOngoing;
 
 	console.debug('userID =', userID);
 	console.debug('isTourn =', isTourn);
@@ -99,6 +50,12 @@ export function updateTournamentMatchData(tournData: any): void {
 		sessionStorage.setItem('alias1', player1Alias || player1);
 		sessionStorage.setItem('alias2', player2Alias || player2);
 
+		// Store scores for display
+		const p1Score = tournData.matches[0].participant_1_score || 0;
+		const p2Score = tournData.matches[0].participant_2_score || 0;
+		sessionStorage.setItem('p1Score', p1Score.toString());
+		sessionStorage.setItem('p2Score', p2Score.toString());
+
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
 	}
 
@@ -121,6 +78,25 @@ export function updateTournamentMatchData(tournData: any): void {
 		sessionStorage.setItem('p3', tournPlyr3Alias || tournPlyr3);
 		sessionStorage.setItem('p4', tournPlyr4Alias || tournPlyr4);
 
+		// Store scores for all matches
+		const match0Score1 = tournData.matches[0].participant_1_score || 0;
+		const match0Score2 = tournData.matches[0].participant_2_score || 0;
+		const match1Score1 = tournData.matches[1].participant_1_score || 0;
+		const match1Score2 = tournData.matches[1].participant_2_score || 0;
+		
+		sessionStorage.setItem('p1Score', match0Score1.toString());
+		sessionStorage.setItem('p2Score', match0Score2.toString());
+		sessionStorage.setItem('p3Score', match1Score1.toString());
+		sessionStorage.setItem('p4Score', match1Score2.toString());
+
+		// Store final match scores if they exist
+		if (tournData.matches[2]) {
+			const match2Score1 = tournData.matches[2].participant_1_score || 0;
+			const match2Score2 = tournData.matches[2].participant_2_score || 0;
+			sessionStorage.setItem('w1Score', match2Score1.toString());
+			sessionStorage.setItem('w2Score', match2Score2.toString());
+		}
+
 		const match0_finished =
 			tournData.matches[0].participant_1_score == DEFAULT_MAX_SCORE ||
 			tournData.matches[0].participant_2_score == DEFAULT_MAX_SCORE;
@@ -128,8 +104,10 @@ export function updateTournamentMatchData(tournData: any): void {
 			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
 			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
 		const match2_finished =
-			tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE ||
-			tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE;
+			tournData.matches[2] && (
+				tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE ||
+				tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE
+			);
 
 		if (match0_finished) {
 			const winner1UserId =
@@ -141,6 +119,7 @@ export function updateTournamentMatchData(tournData: any): void {
 		} else {
 			sessionStorage.setItem('w1', 'Winner 1');
 		}
+
 		if (match1_finished) {
 			const winner2UserId =
 				tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE
@@ -166,7 +145,7 @@ export function updateTournamentMatchData(tournData: any): void {
 		}
 
 		// Tournament first round
-		if (!tournData.matches[2].participant_1_user_id) {
+		if (!tournData.matches[2] || !tournData.matches[2].participant_1_user_id) {
 			if (
 				(userID == tournPlyr1 || userID == tournPlyr2) &&
 				!match0_finished
@@ -257,5 +236,13 @@ export function updateTournamentMatchData(tournData: any): void {
 		w1: sessionStorage.getItem('w1'),
 		w2: sessionStorage.getItem('w2'),
 		winner: sessionStorage.getItem('winner'),
+		scores: {
+			p1Score: sessionStorage.getItem('p1Score'),
+			p2Score: sessionStorage.getItem('p2Score'),
+			p3Score: sessionStorage.getItem('p3Score'),
+			p4Score: sessionStorage.getItem('p4Score'),
+			w1Score: sessionStorage.getItem('w1Score'),
+			w2Score: sessionStorage.getItem('w2Score'),
+		}
 	});
 }
