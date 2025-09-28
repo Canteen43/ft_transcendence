@@ -14,7 +14,7 @@ export class HomeButton {
 	) {
 		this.button = document.createElement('button');
 		this.button.className =
-			'absolute top-4 left-4 fixed p-0 bg-transparent border-none';
+			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
 
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
