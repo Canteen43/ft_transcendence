@@ -1,7 +1,5 @@
 import z from 'zod';
 import { UserSchema } from '../../../shared/schemas/user';
-import z from 'zod';
-import { UserSchema } from '../../../shared/schemas/user';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { AliasModal } from '../modals/AliasModal';
 import { LocalGameModal } from '../modals/LocalGameModal';
@@ -10,22 +8,12 @@ import { TextModal } from '../modals/TextModal';
 import { apiCall } from '../utils/apiCall';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
-import { TextModal } from '../modals/TextModal';
-import { apiCall } from '../utils/apiCall';
-import { router } from '../utils/Router';
-import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
 
 import { createOnlinePlayersBanner, loadOnlinePlayers } from '../utils/banner';
 
-import { createOnlinePlayersBanner, loadOnlinePlayers } from '../utils/banner';
 
 export class HomeScreen extends Screen {
-	private onlinePlayersContainer: HTMLElement | null = null;
-	private title3D: Landing | null = null;
-	private localBtn: HTMLButtonElement | null = null;
-	private remoteBtn: HTMLButtonElement | null = null;
-
 	private onlinePlayersContainer: HTMLElement | null = null;
 	private title3D: Landing | null = null;
 	private localBtn: HTMLButtonElement | null = null;

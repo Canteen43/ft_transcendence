@@ -6,8 +6,7 @@ export class HomeButton {
 	private img: HTMLImageElement;
 	private onEnter: () => void;
 	private onLeave: () => void;
-	private onEnter: () => void;
-	private onLeave: () => void;
+
 
 	constructor(
 		parent: HTMLElement,

@@ -2,21 +2,9 @@ import { ReadyButton } from '../buttons/ReadyButton';
 import { state } from '../utils/State';
 import { fetchAndUpdateTournamentMatchData } from '../utils/updateTurnMatchData';
 import { Trophy } from '../visual/Trophy';
-import { state } from '../utils/State';
-import { fetchAndUpdateTournamentMatchData } from '../utils/updateTurnMatchData';
-import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
 
 export class TournamentScreen extends Screen {
-	private trophyInstance?: Trophy;
-	private readyButton?: ReadyButton;
-
-	// Handler for tournament updates
-	private tournUpdHandler = async () => {
-		await fetchAndUpdateTournamentMatchData();
-		this.render();
-	};
-
 	private trophyInstance?: Trophy;
 	private readyButton?: ReadyButton;
 
@@ -42,24 +30,12 @@ export class TournamentScreen extends Screen {
 		this.initialize();
 	}
 
-	// ASYNC INIT RENDER (waits for data before rendering)
-	private async initialize() {
-		console.log('Initializing TournamentScreen...');
-		await fetchAndUpdateTournamentMatchData();
-		this.render();
-	}
-
-	// HELPER
 	// HELPER
 	private createElement(
 		parent: HTMLElement,
 		tag: string,
 		className: string
 	): HTMLElement {
-		const element = document.createElement(tag);
-		element.className = className;
-		parent.appendChild(element);
-		return element;
 		const element = document.createElement(tag);
 		element.className = className;
 		parent.appendChild(element);
@@ -113,7 +89,7 @@ export class TournamentScreen extends Screen {
 		const title = this.createElement(
 			this.element,
 			'h1',
-			'font-sigmar text-6xl text-center mb-12 text-[var(--color1)]'
+			"font-azeret [font-variation-settings:'wght'_900] text-6xl text-center mb-12 text-[var(--color1)]"
 		);
 		title.textContent = 'TOURNAMENT';
 
@@ -135,27 +111,9 @@ export class TournamentScreen extends Screen {
 		} else {
 			console.log('No matchID found, ReadyButton not created');
 		}
-		// Ready button - now this will work because init() has completed
-		const matchID = sessionStorage.getItem('matchID');
-		const winner = sessionStorage.getItem('winner');
-		console.log('Checking for matchID at render time:', matchID);
-		if (matchID && !winner) {
-			console.log('Creating ReadyButton');
-			this.readyButton = new ReadyButton(this.element);
-		} else {
-			console.log('No matchID found, ReadyButton not created');
-		}
 	}
 
 	private renderBracket(parent: HTMLElement) {
-		const winner = sessionStorage.getItem('winner');
-		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
-		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
-		const p1 = sessionStorage.getItem('p1') || 'Player 1';
-		const p2 = sessionStorage.getItem('p2') || 'Player 2';
-		const p3 = sessionStorage.getItem('p3') || 'Player 3';
-		const p4 = sessionStorage.getItem('p4') || 'Player 4';
-
 		const winner = sessionStorage.getItem('winner');
 		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
 		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
@@ -170,17 +128,6 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1 space-y-8'
 		);
-		const player1Slot = this.createPlayerSlot('player1', p1);
-		const player2Slot = this.createPlayerSlot('player2', p2);
-
-		// Highlight winners from first match
-		if (w1 && w1 !== 'Winner 1') {
-			if (p1 === w1) player1Slot.classList.add('winner');
-			if (p2 === w1) player2Slot.classList.add('winner');
-		}
-
-		leftSide.appendChild(player1Slot);
-		leftSide.appendChild(player2Slot);
 		const player1Slot = this.createPlayerSlot('player1', p1);
 		const player2Slot = this.createPlayerSlot('player2', p2);
 
@@ -209,13 +156,7 @@ export class TournamentScreen extends Screen {
 			winner1.classList.add('winner');
 		}
 		winner1Container.appendChild(winner1);
-		const winner1 = this.createPlayerSlot('winner1', w1 || 'Winner 1');
-		winner1.classList.add('semi-winner');
-		// Highlight if this winner has a real name (not placeholder)
-		if (w1 && w1 !== 'Winner 1') {
-			winner1.classList.add('winner');
-		}
-		winner1Container.appendChild(winner1);
+		
 
 		// Final match (empty column)
 		this.createElement(parent, 'div', 'col-span-1');
@@ -233,14 +174,7 @@ export class TournamentScreen extends Screen {
 			winner2.classList.add('winner');
 		}
 		winner2Container.appendChild(winner2);
-		const winner2 = this.createPlayerSlot('winner2', w2 || 'Winner 2');
-		winner2.classList.add('semi-winner');
-		// Highlight if this winner has a real name (not placeholder)
-		if (w2 && w2 !== 'Winner 2') {
-			winner2.classList.add('winner');
-		}
-		winner2Container.appendChild(winner2);
-
+		
 		// Right connector
 		this.renderConnector(parent, 'right');
 
@@ -250,36 +184,6 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1 space-y-8'
 		);
-		const player3Slot = this.createPlayerSlot('player3', p3);
-		const player4Slot = this.createPlayerSlot('player4', p4);
-
-		// Highlight winners from second match
-		if (w2 && w2 !== 'Winner 2') {
-			if (p3 === w2) player3Slot.classList.add('winner');
-			if (p4 === w2) player4Slot.classList.add('winner');
-		}
-
-		rightSide.appendChild(player3Slot);
-		rightSide.appendChild(player4Slot);
-
-		if (winner) {
-			if (this.trophyInstance) this.trophyInstance.dispose();
-
-			const trophyContainer = this.createElement(this.element, 'div', '');
-			Object.assign(trophyContainer.style, {
-				position: 'fixed',
-				top: '0',
-				left: '0',
-				width: '100vw',
-				height: '100vh',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				pointerEvents: 'none', // ou 'auto' si tu veux capturer les clics
-				zIndex: '9999',
-			});
-			this.trophyInstance = new Trophy(trophyContainer, { winner });
-		}
 		const player3Slot = this.createPlayerSlot('player3', p3);
 		const player4Slot = this.createPlayerSlot('player4', p4);
 
@@ -403,22 +307,4 @@ export class TournamentScreen extends Screen {
 		super.destroy();
 	}
 
-	// Override destroy to properly clean up Trophy resources + Readybutton
-	public destroy() {
-		console.log('Destroying TournamentScreen...');
-		if (this.trophyInstance) {
-			this.trophyInstance.dispose();
-			this.trophyInstance = undefined;
-		}
-		if (this.readyButton) {
-			this.readyButton.destroy();
-			this.readyButton = undefined;
-		}
-
-		document.removeEventListener(
-			'tournament-updated',
-			this.tournUpdHandler
-		);
-		super.destroy();
-	}
 }

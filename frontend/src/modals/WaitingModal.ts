@@ -45,7 +45,7 @@ export class WaitingModal extends Modal {
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s)...';
 		message.className =
-			'font-sigmar text-3xl font-bold text-center mb-5 text-[var(--color3)]';
+			"font-azeret [font-variation-settings:'wght'_900] text-3xl font-bold text-center mb-5 text-[var(--color3)]";
 		container.appendChild(message);
 
 		const loader = document.createElement('l-jelly');
