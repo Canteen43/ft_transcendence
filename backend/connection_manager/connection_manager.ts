@@ -1,15 +1,7 @@
 import { randomUUID } from 'crypto';
-import {
-	ERROR_USER_ALREADY_CONNECTED,
-	ERROR_USER_CONNECTION_NOT_FOUND,
-	WS_ALREADY_CONNECTED,
-	WS_CLOSE_POLICY_VIOLATION,
-} from '../../shared/constants.js';
-import {
-	ConnectionError,
-	UserAlreadyConnectedError,
-} from '../../shared/exceptions.js';
+import { UserAlreadyConnectedError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
+import { Message } from '../../shared/schemas/message.js';
 import { UUID } from '../../shared/types.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import TournamentService from '../services/tournament_service.js';
@@ -68,4 +60,10 @@ export function handleMessage(event: MessageEvent) {
 
 export function getOnlineUsers(): UUID[] {
 	return Array.from(userIdToConnectionMap.keys());
+}
+
+export function sendToOthers(userId: UUID, message: Message) {
+	for (const c of connections.values()) {
+		if (c.userId != userId) c.send(JSON.stringify(message));
+	}
 }

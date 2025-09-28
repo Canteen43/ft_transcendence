@@ -75,6 +75,8 @@ export const MESSAGE_MOVE = 'm';
 export const MESSAGE_GAME_STATE = 'g';
 export const MESSAGE_POINT = 'x';
 export const MESSAGE_FINISH = 'f';
+export const MESSAGE_REPLAY = 'r';
+export const MESSAGE_CHAT = 'c';
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };

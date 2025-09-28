@@ -9,6 +9,9 @@ export class GameScreen extends Screen {
 
 	constructor() {
 		super();
+		// Hide the online players banner while on #game
+		const banner = document.getElementById('online-players-banner');
+		if (banner) banner.style.display = 'none';
 		// Initialize 3D pong
 		this.pong3DInstance = new Pong3D(this.element, { gameScreen: this });
 	}
@@ -28,6 +31,9 @@ export class GameScreen extends Screen {
 		}
 		state.gameOngoing = false;
 		state.gameMode = null;
+		// Restore banner visibility when leaving #game
+		const banner = document.getElementById('online-players-banner');
+		if (banner) banner.style.display = '';
 		// Call parent destroy to remove DOM element
 		super.destroy();
 	}

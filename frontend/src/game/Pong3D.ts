@@ -6,6 +6,7 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
+import '@babylonjs/core/Layers/glowLayer';
 import {
 	DEFAULT_MAX_SCORE,
 	MESSAGE_GAME_STATE,
@@ -196,6 +197,11 @@ export class Pong3D {
 	private container: HTMLElement;
 	private trophyInstance: Trophy | null = null;
 	private trophyContainer: HTMLDivElement | null = null;
+	private glowLayer: BABYLON.GlowLayer | null = null;
+	private readonly glowBaseIntensity = 3;
+    private readonly glowBaseColor = new BABYLON.Color3(0, 1, 1);
+	private glowPaddleStates = new Map<number, { baseColor: BABYLON.Color3; timeoutId: number }>();
+	private glowFadeAnimation: number | null = null;
 
 	// === GAME PHYSICS CONFIGURATION ===
 
@@ -441,6 +447,7 @@ export class Pong3D {
 		this.scene = new BABYLON.Scene(this.engine);
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+		this.setupGlowEffects();
 
 		// Apply provided options
 		if (options) {
@@ -459,6 +466,20 @@ export class Pong3D {
 		}
 
 		this.setupEventListeners();
+
+		// Initialize alternate scoring for local 3p/4p tournament: start at max score
+		try {
+			const isLocalTournament =
+				sessionStorage.getItem('gameMode') === 'local' &&
+				sessionStorage.getItem('tournament') === '1';
+			if (isLocalTournament && (this.playerCount === 3 || this.playerCount === 4)) {
+				for (let i = 0; i < this.playerCount; i++) {
+					this.playerScores[i] = this.WINNING_SCORE;
+				}
+			}
+		} catch (_) {
+			// sessionStorage may be unavailable; ignore
+		}
 
 		// Initialize appropriate game loop based on mode
 		if (this.gameMode === 'local') {
@@ -1891,36 +1912,103 @@ export class Pong3D {
 			);
 		}
 
-		// Play goal sound effect
-		this.audioSystem.playSoundEffect('goal');
+        // Play goal sound effect
+        this.audioSystem.playSoundEffect('goal');
 
-		// Award point to the scoring player (skip for direct serve own goals)
-		if (!wasDirectServeOwnGoal) {
-			this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
-			this.playerScores[scoringPlayer]++;
-			this.conditionalLog(`New scores after goal:`, this.playerScores);
+        // Special scoring: local tournament 3p/4p (conceding player loses a point)
+        const isLocalTournamentSpecial =
+            sessionStorage.getItem('gameMode') === 'local' &&
+            sessionStorage.getItem('tournament') === '1' &&
+            (this.playerCount === 3 || this.playerCount === 4);
 
-			// Send score update to clients (only in master mode)
-			this.conditionalLog(
-				'🏆 sendScoreUpdateToClients called with scoringPlayer:',
-				scoringPlayer
-			);
-			this.sendScoreUpdateToClients(scoringPlayer);
-		} else {
-			this.conditionalLog(
-				`🏴 DIRECT SERVE OWN GOAL: Skipping point award for invalid serve`
-			);
-		}
+        if (isLocalTournamentSpecial) {
+            // Penalize conceding player
+            this.playerScores[goalPlayer] = Math.max(0, this.playerScores[goalPlayer] - 1);
+            // Red glow for point lost
+            this.flashPaddleGlow(goalPlayer + 1, 1500, false);
+            this.conditionalLog(`Tournament scoring: Player ${goalPlayer + 1} loses a point ->`, this.playerScores);
+        } else {
+            // Original scoring: award point to scoring player (skip for direct-serve own goals)
+            if (!wasDirectServeOwnGoal) {
+                this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
+                this.playerScores[scoringPlayer]++;
+                this.flashPaddleGlow(scoringPlayer + 1);
+                this.conditionalLog(`New scores after goal:`, this.playerScores);
 
-		// Check if player has won (configurable winning score)
-		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
-			// Game over! Player wins
-			const playerName =
-				this.playerNames[scoringPlayer] ||
-				`Player ${scoringPlayer + 1}`;
-			this.conditionalLog(
-				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
-			);
+                // Send score update to clients (only in master mode)
+                this.conditionalLog(
+                    '🏆 sendScoreUpdateToClients called with scoringPlayer:',
+                    scoringPlayer
+                );
+                this.sendScoreUpdateToClients(scoringPlayer);
+            } else {
+                this.conditionalLog(
+                    `🏴 DIRECT SERVE OWN GOAL: Skipping point award for invalid serve`
+                );
+            }
+        }
+
+        // Check for end-of-round conditions
+        if (isLocalTournamentSpecial && this.playerScores[goalPlayer] <= 0) {
+            // Eliminate conceding player and end round
+            this.conditionalLog(`🏁 Elimination reached: Player ${goalPlayer + 1} hit 0`);
+
+            // Play victory sound effect
+            this.audioSystem.playSoundEffect('victory');
+
+            // Mark game as ended and stop systems
+            this.gameEnded = true;
+            const physicsEngine = this.scene.getPhysicsEngine();
+            if (physicsEngine) {
+                this.scene.disablePhysicsEngine();
+                this.conditionalLog(`🏆 Physics engine disabled - elimination`);
+            }
+            if (this.gameLoop) {
+                this.gameLoop.stop();
+            }
+
+            // Update UI and handle tournament elimination flow
+            this.updatePlayerInfoDisplay();
+            const eliminationResult = this.handleLocalTournamentElimination();
+            const isLocalTournament =
+                sessionStorage.getItem('gameMode') === 'local' &&
+                sessionStorage.getItem('tournament') === '1';
+            const skipModal =
+                isLocalTournament &&
+                !!eliminationResult &&
+                eliminationResult.tournamentFinished;
+
+            if (this.gameMode == 'local' && !skipModal) {
+                if (this.gameScreen) {
+                    if (isLocalTournament && eliminationResult?.eliminatedAlias) {
+                        new NextRoundModal(this.gameScreen, eliminationResult.eliminatedAlias);
+                    } else {
+                        new ReplayModal(this.gameScreen);
+                    }
+                } else {
+                    this.conditionalWarn('GameScreen reference not available for NextRoundModal/ReplayModal');
+                }
+            }
+
+            setTimeout(() => {
+                state.gameOngoing = false;
+            }, 2000);
+
+            // Reset trackers and return
+            this.lastPlayerToHitBall = -1;
+            this.secondLastPlayerToHitBall = -1;
+            this.lastGoalTime = performance.now();
+            return;
+        }
+
+        if (!isLocalTournamentSpecial && this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
+            // Game over! Player wins
+            const playerName =
+                this.playerNames[scoringPlayer] ||
+                `Player ${scoringPlayer + 1}`;
+            this.conditionalLog(
+                `🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
+            );
 
 			// Play victory sound effect
 			this.audioSystem.playSoundEffect('victory');
@@ -1948,8 +2036,8 @@ export class Pong3D {
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
-			this.handleLocalTournamentVictory(scoringPlayer);
-			const eliminationResult = this.handleLocalTournamentElimination();
+            this.handleLocalTournamentVictory(scoringPlayer);
+            const eliminationResult = this.handleLocalTournamentElimination();
 			const isLocalTournament =
 				sessionStorage.getItem('gameMode') === 'local' &&
 				sessionStorage.getItem('tournament') === '1';
@@ -2014,8 +2102,8 @@ export class Pong3D {
 			this.conditionalLog(
 				`🏀 Ball will continue and exit naturally - no respawn`
 			);
-			return;
-		}
+            return;
+        }
 
 		this.conditionalLog(
 			`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`
@@ -4171,6 +4259,7 @@ export class Pong3D {
 	 */
 	public dispose(): void {
 		this.conditionalLog('🧹 Disposing Pong3D instance...');
+		this.teardownGlowEffects();
 		this.clearLocalTournamentTrophy();
 
 		// Stop the render loop first
@@ -4414,6 +4503,7 @@ export class Pong3D {
 
 		// Update the score
 		this.playerScores[scoringPlayerIndex]++;
+		this.flashPaddleGlow(scoringPlayerIndex + 1);
 		console.log(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
@@ -4510,9 +4600,9 @@ export class Pong3D {
 		}
 	}
 
-	private handleLocalTournamentElimination():
-		| { eliminatedAlias: string; remainingPlayers: number; tournamentFinished: boolean }
-		| null {
+    private handleLocalTournamentElimination():
+        | { eliminatedAlias: string; remainingPlayers: number; tournamentFinished: boolean }
+        | null {
 		const gameMode = sessionStorage.getItem('gameMode');
 		const tournamentFlag = sessionStorage.getItem('tournament');
 		if (gameMode !== 'local' || tournamentFlag !== '1') return null;
@@ -4528,29 +4618,40 @@ export class Pong3D {
 
 		if (lowestPlayers.length !== 1) return null;
 
-		const eliminatedIndex = lowestPlayers[0];
-		const aliasKey = `alias${eliminatedIndex + 1}`;
-		const eliminatedAlias =
-			sessionStorage.getItem(aliasKey) ||
-			this.playerNames[eliminatedIndex] ||
-			`Player ${eliminatedIndex + 1}`;
-		sessionStorage.removeItem(aliasKey);
+        const eliminatedIndex = lowestPlayers[0];
+        const aliasKey = `alias${eliminatedIndex + 1}`;
+        const eliminatedAlias =
+            sessionStorage.getItem(aliasKey) ||
+            this.playerNames[eliminatedIndex] ||
+            `Player ${eliminatedIndex + 1}`;
 
-		const currentCount = Number(
-			sessionStorage.getItem('playerCount') ?? `${this.playerCount}`
-		);
-		const tournamentFinished = currentCount <= 2;
-		let remainingPlayers = currentCount;
+        const currentCount = Number(
+            sessionStorage.getItem('playerCount') ?? `${this.playerCount}`
+        );
+        const tournamentFinished = currentCount <= 2;
+        let remainingPlayers = currentCount;
 
-		if (!tournamentFinished && currentCount > 0) {
-			remainingPlayers = currentCount - 1;
-			sessionStorage.setItem('playerCount', `${remainingPlayers}`);
-			this.playerCount = remainingPlayers;
-			state.playerCount = remainingPlayers;
-		} else {
-			// Keep player count at minimum 2 for the final match display
-			remainingPlayers = Math.max(currentCount, 2);
-		}
+        // For active rounds (4p -> 3p, 3p -> 2p), swap the eliminated alias with the last active slot
+        if (!tournamentFinished && currentCount > 0) {
+            const lastActiveIndex = currentCount - 1; // 0-based index of aliasN (N=currentCount)
+            if (eliminatedIndex !== lastActiveIndex) {
+                const elimKey = `alias${eliminatedIndex + 1}`;
+                const lastKey = `alias${lastActiveIndex + 1}`;
+                const elimVal = sessionStorage.getItem(elimKey);
+                const lastVal = sessionStorage.getItem(lastKey);
+                if (lastVal !== null) sessionStorage.setItem(elimKey, lastVal);
+                if (elimVal !== null) sessionStorage.setItem(lastKey, elimVal);
+            }
+
+            // Reduce player count for next round
+            remainingPlayers = currentCount - 1;
+            sessionStorage.setItem('playerCount', `${remainingPlayers}`);
+            this.playerCount = remainingPlayers;
+            state.playerCount = remainingPlayers;
+        } else {
+            // Keep player count at minimum 2 for the final match display
+            remainingPlayers = Math.max(currentCount, 2);
+        }
 
 		return { eliminatedAlias, remainingPlayers, tournamentFinished };
 	}
@@ -4566,6 +4667,104 @@ export class Pong3D {
 		const winnerName = alias || this.playerNames[winningPlayerIndex] || `Player ${winningPlayerIndex + 1}`;
 		sessionStorage.setItem('winner', winnerName);
 		this.showLocalTournamentTrophy(winnerName);
+	}
+
+	private setupGlowEffects(): void {
+		this.glowLayer = new BABYLON.GlowLayer('pongGlowLayer', this.scene);
+		this.glowLayer.intensity = 0;
+	}
+
+    private flashPaddleGlow(playerNumber: number, durationMs = 1500, point_gained = true): void {
+        if (!this.glowLayer) return;
+        if (playerNumber < 1 || playerNumber > 4) return;
+        const paddle = this.paddles[playerNumber - 1];
+        if (!paddle) return;
+
+		const material = paddle.material as (BABYLON.Material & { emissiveColor?: BABYLON.Color3 } | null);
+		if (!material) return;
+		if (!material.emissiveColor) material.emissiveColor = BABYLON.Color3.Black();
+
+		const meshId = paddle.uniqueId;
+		const existing = this.glowPaddleStates.get(meshId);
+		if (existing) {
+			window.clearTimeout(existing.timeoutId);
+			material.emissiveColor = existing.baseColor.clone();
+			this.glowPaddleStates.delete(meshId);
+		}
+
+		const baseColor = material.emissiveColor
+			? material.emissiveColor.clone()
+			: BABYLON.Color3.Black();
+
+		if (this.glowFadeAnimation !== null) {
+			window.cancelAnimationFrame(this.glowFadeAnimation);
+			this.glowFadeAnimation = null;
+		}
+
+        const glowLayer = this.glowLayer;
+        if (!glowLayer) return;
+        const glowBase = point_gained ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(1, 0, 0); // cyan for gain, red for loss
+        const initialGlow = new BABYLON.Color3(
+            Math.min(baseColor.r + glowBase.r, 1),
+            Math.min(baseColor.g + glowBase.g, 1),
+            Math.min(baseColor.b + glowBase.b, 1)
+        );
+        material.emissiveColor = initialGlow;
+        glowLayer.intensity = this.glowBaseIntensity;
+
+        const start = performance.now();
+        const glowColor = glowBase;
+		const animate = () => {
+			const elapsed = performance.now() - start;
+			const progress = Math.min(elapsed / durationMs, 1);
+			const fadeFactor = 1 - progress;
+			glowLayer.intensity = this.glowBaseIntensity * fadeFactor;
+			const glowComponent = glowColor.scale(fadeFactor);
+			const blended = new BABYLON.Color3(
+				Math.min(baseColor.r + glowComponent.r, 1),
+				Math.min(baseColor.g + glowComponent.g, 1),
+				Math.min(baseColor.b + glowComponent.b, 1)
+			);
+			material.emissiveColor = blended;
+			if (progress < 1) {
+				this.glowFadeAnimation = window.requestAnimationFrame(animate);
+			} else {
+				glowLayer.intensity = 0;
+				material.emissiveColor = baseColor.clone();
+				this.glowFadeAnimation = null;
+			}
+		};
+		this.glowFadeAnimation = window.requestAnimationFrame(animate);
+
+		const timeoutId = window.setTimeout(() => {
+			material.emissiveColor = baseColor.clone();
+			this.glowPaddleStates.delete(meshId);
+		}, durationMs);
+
+		this.glowPaddleStates.set(meshId, { baseColor, timeoutId });
+	}
+
+	private teardownGlowEffects(): void {
+		if (this.glowFadeAnimation !== null) {
+			window.cancelAnimationFrame(this.glowFadeAnimation);
+			this.glowFadeAnimation = null;
+		}
+		this.glowPaddleStates.forEach(state => {
+			window.clearTimeout(state.timeoutId);
+		});
+		this.glowPaddleStates.forEach((state, meshId) => {
+			const mesh = this.scene?.meshes.find(m => m.uniqueId === meshId);
+			if (mesh && mesh instanceof BABYLON.Mesh) {
+				const mat = mesh.material as (BABYLON.Material & { emissiveColor?: BABYLON.Color3 }) | null;
+				if (mat && mat.emissiveColor) mat.emissiveColor = state.baseColor.clone();
+			}
+		});
+		this.glowPaddleStates.clear();
+		if (this.glowLayer) this.glowLayer.intensity = 0;
+		if (this.glowLayer) {
+			this.glowLayer.dispose();
+			this.glowLayer = null;
+		}
 	}
 
 	private showLocalTournamentTrophy(winnerName: string): void {
