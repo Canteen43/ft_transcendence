@@ -10,8 +10,8 @@ export class HomeButton {
 
 	constructor(
 		parent: HTMLElement,
-		imgSrc: string = '../home_empty_white.png',
-		hoverImgSrc: string = '../home_full_white.png'
+		imgSrc: string = '../home_empty_black.png',
+		hoverImgSrc: string = '../home_full_black.png'
 	) {
 		this.button = document.createElement('button');
 		this.button.className =
@@ -21,7 +21,7 @@ export class HomeButton {
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
 		this.img.alt = 'Home';
-		this.img.className = 'w-16 h-16';
+		this.img.className = 'w-18 h-18';
 		this.button.appendChild(this.img);
 
 		this.onEnter = () => (this.img.src = hoverImgSrc);

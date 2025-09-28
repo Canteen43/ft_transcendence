@@ -90,10 +90,6 @@ export class Landing {
 			this.scene
 		);
 		skyboxMaterial.backFaceCulling = false;
-		// skyboxMaterial.diffuseTexture = new BABYLON.Texture(
-		// 	'/wasteland.hdr',
-		// 	this.scene
-		// );
 		skyboxMaterial.diffuseTexture = new BABYLON.Texture(
 			'/wasteland.hdr',
 			this.scene
@@ -101,7 +97,7 @@ export class Landing {
 		skybox.material = skyboxMaterial;
 		skybox.infiniteDistance = true;
 
-		console.log('✅ Lighting and skybox setup complete');
+		console.debug('Lighting and skybox setup complete');
 	}
 
 	private setupCamera(): void {
@@ -125,32 +121,31 @@ export class Landing {
 		this.camera.upperBetaLimit = 5;
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100000;
-		console.log('✅ Camera setup complete');
+		console.debug('Camera setup complete');
 	}
 	private setupControls(): void {
 		// Debug any pointer events
 		this.scene.onPointerObservable.add(pointerInfo => {
 			if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
-				console.log('🖱️ CLICK DETECTED!');
 
 				if (
 					pointerInfo.pickInfo?.hit &&
 					pointerInfo.pickInfo.pickedMesh
 				) {
 					const pickedMesh = pointerInfo.pickInfo.pickedMesh;
-					console.log('🎯 Clicked mesh:', pickedMesh.name);
+					console.debug('CLICK DETECTED! Clicked mesh:', pickedMesh.name);
 					this.handleMeshClick(pickedMesh);
 				} else {
-					console.log('❌ No mesh hit');
+					console.debug('CLICK DETECTED! No mesh hit');
 				}
 			}
 		});
 
-		console.log('✅ Click controls setup complete');
+		console.debug('Click controls setup complete');
 	}
 
 	private loadModel(modelPath: string): void {
-		console.log('📦 Loading model from:', modelPath);
+		console.debug('Loading model from:', modelPath);
 
 		BABYLON.SceneLoader.ImportMesh(
 			'',
@@ -158,13 +153,13 @@ export class Landing {
 			modelPath,
 			this.scene,
 			meshes => {
-				console.log('✅ Model loaded successfully!');
+				console.log('3D Model loaded successfully!');
 				this.onModelLoaded(meshes);
 			},
 			null,
 			(scene, message, exception) => {
-				console.error('❌ Failed to load 3D model:', message);
-				console.log('🔄 Creating fallback scene...');
+				console.error('Failed to load 3D model:', message);
+				console.log('Creating fallback scene...');
 				this.createFallbackScene();
 			}
 		);
@@ -172,9 +167,9 @@ export class Landing {
 	}
 
 	private onModelLoaded(meshes: BABYLON.AbstractMesh[]): void {
-		console.log('📋 ALL MESHES FOUND:');
+		console.debug('📋 ALL MESHES FOUND:');
 		meshes.forEach((mesh, index) => {
-			console.log(
+			console.debug(
 				`  ${index + 1}. "${mesh.name}" (vertices: ${mesh.getTotalVertices()})`
 			);
 		});
@@ -192,50 +187,46 @@ export class Landing {
 					mesh.name.toLowerCase().includes('global')
 			) || null;
 
-		console.log('🎯 CLICKABLE MESHES:');
+		console.debug('CLICKABLE MESHES:');
 		if (this.localGameMesh) {
-			console.log(`  ✅ Local: "${this.localGameMesh.name}"`);
+			console.debug(`  ✅ Local: "${this.localGameMesh.name}"`);
 			this.localGameMesh.isPickable = true;
 		} else {
-			console.log('  ❌ No "local" mesh found');
+			console.debug('  No "local" mesh found');
 		}
 
 		if (this.remoteGameMesh) {
-			console.log(`  ✅ Remote/Global: "${this.remoteGameMesh.name}"`);
+			console.debug(`  Remote/Global: "${this.remoteGameMesh.name}"`);
 			this.remoteGameMesh.isPickable = true;
 		} else {
-			console.log('  ❌ No "remote" or "global" mesh found');
+			console.debug('  No "remote" or "global" mesh found');
 		}
 
 		// If no clickable meshes found, try first two meshes
 		if (!this.localGameMesh && !this.remoteGameMesh && meshes.length >= 2) {
-			console.log('🔄 Using first two meshes as clickable elements');
+			console.debug('Using first two meshes as clickable elements');
 			this.localGameMesh = meshes[0];
 			this.remoteGameMesh = meshes[1];
 			this.localGameMesh.isPickable = true;
 			this.remoteGameMesh.isPickable = true;
-			console.log(`  📍 Local (fallback): "${this.localGameMesh.name}"`);
-			console.log(
-				`  📍 Remote (fallback): "${this.remoteGameMesh.name}"`
-			);
+			console.debug(`Local (fallback): "${this.localGameMesh.name}"`);
+			console.debug(`Remote (fallback): "${this.remoteGameMesh.name}"`);
 		}
 
 		// Fit camera to scene
 		this.fitCameraToScene(meshes);
-		console.log('✅ Model setup complete');
+		console.debug('✅ Model setup complete');
 	}
 
 	private handleMeshClick(mesh: BABYLON.AbstractMesh): void {
-		console.log('🔥 MESH CLICKED:', mesh.name);
-
-		if (mesh === this.localGameMesh) {
-			console.log('🏠 LOCAL GAME TRIGGERED!');
+			if (mesh === this.localGameMesh) {
+			console.debug('🏠 LOCAL GAME TRIGGERED!');
 			this.callbacks.onLocalGameClick?.();
 		} else if (mesh === this.remoteGameMesh) {
-			console.log('🌐 REMOTE/GLOBAL GAME TRIGGERED!');
+			console.debug('🌐 REMOTE/GLOBAL GAME TRIGGERED!');
 			this.callbacks.onRemoteGameClick?.();
 		} else {
-			console.log('❓ Unknown mesh clicked');
+			console.debug('❓ Unknown mesh clicked');
 		}
 	}
 	private fitCameraToScene(meshes: BABYLON.AbstractMesh[]): void {
@@ -255,7 +246,7 @@ export class Landing {
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100000;
 
-		console.log(
+		console.debug(
 			'📹 Camera fitted to scene at',
 			center.toString(),
 			'radius',
@@ -263,12 +254,12 @@ export class Landing {
 		);
 		this.scene.render();
 
-		console.log('📹 Camera fitted, radius', this.camera.radius);
+		console.debug('📹 Camera fitted, radius', this.camera.radius);
 	}
 
 
 	private createFallbackScene(): void {
-		console.log('🔧 Creating fallback cubes...');
+		console.debug('Creating fallback cubes...');
 
 		// Green cube for local
 		this.localGameMesh = BABYLON.MeshBuilder.CreateBox(

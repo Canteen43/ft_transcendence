@@ -26,8 +26,8 @@ export class TextModal extends Modal {
 		this.okayButton = new Button(
 			buttonText ?? 'Okay',
 			() => {
-				onClick?.(); // action when button is clicked
-				this.destroy(); // always close modal after click
+				onClick?.();
+				this.destroy();
 			},
 			this.box
 		);
@@ -36,6 +36,7 @@ export class TextModal extends Modal {
 	}
 
 	public destroy(): void {
-		super.destroy(); // remove modal from DOM
+		super.destroy();
+		this.onClose?.();
 	}
 }

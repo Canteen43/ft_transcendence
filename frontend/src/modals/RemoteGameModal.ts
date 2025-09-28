@@ -1,14 +1,14 @@
 import { Button } from '../buttons/Button';
+import { apiCall } from '../utils/apiCall';
 import {
 	clearMatchData,
 	clearOtherGameData,
 	clearTournData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
-import { apiCall } from '../utils/apiCall';
-import { TextModal } from './TextModal';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
+import { TextModal } from './TextModal';
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -19,11 +19,11 @@ export class RemoteGameModal extends Modal {
 		this.box.classList.add('remote-modal');
 
 		const img2 = document.createElement('img');
-		img2.src = '../../public/2_players.png';
+		img2.src = '2_players.png';
 		img2.className = 'h-25  mx-auto';
 
 		const imgt = document.createElement('img');
-		imgt.src = '../../public/trophy.png';
+		imgt.src = 'trophy.png';
 		imgt.className = 'h-25  mx-auto';
 
 		this.btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
@@ -31,19 +31,11 @@ export class RemoteGameModal extends Modal {
 
 		// fixed button size
 		[this.btn2plyr, this.btnTourn].forEach(btn => {
-			btn.element.classList.add(
-				'w-[300px]',
-				'h-[120px]',
-				'flex',
-				'items-center',
-				'justify-center',
-				'hover:bg-[var(--color1bis)]',
-				'transition-colors',
-				'duration-300',
-				'focus:outline-none',
-				'focus:ring-2',
-				'focus:ring-[var(--color1)]'
-			);
+			(btn.element.className +=
+				'w-[300px] h-[120px] flex items-center' +
+				'justify-center hover:bg-[var(--color1bis)]' +
+				'transition-colors duration-300 focus:outline-none ' +
+					'focus:ring-2 focus:ring-[var(--color1)]');
 		});
 
 		// modal box background
@@ -56,7 +48,6 @@ export class RemoteGameModal extends Modal {
 		this.btnTourn.element.tabIndex = 0;
 	}
 
-
 	private addEnterListener() {
 		const buttonConfigs = [
 			{ button: this.btn2plyr, player: 2 },
@@ -65,7 +56,6 @@ export class RemoteGameModal extends Modal {
 
 		buttonConfigs.forEach(({ button, player }) => {
 			button.element.addEventListener('keydown', (e: KeyboardEvent) => {
-
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
 					this.logicRemote(player);
@@ -93,20 +83,18 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number) {
-		
 		const { error } = await apiCall('POST', `/tournaments/leave`);
-				if (error) {
-					console.error('Error leaving tournament:', error);
-					new TextModal(
-						this.parent,
-						`Failed to leave tournament: ${error.message}`
-					);
-				}
+		if (error) {
+			console.error('Error leaving tournament:', error);
+			new TextModal(
+				this.parent,
+				`Failed to leave tournament: ${error.message}`
+			);
+		}
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();
 		state.tournamentOngoing = false;
-
 
 		state.gameMode = 'remote';
 		state.tournamentOngoing = true;

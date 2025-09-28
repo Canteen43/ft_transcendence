@@ -7,7 +7,6 @@ import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
-import { ForgottenModal } from './ForgottenModal';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
 import { TextModal } from './TextModal';
@@ -48,8 +47,7 @@ export class LoginModal extends Modal {
 		this.UsernameField.addEventListener('keydown', handleEnter);
 		this.PasswordField.addEventListener('keydown', handleEnter);
 	}
-
-
+	
 
 	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
@@ -91,12 +89,12 @@ export class LoginModal extends Modal {
 		this.destroy();
 	}
 
-	private errorModal (message : string) {
+	private errorModal(message: string) {
 		const modal = new TextModal(this.parent, message);
 		modal.onClose = () => {
 			this.UsernameField.focus();
 			this.UsernameField.select();
-		}
+		};
 	}
 
 	private login(token: string, id: string) {
@@ -149,6 +147,12 @@ export class LoginModal extends Modal {
 	}
 
 	private handleForgot(parent: HTMLElement) {
-		new ForgottenModal(parent);
+		const modal = new TextModal(parent, undefined, 'TOO BAD!', () =>
+			this.UsernameField.focus()
+		);
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		};
 	}
 }

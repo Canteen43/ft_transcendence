@@ -8,7 +8,7 @@ newtonsCradle.register();
 jelly.register();
 hourglass.register();
 
-// Waiting for players, event listener for game Ready
+// Waiting for players, eventListener for game Ready
 export class WaitingModal extends Modal {
 	private gameReadyHandler = () => this.nextStep();
 
