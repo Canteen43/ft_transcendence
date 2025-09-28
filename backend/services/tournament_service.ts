@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_SCORE, EMPTY_UUID } from '../../shared/constants.js';
 import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
@@ -16,7 +17,9 @@ import {
 	CreateParticipant,
 	CreateParticipantSchema,
 } from '../../shared/schemas/participant.js';
+import { CreateSettings } from '../../shared/schemas/settings.js';
 import {
+	CreateTournament,
 	CreateTournamentSchema,
 	FullTournament,
 	FullTournamentSchema,
@@ -110,19 +113,19 @@ export default class TournamentService {
 			users.length,
 			users
 		);
-		const settings = SettingsRepository.getSettingsByUser(creator);
-		if (!settings) throw new SettingsNotFoundError('user', creator);
+		const createSettings: CreateSettings = { max_score: DEFAULT_MAX_SCORE };
 
-		const createTournament = CreateTournamentSchema.parse({
+		const createTournament: CreateTournament = {
+			settings_id: EMPTY_UUID,
 			size: users.length,
-			settings_id: settings.id,
 			status: TournamentStatus.InProgress,
-		});
+		};
 
 		const createParticipants = this.createParticipants(tournamentUsers);
 		const createMatches = this.createTournamentMatches(users);
 		const { tournament, participants } =
 			TournamentRepository.createFullTournament(
+				createSettings,
 				createTournament,
 				createParticipants,
 				createMatches
