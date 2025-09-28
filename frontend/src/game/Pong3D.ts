@@ -6,6 +6,7 @@ import * as CANNON from 'cannon-es';
 // import '@babylonjs/loaders'; // not needed, imported in main.ts?!
 // Optional GUI package (available as BABYLON GUI namespace)
 import * as GUI from '@babylonjs/gui';
+import '@babylonjs/core/Layers/glowLayer';
 import {
 	DEFAULT_MAX_SCORE,
 	MESSAGE_GAME_STATE,
@@ -194,6 +195,11 @@ export class Pong3D {
 	private container: HTMLElement;
 	private trophyInstance: Trophy | null = null;
 	private trophyContainer: HTMLDivElement | null = null;
+	private glowLayer: BABYLON.GlowLayer | null = null;
+	private readonly glowBaseIntensity = 3;
+	private readonly glowBaseColor = new BABYLON.Color3(0, 1, 1);
+	private glowPaddleStates = new Map<number, { baseColor: BABYLON.Color3; timeoutId: number }>();
+	private glowFadeAnimation: number | null = null;
 
 	// === GAME PHYSICS CONFIGURATION ===
 
@@ -439,6 +445,7 @@ export class Pong3D {
 		this.scene = new BABYLON.Scene(this.engine);
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+		this.setupGlowEffects();
 
 		// Apply provided options
 		if (options) {
@@ -1896,6 +1903,7 @@ export class Pong3D {
 		if (!wasDirectServeOwnGoal) {
 			this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
 			this.playerScores[scoringPlayer]++;
+			this.flashPaddleGlow(scoringPlayer + 1);
 			this.conditionalLog(`New scores after goal:`, this.playerScores);
 
 			// Send score update to clients (only in master mode)
@@ -4169,6 +4177,7 @@ export class Pong3D {
 	 */
 	public dispose(): void {
 		this.conditionalLog('🧹 Disposing Pong3D instance...');
+		this.teardownGlowEffects();
 		this.clearLocalTournamentTrophy();
 
 		// Stop the render loop first
@@ -4412,6 +4421,7 @@ export class Pong3D {
 
 		// Update the score
 		this.playerScores[scoringPlayerIndex]++;
+		this.flashPaddleGlow(scoringPlayerIndex + 1);
 		console.log(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
@@ -4564,6 +4574,104 @@ export class Pong3D {
 		const winnerName = alias || this.playerNames[winningPlayerIndex] || `Player ${winningPlayerIndex + 1}`;
 		sessionStorage.setItem('winner', winnerName);
 		this.showLocalTournamentTrophy(winnerName);
+	}
+
+	private setupGlowEffects(): void {
+		this.glowLayer = new BABYLON.GlowLayer('pongGlowLayer', this.scene);
+		this.glowLayer.intensity = 0;
+	}
+
+	private flashPaddleGlow(playerNumber: number, durationMs = 1500): void {
+		if (!this.glowLayer) return;
+		if (playerNumber < 1 || playerNumber > 4) return;
+		const paddle = this.paddles[playerNumber - 1];
+		if (!paddle) return;
+
+		const material = paddle.material as (BABYLON.Material & { emissiveColor?: BABYLON.Color3 } | null);
+		if (!material) return;
+		if (!material.emissiveColor) material.emissiveColor = BABYLON.Color3.Black();
+
+		const meshId = paddle.uniqueId;
+		const existing = this.glowPaddleStates.get(meshId);
+		if (existing) {
+			window.clearTimeout(existing.timeoutId);
+			material.emissiveColor = existing.baseColor.clone();
+			this.glowPaddleStates.delete(meshId);
+		}
+
+		const baseColor = material.emissiveColor
+			? material.emissiveColor.clone()
+			: BABYLON.Color3.Black();
+
+		if (this.glowFadeAnimation !== null) {
+			window.cancelAnimationFrame(this.glowFadeAnimation);
+			this.glowFadeAnimation = null;
+		}
+
+		const glowLayer = this.glowLayer;
+		if (!glowLayer) return;
+
+		const initialGlow = new BABYLON.Color3(
+			Math.min(baseColor.r + this.glowBaseColor.r, 1),
+			Math.min(baseColor.g + this.glowBaseColor.g, 1),
+			Math.min(baseColor.b + this.glowBaseColor.b, 1)
+		);
+		material.emissiveColor = initialGlow;
+		glowLayer.intensity = this.glowBaseIntensity;
+
+		const start = performance.now();
+		const glowColor = this.glowBaseColor;
+		const animate = () => {
+			const elapsed = performance.now() - start;
+			const progress = Math.min(elapsed / durationMs, 1);
+			const fadeFactor = 1 - progress;
+			glowLayer.intensity = this.glowBaseIntensity * fadeFactor;
+			const glowComponent = glowColor.scale(fadeFactor);
+			const blended = new BABYLON.Color3(
+				Math.min(baseColor.r + glowComponent.r, 1),
+				Math.min(baseColor.g + glowComponent.g, 1),
+				Math.min(baseColor.b + glowComponent.b, 1)
+			);
+			material.emissiveColor = blended;
+			if (progress < 1) {
+				this.glowFadeAnimation = window.requestAnimationFrame(animate);
+			} else {
+				glowLayer.intensity = 0;
+				material.emissiveColor = baseColor.clone();
+				this.glowFadeAnimation = null;
+			}
+		};
+		this.glowFadeAnimation = window.requestAnimationFrame(animate);
+
+		const timeoutId = window.setTimeout(() => {
+			material.emissiveColor = baseColor.clone();
+			this.glowPaddleStates.delete(meshId);
+		}, durationMs);
+
+		this.glowPaddleStates.set(meshId, { baseColor, timeoutId });
+	}
+
+	private teardownGlowEffects(): void {
+		if (this.glowFadeAnimation !== null) {
+			window.cancelAnimationFrame(this.glowFadeAnimation);
+			this.glowFadeAnimation = null;
+		}
+		this.glowPaddleStates.forEach(state => {
+			window.clearTimeout(state.timeoutId);
+		});
+		this.glowPaddleStates.forEach((state, meshId) => {
+			const mesh = this.scene?.meshes.find(m => m.uniqueId === meshId);
+			if (mesh && mesh instanceof BABYLON.Mesh) {
+				const mat = mesh.material as (BABYLON.Material & { emissiveColor?: BABYLON.Color3 }) | null;
+				if (mat && mat.emissiveColor) mat.emissiveColor = state.baseColor.clone();
+			}
+		});
+		this.glowPaddleStates.clear();
+		if (this.glowLayer) this.glowLayer.intensity = 0;
+		if (this.glowLayer) {
+			this.glowLayer.dispose();
+			this.glowLayer = null;
+		}
 	}
 
 	private showLocalTournamentTrophy(winnerName: string): void {
