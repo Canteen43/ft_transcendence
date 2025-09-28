@@ -4598,9 +4598,9 @@ export class Pong3D {
 		}
 	}
 
-	private handleLocalTournamentElimination():
-		| { eliminatedAlias: string; remainingPlayers: number; tournamentFinished: boolean }
-		| null {
+    private handleLocalTournamentElimination():
+        | { eliminatedAlias: string; remainingPlayers: number; tournamentFinished: boolean }
+        | null {
 		const gameMode = sessionStorage.getItem('gameMode');
 		const tournamentFlag = sessionStorage.getItem('tournament');
 		if (gameMode !== 'local' || tournamentFlag !== '1') return null;
@@ -4616,29 +4616,40 @@ export class Pong3D {
 
 		if (lowestPlayers.length !== 1) return null;
 
-		const eliminatedIndex = lowestPlayers[0];
-		const aliasKey = `alias${eliminatedIndex + 1}`;
-		const eliminatedAlias =
-			sessionStorage.getItem(aliasKey) ||
-			this.playerNames[eliminatedIndex] ||
-			`Player ${eliminatedIndex + 1}`;
-		sessionStorage.removeItem(aliasKey);
+        const eliminatedIndex = lowestPlayers[0];
+        const aliasKey = `alias${eliminatedIndex + 1}`;
+        const eliminatedAlias =
+            sessionStorage.getItem(aliasKey) ||
+            this.playerNames[eliminatedIndex] ||
+            `Player ${eliminatedIndex + 1}`;
 
-		const currentCount = Number(
-			sessionStorage.getItem('playerCount') ?? `${this.playerCount}`
-		);
-		const tournamentFinished = currentCount <= 2;
-		let remainingPlayers = currentCount;
+        const currentCount = Number(
+            sessionStorage.getItem('playerCount') ?? `${this.playerCount}`
+        );
+        const tournamentFinished = currentCount <= 2;
+        let remainingPlayers = currentCount;
 
-		if (!tournamentFinished && currentCount > 0) {
-			remainingPlayers = currentCount - 1;
-			sessionStorage.setItem('playerCount', `${remainingPlayers}`);
-			this.playerCount = remainingPlayers;
-			state.playerCount = remainingPlayers;
-		} else {
-			// Keep player count at minimum 2 for the final match display
-			remainingPlayers = Math.max(currentCount, 2);
-		}
+        // For active rounds (4p -> 3p, 3p -> 2p), swap the eliminated alias with the last active slot
+        if (!tournamentFinished && currentCount > 0) {
+            const lastActiveIndex = currentCount - 1; // 0-based index of aliasN (N=currentCount)
+            if (eliminatedIndex !== lastActiveIndex) {
+                const elimKey = `alias${eliminatedIndex + 1}`;
+                const lastKey = `alias${lastActiveIndex + 1}`;
+                const elimVal = sessionStorage.getItem(elimKey);
+                const lastVal = sessionStorage.getItem(lastKey);
+                if (lastVal !== null) sessionStorage.setItem(elimKey, lastVal);
+                if (elimVal !== null) sessionStorage.setItem(lastKey, elimVal);
+            }
+
+            // Reduce player count for next round
+            remainingPlayers = currentCount - 1;
+            sessionStorage.setItem('playerCount', `${remainingPlayers}`);
+            this.playerCount = remainingPlayers;
+            state.playerCount = remainingPlayers;
+        } else {
+            // Keep player count at minimum 2 for the final match display
+            remainingPlayers = Math.max(currentCount, 2);
+        }
 
 		return { eliminatedAlias, remainingPlayers, tournamentFinished };
 	}
