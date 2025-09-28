@@ -25,6 +25,9 @@ export class HomeScreen extends Screen {
 
 		// BANNER online players
 		createOnlinePlayersBanner();
+		// Ensure it's visible on non-game screens
+		const banner = document.getElementById('online-players-banner');
+		if (banner) banner.style.display = '';
 		loadOnlinePlayers();
 		setInterval(() => {
 			loadOnlinePlayers();

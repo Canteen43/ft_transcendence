@@ -121,8 +121,14 @@ export class LocalGameModal extends Modal {
 		state.playerCount = n;
 		sessionStorage.setItem('playerCount', n.toString());
 		sessionStorage.setItem('thisPlayer', '1');
-		if (tourn == true) {
-			sessionStorage.setItem('tounament', '1');
+		if (tourn === true) {
+			// Correct key for tournament flag
+			sessionStorage.setItem('tournament', '1');
+			// Clean up legacy misspelling to avoid confusion
+			sessionStorage.removeItem('tounament');
+		} else {
+			// Explicitly set to non-tournament for clarity
+			sessionStorage.setItem('tournament', '0');
 		}
 		new AliasModal(this.parent, n);
 		this.destroy();

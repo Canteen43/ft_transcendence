@@ -8,6 +8,7 @@ import {
 	CreateParticipant,
 	Participant,
 } from '../../shared/schemas/participant.js';
+import { CreateSettings } from '../../shared/schemas/settings.js';
 import {
 	CreateTournament,
 	Tournament,
@@ -18,6 +19,7 @@ import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
 import MatchRepository from './match_repository.js';
 import ParticipantRepository from './participant_repository.js';
+import SettingsRepository from './settings_repository.js';
 
 export default class TournamentRepository {
 	static table = 'tournament';
@@ -69,12 +71,15 @@ export default class TournamentRepository {
 	}
 
 	static createFullTournament(
+		settings: CreateSettings,
 		tournament: CreateTournament,
 		participants: CreateParticipant[],
 		matches: CreateMatch[]
 	): { tournament: Tournament; participants: Participant[] } {
 		return db.executeInTransaction(() => {
 			logger.info('Creating tournament');
+			const settingsResult = SettingsRepository.createSettings(settings);
+			tournament.settings_id = settingsResult.id;
 			const tournamentResult = this.createTournament(tournament);
 			logger.debug(`Created tournament ${tournamentResult.id}`);
 
