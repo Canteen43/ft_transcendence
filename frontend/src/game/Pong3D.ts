@@ -14,8 +14,7 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
-import { ReplayModal } from '../modals/ReplayModal';
-import { NextRoundModal } from '../modals/NextRoundModal';
+import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
@@ -1979,12 +1978,37 @@ export class Pong3D {
             if (this.gameMode == 'local' && !skipModal) {
                 if (this.gameScreen) {
                     if (isLocalTournament && eliminationResult?.eliminatedAlias) {
-                        new NextRoundModal(this.gameScreen, eliminationResult.eliminatedAlias);
+                        const displayName = eliminationResult.eliminatedAlias?.trim() ? eliminationResult.eliminatedAlias : 'A player';
+                        const message = `${displayName}\nwas eliminated!`;
+                        const textModal = new TextModal(
+                            this.gameScreen.element, 
+                            message, 
+                            'Next Round!',
+                            { 
+                                useGameStyling: true,
+                                textClassName: 'text-2xl text-center text-black mb-2'
+                            }
+                        );
+                        textModal.onClose = () => {
+                            if (this.gameScreen) {
+                                this.gameScreen.reloadPong();
+                            }
+                        };
                     } else {
-                        new ReplayModal(this.gameScreen);
+                        const textModal = new TextModal(
+                            this.gameScreen.element, 
+                            '', // Empty message as suggested for replay
+                            'Play Again!',
+                            { useGameStyling: true }
+                        );
+                        textModal.onClose = () => {
+                            if (this.gameScreen) {
+                                this.gameScreen.reloadPong();
+                            }
+                        };
                     }
                 } else {
-                    this.conditionalWarn('GameScreen reference not available for NextRoundModal/ReplayModal');
+                    this.conditionalWarn('GameScreen reference not available for TextModal');
                 }
             }
 
@@ -2048,16 +2072,38 @@ export class Pong3D {
 			if (this.gameMode == 'local' && !skipModal) {
 				if (this.gameScreen) {
 					if (isLocalTournament && eliminationResult?.eliminatedAlias) {
-						new NextRoundModal(
-							this.gameScreen,
-							eliminationResult.eliminatedAlias
+						const displayName = eliminationResult.eliminatedAlias?.trim() ? eliminationResult.eliminatedAlias : 'A player';
+						const message = `${displayName}\nwas eliminated!`;
+						const textModal = new TextModal(
+							this.gameScreen.element, 
+							message, 
+							'Next Round!',
+							{ 
+								useGameStyling: true,
+								textClassName: 'text-2xl text-center text-black mb-2'
+							}
 						);
+						textModal.onClose = () => {
+							if (this.gameScreen) {
+								this.gameScreen.reloadPong();
+							}
+						};
 					} else {
-						new ReplayModal(this.gameScreen);
+						const textModal = new TextModal(
+							this.gameScreen.element, 
+							'', // Empty message as suggested for replay
+							'Play Again!',
+							{ useGameStyling: true }
+						);
+						textModal.onClose = () => {
+							if (this.gameScreen) {
+								this.gameScreen.reloadPong();
+							}
+						};
 					}
 				} else {
 					this.conditionalWarn(
-						'GameScreen reference not available for ReplayModal'
+						'GameScreen reference not available for TextModal'
 					);
 				}
 			}
