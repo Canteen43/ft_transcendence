@@ -5,12 +5,14 @@ import { apiCall } from '../utils/apiCall';
 let onlinePlayersContainer: HTMLElement | null = null;
 
 export function createOnlinePlayersBanner() {
-	if (onlinePlayersContainer) return;
+    if (onlinePlayersContainer) return;
 
-	const bannerContainer = document.createElement('div');
-	bannerContainer.className =
-		'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
-		'border-t-2 border-[var(--color2)] py-3 z-50 overflow-hidden';
+    const bannerContainer = document.createElement('div');
+    // Give the banner a stable id so screens can toggle visibility
+    bannerContainer.id = 'online-players-banner';
+    bannerContainer.className =
+            'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
+            'border-t-2 border-[var(--color2)] py-3 z-50 overflow-hidden';
 
 	const scrollWrapper = document.createElement('div');
 	scrollWrapper.className = 'flex animate-scroll whitespace-nowrap';
