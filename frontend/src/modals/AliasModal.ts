@@ -23,13 +23,10 @@ export class AliasModal extends Modal {
 		{ label: 'Morgana', value: '*Morgana' },
 		{ label: 'Gandalf', value: '*Gandalf' },
 	];
-	private documentClickHandler: (event: MouseEvent) => void;
 
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
-
-		this.documentClickHandler = this.handleDocumentClick.bind(this);
-		document.addEventListener('click', this.documentClickHandler);
+		this.box.classList.add('alias-modal');
 
 		const username = sessionStorage.getItem('username') ?? '';
 		const alias = sessionStorage.getItem('alias') ?? '';
@@ -43,142 +40,140 @@ export class AliasModal extends Modal {
 		const gameMode = sessionStorage.getItem('gameMode');
 
 		for (let i = 0; i < n; i++) {
-			let defaultValue = '';
+			const defaultValue = n === 1 
+				? alias || username || `player${i + 1}`
+				: aliases[i] || `player${i + 1}`;
 
-			if (n === 1) {
-				defaultValue = alias || username || `player${i + 1}`;
-			} else {
-				defaultValue = aliases[i] || `player${i + 1}`;
-			}
-
-			const row = document.createElement('div');
-			row.className = 'flex items-center gap-2 w-full relative';
+			const row = this.createPlayerRow(i, defaultValue, aliasHints[i], gameMode === 'local');
 			this.box.appendChild(row);
-
-			const input = this.myCreateInput(
-				'text',
-				`username${i + 1}`,
-				defaultValue,
-				row
-			);
-			input.title = aliasHints[i] || '';
-			this.aliasFields.push(input);
-
-			if (gameMode === 'local') {
-				const aiButton = document.createElement('button');
-				aiButton.type = 'button';
-				aiButton.className =
-					'flex items-center gap-2 border border-[var(--color3)] rounded px-2 py-0 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
-				const aiIcon = document.createElement('img');
-				aiIcon.src = '/ai.png';
-				aiIcon.alt = 'AI options';
-				aiIcon.className = 'w-10 h-10';
-				const arrow = document.createElement('span');
-				arrow.textContent = '▾';
-				aiButton.appendChild(aiIcon);
-				aiButton.appendChild(arrow);
-				row.appendChild(aiButton);
-
-				const dropdown = document.createElement('div');
-				dropdown.className =
-					'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
-					'bg-white border border-[var(--color3)] rounded shadow-md' +
-					'z-50 flex flex-col';
-				row.appendChild(dropdown);
-				this.dropdownContainers.push(dropdown);
-
-				this.aiOptions.forEach(option => {
-					const optionButton = document.createElement('button');
-					optionButton.type = 'button';
-					optionButton.innerText = option.label;
-					optionButton.className =
-						'px-3 py-2 text-left text-sm hover:bg-[var(--color3)]/10 transition-colors';
-					optionButton.addEventListener('click', () => {
-						input.value = option.value;
-						this.closeAllDropdowns();
-						input.focus();
-					});
-					dropdown.appendChild(optionButton);
-				});
-
-				aiButton.addEventListener('click', event => {
-					event.preventDefault();
-					event.stopPropagation();
-					this.toggleDropdown(i);
-				});
-			}
 		}
 
+		this.addKeyboardListeners();
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
+		
 		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 
-	private async handleAlias() {
-		const tournament = sessionStorage.getItem('tournament') ?? '';
-		const gameMode = sessionStorage.getItem('gameMode') ?? '';
+	private createPlayerRow(index: number, defaultValue: string, hint: string, showAIButton: boolean): HTMLDivElement {
+		const row = document.createElement('div');
+		row.className = 'flex items-center gap-2 w-full relative';
 
-		if (state.gameMode === 'local') {
-			this.aliasFields.forEach((field, index) => {
-				const alias = field.value.trim() || `Player${index + 1}`;
-				sessionStorage.setItem(`alias${index + 1}`, alias);
-			});
-			location.hash = '#game';
-		} else {
-			const alias = this.aliasFields[0].value.trim() || `Player${0 + 1}`;
-			sessionStorage.setItem('alias', alias);
-			sessionStorage.removeItem('alias1');
-			sessionStorage.removeItem('alias2');
-			sessionStorage.removeItem('alias3');
-			sessionStorage.removeItem('alias4');
+		const input = this.createInput(defaultValue, `username${index + 1}`, hint);
+		row.appendChild(input);
+		this.aliasFields.push(input);
 
-			this.joinGame(state.tournamentSize);
-			new WaitingModal(this.parent);
+		if (showAIButton) {
+			const { button, dropdown } = this.createAISelector(index, input);
+			row.appendChild(button);
+			row.appendChild(dropdown);
+			this.dropdownContainers.push(dropdown);
 		}
-		this.destroy();
+
+		return row;
 	}
 
-	private addEnterListener() {
-		const handleEnter = (e: KeyboardEvent) => {
-			if (e.key == 'Enter') {
-				e.preventDefault();
-				this.handleAlias();
-			}
-		};
-		this.aliasFields.forEach(field => {
-			field.addEventListener('keydown', handleEnter);
-		});
-	}
-
-	public destroy(): void {
-		document.removeEventListener('click', this.documentClickHandler);
-		this.closeAllDropdowns();
-		super.destroy();
-	}
-
-	private myCreateInput(
-		type: string,
-		id: string,
-		defaultValue: string,
-		parent: HTMLElement = this.box
-	): HTMLInputElement {
+	private createInput(defaultValue: string, id: string, hint: string): HTMLInputElement {
 		const input = document.createElement('input');
-		input.type = type;
+		input.type = 'text';
 		input.id = id;
 		input.value = defaultValue;
+		input.title = hint;
 		input.className = 'border border-[var(--color3)] rounded p-2 flex-1';
-		parent.appendChild(input);
 		return input;
+	}
+
+	private createAISelector(index: number, input: HTMLInputElement): { button: HTMLButtonElement; dropdown: HTMLDivElement } {
+		// AI Button with rounded corners
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'flex items-center gap-2 border border-[var(--color3)] rounded-lg px-2 py-2 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
+		
+		const aiIcon = document.createElement('img');
+		aiIcon.src = '/ai.png';
+		aiIcon.alt = 'AI options';
+		aiIcon.className = 'w-6 h-6';
+		
+		const arrow = document.createElement('span');
+		arrow.textContent = '▾';
+		arrow.className = 'text-xs';
+		
+		button.appendChild(aiIcon);
+		button.appendChild(arrow);
+
+		// Dropdown with proper white background
+		const dropdown = document.createElement('div');
+		dropdown.className = 
+			'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
+			'bg-white border border-[var(--color3)] rounded-lg shadow-lg ' +
+			'z-50 overflow-hidden';
+
+		this.aiOptions.forEach((option, i) => {
+			const optionButton = document.createElement('button');
+			optionButton.type = 'button';
+			optionButton.textContent = option.label;
+			optionButton.className = 
+				'w-full px-3 py-2 text-left text-sm bg-white hover:bg-[var(--color3)]/10 ' +
+				'transition-colors border-none';
+			
+			optionButton.addEventListener('click', (e) => {
+				e.stopPropagation();
+				input.value = option.value;
+				this.closeAllDropdowns();
+				input.focus();
+			});
+			
+			dropdown.appendChild(optionButton);
+		});
+
+		button.addEventListener('click', (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.toggleDropdown(index);
+		});
+
+		// Close dropdown when clicking outside
+		document.addEventListener('click', (e) => {
+			if (!button.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
+				this.closeDropdown(index);
+			}
+		});
+
+		return { button, dropdown };
+	}
+
+	private addKeyboardListeners(): void {
+		this.aliasFields.forEach(field => {
+			field.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					this.handleAlias();
+				}
+				if (e.key === 'Escape') {
+					this.closeAllDropdowns();
+				}
+			});
+		});
 	}
 
 	private toggleDropdown(index: number): void {
 		const dropdown = this.dropdownContainers[index];
 		if (!dropdown) return;
+		
 		const isOpen = this.openDropdownIndex === index;
 		this.closeAllDropdowns();
+		
 		if (!isOpen) {
 			dropdown.classList.remove('hidden');
 			this.openDropdownIndex = index;
+		}
+	}
+
+	private closeDropdown(index: number): void {
+		const dropdown = this.dropdownContainers[index];
+		if (dropdown && this.openDropdownIndex === index) {
+			dropdown.classList.add('hidden');
+			this.openDropdownIndex = null;
 		}
 	}
 
@@ -189,116 +184,137 @@ export class AliasModal extends Modal {
 		this.openDropdownIndex = null;
 	}
 
-	private handleDocumentClick(event: MouseEvent): void {
-		if (!this.box.contains(event.target as Node)) {
-			this.closeAllDropdowns();
+	private async handleAlias() {
+		if (state.gameMode === 'local') {
+			this.handleLocalGame();
+		} else {
+			await this.handleRemoteGame();
 		}
+		this.destroy();
 	}
 
-	// TODO: function to seperate file to separate concerns?
-	// API call to join a tournament
-	// send 2 or 4 + alias, receive the array of players in that tournament
-	private async joinGame(targetSize: number) {
+	private handleLocalGame(): void {
+		this.aliasFields.forEach((field, index) => {
+			const alias = field.value.trim() || `Player${index + 1}`;
+			sessionStorage.setItem(`alias${index + 1}`, alias);
+		});
+		location.hash = '#game';
+	}
+
+	private async handleRemoteGame(): Promise<void> {
+		const alias = this.aliasFields[0].value.trim() || 'Player1';
+		sessionStorage.setItem('alias', alias);
+		
+		// Clean up old aliases
+		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key => 
+			sessionStorage.removeItem(key)
+		);
+
+		await this.joinGame(state.tournamentSize);
+		new WaitingModal(this.parent);
+	}
+
+	private async joinGame(targetSize: number): Promise<void> {
 		const joinData = {
 			size: targetSize,
 			alias: sessionStorage.getItem('alias'),
-		}; // overkill - we are sending a nuber
+		};
+
 		const parseInput = JoinTournamentSchema.safeParse(joinData);
 		if (!parseInput.success) {
-			new TextModal(this.parent, 'Invalid tournament format');
-			console.error(
-				'Request validation failed:',
-				z.treeifyError(parseInput.error)
-			);
-			return;
-		}
-		console.debug('Sending to /tounaments/join:', joinData);
-		const { data: playerQueue, error } = await apiCall(
-			'POST',
-			`/tournaments/join`,
-			TournamentQueueSchema,
-			joinData
-		);
-		if (error) {
-			console.error('Tournament join error:', error);
-			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-			new TextModal(this.parent, message);
-			return;
-		}
-		if (!playerQueue) {
-			new TextModal(this.parent, 'No response from tournament creation');
+			this.showError('Invalid tournament format', parseInput.error);
 			return;
 		}
 
-		// checking if the game / tournament is full
+		console.debug('Sending to /tournaments/join:', joinData);
+		const { data: playerQueue, error } = await apiCall(
+			'POST',
+			'/tournaments/join',
+			TournamentQueueSchema,
+			joinData
+		);
+
+		if (error) {
+			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
+			return;
+		}
+
+		if (!playerQueue) {
+			this.showError('No response from tournament creation');
+			return;
+		}
+
+		await this.handlePlayerQueue(playerQueue, targetSize);
+	}
+
+	private async handlePlayerQueue(playerQueue: any, targetSize: number): Promise<void> {
 		console.log('Tournament (game) actual players:', playerQueue.queue);
 		const currentPlayers = playerQueue.queue.length;
 		const isTournamentReady = currentPlayers === targetSize;
 
-		// set up some game spec
+		// Set up game spec
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('targetSize', targetSize.toString());
 		sessionStorage.setItem('gameMode', 'remote');
 
-		// PLAYERS FULL: last player sending the start tournament request
-		// will trigger the 'st' ws message
-		// Validation overkill? it has been validated as a return schema already
 		if (isTournamentReady) {
-			const body = {
-				creator: sessionStorage.getItem('userID') || '',
-				participants: playerQueue.queue,
-			};
-			const parseInput2 = CreateTournamentApiSchema.safeParse(body);
-			if (!parseInput2.success) {
-				new TextModal(this.parent, 'Invalid tournament creation data');
-				console.error(
-					'Tournament creation validation failed:',
-					z.treeifyError(parseInput2.error)
-				);
-				return;
-			}
-			console.log('Sending to /tournaments:', body);
-			const { data: tournament, error: tournamentError } = await apiCall(
-				'POST',
-				`/tournaments`,
-				TournamentSchema,
-				body
-			);
-			if (tournamentError) {
-				console.error('Tournament creation error:', tournamentError);
-				const message = `Error ${tournamentError.status}: ${tournamentError.statusText}, ${tournamentError.message}`;
-				new TextModal(this.parent, message);
-				// Leave queue on error
-				const { error } = await apiCall('POST', `/tournaments/leave`);
-				if (error) {
-					console.error('Error leaving tournament:', error);
-					new TextModal(
-						this.parent,
-						`Failed to leave tournament: ${error.message}`
-					);
-				}
-				return;
-			}
-			if (tournament) {
-				console.info('Tournament created with ID:', tournament.id);
-				sessionStorage.setItem('tournamentID', tournament.id);
-			} else {
-				new TextModal(
-					this.parent,
-					'Failed to create tournament. Leaving queue.'
-				);
-				console.error(
-					'Failed to create tournament as last player. Leaving queue.'
-				);
-				const { error } = await apiCall('POST', `/tournaments/leave`);
-				if (error) {
-					console.error('Error leaving tournament:', error);
-					new TextModal(
-						this.parent,
-						`Failed to leave tournament: ${error.message}`
-					);
-				}
-			}
+			await this.createTournament(playerQueue);
 		}
+	}
+
+	private async createTournament(playerQueue: any): Promise<void> {
+		const body = {
+			creator: sessionStorage.getItem('userID') || '',
+			participants: playerQueue.queue,
+		};
+
+		const parseInput = CreateTournamentApiSchema.safeParse(body);
+		if (!parseInput.success) {
+			this.showError('Invalid tournament creation data', parseInput.error);
+			return;
+		}
+
+		console.log('Sending to /tournaments:', body);
+		const { data: tournament, error } = await apiCall(
+			'POST',
+			'/tournaments',
+			TournamentSchema,
+			body
+		);
+
+		if (error) {
+			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
+			await this.leaveTournament();
+			return;
+		}
+
+		if (tournament) {
+			console.info('Tournament created with ID:', tournament.id);
+			sessionStorage.setItem('tournamentID', tournament.id);
+		} else {
+			this.showError('Failed to create tournament. Leaving queue.');
+			await this.leaveTournament();
+		}
+	}
+
+	private async leaveTournament(): Promise<void> {
+		const { error } = await apiCall('POST', '/tournaments/leave');
+		if (error) {
+			console.error('Error leaving tournament:', error);
+			this.showError(`Failed to leave tournament: ${error.message}`);
+		}
+	}
+
+	private showError(message: string, zodError?: z.ZodError): void {
+		new TextModal(this.parent, message);
+		if (zodError) {
+			console.error('Validation failed:', z.treeifyError(zodError));
+		}
+		console.error(message);
+	}
+
+	public destroy(): void {
+		this.closeAllDropdowns();
+		super.destroy();
 	}
 }

@@ -8,7 +8,7 @@ export async function initParticles() {
 		await tsParticles.load({
 		id: "tsparticles",
 		options: {
-			background: { color: "#0d1453ff" },
+			background: { color: "#99d9f7ff" },
 			fullScreen: { enable: false, zIndex: 0 }, // stays inside container
 			fpsLimit: 60,
 			particles: {
@@ -16,7 +16,7 @@ export async function initParticles() {
 				color: { value: "#f8f7abff" },
 				shape: { type: "circle" },
 				opacity: { value: 0.8 },
-				size: { value: { min: 2, max: 10 } },
+				size: { value: { min: 1, max: 2 } },
 				move: {
 					enable: true,
 					speed: 0.3,
@@ -31,7 +31,7 @@ export async function initParticles() {
 				},
 				modes: {
 					repulse: { distance: 200, duration: 0.4 },
-					push: { quantity: 10 },
+					push: { quantity: 1 },
 				},
 			},
 			detectRetina: true,
