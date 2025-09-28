@@ -22,5 +22,5 @@ export function clearOtherGameData() {
 	sessionStorage.removeItem('tournamentID');
 	sessionStorage.removeItem('gameMode');
 	sessionStorage.removeItem('playerCount');
-	sessionStorage.removeItem('tournament');
+	sessionStorage.setItem('tournament', '0');
 }

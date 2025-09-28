@@ -18,14 +18,8 @@ export class RegisterModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add(
-			'flex',
-			'flex-col',
-			'items-center',
-			'justify-center',
-			'gap-2',
-			'p-4'
-		);
+		this.box.className +=
+			'flex flex-col items-center justify-center gap-2 p-4';
 
 		this.UsernameField = this.myCreateInput('text', 'username', 'username');
 		this.AliasField = this.myCreateInput('text', 'alias', 'game alias');
@@ -54,16 +48,18 @@ export class RegisterModal extends Modal {
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
-				this.addEnterListener();
+		this.addEnterListener();
 	}
 
-
-	private errorModal (message : string) {
-		const modal = new TextModal(this.parent, message);
+	private errorModal(message: string) {
+		const modal = new TextModal(this.parent, message, undefined, () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		});
 		modal.onClose = () => {
 			this.UsernameField.focus();
 			this.UsernameField.select();
-		}
+		};
 	}
 
 	private addEnterListener() {
@@ -80,7 +76,6 @@ export class RegisterModal extends Modal {
 		this.EmailField.addEventListener('keydown', handleEnter);
 		this.PasswordField.addEventListener('keydown', handleEnter);
 		this.PasswordRepeatField.addEventListener('keydown', handleEnter);
-	
 	}
 
 	private formatZodErrors(error: z.ZodError): string {
@@ -102,7 +97,7 @@ export class RegisterModal extends Modal {
 		const repeatPassword = this.PasswordRepeatField.value.trim();
 
 		if (password !== repeatPassword) {
-			new TextModal(this.parent, 'Passwords do not match');
+			this.errorModal('Passwords do not match');
 			return;
 		}
 
@@ -114,11 +109,12 @@ export class RegisterModal extends Modal {
 			email: email || null,
 			password: password,
 		};
-		console.debug(`{$requestData}`);
+		console.debug(`${JSON.stringify(requestData)}`);
 		const parseResult = CreateUserSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			const errorMessage = this.formatZodErrors(parseResult.error);
-			new TextModal(this.parent, errorMessage);
+			console.debug('showing error modal:', errorMessage);
+			this.errorModal(errorMessage);
 			console.error('Request validation failed:', parseResult.error);
 			return;
 		}

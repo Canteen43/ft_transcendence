@@ -18,9 +18,6 @@ export class AuthComponent {
 		document.addEventListener('login-success', this.renderHandler);
 		document.addEventListener('logout-success', this.renderHandler);
 		document.addEventListener('login-failed', this.renderHandler);
-		document.addEventListener('login-success', this.renderHandler);
-		document.addEventListener('logout-success', this.renderHandler);
-		document.addEventListener('login-failed', this.renderHandler);
 	}
 
 	private renderHandler = () => this.render();
@@ -36,16 +33,8 @@ export class AuthComponent {
 			this.parent
 		);
 
-		this.button.element.classList.add(
-			'absolute',
-			'top-4',
-			'right-4',
-			'fixed',
-			'w-51',
-			'z-10',
-			'text-center',
-			'truncate'
-		);
+		this.button.element.className +=
+			'absolute top-4 right-4 fixed w-60 z-10 text-center truncate';
 
 		if (userIsLoggedIn) {
 			this.button.element.addEventListener('mouseenter', this.onEnter);

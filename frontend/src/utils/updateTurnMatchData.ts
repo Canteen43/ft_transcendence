@@ -6,11 +6,20 @@ import { router } from '../utils/Router';
 import { state } from '../utils/State';
 import { clearMatchData, clearTournData } from './cleanSessionStorage';
 
+function errorModal(parent: HTMLElement, message: string) {
+	const modal = new TextModal(parent, message, undefined, () => {
+		location.hash = '#home';
+	});
+	modal.onClose = () => {
+		location.hash = '#home';
+	};
+}
+
 export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
 	const tournID = sessionStorage.getItem('tournamentID');
 	if (!tournID) {
 		console.error('No tournament ID found in session storage');
-		new TextModal(router.currentScreen!.element, 'No tournament ID found');
+		errorModal(router.currentScreen!.element, 'No tournament found');
 		return;
 	}
 	// const isTourn = state.tournamentOngoing;
@@ -25,16 +34,17 @@ export async function fetchAndUpdateTournamentMatchData(): Promise<void> {
 	if (error) {
 		console.error('Tournament fetch error:', error);
 		const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-		new TextModal(router.currentScreen!.element, message);
+		errorModal(router.currentScreen!.element, message);
 		return;
 	}
 
 	if (!tournData) {
 		console.error('Getting tournament data failed - no data returned');
-		new TextModal(
+		errorModal(
 			router.currentScreen!.element,
 			'Failed to get tournament data'
 		);
+
 		return;
 	}
 	console.log('Tournament data received:', tournData);

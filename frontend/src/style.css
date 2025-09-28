@@ -53,10 +53,10 @@
 
 :root {
 	--color1: #dee5e6;
-	--color1bis: rgb(0, 24, 238);
+	--color1bis: rgba(247, 231, 231, 0.712);
 	--color2: #aeafbb;
-	--color3: #0d1453ff;
-	--color4: #9CEC5B;
+	--color3: rgb(1, 2, 10);
+	--color4: rgba(13, 20, 83, 0.5);
 	--color5: #F0F465;
 }
 
