@@ -21,7 +21,7 @@ export function createOnlinePlayersBanner() {
 	// Add title
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
-	title.className = 'font-sigmar text-[var(--color3)] text-lg font-bold mr-8';
+	title.className = "font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	scrollWrapper.appendChild(onlinePlayersContainer);
@@ -76,14 +76,14 @@ function updateOnlinePlayersDisplay(users: any[]) {
 	onlinePlayersContainer.innerHTML = '';
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
-	title.className = 'font-sigmar text-[var(--color3)] text-lg mr-8';
+	title.className = "font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	if (users.length === 0) {
 		const noPlayers = document.createElement('span');
 		noPlayers.textContent = 'No players online';
 		noPlayers.className =
-			'font-sigmar text-[var(--color3)] text-base opacity-75';
+			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base opacity-75";
 		onlinePlayersContainer.appendChild(noPlayers);
 		return;
 	}
@@ -95,7 +95,7 @@ function updateOnlinePlayersDisplay(users: any[]) {
 		const playerElement = document.createElement('span');
 		playerElement.textContent = displayName;
 		playerElement.className =
-			'font-sigmar text-[var(--color3)] text-base px-3 py-1';
+			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
 
 		onlinePlayersContainer?.appendChild(playerElement);
 	});

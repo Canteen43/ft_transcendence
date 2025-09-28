@@ -41,7 +41,7 @@ import {
 	getAIDifficultyFromName,
 	Pong3DAI,
 } from './pong3DAI';
-import { Trophy } from '../visual/Trophy';
+
 
 // ============================================================================
 

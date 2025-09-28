@@ -11,7 +11,6 @@ import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
-import { TextModal } from './TextModal';
 import { WaitingModal } from './WaitingModal';
 
 export class AliasModal extends Modal {
@@ -24,14 +23,7 @@ export class AliasModal extends Modal {
 		{ label: 'Morgana', value: '*Morgana' },
 		{ label: 'Gandalf', value: '*Gandalf' },
 	];
-	private dropdownContainers: HTMLDivElement[] = [];
-	private openDropdownIndex: number | null = null;
-	private readonly aiOptions: { label: string; value: string }[] = [
-		{ label: 'Circe', value: '*Circe' },
-		{ label: 'Merlin', value: '*Merlin' },
-		{ label: 'Morgana', value: '*Morgana' },
-		{ label: 'Gandalf', value: '*Gandalf' },
-	];
+
 
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
@@ -40,15 +32,12 @@ export class AliasModal extends Modal {
 
 		const username = sessionStorage.getItem('username') ?? '';
 		const alias = sessionStorage.getItem('alias') ?? '';
-		const alias = sessionStorage.getItem('alias') ?? '';
 		const aliases = [
 			sessionStorage.getItem('alias1') ?? '',
 			sessionStorage.getItem('alias2') ?? '',
 			sessionStorage.getItem('alias3') ?? '',
 			sessionStorage.getItem('alias4') ?? '',
 		];
-		const aliasHints = ['↑←↓→', 'wasd', 'ijkl', '8456'];
-		const gameMode = sessionStorage.getItem('gameMode');
 		const aliasHints = ['↑←↓→', 'wasd', 'ijkl', '8456'];
 		const gameMode = sessionStorage.getItem('gameMode');
 
@@ -64,19 +53,7 @@ export class AliasModal extends Modal {
 		this.addKeyboardListeners();
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
-		
-			const defaultValue = n === 1 
-				? alias || username || `player${i + 1}`
-				: aliases[i] || `player${i + 1}`;
-
-			const row = this.createPlayerRow(i, defaultValue, aliasHints[i], gameMode === 'local');
-			this.box.appendChild(row);
-		}
-
-		this.addKeyboardListeners();
-		this.aliasFields[0].focus();
-		this.aliasFields[0].select();
-		
+			
 		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 
@@ -219,36 +196,10 @@ export class AliasModal extends Modal {
 	}
 
 	private handleLocalGame(): void {
-		if (state.gameMode === 'local') {
-			this.handleLocalGame();
-		} else {
-			await this.handleRemoteGame();
-		}
-		this.destroy();
-	}
-
-	private handleLocalGame(): void {
 		this.aliasFields.forEach((field, index) => {
 			const alias = field.value.trim() || `Player${index + 1}`;
 			sessionStorage.setItem(`alias${index + 1}`, alias);
 		});
-		location.hash = '#game';
-	}
-
-	private async handleRemoteGame(): Promise<void> {
-		const alias = this.aliasFields[0].value.trim() || 'Player1';
-		sessionStorage.setItem('alias', alias);
-		
-		// Clean up old aliases
-		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key => 
-			sessionStorage.removeItem(key)
-		);
-
-		await this.joinGame(state.tournamentSize);
-		new WaitingModal(this.parent);
-	}
-
-	private async joinGame(targetSize: number): Promise<void> {
 		location.hash = '#game';
 	}
 
@@ -271,33 +222,19 @@ export class AliasModal extends Modal {
 			alias: sessionStorage.getItem('alias'),
 		};
 
-			alias: sessionStorage.getItem('alias'),
-		};
-
 		const parseInput = JoinTournamentSchema.safeParse(joinData);
 		if (!parseInput.success) {
 			this.showError('Invalid tournament format', parseInput.error);
-			this.showError('Invalid tournament format', parseInput.error);
 			return;
 		}
-
-		console.debug('Sending to /tournaments/join:', joinData);
-		const { data: playerQueue, error } = await apiCall(
 
 		console.debug('Sending to /tournaments/join:', joinData);
 		const { data: playerQueue, error } = await apiCall(
 			'POST',
 			'/tournaments/join',
-			'/tournaments/join',
 			TournamentQueueSchema,
 			joinData
 		);
-
-		if (error) {
-			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
-			return;
-		}
-
 
 		if (error) {
 			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
@@ -314,16 +251,12 @@ export class AliasModal extends Modal {
 	}
 
 	private async handlePlayerQueue(playerQueue: any, targetSize: number): Promise<void> {
-		await this.handlePlayerQueue(playerQueue, targetSize);
-	}
-
-	private async handlePlayerQueue(playerQueue: any, targetSize: number): Promise<void> {
 		console.log('Tournament (game) actual players:', playerQueue.queue);
 		const currentPlayers = playerQueue.queue.length;
 		const isTournamentReady = currentPlayers === targetSize;
 
 		// Set up game spec
-		// Set up game spec
+
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('targetSize', targetSize.toString());
 		sessionStorage.setItem('gameMode', 'remote');
@@ -387,63 +320,5 @@ export class AliasModal extends Modal {
 	public destroy(): void {
 		this.closeAllDropdowns();
 		super.destroy();
-			await this.createTournament(playerQueue);
 		}
 	}
-
-	private async createTournament(playerQueue: any): Promise<void> {
-		const body = {
-			creator: sessionStorage.getItem('userID') || '',
-			participants: playerQueue.queue,
-		};
-
-		const parseInput = CreateTournamentApiSchema.safeParse(body);
-		if (!parseInput.success) {
-			this.showError('Invalid tournament creation data', parseInput.error);
-			return;
-		}
-
-		console.log('Sending to /tournaments:', body);
-		const { data: tournament, error } = await apiCall(
-			'POST',
-			'/tournaments',
-			TournamentSchema,
-			body
-		);
-
-		if (error) {
-			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
-			await this.leaveTournament();
-			return;
-		}
-
-		if (tournament) {
-			console.info('Tournament created with ID:', tournament.id);
-			sessionStorage.setItem('tournamentID', tournament.id);
-		} else {
-			this.showError('Failed to create tournament. Leaving queue.');
-			await this.leaveTournament();
-		}
-	}
-
-	private async leaveTournament(): Promise<void> {
-		const { error } = await apiCall('POST', '/tournaments/leave');
-		if (error) {
-			console.error('Error leaving tournament:', error);
-			this.showError(`Failed to leave tournament: ${error.message}`);
-		}
-	}
-
-	private showError(message: string, zodError?: z.ZodError): void {
-		new TextModal(this.parent, message);
-		if (zodError) {
-			console.error('Validation failed:', z.treeifyError(zodError));
-		}
-		console.error(message);
-	}
-
-	public destroy(): void {
-		this.closeAllDropdowns();
-		super.destroy();
-	}
-}
