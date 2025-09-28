@@ -1,14 +1,30 @@
 import { MESSAGE_QUIT } from '../../../shared/constants';
 import { Pong3D } from '../game/Pong3D';
+import { TextModal } from '../modals/TextModal';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { Screen } from './Screen';
 
 export class GameScreen extends Screen {
-	private pong3DInstance: Pong3D;
+	private pong3DInstance?: Pong3D;
 
 	constructor() {
 		super();
+
+		const matchID = sessionStorage.getItem('matchID');
+		const gameMode = sessionStorage.getItem('gameMode');
+		if (gameMode == 'remote' && !matchID) {
+			new TextModal(
+				this.element,
+				'No remote game happening at the moment.',
+				undefined,
+				() => {
+					location.hash = '#home';
+				}
+			);
+			return;
+		}
+
 		// Hide the online players banner while on #game
 		const banner = document.getElementById('online-players-banner');
 		if (banner) banner.style.display = 'none';
@@ -17,7 +33,7 @@ export class GameScreen extends Screen {
 	}
 
 	public reloadPong() {
-		this.pong3DInstance.dispose();
+		this.pong3DInstance?.dispose();
 		this.pong3DInstance = new Pong3D(this.element, { gameScreen: this });
 	}
 
