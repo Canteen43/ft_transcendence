@@ -2,7 +2,6 @@ import { DEFAULT_MAX_SCORE, EMPTY_UUID } from '../../shared/constants.js';
 import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
-	SettingsNotFoundError,
 	TournamentNotFoundError,
 	UserAlreadyQueuedError,
 	UserNotQueuedError,
@@ -20,7 +19,6 @@ import {
 import { CreateSettings } from '../../shared/schemas/settings.js';
 import {
 	CreateTournament,
-	CreateTournamentSchema,
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
@@ -31,7 +29,6 @@ import { randomInt } from '../../shared/utils.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
-import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import { QueuedUser } from '../types/interfaces.js';
 import { LockService, LockType } from './lock_service.js';

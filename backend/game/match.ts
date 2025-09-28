@@ -1,5 +1,5 @@
 import { PlayerStatus } from '../../shared/enums.js';
-import { UUID, Vect2 } from '../../shared/types.js';
+import { UUID } from '../../shared/types.js';
 import { Player } from '../types/interfaces.js';
 
 export class Match {
