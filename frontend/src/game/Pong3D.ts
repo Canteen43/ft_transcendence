@@ -197,7 +197,7 @@ export class Pong3D {
 	private trophyContainer: HTMLDivElement | null = null;
 	private glowLayer: BABYLON.GlowLayer | null = null;
 	private readonly glowBaseIntensity = 3;
-	private readonly glowBaseColor = new BABYLON.Color3(0, 1, 1);
+    private readonly glowBaseColor = new BABYLON.Color3(0, 1, 1);
 	private glowPaddleStates = new Map<number, { baseColor: BABYLON.Color3; timeoutId: number }>();
 	private glowFadeAnimation: number | null = null;
 
@@ -464,6 +464,20 @@ export class Pong3D {
 		}
 
 		this.setupEventListeners();
+
+		// Initialize alternate scoring for local 3p/4p tournament: start at max score
+		try {
+			const isLocalTournament =
+				sessionStorage.getItem('gameMode') === 'local' &&
+				sessionStorage.getItem('tournament') === '1';
+			if (isLocalTournament && (this.playerCount === 3 || this.playerCount === 4)) {
+				for (let i = 0; i < this.playerCount; i++) {
+					this.playerScores[i] = this.WINNING_SCORE;
+				}
+			}
+		} catch (_) {
+			// sessionStorage may be unavailable; ignore
+		}
 
 		// Initialize appropriate game loop based on mode
 		if (this.gameMode === 'local') {
@@ -1896,37 +1910,103 @@ export class Pong3D {
 			);
 		}
 
-		// Play goal sound effect
-		this.audioSystem.playSoundEffect('goal');
+        // Play goal sound effect
+        this.audioSystem.playSoundEffect('goal');
 
-		// Award point to the scoring player (skip for direct serve own goals)
-		if (!wasDirectServeOwnGoal) {
-			this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
-			this.playerScores[scoringPlayer]++;
-			this.flashPaddleGlow(scoringPlayer + 1);
-			this.conditionalLog(`New scores after goal:`, this.playerScores);
+        // Special scoring: local tournament 3p/4p (conceding player loses a point)
+        const isLocalTournamentSpecial =
+            sessionStorage.getItem('gameMode') === 'local' &&
+            sessionStorage.getItem('tournament') === '1' &&
+            (this.playerCount === 3 || this.playerCount === 4);
 
-			// Send score update to clients (only in master mode)
-			this.conditionalLog(
-				'🏆 sendScoreUpdateToClients called with scoringPlayer:',
-				scoringPlayer
-			);
-			this.sendScoreUpdateToClients(scoringPlayer);
-		} else {
-			this.conditionalLog(
-				`🏴 DIRECT SERVE OWN GOAL: Skipping point award for invalid serve`
-			);
-		}
+        if (isLocalTournamentSpecial) {
+            // Penalize conceding player
+            this.playerScores[goalPlayer] = Math.max(0, this.playerScores[goalPlayer] - 1);
+            // Red glow for point lost
+            this.flashPaddleGlow(goalPlayer + 1, 1500, false);
+            this.conditionalLog(`Tournament scoring: Player ${goalPlayer + 1} loses a point ->`, this.playerScores);
+        } else {
+            // Original scoring: award point to scoring player (skip for direct-serve own goals)
+            if (!wasDirectServeOwnGoal) {
+                this.conditionalLog(`Awarding point to player ${scoringPlayer}...`);
+                this.playerScores[scoringPlayer]++;
+                this.flashPaddleGlow(scoringPlayer + 1);
+                this.conditionalLog(`New scores after goal:`, this.playerScores);
 
-		// Check if player has won (configurable winning score)
-		if (this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
-			// Game over! Player wins
-			const playerName =
-				this.playerNames[scoringPlayer] ||
-				`Player ${scoringPlayer + 1}`;
-			this.conditionalLog(
-				`🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
-			);
+                // Send score update to clients (only in master mode)
+                this.conditionalLog(
+                    '🏆 sendScoreUpdateToClients called with scoringPlayer:',
+                    scoringPlayer
+                );
+                this.sendScoreUpdateToClients(scoringPlayer);
+            } else {
+                this.conditionalLog(
+                    `🏴 DIRECT SERVE OWN GOAL: Skipping point award for invalid serve`
+                );
+            }
+        }
+
+        // Check for end-of-round conditions
+        if (isLocalTournamentSpecial && this.playerScores[goalPlayer] <= 0) {
+            // Eliminate conceding player and end round
+            this.conditionalLog(`🏁 Elimination reached: Player ${goalPlayer + 1} hit 0`);
+
+            // Play victory sound effect
+            this.audioSystem.playSoundEffect('victory');
+
+            // Mark game as ended and stop systems
+            this.gameEnded = true;
+            const physicsEngine = this.scene.getPhysicsEngine();
+            if (physicsEngine) {
+                this.scene.disablePhysicsEngine();
+                this.conditionalLog(`🏆 Physics engine disabled - elimination`);
+            }
+            if (this.gameLoop) {
+                this.gameLoop.stop();
+            }
+
+            // Update UI and handle tournament elimination flow
+            this.updatePlayerInfoDisplay();
+            const eliminationResult = this.handleLocalTournamentElimination();
+            const isLocalTournament =
+                sessionStorage.getItem('gameMode') === 'local' &&
+                sessionStorage.getItem('tournament') === '1';
+            const skipModal =
+                isLocalTournament &&
+                !!eliminationResult &&
+                eliminationResult.tournamentFinished;
+
+            if (this.gameMode == 'local' && !skipModal) {
+                if (this.gameScreen) {
+                    if (isLocalTournament && eliminationResult?.eliminatedAlias) {
+                        new NextRoundModal(this.gameScreen, eliminationResult.eliminatedAlias);
+                    } else {
+                        new ReplayModal(this.gameScreen);
+                    }
+                } else {
+                    this.conditionalWarn('GameScreen reference not available for NextRoundModal/ReplayModal');
+                }
+            }
+
+            setTimeout(() => {
+                state.gameOngoing = false;
+            }, 2000);
+
+            // Reset trackers and return
+            this.lastPlayerToHitBall = -1;
+            this.secondLastPlayerToHitBall = -1;
+            this.lastGoalTime = performance.now();
+            return;
+        }
+
+        if (!isLocalTournamentSpecial && this.playerScores[scoringPlayer] >= this.WINNING_SCORE) {
+            // Game over! Player wins
+            const playerName =
+                this.playerNames[scoringPlayer] ||
+                `Player ${scoringPlayer + 1}`;
+            this.conditionalLog(
+                `🏆 GAME OVER! ${playerName} wins with ${this.WINNING_SCORE} points!`
+            );
 
 			// Play victory sound effect
 			this.audioSystem.playSoundEffect('victory');
@@ -1954,8 +2034,8 @@ export class Pong3D {
 			// Update the UI with final scores
 			this.updatePlayerInfoDisplay();
 
-			this.handleLocalTournamentVictory(scoringPlayer);
-			const eliminationResult = this.handleLocalTournamentElimination();
+            this.handleLocalTournamentVictory(scoringPlayer);
+            const eliminationResult = this.handleLocalTournamentElimination();
 			const isLocalTournament =
 				sessionStorage.getItem('gameMode') === 'local' &&
 				sessionStorage.getItem('tournament') === '1';
@@ -2020,8 +2100,8 @@ export class Pong3D {
 			this.conditionalLog(
 				`🏀 Ball will continue and exit naturally - no respawn`
 			);
-			return;
-		}
+            return;
+        }
 
 		this.conditionalLog(
 			`🎯 GOAL! Player ${scoringPlayer + 1} scored against Player ${goalPlayer + 1}`
@@ -4581,11 +4661,11 @@ export class Pong3D {
 		this.glowLayer.intensity = 0;
 	}
 
-	private flashPaddleGlow(playerNumber: number, durationMs = 1500): void {
-		if (!this.glowLayer) return;
-		if (playerNumber < 1 || playerNumber > 4) return;
-		const paddle = this.paddles[playerNumber - 1];
-		if (!paddle) return;
+    private flashPaddleGlow(playerNumber: number, durationMs = 1500, point_gained = true): void {
+        if (!this.glowLayer) return;
+        if (playerNumber < 1 || playerNumber > 4) return;
+        const paddle = this.paddles[playerNumber - 1];
+        if (!paddle) return;
 
 		const material = paddle.material as (BABYLON.Material & { emissiveColor?: BABYLON.Color3 } | null);
 		if (!material) return;
@@ -4608,19 +4688,19 @@ export class Pong3D {
 			this.glowFadeAnimation = null;
 		}
 
-		const glowLayer = this.glowLayer;
-		if (!glowLayer) return;
+        const glowLayer = this.glowLayer;
+        if (!glowLayer) return;
+        const glowBase = point_gained ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(1, 0, 0); // cyan for gain, red for loss
+        const initialGlow = new BABYLON.Color3(
+            Math.min(baseColor.r + glowBase.r, 1),
+            Math.min(baseColor.g + glowBase.g, 1),
+            Math.min(baseColor.b + glowBase.b, 1)
+        );
+        material.emissiveColor = initialGlow;
+        glowLayer.intensity = this.glowBaseIntensity;
 
-		const initialGlow = new BABYLON.Color3(
-			Math.min(baseColor.r + this.glowBaseColor.r, 1),
-			Math.min(baseColor.g + this.glowBaseColor.g, 1),
-			Math.min(baseColor.b + this.glowBaseColor.b, 1)
-		);
-		material.emissiveColor = initialGlow;
-		glowLayer.intensity = this.glowBaseIntensity;
-
-		const start = performance.now();
-		const glowColor = this.glowBaseColor;
+        const start = performance.now();
+        const glowColor = glowBase;
 		const animate = () => {
 			const elapsed = performance.now() - start;
 			const progress = Math.min(elapsed / durationMs, 1);
