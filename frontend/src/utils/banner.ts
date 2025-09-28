@@ -30,7 +30,7 @@ export function createOnlinePlayersBanner() {
 	bannerContainer.appendChild(scrollWrapper);
 	document.body.appendChild(bannerContainer);
 
-	// Add scrolling animation styles
+	// Add scrolling animation styles with slower speed and better spacing
 	const style = document.createElement('style');
 	style.textContent = `
 	@keyframes scroll {
@@ -38,7 +38,7 @@ export function createOnlinePlayersBanner() {
 		100% { transform: translateX(-100%); }
 	}
 	.animate-scroll {
-		animation: scroll 20s linear infinite;
+		animation: scroll 40s linear infinite;
 	}
 	.animate-scroll:hover {
 		animation-play-state: paused;
@@ -74,8 +74,17 @@ export async function loadOnlinePlayers() {
 function updateOnlinePlayersDisplay(users: any[]) {
 	if (!onlinePlayersContainer) return;
 
-	// Clear and recreate title
-	onlinePlayersContainer.innerHTML = '';
+	// Clear container completely first
+	const scrollWrapper = onlinePlayersContainer.parentElement;
+	if (!scrollWrapper) return;
+	
+	scrollWrapper.innerHTML = '';
+
+	// Recreate main container
+	onlinePlayersContainer = document.createElement('div');
+	onlinePlayersContainer.className = 'flex items-center space-x-8 px-4';
+
+	// Add title
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
 	title.className = "font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
@@ -87,23 +96,35 @@ function updateOnlinePlayersDisplay(users: any[]) {
 		noPlayers.className =
 			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base opacity-75";
 		onlinePlayersContainer.appendChild(noPlayers);
-		return;
+	} else {
+		// Add each player (alias or username)
+		users.forEach((user, index) => {
+			const displayName = user.alias || user.login;
+
+			const playerElement = document.createElement('span');
+			playerElement.textContent = displayName;
+			playerElement.className =
+				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
+
+			onlinePlayersContainer?.appendChild(playerElement);
+		});
 	}
 
-	// Add each player (alias or username)
-	users.forEach((user, index) => {
-		const displayName = user.alias || user.login;
+	// Add the main container
+	scrollWrapper.appendChild(onlinePlayersContainer);
 
-		const playerElement = document.createElement('span');
-		playerElement.textContent = displayName;
-		playerElement.className =
-			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
-
-		onlinePlayersContainer?.appendChild(playerElement);
-	});
-
-	// Clone content for seamless scrolling
-	const clone = onlinePlayersContainer.cloneNode(true) as HTMLElement;
-	clone.className = 'flex items-center space-x-8 px-4 ml-8';
-	onlinePlayersContainer.parentElement?.appendChild(clone);
+	// Create multiple copies for seamless scrolling with proper spacing
+	const screenWidth = window.innerWidth;
+	const containerWidth = onlinePlayersContainer.scrollWidth;
+	
+	// Calculate how many copies we need to fill the screen properly
+	const copiesNeeded = Math.max(3, Math.ceil(screenWidth / containerWidth) + 1);
+	
+	for (let i = 0; i < copiesNeeded; i++) {
+		const clone = onlinePlayersContainer.cloneNode(true) as HTMLElement;
+		// Add proper spacing between copies
+		clone.className = 'flex items-center space-x-8 px-4';
+		clone.style.marginLeft = '400px'; // Add consistent spacing between copies
+		scrollWrapper.appendChild(clone);
+	}
 }

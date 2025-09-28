@@ -315,9 +315,9 @@ export class TournamentScreen extends Screen {
             .player-slot.winner { 
                 background: var(--color1); 
                 color: var(--color3); 
-                box-shadow: 0 0 30px rgba(0, 123, 255, 0.8), 0 0 60px rgba(0, 123, 255, 0.4); 
+                box-shadow: 0 0 30px rgba(247, 0, 255, 0.8), 0 0 60px rgba(225, 0, 255, 0.4); 
                 transform: scale(1.05); 
-                border: 3px solid #007bff; 
+                border: 3px solid #ea00ffff; 
                 font-weight: bold; 
                 animation: winnerPulse 2s infinite; 
             }
@@ -328,10 +328,10 @@ export class TournamentScreen extends Screen {
             }
             @keyframes winnerPulse { 
                 0%, 100% { 
-                    box-shadow: 0 0 30px rgba(0, 123, 255, 0.8), 0 0 60px rgba(0, 123, 255, 0.4);
+                    box-shadow: 0 0 30px rgba(234, 0, 255, 0.8), 0 0 60px rgba(255, 0, 255, 0.4);
                 } 
                 50% { 
-                    box-shadow: 0 0 40px rgba(0, 123, 255, 1), 0 0 80px rgba(0, 123, 255, 0.6);
+                    box-shadow: 0 0 40px rgba(212, 0, 255, 1), 0 0 80px rgba(234, 0, 255, 0.6);
                 } 
             }
         `;
