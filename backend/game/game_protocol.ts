@@ -7,12 +7,14 @@ import {
 	ERROR_USER_CONNECTION_NOT_FOUND,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
+	MESSAGE_CHAT,
 	MESSAGE_FINISH,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
+	MESSAGE_REPLAY,
 	MESSAGE_START_TOURNAMENT,
 } from '../../shared/constants.js';
 import {
@@ -41,6 +43,7 @@ import { UUID } from '../../shared/types.js';
 import {
 	getConnection,
 	getConnectionByUserId,
+	sendToOthers,
 } from '../connection_manager/connection_manager.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
@@ -65,6 +68,8 @@ export class GameProtocol {
 		[MESSAGE_POINT]: this.handlePoint,
 		[MESSAGE_PAUSE]: this.handlePause,
 		[MESSAGE_QUIT]: this.handleQuit,
+		[MESSAGE_REPLAY]: this.handleReplay,
+		[MESSAGE_CHAT]: this.handleChat,
 	} as const;
 
 	static getInstance(): GameProtocol {
@@ -213,6 +218,18 @@ export class GameProtocol {
 		logger.debug('websocket: pause message received.');
 		const match = this.getMatchObject(connectionId);
 		this.sendMatchMessage(message, match.players);
+	}
+
+	private handleReplay(connectionId: UUID, message: Message) {
+		logger.debug('websocket: replay message received.');
+		const match = this.getMatchObject(connectionId);
+		this.sendMatchMessage(message, match.players);
+	}
+
+	private handleChat(connectionId: UUID, message: Message) {
+		logger.debug('websocket: chat message received.');
+		const socket = this.getSocket(connectionId);
+		sendToOthers(socket.userId, message);
 	}
 
 	private quitAll(connectionId: UUID, reason: QuitReason) {
