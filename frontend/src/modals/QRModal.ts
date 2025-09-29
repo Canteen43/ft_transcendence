@@ -30,14 +30,7 @@ export class QRModal extends Modal {
 		const qrCode = document.createElement('img');
 		qrCode.className = 'mx-auto my-4';
 		this.box.appendChild(qrCode);
-
-		try {
-			const url = await QRCode.toDataURL(code);
-			qrCode.src = url;
-		} catch (err) {
-			console.error('Failed to generate QR code', err);
-			this.destroy();
-		}
+		qrCode.src = code;
 	}
 
 	private addInputField() {
@@ -58,11 +51,19 @@ export class QRModal extends Modal {
 		if (!value) {
 			return;
 		}
-
-		// TODO: Placeholder until Wouters Schema and API are ready
-		// apiCall('POST', '/users/2fa/verify', { code: value });
-		// TODO: To know if API succeeded, we need to modify apiCall()
-		// This is a nice-to-have, not a must-have
+		const { data: payload, error } = await apiCall(
+			'POST',
+			`/users/2fa/enable/verify`,
+			undefined,
+			value
+		);
+		if (error) {
+			console.warn('Enable 2FA failed:', error);
+			this.destroy();
+			return;
+		} else {
+			console.info('2FA successfully enabled');
+		}
 		this.destroy();
 	}
 }

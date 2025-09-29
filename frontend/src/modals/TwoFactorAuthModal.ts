@@ -1,5 +1,6 @@
-import type { User } from '../../../shared/schemas/user';
-import { UserSchema } from '../../../shared/schemas/user';
+import { z } from 'zod';
+import type { QRCode, User } from '../../../shared/schemas/user';
+import { QRCodeSchema, UserSchema } from '../../../shared/schemas/user';
 import { Button } from '../buttons/Button';
 import { apiCall } from '../utils/apiCall';
 import { Modal } from './Modal';
@@ -42,7 +43,7 @@ export class TwoFactorAuthModal extends Modal {
 		this.state = user!.two_factor_enabled ? 'enabled' : 'disabled';
 
 		// Option to manually set state for testing;
-		// this.state = 'disabled';
+		// this.state = 'enabled';
 
 		// Create text element
 		let textElement = document.createElement('p');
@@ -65,28 +66,33 @@ export class TwoFactorAuthModal extends Modal {
 		}
 	}
 
-	private getTwoFactorAuthCode(): void {
-		// TODO: Placeholder until Wouters Schema and API are ready
-		// someType = apiCall('POST', '/users/2fa/enable', someSchema);
-		let returnCode: string | null =
-			'otpauth://totp/Transcendence:karl@example.com?' +
-			'secret=JBSWY3DPEHPK3PXX&' +
-			'issuer=TestApp&' +
-			'digits=6&' +
-			'period=30';
-		if (!returnCode) {
-			new TextModal(this.parent, 'Failed to generate QR code.');
+	private async getTwoFactorAuthCode(): Promise<void> {
+		const { data: qrCode, error } = await apiCall<QRCode>(
+			'POST',
+			'/users/2fa/enable',
+			QRCodeSchema
+		);
+		if (error || !qrCode) {
+			console.warn('Code URI fetch failed:', qrCode, error);
 			this.destroy();
 			return;
 		}
-		new QRModal(this.parent, returnCode);
+		new QRModal(this.parent, qrCode.data);
 		this.destroy();
 	}
 
-	private disable2FA(): void {
-		// TODO: Placeholder until Wouters API is ready
-		// apiCall('POST', '/users/2fa/disable');
-		// TODO: apiCall() can be used to check for success/failure
+	private async disable2FA(): Promise<void> {
+		const { data: payload, error } = await apiCall(
+			'POST',
+			`/users/2fa/disable`
+		);
+		if (error) {
+			console.warn('Disable 2FA failed:', error);
+			this.destroy();
+			return;
+		} else {
+			console.info('2FA successfully disabled');
+		}
 		this.destroy();
 	}
 }

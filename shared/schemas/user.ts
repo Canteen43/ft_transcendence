@@ -93,8 +93,11 @@ export const TwoFactorUpdateSchema = z
 			'two_factor_secret is required when two_factor_enabled is true',
 	});
 
+export const QRCodeSchema = z.object({ data: z.string() });
+
 export type User = z.infer<typeof UserSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateUser = z.infer<typeof CreateUserSchema>;
 export type TwoFactorUpdate = z.infer<typeof TwoFactorUpdateSchema>;
+export type QRCode = z.infer<typeof QRCodeSchema>;

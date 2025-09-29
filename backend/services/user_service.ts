@@ -191,7 +191,9 @@ export default class UserService {
 
 		const secret = totp.secret.base32;
 		const otpauthUrl = totp.toString();
-		const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+		const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl, {
+			errorCorrectionLevel: 'M',
+		});
 		return { secret, otpauthUrl, qrCodeDataUrl };
 	}
 }
