@@ -5,14 +5,14 @@ import { apiCall } from '../utils/apiCall';
 let onlinePlayersContainer: HTMLElement | null = null;
 
 export function createOnlinePlayersBanner() {
-    if (onlinePlayersContainer) return;
+	if (onlinePlayersContainer) return;
 
-    const bannerContainer = document.createElement('div');
-    // Give the banner a stable id so screens can toggle visibility
-    bannerContainer.id = 'online-players-banner';
-    bannerContainer.className =
-            'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
-            'border-t-2 border-[var(--color2)] py-3 z-50 overflow-hidden';
+	const bannerContainer = document.createElement('div');
+	// Give the banner a stable id so screens can toggle visibility in the game
+	bannerContainer.id = 'online-players-banner';
+	bannerContainer.className =
+		'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
+		'border-t-2 border-[var(--color2)] py-2 z-50 overflow-hidden';
 
 	const scrollWrapper = document.createElement('div');
 	scrollWrapper.className = 'flex animate-scroll whitespace-nowrap';
@@ -23,7 +23,8 @@ export function createOnlinePlayersBanner() {
 	// Add title
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
-	title.className = "font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
+	title.className =
+		"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	scrollWrapper.appendChild(onlinePlayersContainer);
@@ -77,7 +78,7 @@ function updateOnlinePlayersDisplay(users: any[]) {
 	// Clear container completely first
 	const scrollWrapper = onlinePlayersContainer.parentElement;
 	if (!scrollWrapper) return;
-	
+
 	scrollWrapper.innerHTML = '';
 
 	// Recreate main container
@@ -87,7 +88,8 @@ function updateOnlinePlayersDisplay(users: any[]) {
 	// Add title
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
-	title.className = "font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
+	title.className =
+		"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	if (users.length === 0) {
@@ -116,10 +118,13 @@ function updateOnlinePlayersDisplay(users: any[]) {
 	// Create multiple copies for seamless scrolling with proper spacing
 	const screenWidth = window.innerWidth;
 	const containerWidth = onlinePlayersContainer.scrollWidth;
-	
+
 	// Calculate how many copies we need to fill the screen properly
-	const copiesNeeded = Math.max(3, Math.ceil(screenWidth / containerWidth) + 1);
-	
+	const copiesNeeded = Math.max(
+		3,
+		Math.ceil(screenWidth / containerWidth) + 1
+	);
+
 	for (let i = 0; i < copiesNeeded; i++) {
 		const clone = onlinePlayersContainer.cloneNode(true) as HTMLElement;
 		// Add proper spacing between copies
