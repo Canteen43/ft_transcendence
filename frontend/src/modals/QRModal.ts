@@ -40,6 +40,7 @@ export class QRModal extends Modal {
 		this.inputField.className =
 			'block w-full mt-2 p-2 border rounded-md text-center text-lg';
 		this.box.appendChild(this.inputField);
+		this.inputField.focus();
 	}
 
 	private addEnableButton() {

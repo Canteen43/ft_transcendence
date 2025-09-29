@@ -51,7 +51,7 @@ export default class UserRepository {
 
 	static getTwoFactorSecret(userId: UUID, temp: boolean): string | null {
 		const field = temp ? 'two_factor_temp_secret' : 'two_factor_secret';
-		const row = db.queryOne<string>(
+		const row = db.queryOne<{ secret: string }>(
 			`SELECT ${field} AS secret
 			FROM ${this.table}
 			WHERE id = ?`,
@@ -59,7 +59,7 @@ export default class UserRepository {
 		);
 
 		if (!row) return null;
-		return row;
+		return row.secret;
 	}
 
 	static async createUser(user: CreateUser): Promise<User> {
@@ -120,8 +120,13 @@ export default class UserRepository {
 		const fields = Object.entries(update).filter(
 			([key, value]) => value !== undefined
 		);
+
 		const set = fields.map(([key, value]) => `${key} = ?`).join(', ');
-		const values = fields.map(([key, value]) => value);
+		const values: any[] = [];
+		for (const [key, value] of fields) {
+			if (key === 'two_factor_enabled') values.push(value ? 1 : 0);
+			else values.push(value);
+		}
 
 		db.execute(
 			`UPDATE ${this.table}
