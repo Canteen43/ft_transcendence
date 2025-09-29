@@ -17,10 +17,7 @@ import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
 import websocketRoutes from './routes/websocket.js';
 
-export default async function fastifyInit(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
+export default async function fastifyInit(fastify: FastifyInstance) {
 	fastify.register(fastifyCors, {
 		origin: '*', // allow all origins for now
 	});
