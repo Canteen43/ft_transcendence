@@ -3,6 +3,7 @@ import { UserSchema } from '../../../shared/schemas/user';
 import { apiCall } from '../utils/apiCall';
 
 let onlinePlayersContainer: HTMLElement | null = null;
+let styleInjected = false;
 
 export function createOnlinePlayersBanner() {
 	if (onlinePlayersContainer) return;
@@ -24,28 +25,30 @@ export function createOnlinePlayersBanner() {
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
 	title.className =
-		"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
+		"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	scrollWrapper.appendChild(onlinePlayersContainer);
 	bannerContainer.appendChild(scrollWrapper);
-	document.body.appendChild(bannerContainer);
 
 	// Add scrolling animation styles with slower speed and better spacing
-	const style = document.createElement('style');
-	style.textContent = `
-	@keyframes scroll {
-		0% { transform: translateX(100%); }
-		100% { transform: translateX(-100%); }
+	if (!styleInjected) {
+		const style = document.createElement('style');
+		style.textContent = `
+			@keyframes scroll {
+				0% { transform: translateX(100%); }
+				100% { transform: translateX(-100%); }
+			}
+			.animate-scroll {
+				animation: scroll 40s linear infinite;
+			}
+			.animate-scroll:hover {
+				animation-play-state: paused;
+			}
+			`;
+		document.head.appendChild(style);
+		styleInjected = true;
 	}
-	.animate-scroll {
-		animation: scroll 40s linear infinite;
-	}
-	.animate-scroll:hover {
-		animation-play-state: paused;
-	}
-	`;
-	document.head.appendChild(style);
 }
 
 export async function loadOnlinePlayers() {
@@ -89,14 +92,14 @@ function updateOnlinePlayersDisplay(users: any[]) {
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
 	title.className =
-		"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
+		"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	if (users.length === 0) {
 		const noPlayers = document.createElement('span');
 		noPlayers.textContent = 'No players online';
 		noPlayers.className =
-			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base opacity-75";
+			"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-base opacity-75";
 		onlinePlayersContainer.appendChild(noPlayers);
 	} else {
 		// Add each player (alias or username)
@@ -106,7 +109,7 @@ function updateOnlinePlayersDisplay(users: any[]) {
 			const playerElement = document.createElement('span');
 			playerElement.textContent = displayName;
 			playerElement.className =
-				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
+				"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
 
 			onlinePlayersContainer?.appendChild(playerElement);
 		});

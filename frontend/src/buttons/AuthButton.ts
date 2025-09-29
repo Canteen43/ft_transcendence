@@ -9,7 +9,7 @@ export function isLoggedIn(): boolean {
 
 export class AuthComponent {
 	private button?: Button;
-
+	private loginModal?: LoginModal;
 	private parent: HTMLElement;
 
 	constructor(parent: HTMLElement) {
@@ -34,7 +34,7 @@ export class AuthComponent {
 		);
 
 		this.button.element.className +=
-			'absolute top-4 right-4 fixed w-60 z-10 text-center truncate';
+			'absolute top-4 right-4 fixed w-32 sm:w-48 md:w-60 z-10 text-center truncate';
 
 		if (userIsLoggedIn) {
 			this.button.element.addEventListener('mouseenter', this.onEnter);
@@ -43,7 +43,7 @@ export class AuthComponent {
 	}
 
 	private showLoginModal() {
-		new LoginModal(document.body);
+		this.loginModal = new LoginModal(this.parent);
 	}
 
 	private onEnter = () => {
@@ -72,6 +72,7 @@ export class AuthComponent {
 
 	public destroy() {
 		this.destroyButton();
+		this.loginModal?.destroy();
 		document.removeEventListener('login-success', this.renderHandler);
 		document.removeEventListener('logout-success', this.renderHandler);
 		document.removeEventListener('login-failed', this.renderHandler);
