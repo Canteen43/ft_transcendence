@@ -1,4 +1,5 @@
 import type { User } from '../../../shared/schemas/user';
+import { UserSchema } from '../../../shared/schemas/user';
 import { Button } from '../buttons/Button';
 import { apiCall } from '../utils/apiCall';
 import { Modal } from './Modal';
@@ -7,14 +8,41 @@ import { TextModal } from './TextModal';
 
 export class TwoFactorAuthModal extends Modal {
 	state: 'enabled' | 'disabled' = 'disabled';
+	username: string | null = null;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		// TODO: Placeholder until Wouter new UserSchema is ready
-		// const user: User | null = await apiCall('GET', '/users/me', null);
-		// this.state = user?.two_factor_enabled ? 'enabled' : 'disabled';
-		this.state = 'disabled'; // or 'disabled' based on API response
+		// Using init function to allow async/await
+		this.init();
+	}
+
+	private async init(): Promise<void> {
+		this.username = sessionStorage.getItem('username');
+		if (!this.username) {
+			console.warn(
+				'Quitting 2FA modal because no username found. This error should have been caught earlier.'
+			);
+			this.destroy();
+			return;
+		}
+		const { data: user, error } = await apiCall<User>(
+			'GET',
+			`/users/login/${this.username}`,
+			UserSchema
+		);
+		if (error) {
+			console.warn(
+				'Quitting 2FA modal because user fetch failed:',
+				error
+			);
+			this.destroy();
+			return;
+		}
+		this.state = user!.two_factor_enabled ? 'enabled' : 'disabled';
+
+		// Option to manually set state for testing;
+		// this.state = 'disabled';
 
 		// Create text element
 		let textElement = document.createElement('p');
@@ -36,6 +64,7 @@ export class TwoFactorAuthModal extends Modal {
 			);
 		}
 	}
+
 	private getTwoFactorAuthCode(): void {
 		// TODO: Placeholder until Wouters Schema and API are ready
 		// someType = apiCall('POST', '/users/2fa/enable', someSchema);
@@ -57,8 +86,7 @@ export class TwoFactorAuthModal extends Modal {
 	private disable2FA(): void {
 		// TODO: Placeholder until Wouters API is ready
 		// apiCall('POST', '/users/2fa/disable');
-		// TODO: To know if API succeeded, we need to modify apiCall()
-		// This is a nice-to-have, not a must-have
+		// TODO: apiCall() can be used to check for success/failure
 		this.destroy();
 	}
 }
