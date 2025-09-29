@@ -44,10 +44,7 @@ async function handleIncomingConnection(
 	}
 }
 
-export default async function websocketRoutes(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
+export default async function websocketRoutes(fastify: FastifyInstance) {
 	fastify.get(
 		'/',
 		{

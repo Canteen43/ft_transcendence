@@ -17,9 +17,6 @@ import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
 import websocketRoutes from './routes/websocket.js';
 
-// Pass --options via CLI arguments in command to enable these options.
-const options = {};
-
 export default async function fastifyInit(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
@@ -54,15 +51,13 @@ export default async function fastifyInit(
 	// Enable websockets
 	await fastify.register(websocket);
 
+	// Configure authentication
+	fastify.addHook('preHandler', authHook);
+
 	// Load routes
 	await fastify.register(userRoutes, { prefix: '/users' });
 	await fastify.register(tournamentRoutes, { prefix: '/tournaments' });
 	await fastify.register(matchRoutes, { prefix: '/matches' });
 	await fastify.register(websocketRoutes, { prefix: '/websocket' });
 	await fastify.register(statsRoutes, { prefix: '/stats' });
-
-	fastify.addHook('preHandler', authHook);
 }
-
-const _options = options;
-export { _options as options };

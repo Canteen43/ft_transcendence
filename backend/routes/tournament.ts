@@ -89,10 +89,7 @@ async function leaveQueue(request: FastifyRequest) {
 	//TournamentService.quitCurrentTournament(authRequest.user.userId);
 }
 
-export default async function tournamentRoutes(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
+export default async function tournamentRoutes(fastify: FastifyInstance) {
 	fastify.get(
 		'/:id',
 		routeConfig({
