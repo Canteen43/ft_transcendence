@@ -5,7 +5,6 @@ import {
 } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
-import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
@@ -114,7 +113,7 @@ export class LoginModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color3)] rounded p-2';
+		input.className = 'border border-[var(--color3)] p-2';
 		this.box.appendChild(input);
 		return input;
 	}

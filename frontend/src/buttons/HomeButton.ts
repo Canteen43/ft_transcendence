@@ -6,7 +6,7 @@ export class HomeButton {
 	private img: HTMLImageElement;
 	private onEnter: () => void;
 	private onLeave: () => void;
-
+	private textModal?: TextModal;
 
 	constructor(
 		parent: HTMLElement,
@@ -21,11 +21,8 @@ export class HomeButton {
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
 		this.img.alt = 'Home';
-		this.img.className = 'w-18 h-18';
+		this.img.className = 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18'; 
 		this.button.appendChild(this.img);
-
-		this.onEnter = () => (this.img.src = hoverImgSrc);
-		this.onLeave = () => (this.img.src = imgSrc);
 
 		this.onEnter = () => (this.img.src = hoverImgSrc);
 		this.onLeave = () => (this.img.src = imgSrc);
@@ -42,7 +39,7 @@ export class HomeButton {
 
 	private handleHomeClick = () => {
 		if (location.hash === '#game' || state.gameOngoing) {
-			new TextModal(
+			this.textModal = new TextModal(
 				this.button.parentElement!,
 				undefined,
 				'Leave',
@@ -54,8 +51,7 @@ export class HomeButton {
 	};
 
 	destroy() {
-		this.button.removeEventListener('mouseenter', this.onEnter);
-		this.button.removeEventListener('mouseleave', this.onLeave);
+		this.textModal?.destroy();
 		this.button.removeEventListener('mouseenter', this.onEnter);
 		this.button.removeEventListener('mouseleave', this.onLeave);
 		this.button.removeEventListener('click', this.handleHomeClick);
