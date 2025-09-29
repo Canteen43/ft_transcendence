@@ -15,6 +15,12 @@ export function clearTournData() {
 	sessionStorage.removeItem('w1');
 	sessionStorage.removeItem('w2');
 	sessionStorage.removeItem('winner');
+	sessionStorage.removeItem('p1Score');
+	sessionStorage.removeItem('p2Score');
+	sessionStorage.removeItem('p3Score');
+	sessionStorage.removeItem('p4Score');
+	sessionStorage.removeItem('w1Score');
+	sessionStorage.removeItem('w2Score');
 }
 
 export function clearOtherGameData() {
@@ -22,5 +28,5 @@ export function clearOtherGameData() {
 	sessionStorage.removeItem('tournamentID');
 	sessionStorage.removeItem('gameMode');
 	sessionStorage.removeItem('playerCount');
-	sessionStorage.removeItem('tournament');
+	sessionStorage.setItem('tournament', '0');
 }

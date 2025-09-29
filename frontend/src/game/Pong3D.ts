@@ -14,11 +14,13 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { TextModal } from '../modals/TextModal';
 import { ReplayModal } from '../modals/ReplayModal';
 import { NextRoundModal } from '../modals/NextRoundModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { Trophy } from '../visual/Trophy';
 import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
@@ -40,7 +42,7 @@ import {
 	getAIDifficultyFromName,
 	Pong3DAI,
 } from './pong3DAI';
-import { Trophy } from '../visual/Trophy';
+
 
 // ============================================================================
 

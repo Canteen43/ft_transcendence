@@ -2,33 +2,41 @@ import { Button } from '../buttons/Button';
 import { Modal } from '../modals/Modal';
 
 export class TextModal extends Modal {
-	private notification: string;
-	private textEl: HTMLParagraphElement;
 	private okayButton: Button;
 
-	constructor(parent: HTMLElement, notification: string) {
+	constructor(
+		parent: HTMLElement,
+		notification?: string,
+		buttonText?: string,
+		onClick?: () => void
+	) {
 		super(parent);
 
-		this.notification = notification;
+		this.overlay.classList.remove('z-20');
+		this.overlay.classList.add('z-30');
 
-		// Create text element
-		this.textEl = document.createElement('p');
-		this.textEl.textContent = this.notification;
-		this.textEl.className = 'text-center text-lg text-[var(--color3)]';
-		this.box.appendChild(this.textEl);
+		console.debug('TextModal called');
+		if (notification) {
+			const textElmt = document.createElement('p');
+			textElmt.textContent = notification;
+			textElmt.className = 'text-center text-lg text-[var(--color3)]';
+			this.box.appendChild(textElmt);
+		}
 
-		// Create OK button using a class method
-		this.okayButton = new Button('Okay', this.onClick.bind(this), this.box);
-		// Focus the button so that enter works
+		this.okayButton = new Button(
+			buttonText ?? 'Okay',
+			() => {
+				onClick?.();
+				this.destroy();
+			},
+			this.box
+		);
+
 		this.okayButton.element.focus();
 	}
 
-	private onClick(): void {
-		this.destroy();
-		// call external callback if provided
-		if (this.onClose) this.onClose();
+	public destroy(): void {
+		super.destroy();
+		this.onClose?.();
 	}
-
-	// optional callback fired when the modal closes
-	public onClose?: () => void;
 }
