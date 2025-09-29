@@ -1,8 +1,10 @@
 import { isLoggedIn } from '../buttons/AuthButton';
+import { Button } from '../buttons/Button';
 import { AliasModal } from '../modals/AliasModal';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
 import { TextModal } from '../modals/TextModal';
+import { TwoFactorAuthModal } from '../modals/TwoFactorAuthModal';
 import { router } from '../utils/Router';
 import { Screen } from './Screen';
 
@@ -47,11 +49,36 @@ export class HomeScreen extends Screen {
 			'transition-all duration-300 shadow-lg';
 		remoteBtn.onclick = () => this.remoteLogic();
 		mainButtonContainer.appendChild(remoteBtn);
+
+		// Testing 2fa button
+		const twoFactorAuthButton = new Button(
+			'2FA',
+			() => {
+				if (sessionStorage.getItem('token')) {
+					new TwoFactorAuthModal(this.element);
+				} else {
+					new TextModal(
+						this.element,
+						'You must be logged access 2FA.'
+					);
+				}
+			},
+			this.element
+		);
+		twoFactorAuthButton.element.classList.add(
+			'absolute',
+			'top-4',
+			'right-70',
+			'z-50'
+		);
 	}
 
 	private remoteLogic() {
 		if (!isLoggedIn()) {
-			new TextModal(router.currentScreen!.element , 'You must be logged-in to access the remote game');
+			new TextModal(
+				router.currentScreen!.element,
+				'You must be logged-in to access the remote game'
+			);
 			return;
 		}
 		new RemoteGameModal(this.element);
@@ -61,8 +88,6 @@ export class HomeScreen extends Screen {
 		new LocalGameModal(this.element);
 	}
 }
-
-
 
 // import { isLoggedIn } from '../buttons/AuthButton';
 // import { AliasModal } from '../modals/AliasModal';
@@ -129,18 +154,18 @@ export class HomeScreen extends Screen {
 // 	private createOnlinePlayersBanner() {
 // 		// Banner container
 // 		const bannerContainer = document.createElement('div');
-// 		bannerContainer.className = 
+// 		bannerContainer.className =
 // 			'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
 // 			'border-t-2 border-[var(--color2)] py-3 z-50 overflow-hidden';
-		
+
 // 		// Scrolling content wrapper
 // 		const scrollWrapper = document.createElement('div');
 // 		scrollWrapper.className = 'flex animate-scroll whitespace-nowrap';
-		
+
 // 		// Online players container
 // 		this.onlinePlayersContainer = document.createElement('div');
 // 		this.onlinePlayersContainer.className = 'flex items-center space-x-8 px-4';
-		
+
 // 		// Add title
 // 		const title = document.createElement('span');
 // 		title.textContent = '🟢 ONLINE PLAYERS:';
@@ -149,13 +174,13 @@ export class HomeScreen extends Screen {
 
 // 		scrollWrapper.appendChild(this.onlinePlayersContainer);
 // 		bannerContainer.appendChild(scrollWrapper);
-		
+
 // 		// Append to the body
 // 		document.body.appendChild(bannerContainer);
-		
+
 // 		// Add custom CSS for scrolling animation
 // 		this.addScrollingStyles();
-		
+
 // 		// Adjust main content to account for banner
 // 		this.element.style.paddingBottom = '80px';
 // 	}
@@ -167,11 +192,11 @@ export class HomeScreen extends Screen {
 // 				0% { transform: translateX(100%); }
 // 				100% { transform: translateX(-100%); }
 // 			}
-			
+
 // 			.animate-scroll {
 // 				animation: scroll 30s linear infinite;
 // 			}
-			
+
 // 			.animate-scroll:hover {
 // 				animation-play-state: paused;
 // 			}
@@ -181,11 +206,11 @@ export class HomeScreen extends Screen {
 
 // 	private async loadOnlinePlayers() {
 // 		console.debug('🔍 Loading online players...');
-		
+
 // 		try {
 // 			const token = sessionStorage.getItem('token');
 // 			console.debug('🔑 Token found:', !!token);
-			
+
 // 			if (!token) {
 // 				console.debug('❌ No token found, showing empty list');
 // 				this.updateOnlinePlayersDisplay([]);
@@ -208,7 +233,7 @@ export class HomeScreen extends Screen {
 // 			if (response.ok) {
 // 				const responseText = await response.text();
 // 				console.debug('📄 Raw response text:', responseText.substring(0, 200) + '...');
-				
+
 // 				try {
 // 					const onlineUsers = JSON.parse(responseText);
 // 					console.debug('✅ Parsed online users:', onlineUsers);
@@ -261,16 +286,16 @@ export class HomeScreen extends Screen {
 // 		// Add each online player
 // 		users.forEach((user, index) => {
 // 			if (!this.onlinePlayersContainer) return; // Additional null check
-			
+
 // 			const playerElement = document.createElement('span');
 // 			playerElement.textContent = user.login;
-// 			playerElement.className = 
+// 			playerElement.className =
 // 				'font-sigmar text-[var(--color3)] text-base font-semibold ' +
 // 				'px-3 py-1 bg-[var(--color2)] bg-opacity-20 rounded-full ' +
 // 				'border border-[var(--color2)] border-opacity-50';
-			
+
 // 			this.onlinePlayersContainer.appendChild(playerElement);
-			
+
 // 			// Add separator dot (except for last item)
 // 			if (index < users.length - 1 && this.onlinePlayersContainer) {
 // 				const separator = document.createElement('span');
