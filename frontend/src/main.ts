@@ -15,6 +15,13 @@ import { webSocket } from './utils/WebSocketWrapper';
 (window as any).webSocket = webSocket;
 
 import sky from '/sky2.jpg';
+
+window.addEventListener('error', (event) => {
+  console.error('Unhandled error', event.error);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection', event.reason);
+});
 const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col';
 app.style.backgroundImage = `url(${sky})`;

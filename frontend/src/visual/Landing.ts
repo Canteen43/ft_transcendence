@@ -3,11 +3,12 @@ import * as BABYLON from '@babylonjs/core';
 export interface LandingCallbacks {
 	onLocalGameClick?: () => void;
 	onRemoteGameClick?: () => void;
+	onStatClick?: () => void;
 }
 
-/**
- * 3D landing page
- */
+//////////////////////
+// 3D landing page
+//
 export class Landing {
 	private engine!: BABYLON.Engine;
 	private scene!: BABYLON.Scene;
@@ -17,6 +18,7 @@ export class Landing {
 	// Clickable mesh references
 	private localGameMesh: BABYLON.AbstractMesh | null = null;
 	private remoteGameMesh: BABYLON.AbstractMesh | null = null;
+	private statMesh: BABYLON.AbstractMesh | null = null;
 
 	// Callbacks
 	private callbacks: LandingCallbacks;
@@ -27,38 +29,57 @@ export class Landing {
 		callbacks: LandingCallbacks = {}
 	) {
 		this.callbacks = callbacks;
-
-		// Create fullscreen canvas
 		this.canvas = document.createElement('canvas');
-		this.canvas.style.width = '100%';
-		this.canvas.style.height = '100%';
-		this.canvas.style.position = 'absolute';
-		this.canvas.style.top = '0';
-		this.canvas.style.left = '0';
-		this.canvas.style.zIndex = '1';
-
+		this.canvas.className = 'w-full h-full absolute top-0 left-0 z-0';
 		container.appendChild(this.canvas);
+		this.init(modelPath);
+	}
 
-		// Initialize Babylon
-		this.engine = new BABYLON.Engine(this.canvas, true, {
-			preserveDrawingBuffer: true,
-			stencil: true,
-			alpha: true,
-		});
+	async init(modelPath: string) {
+		try {
+			this.engine = new BABYLON.Engine(this.canvas, true, {
+				preserveDrawingBuffer: true,
+				stencil: true,
+				alpha: true,
+			});
 
-		this.scene = new BABYLON.Scene(this.engine);
-		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // Transparent background
+			this.scene = new BABYLON.Scene(this.engine);
+			this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
 
-		this.setupCamera();
-		this.setupLighting();
-		this.setupControls();
-		this.loadModel(modelPath);
+			this.setupCamera();
+			this.setupLighting();
+			this.setupControls();
+			await this.loadModel(modelPath);
 
-		// Start rendering
-		this.engine.runRenderLoop(() => this.scene.render());
+			this.engine.runRenderLoop(() => this.scene.render());
+			window.addEventListener('resize', () => this.engine.resize());
+		} catch (err) {
+			console.error('Error initializing scene:', err);
+		}
+	}
 
-		// Handle resize
-		window.addEventListener('resize', () => this.engine.resize());
+	private setupCamera(): void {
+		this.camera = new BABYLON.ArcRotateCamera(
+			'camera',
+			-Math.PI / 3, //looking from the left
+			Math.PI / 2, // you’re looking down at an angle 60
+			3, // distance between the camera and the target
+			BABYLON.Vector3.Zero(), // pointed at the origin
+			this.scene
+		);
+
+		// Enable mouse controls
+		// hook the camera to the HTML canvas so the user can control it with mouse/touch
+		this.camera.attachControl(this.canvas, true);
+
+		// Set limits
+		this.camera.lowerRadiusLimit = 5; //smallest allowed radius (closest to target)
+		this.camera.upperRadiusLimit = 150; //largest allowed radius
+		this.camera.lowerBetaLimit = -5;
+		this.camera.upperBetaLimit = 5;
+		this.camera.minZ = 0.1;
+		this.camera.maxZ = 100000;
+		console.debug('Camera setup complete');
 	}
 
 	private setupLighting(): void {
@@ -100,133 +121,64 @@ export class Landing {
 		console.debug('Lighting and skybox setup complete');
 	}
 
-	private setupCamera(): void {
-		this.camera = new BABYLON.ArcRotateCamera(
-			'camera',
-			-Math.PI / 3, //looking from the left
-			Math.PI / 2, // you’re looking down at an angle 60
-			7, // distance between the camera and the target
-			BABYLON.Vector3.Zero(), // pointed at the origin
-			this.scene
-		);
-
-		// Enable mouse controls
-		// hook the camera to the HTML canvas so the user can control it with mouse/touch
-		this.camera.attachControl(this.canvas, true);
-
-		// Set limits
-		this.camera.lowerRadiusLimit = 5; //smallest allowed radius (closest to target)
-		this.camera.upperRadiusLimit = 150; //largest allowed radius
-		this.camera.lowerBetaLimit = -5;
-		this.camera.upperBetaLimit = 5;
-		this.camera.minZ = 0.1;
-		this.camera.maxZ = 100000;
-		console.debug('Camera setup complete');
-	}
 	private setupControls(): void {
-		// Debug any pointer events
-		this.scene.onPointerObservable.add(pointerInfo => {
-			if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
-
-				if (
-					pointerInfo.pickInfo?.hit &&
-					pointerInfo.pickInfo.pickedMesh
-				) {
-					const pickedMesh = pointerInfo.pickInfo.pickedMesh;
-					console.debug('CLICK DETECTED! Clicked mesh:', pickedMesh.name);
-					this.handleMeshClick(pickedMesh);
-				} else {
-					console.debug('CLICK DETECTED! No mesh hit');
-				}
+		this.scene.onPointerObservable.add(info => {
+			if (
+				info.type === BABYLON.PointerEventTypes.POINTERDOWN &&
+				info.pickInfo?.hit &&
+				info.pickInfo.pickedMesh
+			) {
+				this.handleMeshClick(info.pickInfo.pickedMesh);
 			}
 		});
-
-		console.debug('Click controls setup complete');
 	}
 
-	private loadModel(modelPath: string): void {
-		console.debug('Loading model from:', modelPath);
-
-		BABYLON.SceneLoader.ImportMesh(
-			'',
-			'',
-			modelPath,
-			this.scene,
-			meshes => {
-				console.log('3D Model loaded successfully!');
-				this.onModelLoaded(meshes);
-			},
-			null,
-			(scene, message, exception) => {
-				console.error('Failed to load 3D model:', message);
-				console.log('Creating fallback scene...');
-				this.createFallbackScene();
-			}
-		);
-		// this.fitCameraToScene([this.localGameMesh!, this.remoteGameMesh!]);
+	private async loadModel(modelPath: string): Promise<void> {
+		return new Promise((resolve, reject) => {
+			BABYLON.SceneLoader.ImportMesh(
+				'',
+				'',
+				modelPath,
+				this.scene,
+				meshes => {
+					this.onModelLoaded(meshes);
+					resolve();
+				},
+				null,
+				(_, message) => reject(new Error(message))
+			);
+		});
 	}
 
 	private onModelLoaded(meshes: BABYLON.AbstractMesh[]): void {
-		console.debug('📋 ALL MESHES FOUND:');
-		meshes.forEach((mesh, index) => {
-			console.debug(
-				`  ${index + 1}. "${mesh.name}" (vertices: ${mesh.getTotalVertices()})`
-			);
-		});
+		const findMesh = (keyword: string) =>
+			meshes.find(m => m.name.toLowerCase().includes(keyword)) || null;
 
-		// Look for "local" mesh
-		this.localGameMesh =
-			meshes.find(mesh => mesh.name.toLowerCase().includes('local')) ||
-			null;
+		this.localGameMesh = findMesh('local');
+		this.remoteGameMesh = findMesh('remote');
+		this.statMesh = findMesh('stat');
 
-		// Look for "remote" or "global" mesh
-		this.remoteGameMesh =
-			meshes.find(
-				mesh =>
-					mesh.name.toLowerCase().includes('remote') ||
-					mesh.name.toLowerCase().includes('global')
-			) || null;
+		[this.localGameMesh, this.remoteGameMesh, this.statMesh].forEach(
+			mesh => {
+				if (mesh) mesh.isPickable = true;
+			}
+		);
 
-		console.debug('CLICKABLE MESHES:');
-		if (this.localGameMesh) {
-			console.debug(`  ✅ Local: "${this.localGameMesh.name}"`);
-			this.localGameMesh.isPickable = true;
-		} else {
-			console.debug('  No "local" mesh found');
-		}
-
-		if (this.remoteGameMesh) {
-			console.debug(`  Remote/Global: "${this.remoteGameMesh.name}"`);
-			this.remoteGameMesh.isPickable = true;
-		} else {
-			console.debug('  No "remote" or "global" mesh found');
-		}
-
-		// If no clickable meshes found, try first two meshes
-		if (!this.localGameMesh && !this.remoteGameMesh && meshes.length >= 2) {
-			console.debug('Using first two meshes as clickable elements');
-			this.localGameMesh = meshes[0];
-			this.remoteGameMesh = meshes[1];
-			this.localGameMesh.isPickable = true;
-			this.remoteGameMesh.isPickable = true;
-			console.debug(`Local (fallback): "${this.localGameMesh.name}"`);
-			console.debug(`Remote (fallback): "${this.remoteGameMesh.name}"`);
-		}
-
-		// Fit camera to scene
 		this.fitCameraToScene(meshes);
-		console.debug('✅ Model setup complete');
 	}
 
 	private handleMeshClick(mesh: BABYLON.AbstractMesh): void {
-			if (mesh === this.localGameMesh) {
-			console.debug('🏠 LOCAL GAME TRIGGERED!');
+		if (mesh === this.localGameMesh) {
+			console.debug('local selected');
 			this.callbacks.onLocalGameClick?.();
 		} else if (mesh === this.remoteGameMesh) {
-			console.debug('🌐 REMOTE/GLOBAL GAME TRIGGERED!');
+			console.debug('remote selected');
 			this.callbacks.onRemoteGameClick?.();
+		} else if (mesh === this.statMesh) {
+			console.debug('statistics selected');
+			this.callbacks.onStatClick?.();
 		} else {
-			console.debug('❓ Unknown mesh clicked');
+			console.debug('Unknown mesh clicked');
 		}
 	}
 	private fitCameraToScene(meshes: BABYLON.AbstractMesh[]): void {
@@ -257,55 +209,11 @@ export class Landing {
 		console.debug('📹 Camera fitted, radius', this.camera.radius);
 	}
 
-
-	private createFallbackScene(): void {
-		console.debug('Creating fallback cubes...');
-
-		// Green cube for local
-		this.localGameMesh = BABYLON.MeshBuilder.CreateBox(
-			'LOCAL_FALLBACK',
-			{ size: 2 },
-			this.scene
-		);
-		this.localGameMesh.position.set(-3, 0, 0);
-		this.localGameMesh.isPickable = true;
-
-		const localMaterial = new BABYLON.StandardMaterial(
-			'localMat',
-			this.scene
-		);
-		localMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0); // Green
-		this.localGameMesh.material = localMaterial;
-
-		// Blue cube for remote
-		this.remoteGameMesh = BABYLON.MeshBuilder.CreateBox(
-			'REMOTE_FALLBACK',
-			{ size: 2 },
-			this.scene
-		);
-		this.remoteGameMesh.position.set(3, 0, 0);
-		this.remoteGameMesh.isPickable = true;
-
-		const remoteMaterial = new BABYLON.StandardMaterial(
-			'remoteMat',
-			this.scene
-		);
-		remoteMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1); // Blue
-		this.remoteGameMesh.material = remoteMaterial;
-	}
-
 	public dispose(): void {
-		if (this.engine) {
-			this.engine.stopRenderLoop();
-		}
-		if (this.scene) {
-			this.scene.dispose();
-		}
-		if (this.engine) {
-			this.engine.dispose();
-		}
-		if (this.canvas && this.canvas.parentNode) {
+		if (this.engine) this.engine.stopRenderLoop();
+		if (this.scene) this.scene.dispose();
+		if (this.engine) this.engine.dispose();
+		if (this.canvas && this.canvas.parentNode)
 			this.canvas.parentNode.removeChild(this.canvas);
-		}
 	}
 }
