@@ -1,15 +1,23 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import z from 'zod';
-import { AuthResponse, AuthResponseSchema } from '../../shared/schemas/user.js';
+import {
+	AuthResponse,
+	AuthResponseSchema,
+	QRCode,
+	QRCodeSchema,
+} from '../../shared/schemas/user.js';
 import { authenticateRequest } from '../hooks/auth.js';
 import UserRepository from '../repositories/user_repository.js';
 import UserService from '../services/user_service.js';
 import { routeConfig } from '../utils/http_utils.js';
 import { getAuthData } from '../utils/utils.js';
 
-async function enable(request: FastifyRequest): Promise<string> {
+async function enable(request: FastifyRequest): Promise<QRCode> {
 	const authRequest = getAuthData(request);
-	return UserService.getQRForEnableTwoFactor(authRequest.token.userId);
+	const qr = await UserService.getQRForEnableTwoFactor(
+		authRequest.token.userId
+	);
+	return { data: qr };
 }
 
 async function verifyEnable(
@@ -46,7 +54,7 @@ export default async function twoFactorRoutes(
 	fastify.post(
 		'/enable',
 		routeConfig({
-			response: z.string(),
+			response: QRCodeSchema,
 		}),
 		enable
 	);
