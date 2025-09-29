@@ -160,6 +160,35 @@ export class Pong3D {
 	// Lighting configuration (can be overridden via constructor options or setters)
 	private importedLightScale = 0.001; //turn down blender lighting: 10 kwatts = 10 babylon units
 
+	private setupHDR(): void {
+			
+	
+			// Create skybox with your background image
+			const skybox = BABYLON.MeshBuilder.CreateSphere(
+				'skybox',
+				{ diameter: 1000 },
+				this.scene
+			);
+			skybox.isPickable = false;
+		const skyboxMaterial = new BABYLON.PBRMaterial('skybox', this.scene);
+		skyboxMaterial.backFaceCulling = false;
+		skyboxMaterial.unlit = true;
+		skyboxMaterial.metallic = 0;
+		skyboxMaterial.roughness = 1;
+		const skyboxTexture = new BABYLON.Texture('/psychedelic.hdr', this.scene);
+		skyboxTexture.level = 0.4;
+		skyboxMaterial.albedoTexture = skyboxTexture;
+		skybox.material = skyboxMaterial;
+
+		skybox.infiniteDistance = true;
+	
+			//short code for hdr
+			// const envTexture = new BABYLON.HDRCubeTexture('/wasteland.hdr', this.scene, 512, false, true, false, true);
+			// this.scene.environmentTexture = envTexture;
+			// this.scene.createDefaultSkybox(envTexture, true);
+		}
+
+
 	// GUI
 	private guiTexture: GUI.AdvancedDynamicTexture | null = null;
 
@@ -447,6 +476,7 @@ export class Pong3D {
 		this.scene = new BABYLON.Scene(this.engine);
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+		this.setupHDR();
 		this.setupGlowEffects();
 
 		// Apply provided options
