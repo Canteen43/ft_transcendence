@@ -87,15 +87,23 @@ sessionStorage vs localStorage vs global variable
 
 functions: getItem, setItem, removeItem
 
-TODO:
-
-- Login: better error handling for username existent
-- Better error handling on registration
-  -> if login already exist
-
-- save the match and tournament infos
-- separate state vs session storage
-- handle closing the modals while not yet in the game
-- continue tournament logic
-
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9
+
+
+- tournament variable in session data: 1 when the tournament button is selected - 
+for local: put back to 0 when we have a winner  (and when we quit -> todo)
+
+
+
+buttonText ?? 'Okay'
+buttonText? buttonText : 'Okay'
+
+
+
+z-index:
+- authButton 'z-10'
+- home button 'z-10'
+- alias AI toggle down background: 'z-10'
+- modal 'z-20'
+- banner 'z-30'
+- textModal 'z-30'

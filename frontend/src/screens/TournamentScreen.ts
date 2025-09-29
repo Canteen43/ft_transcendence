@@ -1,34 +1,298 @@
+import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
+import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
-import { state } from '../utils/State';
-import { fetchAndUpdateTournamentMatchData } from '../utils/updateTurnMatchData';
+import { TextModal } from '../modals/TextModal';
+import { apiCall } from '../utils/apiCall';
+import { clearMatchData, clearTournData } from '../utils/cleanSessionStorage';
+import { updateTournData } from '../utils/updateTurnMatchData.js';
 import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
 
 export class TournamentScreen extends Screen {
-	private trophyInstance?: Trophy;
 	private readyButton?: ReadyButton;
-
-	// Handler for tournament updates
-	private tournUpdHandler = async () => {
-		await fetchAndUpdateTournamentMatchData();
-		this.render();
-	};
+	private trophyInstance?: Trophy;
 
 	constructor() {
 		super();
+		clearMatchData();
+		clearTournData();
 		this.addStyles();
-		document.addEventListener('tournament-updated', this.tournUpdHandler);
+		document.addEventListener(
+			'tournament-updated',
+			() => void this.tournamentUpdate()
+		);
 		this.initialize();
 	}
 
 	// ASYNC INIT RENDER (waits for data before rendering)
 	private async initialize() {
-		console.log('Initializing TournamentScreen...');
-		await fetchAndUpdateTournamentMatchData();
-		this.render();
+		try {
+			await this.tournamentUpdate();
+		} catch (err) {
+			console.error('Initialization failed:', err);
+			this.errorModal('Failed to initialize tournament screen.');
+		}
 	}
 
-	// HELPER
+	private errorModal(message: string) {
+		const modal = new TextModal(this.element, message, undefined, () => {
+			location.hash = '#home';
+		});
+		modal.onClose = () => {
+			location.hash = '#home';
+		};
+	}
+	
+	private async tournamentUpdate(): Promise<void> {
+		const tournID = sessionStorage.getItem('tournamentID');
+		if (!tournID) {
+			console.error('No tournament ID found in session storage');
+			this.errorModal('No tournament found');
+			return;
+		}
+		
+		console.debug('Calling tournament details API');
+		const { data: tournData, error } = await apiCall(
+			'GET',
+			`/tournaments/${tournID}`,
+			FullTournamentSchema
+		);
+	
+		if (error) {
+			console.error('Tournament fetch error:', error);
+			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+			this.errorModal(message);
+			return;
+		}
+	
+		if (!tournData) {
+			console.error('Getting tournament data failed - no data returned');
+			this.errorModal('Failed to get tournament data');
+			return;
+		}
+		
+		console.log('Tournament data received:', tournData);
+		updateTournData(tournData);
+		this.render(); // Render after data is updated
+	}
+
+
+
+	private render() {
+		this.element.innerHTML = '';
+
+		this.element.className =
+			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
+
+		// Title
+		this.renderTitle();
+
+		// Tournament bracket container - made wider for bigger slots
+		const bracketGrid = this.createElement(
+			this.element,
+			'div',
+			'bracket-grid grid grid-cols-7 gap-6 items-center max-w-7xl mx-auto mb-8'
+		);
+		this.renderBracket(bracketGrid);
+
+		// Ready button
+		this.renderReadyButton();
+
+		// Trophy
+		this.renderTrophy();
+	}
+
+		private renderBracket(parent: HTMLElement) {
+		const winner = sessionStorage.getItem('winner');
+		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
+		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
+		const p1 = sessionStorage.getItem('p1') || 'Player 1';
+		const p2 = sessionStorage.getItem('p2') || 'Player 2';
+		const p3 = sessionStorage.getItem('p3') || 'Player 3';
+		const p4 = sessionStorage.getItem('p4') || 'Player 4';
+
+		// Get scores
+		const p1Score = sessionStorage.getItem('p1Score') || '0';
+		const p2Score = sessionStorage.getItem('p2Score') || '0';
+		const p3Score = sessionStorage.getItem('p3Score') || '0';
+		const p4Score = sessionStorage.getItem('p4Score') || '0';
+		const w1Score = sessionStorage.getItem('w1Score') || '0';
+		const w2Score = sessionStorage.getItem('w2Score') || '0';
+
+		// Left side players (match 0)
+		const leftSide = this.createElement(
+			parent,
+			'div',
+			'col-span-1 space-y-8'
+		);
+		
+		// Show scores if we have a winner from first match
+		const showMatch0Scores = w1 && w1 !== 'Winner 1';
+		const player1Slot = this.createPlayerSlot(
+			p1, 
+			w1 === p1 ? 'winner' : (showMatch0Scores ? 'loser' : 'normal'),
+			showMatch0Scores ? p1Score : undefined
+		);
+		const player2Slot = this.createPlayerSlot(
+			p2, 
+			w1 === p2 ? 'winner' : (showMatch0Scores ? 'loser' : 'normal'),
+			showMatch0Scores ? p2Score : undefined
+		);
+
+		leftSide.appendChild(player1Slot);
+		leftSide.appendChild(player2Slot);
+
+		// Left connector
+		this.renderConnector(parent, 'left');
+
+		// Semi winner 1
+		const winner1Container = this.createElement(
+			parent,
+			'div',
+			'col-span-1'
+		);
+		const showFinalScores = winner && winner !== '';
+		const winner1Status = showFinalScores ? (winner === w1 ? 'winner' : 'loser') : 'normal';
+		const winner1 = this.createPlayerSlot(
+			w1 || 'Winner 1', 
+			winner1Status,
+			showFinalScores && w1 !== 'Winner 1' ? w1Score : undefined
+		);
+		winner1.classList.add('semi-winner');
+		winner1Container.appendChild(winner1);
+
+		// Final match (empty column)
+		this.createElement(parent, 'div', 'col-span-1');
+
+		// Semi winner 2
+		const winner2Container = this.createElement(
+			parent,
+			'div',
+			'col-span-1'
+		);
+		const winner2Status = showFinalScores ? (winner === w2 ? 'winner' : 'loser') : 'normal';
+		const winner2 = this.createPlayerSlot(
+			w2 || 'Winner 2', 
+			winner2Status,
+			showFinalScores && w2 !== 'Winner 2' ? w2Score : undefined
+		);
+		winner2.classList.add('semi-winner');
+		winner2Container.appendChild(winner2);
+
+		// Right connector
+		this.renderConnector(parent, 'right');
+
+		// Right side players (match 1)
+		const rightSide = this.createElement(
+			parent,
+			'div',
+			'col-span-1 space-y-8'
+		);
+		
+		// Show scores if we have a winner from second match
+		const showMatch1Scores = w2 && w2 !== 'Winner 2';
+		const player3Slot = this.createPlayerSlot(
+			p3, 
+			w2 === p3 ? 'winner' : (showMatch1Scores ? 'loser' : 'normal'),
+			showMatch1Scores ? p3Score : undefined
+		);
+		const player4Slot = this.createPlayerSlot(
+			p4, 
+			w2 === p4 ? 'winner' : (showMatch1Scores ? 'loser' : 'normal'),
+			showMatch1Scores ? p4Score : undefined
+		);
+
+		rightSide.appendChild(player3Slot);
+		rightSide.appendChild(player4Slot);
+	}
+
+	private renderConnector(parent: HTMLElement, side: 'left' | 'right') {
+		const connector = this.createElement(
+			parent,
+			'div',
+			'col-span-1 flex items-center justify-center'
+		);
+		
+		const line = this.createElement(
+			connector,
+			'div',
+			`w-full h-0.5 bg-[var(--color1)] ${side === 'left' ? 'ml-4' : 'mr-4'}`
+		);
+	}
+
+	private renderTitle() {
+		const title = this.createElement(
+			this.element,
+			'h1',
+			"font-azeret [font-variation-settings:'wght'_900] text-6xl text-center mb-12 text-[var(--color1)]"
+		);
+		title.textContent = 'TOURNAMENT';
+	}
+
+	private createPlayerSlot(name: string, status: 'winner' | 'loser' | 'normal', score?: string): HTMLElement {
+		const slot = document.createElement('div');
+		
+		let statusClass = '';
+		if (status === 'winner') {
+			statusClass = 'winner';
+		} else if (status === 'loser') {
+			statusClass = 'loser';
+		}
+		
+		slot.className = `player-slot px-6 py-4 text-center font-semibold text-xl min-h-[60px] min-w-[160px] flex items-center justify-center truncate max-w-[200px] border-2 border-transparent ${statusClass}`;
+		
+		// Create content with name and score
+		if (score !== undefined && score !== '0') {
+			slot.innerHTML = `
+				<div class="flex flex-col items-center">
+					<div class="font-bold">${name}</div>
+					<div class="text-lg mt-1">${score}</div>
+				</div>
+			`;
+		} else {
+			slot.textContent = name;
+		}
+		
+		return slot;
+	}
+
+	private renderReadyButton() {
+		const matchID = sessionStorage.getItem('matchID');
+		const winner = sessionStorage.getItem('winner');
+		
+		// Check if there's an active match
+		const hasActiveMatch = (matchID && !winner);
+		
+		if (hasActiveMatch && !this.readyButton) {
+			console.log('Creating ReadyButton');
+			this.readyButton = new ReadyButton(this.element);
+		} else if (this.readyButton && !hasActiveMatch) {
+			// Clean up ready button if no longer needed
+			this.readyButton.destroy();
+			this.readyButton = undefined;
+		}
+	}
+
+	private renderTrophy() {
+		const winner = sessionStorage.getItem('winner');
+		if (winner && !this.trophyInstance) {
+			const trophyContainer = this.createElement(this.element, 'div', '');
+			Object.assign(trophyContainer.style, {
+				position: 'fixed',
+				top: '0',
+				left: '0',
+				width: '100vw',
+				height: '100vh',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				pointerEvents: 'none',
+				zIndex: '9999',
+			});
+			this.trophyInstance = new Trophy(trophyContainer, { winner });
+		}
+	}
+
 	private createElement(
 		parent: HTMLElement,
 		tag: string,
@@ -43,227 +307,37 @@ export class TournamentScreen extends Screen {
 	private addStyles() {
 		const style = document.createElement('style');
 		style.textContent = `
-			.player-slot {
-				background: var(--color1);
-				color: var(--color3);
-			}
-			.player-slot.winner {
-				background: var(--color2);
-				color: var(--color3);
-				box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-			}
-			.bracket-line-horizontal { height: 4px; background-color: var(--color1); }
-			.bracket-line-vertical { width: 4px; background-color: var(--color1); }
-		`;
+            .player-slot { 
+                background: var(--color1); 
+                color: var(--color3); 
+                transition: all 0.3s ease; 
+            }
+            .player-slot.winner { 
+                background: var(--color1); 
+                color: var(--color3); 
+                box-shadow: 0 0 30px rgba(247, 0, 255, 0.8), 0 0 60px rgba(225, 0, 255, 0.4); 
+                transform: scale(1.05); 
+                border: 3px solid #ea00ffff; 
+                font-weight: bold; 
+                animation: winnerPulse 2s infinite; 
+            }
+            .player-slot.loser {
+                background: #6c757d;
+                color: #ffffff;
+                opacity: 0.7;
+            }
+            @keyframes winnerPulse { 
+                0%, 100% { 
+                    box-shadow: 0 0 30px rgba(234, 0, 255, 0.8), 0 0 60px rgba(255, 0, 255, 0.4);
+                } 
+                50% { 
+                    box-shadow: 0 0 40px rgba(212, 0, 255, 1), 0 0 80px rgba(234, 0, 255, 0.6);
+                } 
+            }
+        `;
 		document.head.appendChild(style);
 	}
 
-	private render() {
-		 this.element.innerHTML = '';
-
-		this.element.className =
-			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
-
-		// Title
-		const title = this.createElement(
-			this.element,
-			'h1',
-			'font-sigmar text-6xl text-center mb-12 text-[var(--color1)]'
-		);
-		title.textContent = 'TOURNAMENT';
-
-		// Tournament bracket container
-		const bracketGrid = this.createElement(
-			this.element,
-			'div',
-			'bracket-grid grid grid-cols-7 gap-4 items-center max-w-6xl mx-auto mb-8'
-		);
-		this.renderBracket(bracketGrid);
-
-		// Ready button - now this will work because init() has completed
-		const matchID = sessionStorage.getItem('matchID');
-		const winner = sessionStorage.getItem('winner');
-		console.log('Checking for matchID at render time:', matchID);
-		if (matchID && !winner) {
-			console.log('Creating ReadyButton');
-			this.readyButton = new ReadyButton(this.element);
-		} else {
-			console.log('No matchID found, ReadyButton not created');
-		}
-	}
-
-	private renderBracket(parent: HTMLElement) {
-		const winner = sessionStorage.getItem('winner');
-		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
-		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
-		const p1 = sessionStorage.getItem('p1') || 'Player 1';
-		const p2 = sessionStorage.getItem('p2') || 'Player 2';
-		const p3 = sessionStorage.getItem('p3') || 'Player 3';
-		const p4 = sessionStorage.getItem('p4') || 'Player 4';
-
-		// Left side players (match 0)
-		const leftSide = this.createElement(
-			parent,
-			'div',
-			'col-span-1 space-y-8'
-		);
-		const player1Slot = this.createPlayerSlot('player1', p1);
-		const player2Slot = this.createPlayerSlot('player2', p2);
-
-		// Highlight winners from first match
-		if (w1 && w1 !== 'Winner 1') {
-			if (p1 === w1) player1Slot.classList.add('winner');
-			if (p2 === w1) player2Slot.classList.add('winner');
-		}
-
-		leftSide.appendChild(player1Slot);
-		leftSide.appendChild(player2Slot);
-
-		// Left connector
-		this.renderConnector(parent, 'left');
-
-		// Semi winner 1
-		const winner1Container = this.createElement(
-			parent,
-			'div',
-			'col-span-1'
-		);
-		const winner1 = this.createPlayerSlot('winner1', w1 || 'Winner 1');
-		winner1.classList.add('semi-winner');
-		// Highlight if this winner has a real name (not placeholder)
-		if (w1 && w1 !== 'Winner 1') {
-			winner1.classList.add('winner');
-		}
-		winner1Container.appendChild(winner1);
-
-		// Final match (empty column)
-		this.createElement(parent, 'div', 'col-span-1');
-
-		// Semi winner 2
-		const winner2Container = this.createElement(
-			parent,
-			'div',
-			'col-span-1'
-		);
-		const winner2 = this.createPlayerSlot('winner2', w2 || 'Winner 2');
-		winner2.classList.add('semi-winner');
-		// Highlight if this winner has a real name (not placeholder)
-		if (w2 && w2 !== 'Winner 2') {
-			winner2.classList.add('winner');
-		}
-		winner2Container.appendChild(winner2);
-
-		// Right connector
-		this.renderConnector(parent, 'right');
-
-		// Right side players (match 1)
-		const rightSide = this.createElement(
-			parent,
-			'div',
-			'col-span-1 space-y-8'
-		);
-		const player3Slot = this.createPlayerSlot('player3', p3);
-		const player4Slot = this.createPlayerSlot('player4', p4);
-
-		// Highlight winners from second match
-		if (w2 && w2 !== 'Winner 2') {
-			if (p3 === w2) player3Slot.classList.add('winner');
-			if (p4 === w2) player4Slot.classList.add('winner');
-		}
-
-		rightSide.appendChild(player3Slot);
-		rightSide.appendChild(player4Slot);
-
-		if (winner) {
-			if (this.trophyInstance) this.trophyInstance.dispose();
-
-			const trophyContainer = this.createElement(this.element, 'div', '');
-			Object.assign(trophyContainer.style, {
-				position: 'fixed',
-				top: '0',
-				left: '0',
-				width: '100vw',
-				height: '100vh',
-				display: 'flex',
-				alignItems: 'center',
-				justifyContent: 'center',
-				pointerEvents: 'none', // ou 'auto' si tu veux capturer les clics
-				zIndex: '9999',
-			});
-			this.trophyInstance = new Trophy(trophyContainer, { winner });
-		}
-	}
-
-	private renderConnector(parent: HTMLElement, side: 'left' | 'right') {
-		const connector = this.createElement(
-			parent,
-			'div',
-			'col-span-1 flex items-center justify-center h-full'
-		);
-		const lines = this.createElement(
-			connector,
-			'div',
-			'relative w-full h-32'
-		);
-
-		if (side === 'left') {
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-horizontal absolute top-8 left-0 w-3/4'
-			);
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-horizontal absolute bottom-8 left-0 w-3/4'
-			);
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-vertical absolute left-3/4 top-8 h-16'
-			);
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-horizontal absolute top-1/2 -translate-y-1/2 left-3/4 w-8'
-			);
-		} else {
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-horizontal absolute top-8 right-0 w-3/4'
-			);
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-horizontal absolute bottom-8 right-0 w-3/4'
-			);
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-vertical absolute left-1/4 top-8 h-16'
-			);
-			this.createElement(
-				lines,
-				'div',
-				'bracket-line-horizontal absolute top-1/2 -translate-y-1/2 right-3/4 w-8'
-			);
-		}
-	}
-
-	private createPlayerSlot(
-		playerId: string,
-		playerIdText: string
-	): HTMLElement {
-		const slot = document.createElement('div');
-		slot.className =
-			'player-slot rounded-lg px-4 py-3 text-center font-semibold text-lg';
-		slot.textContent = playerIdText;
-		slot.setAttribute('data-player', playerId);
-		return slot;
-	}
-
-	// Override destroy to properly clean up Trophy resources + Readybutton
 	public destroy() {
 		console.log('Destroying TournamentScreen...');
 		if (this.trophyInstance) {
@@ -277,7 +351,7 @@ export class TournamentScreen extends Screen {
 
 		document.removeEventListener(
 			'tournament-updated',
-			this.tournUpdHandler
+			this.tournamentUpdate.bind(this)
 		);
 		super.destroy();
 	}

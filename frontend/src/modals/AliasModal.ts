@@ -24,8 +24,10 @@ export class AliasModal extends Modal {
 		{ label: 'Gandalf', value: '*Gandalf' },
 	];
 
+
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
+		this.box.classList.add('alias-modal');
 		this.box.classList.add('alias-modal');
 
 		const username = sessionStorage.getItem('username') ?? '';
@@ -51,7 +53,7 @@ export class AliasModal extends Modal {
 		this.addKeyboardListeners();
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
-		
+			
 		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 
@@ -106,7 +108,7 @@ export class AliasModal extends Modal {
 		dropdown.className = 
 			'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
 			'bg-white border border-[var(--color3)] rounded-lg shadow-lg ' +
-			'z-50 overflow-hidden';
+			'z-10 overflow-hidden';
 
 		this.aiOptions.forEach((option, i) => {
 			const optionButton = document.createElement('button');
@@ -241,6 +243,7 @@ export class AliasModal extends Modal {
 
 		if (!playerQueue) {
 			this.showError('No response from tournament creation');
+			this.showError('No response from tournament creation');
 			return;
 		}
 
@@ -253,6 +256,7 @@ export class AliasModal extends Modal {
 		const isTournamentReady = currentPlayers === targetSize;
 
 		// Set up game spec
+
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('targetSize', targetSize.toString());
 		sessionStorage.setItem('gameMode', 'remote');
@@ -316,5 +320,5 @@ export class AliasModal extends Modal {
 	public destroy(): void {
 		this.closeAllDropdowns();
 		super.destroy();
+		}
 	}
-}

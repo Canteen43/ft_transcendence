@@ -9,6 +9,7 @@ export function isLoggedIn(): boolean {
 
 export class AuthComponent {
 	private button?: Button;
+
 	private parent: HTMLElement;
 
 	constructor(parent: HTMLElement) {
@@ -32,16 +33,8 @@ export class AuthComponent {
 			this.parent
 		);
 
-		this.button.element.classList.add(
-			'absolute',
-			'top-4',
-			'right-4',
-			'fixed',
-			'w-50',
-			'z-10',
-			'text-center',
-			'truncate'
-		);
+		this.button.element.className +=
+			'absolute top-4 right-4 fixed w-60 z-10 text-center truncate';
 
 		if (userIsLoggedIn) {
 			this.button.element.addEventListener('mouseenter', this.onEnter);
