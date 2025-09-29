@@ -38,7 +38,7 @@ export default class UserRepository {
 	}
 
 	static getUserByLogin(login: string): User | null {
-		const row = db.queryOne<User>(
+		const row = db.queryOne(
 			`SELECT ${this.fields}
 			FROM ${this.table}
 			WHERE login = ?`,
