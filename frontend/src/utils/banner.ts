@@ -25,7 +25,7 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 	const title = document.createElement('span');
 	title.textContent = 'ONLINE PLAYERS:';
 	title.className =
-		"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
+		"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
 	onlinePlayersContainer.appendChild(title);
 
 	// ASSEMBLE THE DOM STRUCTURE
