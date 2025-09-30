@@ -1,16 +1,20 @@
-import { initParticleNumericAnimationValue } from '@tsparticles/engine';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
 import { StatModal } from '../modals/StatModal';
-import { createOnlinePlayersBanner, loadOnlinePlayers } from '../utils/banner';
+import {
+	createOnlinePlayersBanner,
+	destroyOnlinePlayersBanner,
+	loadOnlinePlayers,
+	OnlinePlayersBanner,
+} from '../utils/banner';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
 
 export class HomeScreen extends Screen {
-	private banner: HTMLElement | null = null;
+	private banner?: OnlinePlayersBanner | null = null;
 	private landing: Landing | null = null;
 	private onlinePlayersInterval: number | null = null;
 
@@ -40,13 +44,13 @@ export class HomeScreen extends Screen {
 	}
 
 	private initBanner() {
-		createOnlinePlayersBanner();
-		this.banner = document.getElementById('online-players-banner');
-		if (this.banner) this.banner.style.display = '';
-
-		loadOnlinePlayers();
+		this.banner = createOnlinePlayersBanner();
+		this.element.appendChild(this.banner.bannerElement);
+		loadOnlinePlayers(this.banner);
 		this.onlinePlayersInterval = window.setInterval(() => {
-			loadOnlinePlayers();
+			if (this.banner) {
+				loadOnlinePlayers(this.banner);
+			}
 		}, 30000);
 	}
 
@@ -67,23 +71,17 @@ export class HomeScreen extends Screen {
 	}
 
 	public destroy(): void {
-		
-		if (this.onlinePlayersInterval !== null) {
-			clearInterval(this.onlinePlayersInterval);
-			this.onlinePlayersInterval = null;
-		}
-
 		if (this.landing) {
 			this.landing.dispose();
 			this.landing = null;
 		}
-
-		if (this.banner) {
-			this.banner.style.display = 'none';
-			this.banner = null;
+		if (this.onlinePlayersInterval !== null) {
+			clearInterval(this.onlinePlayersInterval);
+			this.onlinePlayersInterval = null;
 		}
+		if (this.banner) destroyOnlinePlayersBanner(this.banner);
+		this.banner = undefined;
 
-		// Call parent destroy
 		super.destroy();
 	}
 }
