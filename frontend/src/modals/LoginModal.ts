@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AuthResponse } from '../../../shared/schemas/user.ts';
 import {
 	AuthRequestSchema,
 	AuthResponseSchema,
@@ -87,7 +88,10 @@ export class LoginModal extends Modal {
 			new TextModal(this.parent, 'Login unsuccessful');
 			return;
 		}
-
+		if (authData.two_factor_enabled) {
+			this.showCodeInputView(authData);
+			return;
+		}
 		console.log('Login successful for: ', authData.login);
 		sessionStorage.setItem('username', username);
 		this.login(authData.token, authData.user_id);
@@ -166,5 +170,57 @@ export class LoginModal extends Modal {
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();
+	}
+
+	private showCodeInputView(authData: AuthResponse) {
+		while (this.box.firstChild) {
+			this.box.removeChild(this.box.firstChild);
+		}
+		// Create input for 2FA code
+		const codeInput = this.myCreateInput(
+			'text',
+			'2fa-code',
+			'Enter 2FA code'
+		);
+		codeInput.focus();
+		new Button(
+			'Submit 2FA code',
+			() => this.submit2FA(codeInput, authData),
+			this.box
+		);
+	}
+
+	private async submit2FA(
+		codeInput: HTMLInputElement,
+		authData: AuthResponse
+	) {
+		if (codeInput.value.length === 0) {
+			return;
+		}
+		// Store the first token which is temporary to enable validation
+		sessionStorage.setItem('token', authData.token);
+		const { data: authDataNew, error } = await apiCall(
+			'POST',
+			'/users/2fa/validate',
+			AuthResponseSchema,
+			codeInput.value.trim()
+		);
+		if (error) {
+			console.warn('2FA validation error:', error);
+			this.destroy();
+			new TextModal(this.parent, '2FA validation failed');
+			return;
+		}
+		if (!authDataNew) {
+			console.warn(
+				'2FA validation failed: no data returned. This error should be caught earlier.'
+			);
+			this.destroy();
+			new TextModal(this.parent, '2FA validation failed');
+			return;
+		}
+		sessionStorage.setItem('username', authDataNew.login);
+		this.login(authDataNew.token, authDataNew.user_id);
+		this.destroy();
 	}
 }
