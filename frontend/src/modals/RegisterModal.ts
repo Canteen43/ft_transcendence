@@ -7,6 +7,7 @@ import { Modal } from './Modal.ts';
 import { TextModal } from './TextModal';
 
 export class RegisterModal extends Modal {
+	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
 	private AliasField: HTMLInputElement;
 	private FirstNameField: HTMLInputElement;
@@ -48,6 +49,13 @@ export class RegisterModal extends Modal {
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
+
+		this.handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleRegister();
+			}
+		};
 		this.addEnterListener();
 	}
 
@@ -63,19 +71,13 @@ export class RegisterModal extends Modal {
 	}
 
 	private addEnterListener() {
-		const handleEnter = (e: KeyboardEvent) => {
-			if (e.key == 'Enter') {
-				e.preventDefault();
-				this.handleRegister();
-			}
-		};
-		this.UsernameField.addEventListener('keydown', handleEnter);
-		this.AliasField.addEventListener('keydown', handleEnter);
-		this.FirstNameField.addEventListener('keydown', handleEnter);
-		this.LastNameField.addEventListener('keydown', handleEnter);
-		this.EmailField.addEventListener('keydown', handleEnter);
-		this.PasswordField.addEventListener('keydown', handleEnter);
-		this.PasswordRepeatField.addEventListener('keydown', handleEnter);
+		this.UsernameField.addEventListener('keydown', this.handleEnter);
+		this.AliasField.addEventListener('keydown', this.handleEnter);
+		this.FirstNameField.addEventListener('keydown', this.handleEnter);
+		this.LastNameField.addEventListener('keydown', this.handleEnter);
+		this.EmailField.addEventListener('keydown', this.handleEnter);
+		this.PasswordField.addEventListener('keydown', this.handleEnter);
+		this.PasswordRepeatField.addEventListener('keydown', this.handleEnter);
 	}
 
 	private formatZodErrors(error: z.ZodError): string {
@@ -165,6 +167,17 @@ export class RegisterModal extends Modal {
 
 	private handleGoBack(parent: HTMLElement) {
 		this.destroy();
+
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.AliasField.removeEventListener('keydown', this.handleEnter);
+		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
+		this.LastNameField.removeEventListener('keydown', this.handleEnter);
+		this.EmailField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordRepeatField.removeEventListener(
+			'keydown',
+			this.handleEnter
+		);
 		new LoginModal(parent);
 	}
 }
