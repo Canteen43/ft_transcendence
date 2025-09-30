@@ -1,31 +1,25 @@
 import z from 'zod';
 import { ERROR_FAILED_TO_CREATE_TOURNAMENT } from '../../shared/constants.js';
-import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
-import {
-	DatabaseError,
-	TournamentNotFoundError,
-} from '../../shared/exceptions.js';
+import { TournamentStatus } from '../../shared/enums.js';
+import { DatabaseError } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
-import {
-	CreateMatch,
-	UpdateMatch,
-	UpdateMatchSchema,
-} from '../../shared/schemas/match.js';
+import { CreateMatch, UpdateMatch } from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
 	Participant,
 } from '../../shared/schemas/participant.js';
+import { CreateSettings } from '../../shared/schemas/settings.js';
 import {
 	CreateTournament,
 	Tournament,
 	TournamentSchema,
 	UpdateTournament,
-	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
 import MatchRepository from './match_repository.js';
 import ParticipantRepository from './participant_repository.js';
+import SettingsRepository from './settings_repository.js';
 
 export default class TournamentRepository {
 	static table = 'tournament';
@@ -77,12 +71,15 @@ export default class TournamentRepository {
 	}
 
 	static createFullTournament(
+		settings: CreateSettings,
 		tournament: CreateTournament,
 		participants: CreateParticipant[],
 		matches: CreateMatch[]
 	): { tournament: Tournament; participants: Participant[] } {
 		return db.executeInTransaction(() => {
 			logger.info('Creating tournament');
+			const settingsResult = SettingsRepository.createSettings(settings);
+			tournament.settings_id = settingsResult.id;
 			const tournamentResult = this.createTournament(tournament);
 			logger.debug(`Created tournament ${tournamentResult.id}`);
 
@@ -121,20 +118,15 @@ export default class TournamentRepository {
 		return TournamentSchema.parse(row);
 	}
 
-	static cancelTournament(tournament_id: UUID) {
-		const tournament = this.getTournament(tournament_id);
-		if (!tournament)
-			throw new TournamentNotFoundError('tournament id', tournament_id);
-		tournament.status = TournamentStatus.Cancelled;
-		const update = UpdateTournamentSchema.strip().parse(tournament);
-		const matches = MatchRepository.getTournamentMatches(tournament_id);
-		let matchUpdate: UpdateMatch;
+	static cancelTournament(
+		tournament_id: UUID,
+		tournamentUpdate: UpdateTournament,
+		matches: { id: UUID; update: UpdateMatch }[]
+	) {
 		db.executeInTransaction(() => {
-			this.updateTournament(tournament_id, update);
-			for (const match of matches) {
-				match.status = MatchStatus.Cancelled;
-				matchUpdate = UpdateMatchSchema.strip().parse(match);
-				MatchRepository.updateMatch(match.id, matchUpdate);
+			this.updateTournament(tournament_id, tournamentUpdate);
+			for (const { id, update } of matches) {
+				MatchRepository.updateMatch(id, update);
 			}
 		});
 	}

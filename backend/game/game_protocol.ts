@@ -7,12 +7,14 @@ import {
 	ERROR_USER_CONNECTION_NOT_FOUND,
 	MATCH_START_MESSAGE,
 	MESSAGE_ACCEPT,
+	MESSAGE_CHAT,
 	MESSAGE_FINISH,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
+	MESSAGE_REPLAY,
 	MESSAGE_START_TOURNAMENT,
 } from '../../shared/constants.js';
 import {
@@ -41,12 +43,14 @@ import { UUID } from '../../shared/types.js';
 import {
 	getConnection,
 	getConnectionByUserId,
+	sendToOthers,
 } from '../connection_manager/connection_manager.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import MatchService from '../services/match_service.js';
+import TournamentService from '../services/tournament_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
 import { formatError } from '../utils/utils.js';
 import { Match } from './match.js';
@@ -64,6 +68,8 @@ export class GameProtocol {
 		[MESSAGE_POINT]: this.handlePoint,
 		[MESSAGE_PAUSE]: this.handlePause,
 		[MESSAGE_QUIT]: this.handleQuit,
+		[MESSAGE_REPLAY]: this.handleReplay,
+		[MESSAGE_CHAT]: this.handleChat,
 	} as const;
 
 	static getInstance(): GameProtocol {
@@ -103,7 +109,9 @@ export class GameProtocol {
 		try {
 			this.quitAll(connectionId, QuitReason.Disconnect);
 		} catch (error) {
-			logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
+			if (error instanceof TournamentNotFoundError)
+				logger.debug(`${ERROR_QUIT}: ${formatError(error)}`);
+			else logger.warn(`${ERROR_QUIT}: ${formatError(error)}`);
 		}
 	}
 
@@ -183,10 +191,12 @@ export class GameProtocol {
 		if (matchFinished) {
 			this.deleteMatchObject(match.matchId);
 			const message: Message = { t: MESSAGE_FINISH, d: match.matchId };
+			logger.debug('Sending match finish message');
 			this.sendTournamentMessage(
 				message,
 				this.getTournamentParticipants(match.matchId)
 			);
+			logger.debug('Sending match finish message');
 		}
 	}
 
@@ -208,6 +218,18 @@ export class GameProtocol {
 		logger.debug('websocket: pause message received.');
 		const match = this.getMatchObject(connectionId);
 		this.sendMatchMessage(message, match.players);
+	}
+
+	private handleReplay(connectionId: UUID, message: Message) {
+		logger.debug('websocket: replay message received.');
+		const match = this.getMatchObject(connectionId);
+		this.sendMatchMessage(message, match.players);
+	}
+
+	private handleChat(connectionId: UUID, message: Message) {
+		logger.debug('websocket: chat message received.');
+		const socket = this.getSocket(connectionId);
+		sendToOthers(socket.userId, message);
 	}
 
 	private quitAll(connectionId: UUID, reason: QuitReason) {
@@ -261,11 +283,17 @@ export class GameProtocol {
 	}
 
 	private deleteMatchObject(matchId: UUID) {
+		logger.debug(
+			`Deleting match. Before delete ${this.matches.size} matches`
+		);
 		const keysToDelete: UUID[] = [];
 		for (const [k, m] of this.matches) {
 			if (m.matchId === matchId) keysToDelete.push(k);
 		}
 		for (const key of keysToDelete) this.matches.delete(key);
+		logger.debug(
+			`Deleting match. After delete ${this.matches.size} matches`
+		);
 	}
 
 	private startMatch(match: Match) {
@@ -292,7 +320,7 @@ export class GameProtocol {
 			l: [reason],
 		};
 		this.sendTournamentMessage(message, participants);
-		TournamentRepository.cancelTournament(tournament.id);
+		TournamentService.cancelTournament(tournament.id);
 	}
 
 	private sendMatchMessage(message: Message, players: Player[]) {

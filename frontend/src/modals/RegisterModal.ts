@@ -3,10 +3,11 @@ import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
 import { LoginModal } from './LoginModal';
-import { TextModal } from './TextModal';
 import { Modal } from './Modal.ts';
+import { TextModal } from './TextModal';
 
 export class RegisterModal extends Modal {
+	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
 	private AliasField: HTMLInputElement;
 	private FirstNameField: HTMLInputElement;
@@ -18,21 +19,11 @@ export class RegisterModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		this.box.classList.add(
-			'flex',
-			'flex-col',
-			'items-center',
-			'justify-center',
-			'gap-2',
-			'p-4'
-		);
+		this.box.className +=
+			'flex flex-col items-center justify-center gap-2 p-4';
 
 		this.UsernameField = this.myCreateInput('text', 'username', 'username');
-		this.AliasField = this.myCreateInput(
-			'text',
-			'alias',
-			'game alias'
-		);
+		this.AliasField = this.myCreateInput('text', 'alias', 'game alias');
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
@@ -54,10 +45,39 @@ export class RegisterModal extends Modal {
 			'passwordrepeat',
 			'password repeat'
 		);
-		new Button('Register', () => this.handleRegister(parent), this.box);
+		new Button('Register', () => this.handleRegister(), this.box);
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
+
+		this.handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleRegister();
+			}
+		};
+		this.addEnterListener();
+	}
+
+	private errorModal(message: string) {
+		const modal = new TextModal(this.parent, message, undefined, () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		});
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		};
+	}
+
+	private addEnterListener() {
+		this.UsernameField.addEventListener('keydown', this.handleEnter);
+		this.AliasField.addEventListener('keydown', this.handleEnter);
+		this.FirstNameField.addEventListener('keydown', this.handleEnter);
+		this.LastNameField.addEventListener('keydown', this.handleEnter);
+		this.EmailField.addEventListener('keydown', this.handleEnter);
+		this.PasswordField.addEventListener('keydown', this.handleEnter);
+		this.PasswordRepeatField.addEventListener('keydown', this.handleEnter);
 	}
 
 	private formatZodErrors(error: z.ZodError): string {
@@ -69,7 +89,7 @@ export class RegisterModal extends Modal {
 			.join('\n');
 	}
 
-	private async handleRegister(parent: HTMLElement) {
+	private async handleRegister() {
 		const username = this.UsernameField.value.trim();
 		const alias = this.AliasField.value.trim();
 		const firstName = this.FirstNameField.value.trim();
@@ -79,23 +99,24 @@ export class RegisterModal extends Modal {
 		const repeatPassword = this.PasswordRepeatField.value.trim();
 
 		if (password !== repeatPassword) {
-			new TextModal(this.parent, 'Passwords do not match');
+			this.errorModal('Passwords do not match');
 			return;
 		}
-		// TODO: add alias when the endpoint accepts it - if empty send username
+
 		const requestData = {
 			login: username,
-			//alias: alias || username,
+			alias: alias || null,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
 			password: password,
 		};
-
+		console.debug(`${JSON.stringify(requestData)}`);
 		const parseResult = CreateUserSchema.safeParse(requestData);
 		if (!parseResult.success) {
 			const errorMessage = this.formatZodErrors(parseResult.error);
-			new TextModal(this.parent, errorMessage);
+			console.debug('showing error modal:', errorMessage);
+			this.errorModal(errorMessage);
 			console.error('Request validation failed:', parseResult.error);
 			return;
 		}
@@ -109,15 +130,15 @@ export class RegisterModal extends Modal {
 		if (error) {
 			console.error('Registration error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-			new TextModal(this.parent, message);
+			this.errorModal(message);
 			return;
 		}
 		if (!regData) {
-			new TextModal(this.parent, 'Registration failed: no data returned');
+			this.errorModal('Registration failed: no data returned');
 			return;
 		}
 		console.log('Registration successful for: ', regData.login);
-		new LoginModal(parent);
+		new LoginModal(this.parent);
 		this.destroy();
 	}
 
@@ -130,7 +151,7 @@ export class RegisterModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color3)] rounded p-2';
+		input.className = 'border border-[var(--color3)] p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -146,6 +167,17 @@ export class RegisterModal extends Modal {
 
 	private handleGoBack(parent: HTMLElement) {
 		this.destroy();
+
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.AliasField.removeEventListener('keydown', this.handleEnter);
+		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
+		this.LastNameField.removeEventListener('keydown', this.handleEnter);
+		this.EmailField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordRepeatField.removeEventListener(
+			'keydown',
+			this.handleEnter
+		);
 		new LoginModal(parent);
 	}
 }

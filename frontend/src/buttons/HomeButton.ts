@@ -1,4 +1,4 @@
-import { LeaveGameConfirmationModal } from '../modals/LeaveConfirmModal';
+import { TextModal } from '../modals/TextModal';
 import { state } from '../utils/State';
 
 export class HomeButton {
@@ -6,20 +6,21 @@ export class HomeButton {
 	private img: HTMLImageElement;
 	private onEnter: () => void;
 	private onLeave: () => void;
+	private textModal?: TextModal;
 
-	constructor(
-		parent: HTMLElement,
-		imgSrc: string = '../home_empty_white.png',
-		hoverImgSrc: string = '../home_full_white.png'
-	) {
+	constructor(parent: HTMLElement) {
 		this.button = document.createElement('button');
 		this.button.className =
-			'absolute top-4 left-4 fixed p-0 bg-transparent border-none';
+			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
+		('absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none');
+
+		const imgSrc = '../home_empty_black.png';
+		const hoverImgSrc = '../home_full_black.png';
 
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
 		this.img.alt = 'Home';
-		this.img.className = 'w-16 h-16';
+		this.img.className = 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18';
 		this.button.appendChild(this.img);
 
 		this.onEnter = () => (this.img.src = hoverImgSrc);
@@ -34,12 +35,20 @@ export class HomeButton {
 	}
 
 	private handleHomeClick = () => {
-		if (location.hash === '#game' || state.gameOngoing) {
-			new LeaveGameConfirmationModal(this.button.parentElement!);
+		if (location.hash === '#game' && state.gameOngoing) {
+			this.textModal = new TextModal(
+				this.button.parentElement!,
+				undefined,
+				'Leave',
+				() => {
+					location.hash = '#home';
+				}
+			);
 		} else location.hash = '#home';
 	};
 
 	destroy() {
+		this.textModal?.destroy();
 		this.button.removeEventListener('mouseenter', this.onEnter);
 		this.button.removeEventListener('mouseleave', this.onLeave);
 		this.button.removeEventListener('click', this.handleHomeClick);

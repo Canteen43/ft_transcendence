@@ -23,7 +23,7 @@ import SettingsRepository from './settings_repository.js';
 export default class UserRepository {
 	static table = '"user"';
 	static fields =
-		'id, login, first_name, last_name, email, settings_id, two_factor_enabled';
+		'id, login, alias, first_name, last_name, email, settings_id';
 
 	static getUser(id: UUID): User | null {
 		const row = db.queryOne<User>(
@@ -72,11 +72,12 @@ export default class UserRepository {
 			let row: User | undefined;
 			try {
 				row = db.queryOne<User>(
-					`INSERT INTO ${this.table} (login, first_name, last_name, email, settings_id, two_factor_enabled, password_hash)
+					`INSERT INTO ${this.table} (login, alias, first_name, last_name, email, settings_id, password_hash)
 					VALUES (?, ?, ?, ?, ?, ?, ?)
 					RETURNING ${this.fields}`,
 					[
 						user.login,
+						user.alias,
 						user.first_name,
 						user.last_name,
 						user.email,

@@ -5,14 +5,13 @@ import {
 } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
-import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
-import { ForgottenModal } from './ForgottenModal';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
 import { TextModal } from './TextModal';
 
 export class LoginModal extends Modal {
+	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
 
@@ -34,6 +33,26 @@ export class LoginModal extends Modal {
 
 		this.UsernameField.focus();
 		this.UsernameField.select();
+
+		this.handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleLogin();
+			}
+		};
+
+		this.addEnterListener();
+	}
+
+	private addEnterListener() {
+		const handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleLogin();
+			}
+		};
+		this.UsernameField.addEventListener('keydown', this.handleEnter);
+		this.PasswordField.addEventListener('keydown', this.handleEnter);
 	}
 
 	private async handleLogin() {
@@ -61,7 +80,7 @@ export class LoginModal extends Modal {
 		if (error) {
 			console.error('Registration error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-			new TextModal(this.parent, message);
+			this.errorModal(message);
 			return;
 		}
 		if (!authData) {
@@ -72,10 +91,18 @@ export class LoginModal extends Modal {
 		console.log('Login successful for: ', authData.login);
 		sessionStorage.setItem('username', username);
 		this.login(authData.token, authData.user_id);
-		
+
 		this.destroy();
 	}
-	
+
+	private errorModal(message: string) {
+		const modal = new TextModal(this.parent, message);
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		};
+	}
+
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
@@ -93,7 +120,7 @@ export class LoginModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color3)] rounded p-2';
+		input.className = 'border border-[var(--color3)] p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -126,6 +153,18 @@ export class LoginModal extends Modal {
 	}
 
 	private handleForgot(parent: HTMLElement) {
-		new ForgottenModal(parent);
+		const modal = new TextModal(parent, undefined, 'TOO BAD!', () =>
+			this.UsernameField.focus()
+		);
+		modal.onClose = () => {
+			this.UsernameField.focus();
+			this.UsernameField.select();
+		};
+	}
+
+	public destroy() {
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		super.destroy();
 	}
 }
