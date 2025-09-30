@@ -474,6 +474,11 @@ export class Pong3D {
 		});
 
 		this.scene = new BABYLON.Scene(this.engine);
+		// Expose scene/game for devtools debugging (removed by bundler in prod)
+		if (typeof window !== 'undefined') {
+			(window as any).__pongScene = this.scene;
+			(window as any).__pongGame = this;
+		}
 		// Make scene background transparent
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
 		this.setupHDR();
