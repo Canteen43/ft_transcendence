@@ -1,29 +1,34 @@
-import { TournamentStatus } from '../../shared/enums.js';
+import { DEFAULT_MAX_SCORE, EMPTY_UUID } from '../../shared/constants.js';
+import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
 import {
 	DatabaseError,
-	SettingsNotFoundError,
 	TournamentNotFoundError,
 	UserAlreadyQueuedError,
 	UserNotQueuedError,
 } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
-import { CreateMatch, CreateMatchSchema } from '../../shared/schemas/match.js';
+import {
+	CreateMatch,
+	CreateMatchSchema,
+	UpdateMatchSchema,
+} from '../../shared/schemas/match.js';
 import {
 	CreateParticipant,
 	CreateParticipantSchema,
 } from '../../shared/schemas/participant.js';
+import { CreateSettings } from '../../shared/schemas/settings.js';
 import {
-	CreateTournamentSchema,
+	CreateTournament,
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
+	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
 import { randomInt } from '../../shared/utils.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
-import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
 import { QueuedUser } from '../types/interfaces.js';
 import { LockService, LockType } from './lock_service.js';
@@ -105,19 +110,19 @@ export default class TournamentService {
 			users.length,
 			users
 		);
-		const settings = SettingsRepository.getSettingsByUser(creator);
-		if (!settings) throw new SettingsNotFoundError('user', creator);
+		const createSettings: CreateSettings = { max_score: DEFAULT_MAX_SCORE };
 
-		const createTournament = CreateTournamentSchema.parse({
+		const createTournament: CreateTournament = {
+			settings_id: EMPTY_UUID,
 			size: users.length,
-			settings_id: settings.id,
 			status: TournamentStatus.InProgress,
-		});
+		};
 
 		const createParticipants = this.createParticipants(tournamentUsers);
 		const createMatches = this.createTournamentMatches(users);
 		const { tournament, participants } =
 			TournamentRepository.createFullTournament(
+				createSettings,
 				createTournament,
 				createParticipants,
 				createMatches
@@ -129,6 +134,28 @@ export default class TournamentService {
 		);
 
 		return tournament;
+	}
+
+	static cancelTournament(tournament_id: UUID) {
+		const tournament = TournamentRepository.getTournament(tournament_id);
+		if (!tournament)
+			throw new TournamentNotFoundError('tournament id', tournament_id);
+		tournament.status = TournamentStatus.Cancelled;
+		const update = UpdateTournamentSchema.strip().parse(tournament);
+
+		const matches = MatchRepository.getTournamentMatches(tournament_id);
+		const matchUpdates: { id: UUID; update: any }[] = [];
+		for (const match of matches) {
+			match.status = MatchStatus.Cancelled;
+			const update = UpdateMatchSchema.strip().parse(match);
+			matchUpdates.push({ id: match.id, update });
+		}
+
+		TournamentRepository.cancelTournament(
+			tournament_id,
+			update,
+			matchUpdates
+		);
 	}
 
 	static getNumberOfRounds(tournament_id: UUID): number {

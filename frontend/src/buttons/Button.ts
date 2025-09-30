@@ -9,11 +9,10 @@ export class Button {
 	) {
 		this.element = document.createElement('button');
 		this.element.className =
-			// 'px-6 py-3 bg-green-700 hover:bg-green-900 rounded-lg text-white font-semibold shadow-lg transition-colors';
-			'font-sigmar text-2xl px-12 py-4 ' +
-			'bg-[var(--color3)] text-[var(--color1)] rounded-lg transition-colors ' +
-			'hover:bg-[var(--color1)] hover:text-[var(--color3)]';
-
+			"font-outfit [font-variation-settings:'wght'_900] text-lg sm:text-2xl " +
+			'px-6 sm:px-12 py-3 sm:py-4  transition-colors ' +
+			'bg-[var(--color3)] text-[var(--color1)] border-3 border-[var(--color3)] ' +
+			'hover:bg-[var(--color1)] hover:text-[var(--color3)] hover:border-[var(--color3)] ';
 		if (typeof content === 'string') {
 			this.element.textContent = content;
 		} else {

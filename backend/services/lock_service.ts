@@ -1,5 +1,3 @@
-import { UUID } from '../../shared/types.js';
-
 export enum LockType {
 	Queue = 'queue',
 	Auth = 'auth',

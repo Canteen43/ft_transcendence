@@ -8,14 +8,15 @@ newtonsCradle.register();
 jelly.register();
 hourglass.register();
 
-// Waiting for players, event listener for game Ready
+// Waiting for players, eventListener for game Ready
 export class WaitingModal extends Modal {
 	private gameReadyHandler = () => this.nextStep();
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
-		document.addEventListener('gameReady', this.gameReadyHandler);
+		this.box.classList.add('waiting-modal');
+
+		document.addEventListener('2plyrsGameReady', this.gameReadyHandler);
 		this.printMessageLoader();
 	}
 
@@ -33,7 +34,7 @@ export class WaitingModal extends Modal {
 				`Failed to leave tournament: ${error.message}`
 			);
 		}
-		document.removeEventListener('gameReady', () => this.nextStep());
+		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
 		super.quit();
 	}
 
@@ -44,7 +45,7 @@ export class WaitingModal extends Modal {
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s)...';
 		message.className =
-			'font-sigmar text-3xl font-bold text-center mb-5 text-[var(--color3)]';
+			"font-outfit [font-variation-settings:'wght'_900] text-3xl font-bold text-center mb-5 text-[var(--color3)]";
 		container.appendChild(message);
 
 		const loader = document.createElement('l-jelly');
@@ -57,7 +58,7 @@ export class WaitingModal extends Modal {
 	}
 
 	public destroy() {
-		document.removeEventListener('gameReady', () => this.nextStep());
+		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
 		super.destroy();
 	}
 }
