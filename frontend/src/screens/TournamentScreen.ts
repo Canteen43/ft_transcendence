@@ -1,4 +1,3 @@
-import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
 import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
 import { TextModal } from '../modals/TextModal';
@@ -42,7 +41,7 @@ export class TournamentScreen extends Screen {
 			location.hash = '#home';
 		};
 	}
-	
+
 	private async tournamentUpdate(): Promise<void> {
 		const tournID = sessionStorage.getItem('tournamentID');
 		if (!tournID) {
@@ -50,33 +49,31 @@ export class TournamentScreen extends Screen {
 			this.errorModal('No tournament found');
 			return;
 		}
-		
+
 		console.debug('Calling tournament details API');
 		const { data: tournData, error } = await apiCall(
 			'GET',
 			`/tournaments/${tournID}`,
 			FullTournamentSchema
 		);
-	
+
 		if (error) {
 			console.error('Tournament fetch error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
 			this.errorModal(message);
 			return;
 		}
-	
+
 		if (!tournData) {
 			console.error('Getting tournament data failed - no data returned');
 			this.errorModal('Failed to get tournament data');
 			return;
 		}
-		
+
 		console.log('Tournament data received:', tournData);
 		updateTournData(tournData);
 		this.render(); // Render after data is updated
 	}
-
-
 
 	private render() {
 		this.element.innerHTML = '';
@@ -102,7 +99,7 @@ export class TournamentScreen extends Screen {
 		this.renderTrophy();
 	}
 
-		private renderBracket(parent: HTMLElement) {
+	private renderBracket(parent: HTMLElement) {
 		const winner = sessionStorage.getItem('winner');
 		const w1 = sessionStorage.getItem('w1') || 'Winner 1';
 		const w2 = sessionStorage.getItem('w2') || 'Winner 2';
@@ -125,17 +122,17 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1 space-y-8'
 		);
-		
+
 		// Show scores if we have a winner from first match
 		const showMatch0Scores = w1 && w1 !== 'Winner 1';
 		const player1Slot = this.createPlayerSlot(
-			p1, 
-			w1 === p1 ? 'winner' : (showMatch0Scores ? 'loser' : 'normal'),
+			p1,
+			w1 === p1 ? 'winner' : showMatch0Scores ? 'loser' : 'normal',
 			showMatch0Scores ? p1Score : undefined
 		);
 		const player2Slot = this.createPlayerSlot(
-			p2, 
-			w1 === p2 ? 'winner' : (showMatch0Scores ? 'loser' : 'normal'),
+			p2,
+			w1 === p2 ? 'winner' : showMatch0Scores ? 'loser' : 'normal',
 			showMatch0Scores ? p2Score : undefined
 		);
 
@@ -152,9 +149,13 @@ export class TournamentScreen extends Screen {
 			'col-span-1'
 		);
 		const showFinalScores = winner && winner !== '';
-		const winner1Status = showFinalScores ? (winner === w1 ? 'winner' : 'loser') : 'normal';
+		const winner1Status = showFinalScores
+			? winner === w1
+				? 'winner'
+				: 'loser'
+			: 'normal';
 		const winner1 = this.createPlayerSlot(
-			w1 || 'Winner 1', 
+			w1 || 'Winner 1',
 			winner1Status,
 			showFinalScores && w1 !== 'Winner 1' ? w1Score : undefined
 		);
@@ -170,9 +171,13 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1'
 		);
-		const winner2Status = showFinalScores ? (winner === w2 ? 'winner' : 'loser') : 'normal';
+		const winner2Status = showFinalScores
+			? winner === w2
+				? 'winner'
+				: 'loser'
+			: 'normal';
 		const winner2 = this.createPlayerSlot(
-			w2 || 'Winner 2', 
+			w2 || 'Winner 2',
 			winner2Status,
 			showFinalScores && w2 !== 'Winner 2' ? w2Score : undefined
 		);
@@ -188,17 +193,17 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1 space-y-8'
 		);
-		
+
 		// Show scores if we have a winner from second match
 		const showMatch1Scores = w2 && w2 !== 'Winner 2';
 		const player3Slot = this.createPlayerSlot(
-			p3, 
-			w2 === p3 ? 'winner' : (showMatch1Scores ? 'loser' : 'normal'),
+			p3,
+			w2 === p3 ? 'winner' : showMatch1Scores ? 'loser' : 'normal',
 			showMatch1Scores ? p3Score : undefined
 		);
 		const player4Slot = this.createPlayerSlot(
-			p4, 
-			w2 === p4 ? 'winner' : (showMatch1Scores ? 'loser' : 'normal'),
+			p4,
+			w2 === p4 ? 'winner' : showMatch1Scores ? 'loser' : 'normal',
 			showMatch1Scores ? p4Score : undefined
 		);
 
@@ -212,7 +217,7 @@ export class TournamentScreen extends Screen {
 			'div',
 			'col-span-1 flex items-center justify-center'
 		);
-		
+
 		const line = this.createElement(
 			connector,
 			'div',
@@ -224,23 +229,27 @@ export class TournamentScreen extends Screen {
 		const title = this.createElement(
 			this.element,
 			'h1',
-			"font-azeret [font-variation-settings:'wght'_900] text-6xl text-center mb-12 text-[var(--color1)]"
+			"font-outfit [font-variation-settings:'wght'_900] text-6xl text-center mb-12 text-[var(--color1)]"
 		);
 		title.textContent = 'TOURNAMENT';
 	}
 
-	private createPlayerSlot(name: string, status: 'winner' | 'loser' | 'normal', score?: string): HTMLElement {
+	private createPlayerSlot(
+		name: string,
+		status: 'winner' | 'loser' | 'normal',
+		score?: string
+	): HTMLElement {
 		const slot = document.createElement('div');
-		
+
 		let statusClass = '';
 		if (status === 'winner') {
 			statusClass = 'winner';
 		} else if (status === 'loser') {
 			statusClass = 'loser';
 		}
-		
+
 		slot.className = `player-slot px-6 py-4 text-center font-semibold text-xl min-h-[60px] min-w-[160px] flex items-center justify-center truncate max-w-[200px] border-2 border-transparent ${statusClass}`;
-		
+
 		// Create content with name and score
 		if (score !== undefined && score !== '0') {
 			slot.innerHTML = `
@@ -252,17 +261,17 @@ export class TournamentScreen extends Screen {
 		} else {
 			slot.textContent = name;
 		}
-		
+
 		return slot;
 	}
 
 	private renderReadyButton() {
 		const matchID = sessionStorage.getItem('matchID');
 		const winner = sessionStorage.getItem('winner');
-		
+
 		// Check if there's an active match
-		const hasActiveMatch = (matchID && !winner);
-		
+		const hasActiveMatch = matchID && !winner;
+
 		if (hasActiveMatch && !this.readyButton) {
 			console.log('Creating ReadyButton');
 			this.readyButton = new ReadyButton(this.element);

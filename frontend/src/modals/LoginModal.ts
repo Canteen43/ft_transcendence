@@ -5,13 +5,13 @@ import {
 } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
-import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
 import { TextModal } from './TextModal';
 
 export class LoginModal extends Modal {
+	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
 
@@ -34,6 +34,13 @@ export class LoginModal extends Modal {
 		this.UsernameField.focus();
 		this.UsernameField.select();
 
+		this.handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleLogin();
+			}
+		};
+
 		this.addEnterListener();
 	}
 
@@ -44,10 +51,9 @@ export class LoginModal extends Modal {
 				this.handleLogin();
 			}
 		};
-		this.UsernameField.addEventListener('keydown', handleEnter);
-		this.PasswordField.addEventListener('keydown', handleEnter);
+		this.UsernameField.addEventListener('keydown', this.handleEnter);
+		this.PasswordField.addEventListener('keydown', this.handleEnter);
 	}
-	
 
 	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
@@ -114,7 +120,7 @@ export class LoginModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color3)] rounded p-2';
+		input.className = 'border border-[var(--color3)] p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -154,5 +160,11 @@ export class LoginModal extends Modal {
 			this.UsernameField.focus();
 			this.UsernameField.select();
 		};
+	}
+
+	public destroy() {
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		super.destroy();
 	}
 }
