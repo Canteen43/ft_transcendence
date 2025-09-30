@@ -18,7 +18,9 @@ export class NextRoundModal extends Modal {
 
 		const message = document.createElement('p');
 		message.className = 'text-2xl text-center text-black mb-2';
-		const displayName = eliminatedAlias?.trim() ? eliminatedAlias : 'A player';
+		const displayName = eliminatedAlias?.trim()
+			? eliminatedAlias
+			: 'A player';
 		message.textContent = displayName;
 		message.appendChild(document.createElement('br'));
 		message.append('was eliminated!');
@@ -28,7 +30,7 @@ export class NextRoundModal extends Modal {
 		const buttons = document.createElement('div');
 		buttons.className = 'flex gap-4 mt-2';
 		this.box.appendChild(buttons);
-		
+
 		// Play Again button
 		new Button(
 			'Next Round!',
