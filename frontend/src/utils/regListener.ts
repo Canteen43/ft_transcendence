@@ -18,7 +18,7 @@ import { state } from '../utils/State';
 
 import { TextModal } from '../modals/TextModal';
 import { router } from './Router';
-import { updateTournamentMatchData } from './updateTurnMatchData';
+import { updateTournData } from '../utils/updateTurnMatchData.js';
 import { webSocket } from './WebSocketWrapper';
 
 export async function regListener(event: MessageEvent): Promise<void> {
@@ -49,20 +49,26 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				if (error) {
 					console.error('Tournament join error:', error);
 					const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-					new TextModal(router.currentScreen!.element, message);
+					new TextModal(router.currentScreen!.element, message, undefined);
 					return;
 				}
 
 				if (!tournData) {
 					console.error('Getting tournament data failed, QUIT sent');
 					webSocket.send({ t: MESSAGE_QUIT });
-					new TextModal(router.currentScreen!.element, 'Failed to get tournament data');
+					new TextModal(
+						router.currentScreen!.element,
+						'Failed to get tournament data'
+					);
 					return;
+
 				} else if (tournData.matches.length === 1) {
-					updateTournamentMatchData(tournData);
-					document.dispatchEvent(new Event('gameReady'));
+					updateTournData(tournData);
+					document.dispatchEvent(new Event('2plyrsGameReady'));
 				} else {
-					console.debug ("received ST during trounament-> redir to Tournament");
+					console.debug(
+						'received ST during Tournament-> redir to Tournament'
+					);
 					location.hash = '#tournament';
 				}
 
@@ -79,6 +85,11 @@ export async function regListener(event: MessageEvent): Promise<void> {
 
 			case MESSAGE_QUIT:
 				console.info('Received quit message:', msg);
+				if (location.hash === '#home') {
+					const readyModal = document.querySelector(
+						'.ready-modal');
+					readyModal?.remove();
+				}
 				location.hash = '#home';
 				new TextModal(
 					router.currentScreen!.element,
@@ -95,23 +106,14 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				}, 50);
 				break;
 
-			// Quick fix when we arrive unexpectedly on #TOURNAMENT
-			// case MESSAGE_GAME_STATE:
-			// 	console.error('Received game message:', msg);
-			// 	console.warn('Redirecting to #GAME');
-			// 	location.hash = '#game';
-			// 	break;
-			// case MESSAGE_POINT:
-			// 	console.error('Received game message:', msg);
-			// 	console.warn('Redirecting to #GAME');
-			// 	location.hash = '#game';
-			// 	break;
-
 			default:
 				console.warn('Unexpected websocket message received:', msg);
 		}
 	} catch (err) {
 		console.error('Invalid message received:', event.data, err);
-		new TextModal(router.currentScreen!.element, 'Received invalid message from server');
+		new TextModal(
+			router.currentScreen!.element,
+			'Received invalid message from server'
+		);
 	}
 }

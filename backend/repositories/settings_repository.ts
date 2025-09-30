@@ -2,7 +2,6 @@ import { ERROR_FAILED_TO_CREATE_SETTINGS } from '../../shared/constants.js';
 import { DatabaseError } from '../../shared/exceptions.js';
 import {
 	CreateSettings,
-	CreateSettingsSchema,
 	Settings,
 	SettingsSchema,
 } from '../../shared/schemas/settings.js';

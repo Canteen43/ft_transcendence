@@ -13,6 +13,7 @@ import {
 import { authHook } from './hooks/auth.js';
 import twoFactorRoutes from './routes/2fa.js';
 import matchRoutes from './routes/match.js';
+import statsRoutes from './routes/stats.js';
 import tournamentRoutes from './routes/tournament.js';
 import userRoutes from './routes/user.js';
 import websocketRoutes from './routes/websocket.js';
@@ -60,6 +61,7 @@ export default async function fastifyInit(
 	await fastify.register(tournamentRoutes, { prefix: '/tournaments' });
 	await fastify.register(matchRoutes, { prefix: '/matches' });
 	await fastify.register(websocketRoutes, { prefix: '/websocket' });
+	await fastify.register(statsRoutes, { prefix: '/stats' });
 
 	fastify.addHook('preHandler', authHook);
 }
