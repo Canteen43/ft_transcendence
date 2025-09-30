@@ -1,8 +1,8 @@
 // UI helper for Pong3D: builds GUI controls and returns references so the main scene can wire them
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
-import { conditionalWarn } from './Logger';
 import montserratBoldUrl from '../../fonts/montserrat/Montserrat-Bold.ttf';
+import { conditionalWarn } from './Logger';
 
 const MESH_UI_FONT_FAMILY = 'MontserratBold';
 const MESH_UI_FONT_URL: string = montserratBoldUrl;
@@ -10,10 +10,14 @@ const MESH_UI_FONT_URL: string = montserratBoldUrl;
 let meshUIFontPromise: Promise<void> | null = null;
 
 function ensureMeshUIFontLoaded(): void {
-	if (typeof document === 'undefined' || typeof FontFace === 'undefined') return;
+	if (typeof document === 'undefined' || typeof FontFace === 'undefined')
+		return;
 	if (meshUIFontPromise) return;
 	try {
-		const face = new FontFace(MESH_UI_FONT_FAMILY, `url(${MESH_UI_FONT_URL})`);
+		const face = new FontFace(
+			MESH_UI_FONT_FAMILY,
+			`url(${MESH_UI_FONT_URL})`
+		);
 		meshUIFontPromise = face
 			.load()
 			.then(loaded => {
@@ -133,7 +137,9 @@ export function createPong3DUI(
 	const playerScoreTexts: Array<GUI.TextBlock> = [];
 	const meshTargets: PlayerMeshTargets[] = names.map((_, idx) => {
 		const aliasName = `alias${idx + 1}`;
-		const aliasMesh = _scene.getMeshByName(aliasName) as BABYLON.AbstractMesh | null;
+		const aliasMesh = _scene.getMeshByName(
+			aliasName
+		) as BABYLON.AbstractMesh | null;
 		const scoreMeshes: BABYLON.AbstractMesh[] = [];
 		const base = idx + 1;
 		const candidateNames = [
@@ -144,7 +150,9 @@ export function createPong3DUI(
 			`score${base}_2`,
 		];
 		candidateNames.forEach(candidate => {
-			const mesh = _scene.getMeshByName(candidate) as BABYLON.AbstractMesh | null;
+			const mesh = _scene.getMeshByName(
+				candidate
+			) as BABYLON.AbstractMesh | null;
 			if (mesh && !scoreMeshes.includes(mesh)) {
 				scoreMeshes.push(mesh);
 			}
@@ -198,7 +206,8 @@ export function createPong3DUI(
 		container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
 		container.width = '100%';
 		container.height = '100%';
-		if (options?.containerPaddingTop) container.paddingTop = options.containerPaddingTop;
+		if (options?.containerPaddingTop)
+			container.paddingTop = options.containerPaddingTop;
 		if (options?.containerPaddingBottom)
 			container.paddingBottom = options.containerPaddingBottom;
 		texture.addControl(container);
@@ -207,10 +216,13 @@ export function createPong3DUI(
 		textBlock.color = options?.color ?? 'white';
 		textBlock.fontSize = options?.fontSize ?? 90;
 		textBlock.fontWeight = 'bold';
-		textBlock.fontFamily = options?.fontFamily ?? `${MESH_UI_FONT_FAMILY}, Arial, sans-serif`;
-		textBlock.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+		textBlock.fontFamily =
+			options?.fontFamily ?? `${MESH_UI_FONT_FAMILY}, Arial, sans-serif`;
+		textBlock.textHorizontalAlignment =
+			GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
 		textBlock.textVerticalAlignment =
-			options?.textVerticalAlignment ?? GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+			options?.textVerticalAlignment ??
+			GUI.Control.VERTICAL_ALIGNMENT_CENTER;
 		textBlock.width = '100%';
 		textBlock.height = '100%';
 		textBlock.textWrapping = false;
@@ -287,7 +299,7 @@ export function createPong3DUI(
 		name.width = '100%';
 		name.text = names[idx] ?? `Player${idx + 1}`;
 		// colors: p1 red, p2 blue, p3 green, p4 cyan
-		const colors = ['red', 'blue', 'green', 'cyan'];
+		const colors = ['red', '#5bc8ff', 'lightgreen', 'cyan'];
 		const playerColor = colors[idx] ?? 'white';
 		name.color = playerColor;
 		name.fontSize = 44;
@@ -340,7 +352,8 @@ export function createPong3DUI(
 					shadowOffsetY: 4,
 					width: 768,
 					height: 256,
-					textVerticalAlignment: GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+					textVerticalAlignment:
+						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
 				}
 			);
 			if (meshBindings.alias) {
@@ -362,7 +375,8 @@ export function createPong3DUI(
 					shadowOffsetY: 4,
 					width: 768,
 					height: 256,
-					textVerticalAlignment: GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+					textVerticalAlignment:
+						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
 					normalizeBaseline: true,
 				}
 			);
@@ -370,30 +384,29 @@ export function createPong3DUI(
 			if (primary) {
 				trackedScore = primary.text;
 
-				meshTarget.scoreMeshes
-					.slice(1)
-					.forEach((mesh, mirrorIdx) => {
+				meshTarget.scoreMeshes.slice(1).forEach((mesh, mirrorIdx) => {
 					const mirror = attachTextToMesh(
 						mesh,
 						`score${idx + 1}-mirror${mirrorIdx + 1}`,
-							score.text,
-							{
-								fontSize: 400,
-								color: 'white',
-								shadowColor: 'rgba(0, 0, 0, 0.7)',
-								shadowBlur: 12,
-								shadowOffsetX: 4,
-								shadowOffsetY: 4,
-								width: 768,
-								height: 256,
-								textVerticalAlignment: GUI.Control.VERTICAL_ALIGNMENT_CENTER,
-								normalizeBaseline: true,
-							}
-						);
-						if (mirror) {
-							meshBindings.scoreMirrors.push(mirror.text);
+						score.text,
+						{
+							fontSize: 400,
+							color: 'white',
+							shadowColor: 'rgba(0, 0, 0, 0.7)',
+							shadowBlur: 12,
+							shadowOffsetX: 4,
+							shadowOffsetY: 4,
+							width: 768,
+							height: 256,
+							textVerticalAlignment:
+								GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+							normalizeBaseline: true,
 						}
-					});
+					);
+					if (mirror) {
+						meshBindings.scoreMirrors.push(mirror.text);
+					}
+				});
 
 				if (meshBindings.scoreMirrors.length) {
 					const syncMirrors = () => {
@@ -454,7 +467,10 @@ export function createPong3DUI(
 		if (usesMeshTargets[playerIndex]) {
 			const prevParent = currentParent[playerIndex];
 			try {
-				if (prevParent && typeof (prevParent as any).removeControl === 'function') {
+				if (
+					prevParent &&
+					typeof (prevParent as any).removeControl === 'function'
+				) {
 					(prevParent as any).removeControl(stack);
 				}
 			} catch (e) {}
@@ -613,7 +629,7 @@ export function createPong3DUI(
 
 	// Function to show winner
 	const showWinner = (playerIndex: number, playerName: string) => {
-		const colors = ['red', 'blue', 'green', 'cyan'];
+		const colors = ['red', '#5bc8ff', 'lightgreen', 'cyan'];
 		const color = colors[playerIndex] || 'white';
 		winnerMessage.text = `${playerName} WINS!`;
 		winnerMessage.color = color;
