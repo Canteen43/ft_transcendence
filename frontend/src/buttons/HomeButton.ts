@@ -8,28 +8,26 @@ export class HomeButton {
 	private onLeave: () => void;
 	private textModal?: TextModal;
 
-	constructor(
-		parent: HTMLElement,
-		imgSrc: string = '../home_empty_black.png',
-		hoverImgSrc: string = '../home_full_black.png'
-	) {
+	constructor(parent: HTMLElement) {
+
 		this.button = document.createElement('button');
 		this.button.className =
 			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
-			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
+		('absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none');
 
+		const imgSrc = '../home_empty_black.png';
+		const hoverImgSrc = '../home_full_black.png';
+		
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
 		this.img.alt = 'Home';
-		this.img.className = 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18'; 
+		this.img.className = 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18';
 		this.button.appendChild(this.img);
 
 		this.onEnter = () => (this.img.src = hoverImgSrc);
 		this.onLeave = () => (this.img.src = imgSrc);
 
 		// change image on hover
-		this.button.addEventListener('mouseenter', this.onEnter);
-		this.button.addEventListener('mouseleave', this.onLeave);
 		this.button.addEventListener('mouseenter', this.onEnter);
 		this.button.addEventListener('mouseleave', this.onLeave);
 		this.button.addEventListener('click', this.handleHomeClick);
