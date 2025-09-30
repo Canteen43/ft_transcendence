@@ -24,7 +24,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col';
-app.style.backgroundImage = `url(${sky})`;
+app.style.backgroundColor = 'white';
 app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';

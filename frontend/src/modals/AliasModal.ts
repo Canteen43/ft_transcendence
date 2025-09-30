@@ -24,9 +24,12 @@ export class AliasModal extends Modal {
 		{ label: 'Gandalf', value: '*Gandalf' },
 	];
 
+	private documentClickHandlers: ((e: Event) => void)[] = [];
+	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
+		new Map();
+
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
-		this.box.classList.add('alias-modal');
 		this.box.classList.add('alias-modal');
 
 		const username = sessionStorage.getItem('username') ?? '';
@@ -156,22 +159,24 @@ export class AliasModal extends Modal {
 			this.toggleDropdown(index);
 		});
 
-		// Close dropdown when clicking outside
-		document.addEventListener('click', e => {
+		// Store handler reference for cleanup
+		const clickHandler = (e: Event) => {
 			if (
 				!button.contains(e.target as Node) &&
 				!dropdown.contains(e.target as Node)
 			) {
 				this.closeDropdown(index);
 			}
-		});
+		};
+		this.documentClickHandlers.push(clickHandler);
+		document.addEventListener('click', clickHandler);
 
 		return { button, dropdown };
 	}
 
 	private addKeyboardListeners(): void {
 		this.aliasFields.forEach(field => {
-			field.addEventListener('keydown', e => {
+			const handler = (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
 					this.handleAlias();
@@ -179,7 +184,9 @@ export class AliasModal extends Modal {
 				if (e.key === 'Escape') {
 					this.closeAllDropdowns();
 				}
-			});
+			};
+			this.fieldHandlers.set(field, handler);
+			field.addEventListener('keydown', handler);
 		});
 	}
 
@@ -285,8 +292,6 @@ export class AliasModal extends Modal {
 		const currentPlayers = playerQueue.queue.length;
 		const isTournamentReady = currentPlayers === targetSize;
 
-		// Set up game spec
-
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('targetSize', targetSize.toString());
 		sessionStorage.setItem('gameMode', 'remote');
@@ -354,6 +359,19 @@ export class AliasModal extends Modal {
 
 	public destroy(): void {
 		this.closeAllDropdowns();
+
+		// Clean up all document click handlers
+		this.documentClickHandlers.forEach(handler => {
+			document.removeEventListener('click', handler);
+		});
+		this.documentClickHandlers = [];
+
+		// Clean up field listeners
+		this.fieldHandlers.forEach((handler, field) => {
+			field.removeEventListener('keydown', handler);
+		});
+		this.fieldHandlers.clear();
+
 		super.destroy();
 	}
 }

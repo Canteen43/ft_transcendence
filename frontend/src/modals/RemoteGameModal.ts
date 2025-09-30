@@ -20,28 +20,33 @@ export class RemoteGameModal extends Modal {
 
 		const img2 = document.createElement('img');
 		img2.src = '2_players.png';
-		img2.className = 'h-25  mx-auto';
+		img2.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		const imgt = document.createElement('img');
 		imgt.src = 'trophy.png';
-		imgt.className = 'h-25  mx-auto';
+		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		this.btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
 		this.btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
 
 		// fixed button size
 		[this.btn2plyr, this.btnTourn].forEach(btn => {
-			(btn.element.className +=
-				'w-[300px] h-[120px] flex items-center' +
-				'justify-center hover:bg-[var(--color1bis)]' +
-				'transition-colors duration-300 focus:outline-none ' +
-					'focus:ring-2 focus:ring-[var(--color1)]');
+			btn.element.className +=
+				' w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
+				' h-[100px] sm:h-[120px] md:h-[140px]' +
+				' flex items-center justify-center' +
+				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
+				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
 		// modal box background
 		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
+		this.box.className +=
+			'bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
+			' relative flex flex-col items-center justify-center' +
+			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px]';
 
 		this.btn2plyr.element.focus();
 		this.btn2plyr.element.tabIndex = 0;
@@ -99,14 +104,12 @@ export class RemoteGameModal extends Modal {
 		state.gameMode = 'remote';
 		state.tournamentOngoing = true;
 		state.tournamentSize = tournamentSize;
-		if (tournamentSize == 4) {
-			state.tournamentOngoing = true;
-		} else {
-			state.tournamentOngoing = false;
-		}
+		state.tournamentOngoing = (tournamentSize === 4);
+
 		sessionStorage.setItem('playerCount', '2');
-		this.destroy();
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
+
+		this.destroy();
 		new AliasModal(this.parent, 1);
 	}
 }

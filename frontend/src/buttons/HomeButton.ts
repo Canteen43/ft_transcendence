@@ -9,7 +9,6 @@ export class HomeButton {
 	private textModal?: TextModal;
 
 	constructor(parent: HTMLElement) {
-
 		this.button = document.createElement('button');
 		this.button.className =
 			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
@@ -17,7 +16,7 @@ export class HomeButton {
 
 		const imgSrc = '../home_empty_black.png';
 		const hoverImgSrc = '../home_full_black.png';
-		
+
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
 		this.img.alt = 'Home';
@@ -36,7 +35,7 @@ export class HomeButton {
 	}
 
 	private handleHomeClick = () => {
-		if (location.hash === '#game' || state.gameOngoing) {
+		if (location.hash === '#game' && state.gameOngoing) {
 			this.textModal = new TextModal(
 				this.button.parentElement!,
 				undefined,
