@@ -14,8 +14,6 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
-import { NextRoundModal } from '../modals/NextRoundModal';
-import { ReplayModal } from '../modals/ReplayModal';
 import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
@@ -2029,16 +2027,21 @@ export class Pong3D {
 					) {
 						new TextModal(
 							this.container,
-							`${eliminationResult.eliminatedAlias} was eliminiated!`,
-							'Next Round',
+							`${eliminationResult.eliminatedAlias} was eliminated!`,
+							'Next round',
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new ReplayModal(this.gameScreen);
+						new TextModal(
+							this.container,
+							undefined,
+							'Play again',
+							() => this.gameScreen!.reloadPong()
+						);
 					}
 				} else {
 					this.conditionalWarn(
-						'GameScreen reference not available for NextRoundModal/ReplayModal'
+						'GameScreen reference not available for Next Round/Replay'
 					);
 				}
 			}
@@ -2102,23 +2105,29 @@ export class Pong3D {
 				!!eliminationResult &&
 				eliminationResult.tournamentFinished;
 
-			// HELENE: i think it would be nice to have the button right away
 			if (this.gameMode == 'local' && !skipModal) {
 				if (this.gameScreen) {
 					if (
 						isLocalTournament &&
 						eliminationResult?.eliminatedAlias
 					) {
-						new NextRoundModal(
-							this.gameScreen,
-							eliminationResult.eliminatedAlias
+						new TextModal(
+							this.container,
+							`${eliminationResult.eliminatedAlias} was eliminated!`,
+							'Next round',
+							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new ReplayModal(this.gameScreen);
+						new TextModal(
+							this.container,
+							undefined,
+							'Play again',
+							() => this.gameScreen!.reloadPong()
+						);
 					}
 				} else {
 					this.conditionalWarn(
-						'GameScreen reference not available for ReplayModal'
+						'GameScreen reference not available for Replay or next round'
 					);
 				}
 			}

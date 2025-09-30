@@ -26,11 +26,6 @@ export class GameScreen extends Screen {
 			return;
 		}
 
-		// HELENE: removed since we now destroy the banner when we destroy homescreen
-		// Hide the online players banner while on #game
-		// const banner = document.getElementById('online-players-banner');
-		// if (banner) banner.style.display = 'none';
-
 		// Initialize 3D pong
 		this.pong3DInstance = new Pong3D(this.element, { gameScreen: this });
 	}
