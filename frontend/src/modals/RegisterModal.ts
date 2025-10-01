@@ -103,6 +103,34 @@ export class RegisterModal extends Modal {
 			return;
 		}
 
+		// export const CreateUserSchema = z.object({
+		// 	login: z.string().pipe(loginSchema),
+		// 	alias: z.string().pipe(loginSchema).nullable(),
+		// 	first_name: z.string().pipe(nameSchema).nullable(),
+		// 	last_name: z.string().pipe(nameSchema).nullable(),
+		// 	email: z.email().nullable(),
+		// 	password: z.string().pipe(passwordSchema),
+		// 	two_factor_enabled: z.preprocess(val => {
+		// 		if (typeof val === 'boolean') return val;
+		// 		const validated = z.number().min(0).max(1).parse(val);
+		// 		return validated === 1;
+		// 	}, z.boolean()),
+		// });
+
+		// export const AuthRequestSchema = z.object({
+		// 	login: z.string(),
+		// 	password: z.string(),
+		// });
+
+		// export const AuthResponseSchema = z
+		// 	.object({
+		// 		login: z.string(),
+		// 		user_id: zUUID,
+		// 		token: z.string(),
+		// 		two_factor_enabled: z.boolean(),
+		// 	})
+		// 	.refine(data => data.two_factor_enabled || data.token !== undefined);
+
 		const requestData = {
 			login: username,
 			alias: alias || null,
@@ -110,6 +138,7 @@ export class RegisterModal extends Modal {
 			last_name: lastName || null,
 			email: email || null,
 			password: password,
+			two_factor_enabled: 0,
 		};
 		console.debug(`${JSON.stringify(requestData)}`);
 		const parseResult = CreateUserSchema.safeParse(requestData);
@@ -166,8 +195,7 @@ export class RegisterModal extends Modal {
 	}
 
 	private handleGoBack(parent: HTMLElement) {
-		this.destroy();
-
+		
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.AliasField.removeEventListener('keydown', this.handleEnter);
 		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
@@ -178,6 +206,8 @@ export class RegisterModal extends Modal {
 			'keydown',
 			this.handleEnter
 		);
+		
+		this.destroy();
 		new LoginModal(parent);
 	}
 }
