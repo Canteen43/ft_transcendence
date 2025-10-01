@@ -1853,30 +1853,30 @@ export class Pong3D {
 			}
 		}
 
-		// Position correction: move ball slightly away from wall to prevent embedding
-		if (this.ballMesh && ballImpostor) {
-			const velocity = ballImpostor.getLinearVelocity();
-			if (velocity && velocity.length() > 0) {
-				// Move ball in direction of velocity (away from wall)
-				// Use gentle correction to avoid physics instability
-				const correctionDistance = 0.15; // Small, consistent correction
-				const correctionVector = velocity
-					.normalize()
-					.scale(correctionDistance);
-				const newPosition =
-					this.ballMesh.position.add(correctionVector);
-				this.ballMesh.position = newPosition;
+		// // Position correction: move ball slightly away from wall to prevent embedding
+		// if (this.ballMesh && ballImpostor) {
+		// 	const velocity = ballImpostor.getLinearVelocity();
+		// 	if (velocity && velocity.length() > 0) {
+		// 		// Move ball in direction of velocity (away from wall)
+		// 		// Use gentle correction to avoid physics instability
+		// 		const correctionDistance = 0.15; // Small, consistent correction
+		// 		const correctionVector = velocity
+		// 			.normalize()
+		// 			.scale(correctionDistance);
+		// 		const newPosition =
+		// 			this.ballMesh.position.add(correctionVector);
+		// 		this.ballMesh.position = newPosition;
 
-				// If too many rapid wall collisions, apply velocity damping
-				if (this.wallCollisionCount > 3) {
-					this.conditionalLog(
-						`🚫 Rapid wall collisions detected - applying velocity damping`
-					);
-					const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
-					ballImpostor.setLinearVelocity(dampedVel);
-				}
-			}
-		}
+		// 		// If too many rapid wall collisions, apply velocity damping
+		// 		if (this.wallCollisionCount > 3) {
+		// 			this.conditionalLog(
+		// 				`🚫 Rapid wall collisions detected - applying velocity damping`
+		// 			);
+		// 			const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
+		// 			ballImpostor.setLinearVelocity(dampedVel);
+		// 		}
+		// 	}
+		// }
 
 		// When ball hits wall, spin is preserved but may be modified by friction
 		// For realistic physics, some spin energy is lost
