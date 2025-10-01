@@ -82,7 +82,7 @@ export default class UserRepository {
 						user.last_name,
 						user.email,
 						dbSettings.id,
-						user.two_factor_enabled,
+						user.two_factor_enabled ? 1 : 0,
 						hash,
 					]
 				);
