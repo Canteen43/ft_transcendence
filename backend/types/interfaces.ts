@@ -1,6 +1,6 @@
 import { FastifyRequest, RouteGenericInterface } from 'fastify';
 import { JwtPayload } from 'jsonwebtoken';
-import { PlayerStatus } from '../../shared/enums.js';
+import { PlayerStatus, Token } from '../../shared/enums.js';
 import { UUID } from '../../shared/types.js';
 
 export interface UserAuth {
@@ -9,6 +9,7 @@ export interface UserAuth {
 }
 
 export interface AuthPayload extends JwtPayload {
+	type: Token;
 	userId: string;
 }
 
@@ -31,7 +32,14 @@ export interface QueuedUser {
 export interface AuthenticatedRequest<
 	T extends RouteGenericInterface = RouteGenericInterface,
 > extends FastifyRequest<T> {
-	user: {
+	token: {
 		userId: UUID;
+		type: Token;
 	};
+}
+
+export interface TwoFactorSecret {
+	secret: string;
+	otpauthUrl: string;
+	qrCodeDataUrl: string;
 }

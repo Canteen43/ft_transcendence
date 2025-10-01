@@ -7,6 +7,7 @@ import { Modal } from './Modal.ts';
 import { TextModal } from './TextModal';
 
 export class RegisterModal extends Modal {
+	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
 	private AliasField: HTMLInputElement;
 	private FirstNameField: HTMLInputElement;
@@ -48,6 +49,13 @@ export class RegisterModal extends Modal {
 		this.createLinks(parent);
 
 		this.UsernameField.focus();
+
+		this.handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleRegister();
+			}
+		};
 		this.addEnterListener();
 	}
 
@@ -63,19 +71,13 @@ export class RegisterModal extends Modal {
 	}
 
 	private addEnterListener() {
-		const handleEnter = (e: KeyboardEvent) => {
-			if (e.key == 'Enter') {
-				e.preventDefault();
-				this.handleRegister();
-			}
-		};
-		this.UsernameField.addEventListener('keydown', handleEnter);
-		this.AliasField.addEventListener('keydown', handleEnter);
-		this.FirstNameField.addEventListener('keydown', handleEnter);
-		this.LastNameField.addEventListener('keydown', handleEnter);
-		this.EmailField.addEventListener('keydown', handleEnter);
-		this.PasswordField.addEventListener('keydown', handleEnter);
-		this.PasswordRepeatField.addEventListener('keydown', handleEnter);
+		this.UsernameField.addEventListener('keydown', this.handleEnter);
+		this.AliasField.addEventListener('keydown', this.handleEnter);
+		this.FirstNameField.addEventListener('keydown', this.handleEnter);
+		this.LastNameField.addEventListener('keydown', this.handleEnter);
+		this.EmailField.addEventListener('keydown', this.handleEnter);
+		this.PasswordField.addEventListener('keydown', this.handleEnter);
+		this.PasswordRepeatField.addEventListener('keydown', this.handleEnter);
 	}
 
 	private formatZodErrors(error: z.ZodError): string {
@@ -101,6 +103,34 @@ export class RegisterModal extends Modal {
 			return;
 		}
 
+		// export const CreateUserSchema = z.object({
+		// 	login: z.string().pipe(loginSchema),
+		// 	alias: z.string().pipe(loginSchema).nullable(),
+		// 	first_name: z.string().pipe(nameSchema).nullable(),
+		// 	last_name: z.string().pipe(nameSchema).nullable(),
+		// 	email: z.email().nullable(),
+		// 	password: z.string().pipe(passwordSchema),
+		// 	two_factor_enabled: z.preprocess(val => {
+		// 		if (typeof val === 'boolean') return val;
+		// 		const validated = z.number().min(0).max(1).parse(val);
+		// 		return validated === 1;
+		// 	}, z.boolean()),
+		// });
+
+		// export const AuthRequestSchema = z.object({
+		// 	login: z.string(),
+		// 	password: z.string(),
+		// });
+
+		// export const AuthResponseSchema = z
+		// 	.object({
+		// 		login: z.string(),
+		// 		user_id: zUUID,
+		// 		token: z.string(),
+		// 		two_factor_enabled: z.boolean(),
+		// 	})
+		// 	.refine(data => data.two_factor_enabled || data.token !== undefined);
+
 		const requestData = {
 			login: username,
 			alias: alias || null,
@@ -108,6 +138,7 @@ export class RegisterModal extends Modal {
 			last_name: lastName || null,
 			email: email || null,
 			password: password,
+			two_factor_enabled: 0,
 		};
 		console.debug(`${JSON.stringify(requestData)}`);
 		const parseResult = CreateUserSchema.safeParse(requestData);
@@ -149,7 +180,7 @@ export class RegisterModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color3)] rounded p-2';
+		input.className = 'border border-[var(--color3)] p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -164,6 +195,18 @@ export class RegisterModal extends Modal {
 	}
 
 	private handleGoBack(parent: HTMLElement) {
+		
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.AliasField.removeEventListener('keydown', this.handleEnter);
+		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
+		this.LastNameField.removeEventListener('keydown', this.handleEnter);
+		this.EmailField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordRepeatField.removeEventListener(
+			'keydown',
+			this.handleEnter
+		);
+		
 		this.destroy();
 		new LoginModal(parent);
 	}

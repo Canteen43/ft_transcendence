@@ -24,10 +24,12 @@ export class AliasModal extends Modal {
 		{ label: 'Gandalf', value: '*Gandalf' },
 	];
 
+	private documentClickHandlers: ((e: Event) => void)[] = [];
+	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
+		new Map();
 
 	constructor(parent: HTMLElement, n: number) {
 		super(parent);
-		this.box.classList.add('alias-modal');
 		this.box.classList.add('alias-modal');
 
 		const username = sessionStorage.getItem('username') ?? '';
@@ -42,26 +44,41 @@ export class AliasModal extends Modal {
 		const gameMode = sessionStorage.getItem('gameMode');
 
 		for (let i = 0; i < n; i++) {
-			const defaultValue = n === 1 
-				? alias || username || `player${i + 1}`
-				: aliases[i] || `player${i + 1}`;
+			const defaultValue =
+				n === 1
+					? alias || username || `player${i + 1}`
+					: aliases[i] || `player${i + 1}`;
 
-			const row = this.createPlayerRow(i, defaultValue, aliasHints[i], gameMode === 'local');
+			const row = this.createPlayerRow(
+				i,
+				defaultValue,
+				aliasHints[i],
+				gameMode === 'local'
+			);
 			this.box.appendChild(row);
 		}
 
 		this.addKeyboardListeners();
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
-			
+
 		new Button('Continue', () => this.handleAlias(), this.box);
 	}
 
-	private createPlayerRow(index: number, defaultValue: string, hint: string, showAIButton: boolean): HTMLDivElement {
+	private createPlayerRow(
+		index: number,
+		defaultValue: string,
+		hint: string,
+		showAIButton: boolean
+	): HTMLDivElement {
 		const row = document.createElement('div');
 		row.className = 'flex items-center gap-2 w-full relative';
 
-		const input = this.createInput(defaultValue, `username${index + 1}`, hint);
+		const input = this.createInput(
+			defaultValue,
+			`username${index + 1}`,
+			hint
+		);
 		row.appendChild(input);
 		this.aliasFields.push(input);
 
@@ -75,78 +92,91 @@ export class AliasModal extends Modal {
 		return row;
 	}
 
-	private createInput(defaultValue: string, id: string, hint: string): HTMLInputElement {
+	private createInput(
+		defaultValue: string,
+		id: string,
+		hint: string
+	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = 'text';
 		input.id = id;
 		input.value = defaultValue;
 		input.title = hint;
-		input.className = 'border border-[var(--color3)] rounded p-2 flex-1';
+		input.className = 'border border-[var(--color3)] p-2 flex-1';
 		return input;
 	}
 
-	private createAISelector(index: number, input: HTMLInputElement): { button: HTMLButtonElement; dropdown: HTMLDivElement } {
-		// AI Button with rounded corners
+	private createAISelector(
+		index: number,
+		input: HTMLInputElement
+	): { button: HTMLButtonElement; dropdown: HTMLDivElement } {
+		// AI Button with corners
 		const button = document.createElement('button');
 		button.type = 'button';
-		button.className = 'flex items-center gap-2 border border-[var(--color3)] rounded-lg px-2 py-2 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
-		
+		button.className =
+			'flex items-center gap-2 border border-[var(--color3)]-lg px-2 py-2 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
+
 		const aiIcon = document.createElement('img');
 		aiIcon.src = '/ai.png';
 		aiIcon.alt = 'AI options';
 		aiIcon.className = 'w-6 h-6';
-		
+
 		const arrow = document.createElement('span');
 		arrow.textContent = '▾';
 		arrow.className = 'text-xs';
-		
+
 		button.appendChild(aiIcon);
 		button.appendChild(arrow);
 
 		// Dropdown with proper white background
 		const dropdown = document.createElement('div');
-		dropdown.className = 
+		dropdown.className =
 			'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
-			'bg-white border border-[var(--color3)] rounded-lg shadow-lg ' +
+			'bg-white border border-[var(--color3)]-lg shadow-lg ' +
 			'z-10 overflow-hidden';
 
 		this.aiOptions.forEach((option, i) => {
 			const optionButton = document.createElement('button');
 			optionButton.type = 'button';
 			optionButton.textContent = option.label;
-			optionButton.className = 
+			optionButton.className =
 				'w-full px-3 py-2 text-left text-sm bg-white hover:bg-[var(--color3)]/10 ' +
 				'transition-colors border-none';
-			
-			optionButton.addEventListener('click', (e) => {
+
+			optionButton.addEventListener('click', e => {
 				e.stopPropagation();
 				input.value = option.value;
 				this.closeAllDropdowns();
 				input.focus();
 			});
-			
+
 			dropdown.appendChild(optionButton);
 		});
 
-		button.addEventListener('click', (e) => {
+		button.addEventListener('click', e => {
 			e.preventDefault();
 			e.stopPropagation();
 			this.toggleDropdown(index);
 		});
 
-		// Close dropdown when clicking outside
-		document.addEventListener('click', (e) => {
-			if (!button.contains(e.target as Node) && !dropdown.contains(e.target as Node)) {
+		// Store handler reference for cleanup
+		const clickHandler = (e: Event) => {
+			if (
+				!button.contains(e.target as Node) &&
+				!dropdown.contains(e.target as Node)
+			) {
 				this.closeDropdown(index);
 			}
-		});
+		};
+		this.documentClickHandlers.push(clickHandler);
+		document.addEventListener('click', clickHandler);
 
 		return { button, dropdown };
 	}
 
 	private addKeyboardListeners(): void {
 		this.aliasFields.forEach(field => {
-			field.addEventListener('keydown', (e) => {
+			const handler = (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
 					this.handleAlias();
@@ -154,17 +184,19 @@ export class AliasModal extends Modal {
 				if (e.key === 'Escape') {
 					this.closeAllDropdowns();
 				}
-			});
+			};
+			this.fieldHandlers.set(field, handler);
+			field.addEventListener('keydown', handler);
 		});
 	}
 
 	private toggleDropdown(index: number): void {
 		const dropdown = this.dropdownContainers[index];
 		if (!dropdown) return;
-		
+
 		const isOpen = this.openDropdownIndex === index;
 		this.closeAllDropdowns();
-		
+
 		if (!isOpen) {
 			dropdown.classList.remove('hidden');
 			this.openDropdownIndex = index;
@@ -206,9 +238,9 @@ export class AliasModal extends Modal {
 	private async handleRemoteGame(): Promise<void> {
 		const alias = this.aliasFields[0].value.trim() || 'Player1';
 		sessionStorage.setItem('alias', alias);
-		
+
 		// Clean up old aliases
-		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key => 
+		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key =>
 			sessionStorage.removeItem(key)
 		);
 
@@ -237,7 +269,9 @@ export class AliasModal extends Modal {
 		);
 
 		if (error) {
-			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
+			this.showError(
+				`Error ${error.status}: ${error.statusText}, ${error.message}`
+			);
 			return;
 		}
 
@@ -250,12 +284,13 @@ export class AliasModal extends Modal {
 		await this.handlePlayerQueue(playerQueue, targetSize);
 	}
 
-	private async handlePlayerQueue(playerQueue: any, targetSize: number): Promise<void> {
+	private async handlePlayerQueue(
+		playerQueue: any,
+		targetSize: number
+	): Promise<void> {
 		console.log('Tournament (game) actual players:', playerQueue.queue);
 		const currentPlayers = playerQueue.queue.length;
 		const isTournamentReady = currentPlayers === targetSize;
-
-		// Set up game spec
 
 		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
 		sessionStorage.setItem('targetSize', targetSize.toString());
@@ -274,7 +309,10 @@ export class AliasModal extends Modal {
 
 		const parseInput = CreateTournamentApiSchema.safeParse(body);
 		if (!parseInput.success) {
-			this.showError('Invalid tournament creation data', parseInput.error);
+			this.showError(
+				'Invalid tournament creation data',
+				parseInput.error
+			);
 			return;
 		}
 
@@ -287,7 +325,9 @@ export class AliasModal extends Modal {
 		);
 
 		if (error) {
-			this.showError(`Error ${error.status}: ${error.statusText}, ${error.message}`);
+			this.showError(
+				`Error ${error.status}: ${error.statusText}, ${error.message}`
+			);
 			await this.leaveTournament();
 			return;
 		}
@@ -319,6 +359,19 @@ export class AliasModal extends Modal {
 
 	public destroy(): void {
 		this.closeAllDropdowns();
+
+		// Clean up all document click handlers
+		this.documentClickHandlers.forEach(handler => {
+			document.removeEventListener('click', handler);
+		});
+		this.documentClickHandlers = [];
+
+		// Clean up field listeners
+		this.fieldHandlers.forEach((handler, field) => {
+			field.removeEventListener('keydown', handler);
+		});
+		this.fieldHandlers.clear();
+
 		super.destroy();
-		}
 	}
+}

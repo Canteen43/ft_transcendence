@@ -34,7 +34,7 @@ export class WaitingModal extends Modal {
 				`Failed to leave tournament: ${error.message}`
 			);
 		}
-		document.removeEventListener('2plyrsGameReady', () => this.nextStep());
+		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
 		super.quit();
 	}
 
@@ -45,7 +45,7 @@ export class WaitingModal extends Modal {
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s)...';
 		message.className =
-			"font-azeret [font-variation-settings:'wght'_900] text-3xl font-bold text-center mb-5 text-[var(--color3)]";
+			"font-outfit [font-variation-settings:'wght'_900] text-3xl font-bold text-center mb-5 text-[var(--color3)]";
 		container.appendChild(message);
 
 		const loader = document.createElement('l-jelly');
@@ -58,7 +58,7 @@ export class WaitingModal extends Modal {
 	}
 
 	public destroy() {
-		document.removeEventListener('2plyrsGameReady', () => this.nextStep());
+		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
 		super.destroy();
 	}
 }

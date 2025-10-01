@@ -1,17 +1,18 @@
 import { z } from 'zod';
+import type { AuthResponse } from '../../../shared/schemas/user.ts';
 import {
 	AuthRequestSchema,
 	AuthResponseSchema,
 } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
-import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
 import { TextModal } from './TextModal';
 
 export class LoginModal extends Modal {
+	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
 
@@ -34,6 +35,13 @@ export class LoginModal extends Modal {
 		this.UsernameField.focus();
 		this.UsernameField.select();
 
+		this.handleEnter = (e: KeyboardEvent) => {
+			if (e.key == 'Enter') {
+				e.preventDefault();
+				this.handleLogin();
+			}
+		};
+
 		this.addEnterListener();
 	}
 
@@ -44,10 +52,9 @@ export class LoginModal extends Modal {
 				this.handleLogin();
 			}
 		};
-		this.UsernameField.addEventListener('keydown', handleEnter);
-		this.PasswordField.addEventListener('keydown', handleEnter);
+		this.UsernameField.addEventListener('keydown', this.handleEnter);
+		this.PasswordField.addEventListener('keydown', this.handleEnter);
 	}
-	
 
 	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
@@ -81,7 +88,10 @@ export class LoginModal extends Modal {
 			new TextModal(this.parent, 'Login unsuccessful');
 			return;
 		}
-
+		if (authData.two_factor_enabled) {
+			this.showCodeInputView(authData);
+			return;
+		}
 		console.log('Login successful for: ', authData.login);
 		sessionStorage.setItem('username', username);
 		this.login(authData.token, authData.user_id);
@@ -114,7 +124,7 @@ export class LoginModal extends Modal {
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
-		input.className = 'border border-[var(--color3)] rounded p-2';
+		input.className = 'border border-[var(--color3)] p-2';
 		this.box.appendChild(input);
 		return input;
 	}
@@ -154,5 +164,63 @@ export class LoginModal extends Modal {
 			this.UsernameField.focus();
 			this.UsernameField.select();
 		};
+	}
+
+	public destroy() {
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		super.destroy();
+	}
+
+	private showCodeInputView(authData: AuthResponse) {
+		while (this.box.firstChild) {
+			this.box.removeChild(this.box.firstChild);
+		}
+		// Create input for 2FA code
+		const codeInput = this.myCreateInput(
+			'text',
+			'2fa-code',
+			'Enter 2FA code'
+		);
+		codeInput.focus();
+		new Button(
+			'Submit 2FA code',
+			() => this.submit2FA(codeInput, authData),
+			this.box
+		);
+	}
+
+	private async submit2FA(
+		codeInput: HTMLInputElement,
+		authData: AuthResponse
+	) {
+		if (codeInput.value.length === 0) {
+			return;
+		}
+		// Store the first token which is temporary to enable validation
+		sessionStorage.setItem('token', authData.token);
+		const { data: authDataNew, error } = await apiCall(
+			'POST',
+			'/users/2fa/validate',
+			AuthResponseSchema,
+			codeInput.value.trim()
+		);
+		if (error) {
+			console.warn('2FA validation error:', error);
+			this.destroy();
+			new TextModal(this.parent, '2FA validation failed');
+			return;
+		}
+		if (!authDataNew) {
+			console.warn(
+				'2FA validation failed: no data returned. This error should be caught earlier.'
+			);
+			this.destroy();
+			new TextModal(this.parent, '2FA validation failed');
+			return;
+		}
+		sessionStorage.setItem('username', authDataNew.login);
+		this.login(authDataNew.token, authDataNew.user_id);
+		this.destroy();
 	}
 }
