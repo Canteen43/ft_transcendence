@@ -319,7 +319,7 @@ export function createPong3DUI(
 				`score${idx + 1}-primary`,
 				score.text,
 				{
-					fontSize: 400,
+					fontSize: 360,
 					color: 'white',
 					shadowColor: 'rgba(0, 0, 0, 0.7)',
 					shadowBlur: 12,
