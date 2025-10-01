@@ -43,13 +43,18 @@ export const ERROR_USER_ALREADY_CONNECTED = 'User already connected';
 export const ERROR_USER_ALREADY_QUEUED = 'User already in queue';
 export const ERROR_MESSAGE_HANDLE = 'Error while handling websocket message';
 export const ERROR_QUIT = 'Error while trying to end tournament';
+export const ERROR_NO_2FA_IN_PROGRESS =
+	'No two factor authentication setup in progress';
+export const ERROR_2FA_NOT_CONFIGURED =
+	'Two factor authentication has not been setup for this account';
 
 export const WS_CLOSE_POLICY_VIOLATION = 1008;
 export const WS_AUTHENTICATION_FAILED = 4001;
 export const WS_TOKEN_EXPIRED = 4002;
 export const WS_ALREADY_CONNECTED = 4003;
 
-export const TOKEN_VALIDITY_PERIOD = '1d';
+export const TOKEN_VALIDITY_2FA = '2m';
+export const TOKEN_VALIDITY_AUTH = '1d';
 
 export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
 export const FIELD_WIDTH = 1800;

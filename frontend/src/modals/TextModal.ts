@@ -37,6 +37,5 @@ export class TextModal extends Modal {
 
 	public destroy(): void {
 		super.destroy();
-		this.onClose?.();
 	}
 }

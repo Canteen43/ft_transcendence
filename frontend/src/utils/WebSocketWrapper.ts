@@ -81,10 +81,18 @@ export class WebSocketWrapper {
 		if (this.targetState === 'open') {
 			console.log('Reconnecting in 3 seconds...');
 			setTimeout(() => this.open(), 3000);
-			this.reconnectModal = new TextModal(
-				router.currentScreen!.element,
-				`${event.reason}. Trying to reconnect...`
-			);
+
+			if (!this.reconnectModal) {
+				this.reconnectModal = new TextModal(
+					router.currentScreen!.element,
+					`${event.reason}. Trying to reconnect...`,
+					'Dismiss',
+					() => {
+						this.reconnectModal?.destroy();
+						this.reconnectModal = null;
+					}
+				);
+			}
 		}
 	}
 

@@ -1,7 +1,45 @@
 // UI helper for Pong3D: builds GUI controls and returns references so the main scene can wire them
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
+import montserratBoldUrl from '../../fonts/montserrat/Montserrat-Bold.ttf';
 import { conditionalWarn } from './Logger';
+
+const MESH_UI_FONT_FAMILY = 'MontserratBold';
+const MESH_UI_FONT_URL: string = montserratBoldUrl;
+
+let meshUIFontPromise: Promise<void> | null = null;
+
+function ensureMeshUIFontLoaded(): void {
+	if (typeof document === 'undefined' || typeof FontFace === 'undefined')
+		return;
+	if (meshUIFontPromise) return;
+	try {
+		const face = new FontFace(
+			MESH_UI_FONT_FAMILY,
+			`url(${MESH_UI_FONT_URL})`
+		);
+		meshUIFontPromise = face
+			.load()
+			.then(loaded => {
+				document.fonts.add(loaded);
+			})
+			.catch(err => {
+				conditionalWarn('Failed to load mesh UI font', err);
+			});
+	} catch (err) {
+		conditionalWarn('Could not initialize mesh UI font loader', err);
+	}
+}
+
+interface PlayerMeshTargets {
+	aliasMesh: BABYLON.AbstractMesh | null;
+	scoreMeshes: BABYLON.AbstractMesh[];
+}
+
+interface MeshTextBinding {
+	texture: GUI.AdvancedDynamicTexture;
+	text: GUI.TextBlock;
+}
 
 export interface Pong3DUIOptions {
 	playerNames?: string[]; // up to 4
@@ -44,6 +82,9 @@ export function createPong3DUI(
 	const positions = opts?.positions ?? ['bottom', 'top', 'right', 'left'];
 
 	const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+	const texturesToDispose = new Set<GUI.AdvancedDynamicTexture>();
+	texturesToDispose.add(guiTexture);
+	ensureMeshUIFontLoaded();
 
 	// create containers
 	const topContainer = new GUI.Rectangle();
@@ -94,6 +135,152 @@ export function createPong3DUI(
 	const playerStacks: Array<GUI.StackPanel> = [];
 	const playerNameTexts: Array<GUI.TextBlock> = [];
 	const playerScoreTexts: Array<GUI.TextBlock> = [];
+	const meshTargets: PlayerMeshTargets[] = names.map((_, idx) => {
+		const aliasName = `alias${idx + 1}`;
+		const aliasMesh = _scene.getMeshByName(
+			aliasName
+		) as BABYLON.AbstractMesh | null;
+		const scoreMeshes: BABYLON.AbstractMesh[] = [];
+		const base = idx + 1;
+		const candidateNames = [
+			`score${base}`,
+			`score${base}.1`,
+			`score${base}.2`,
+			`score${base}_1`,
+			`score${base}_2`,
+		];
+		candidateNames.forEach(candidate => {
+			const mesh = _scene.getMeshByName(
+				candidate
+			) as BABYLON.AbstractMesh | null;
+			if (mesh && !scoreMeshes.includes(mesh)) {
+				scoreMeshes.push(mesh);
+			}
+		});
+		return { aliasMesh, scoreMeshes } as PlayerMeshTargets;
+	});
+	const usesMeshTargets: boolean[] = new Array(names.length).fill(false);
+
+	const attachTextToMesh = (
+		mesh: BABYLON.AbstractMesh | null,
+		controlName: string,
+		initialText: string,
+		options?: {
+			fontSize?: number;
+			color?: string;
+			background?: string;
+			fontFamily?: string;
+			shadowColor?: string;
+			shadowBlur?: number;
+			shadowOffsetX?: number;
+			shadowOffsetY?: number;
+			width?: number;
+			height?: number;
+			textVerticalAlignment?: number;
+			paddingTop?: string;
+			paddingBottom?: string;
+			containerPaddingTop?: string;
+			containerPaddingBottom?: string;
+			lineSpacing?: string;
+			normalizeBaseline?: boolean;
+		}
+	): MeshTextBinding | null => {
+		if (!mesh) return null;
+		const width = options?.width ?? 1024;
+		const height = options?.height ?? 256;
+		const texture = GUI.AdvancedDynamicTexture.CreateForMesh(
+			mesh,
+			width,
+			height,
+			false,
+			1
+		);
+		texture.name = `${controlName}-adt`;
+		texture.renderAtIdealSize = true;
+		texturesToDispose.add(texture);
+
+		const container = new GUI.Rectangle(`${controlName}-rect`);
+		container.background = options?.background ?? 'transparent';
+		container.thickness = 0;
+		container.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+		container.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+		container.width = '100%';
+		container.height = '100%';
+		if (options?.containerPaddingTop)
+			container.paddingTop = options.containerPaddingTop;
+		if (options?.containerPaddingBottom)
+			container.paddingBottom = options.containerPaddingBottom;
+		texture.addControl(container);
+
+		const textBlock = new GUI.TextBlock(`${controlName}-text`, initialText);
+		textBlock.color = options?.color ?? 'white';
+		textBlock.fontSize = options?.fontSize ?? 90;
+		textBlock.fontWeight = 'bold';
+		textBlock.fontFamily =
+			options?.fontFamily ?? `${MESH_UI_FONT_FAMILY}, Arial, sans-serif`;
+		textBlock.textHorizontalAlignment =
+			GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+		textBlock.textVerticalAlignment =
+			options?.textVerticalAlignment ??
+			GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+		textBlock.width = '100%';
+		textBlock.height = '100%';
+		textBlock.textWrapping = false;
+		textBlock.resizeToFit = false;
+		textBlock.paddingTop = options?.paddingTop ?? '0px';
+		textBlock.paddingBottom = options?.paddingBottom ?? '0px';
+		textBlock.paddingLeft = '0px';
+		textBlock.paddingRight = '0px';
+		textBlock.lineSpacing = options?.lineSpacing ?? '0px';
+		textBlock.top = '0px';
+		textBlock.left = '0px';
+		if (options?.shadowColor) {
+			textBlock.shadowColor = options.shadowColor;
+			textBlock.shadowBlur = options.shadowBlur ?? 4;
+			textBlock.shadowOffsetX = options.shadowOffsetX ?? 2;
+			textBlock.shadowOffsetY = options.shadowOffsetY ?? 2;
+		}
+
+		if (options?.normalizeBaseline) {
+			const normalize = () => {
+				try {
+					const size = texture.getSize();
+					const fontOffset = (textBlock as any)._fontOffset as
+						| { height: number; ascent: number; descent: number }
+						| undefined;
+					if (fontOffset && size?.height) {
+						const usedHeight = fontOffset.height;
+						const targetCenter = size.height / 2;
+						const glyphCenter = usedHeight / 2 - fontOffset.descent;
+						const offset = targetCenter - glyphCenter;
+						textBlock.paddingTop = `${offset}px`;
+						textBlock.paddingBottom = '0px';
+						return;
+					}
+					const measure = (textBlock as any)._currentMeasure as
+						| { height: number; top: number }
+						| undefined;
+					if (measure && size?.height) {
+						const unused = size.height - measure.height;
+						const offset = unused * 0.5 - (measure.top ?? 0);
+						textBlock.paddingTop = `${offset}px`;
+						textBlock.paddingBottom = '0px';
+					}
+				} catch (err) {
+					conditionalWarn('Failed to normalize text baseline', err);
+				}
+			};
+			normalize();
+			textBlock.onTextChangedObservable.add(normalize);
+			textBlock.onAfterDrawObservable.add(normalize);
+		}
+		container.addControl(textBlock);
+
+		return {
+			texture,
+			text: textBlock,
+		};
+	};
 
 	// helper to create a player block
 	function makePlayerBlock(idx: number) {
@@ -112,8 +299,9 @@ export function createPong3DUI(
 		name.width = '100%';
 		name.text = names[idx] ?? `Player${idx + 1}`;
 		// colors: p1 red, p2 blue, p3 green, p4 cyan
-		const colors = ['red', 'blue', 'green', 'cyan'];
-		name.color = colors[idx] ?? 'white';
+		const colors = ['red', '#5bc8ff', 'lightgreen', 'cyan'];
+		const playerColor = colors[idx] ?? 'white';
+		name.color = playerColor;
 		name.fontSize = 44;
 		name.fontWeight = 'bold';
 		name.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
@@ -139,9 +327,122 @@ export function createPong3DUI(
 		stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
 		stack.width = 'auto';
 
+		let trackedName = name;
+		let trackedScore = score;
+		const meshTarget = meshTargets[idx];
+		const meshBindings: {
+			alias?: MeshTextBinding | null;
+			score?: MeshTextBinding | null;
+			scoreMirrors: GUI.TextBlock[];
+		} = {
+			scoreMirrors: [],
+		};
+
+		if (meshTarget?.aliasMesh) {
+			meshBindings.alias = attachTextToMesh(
+				meshTarget.aliasMesh,
+				`alias${idx + 1}`,
+				name.text,
+				{
+					color: playerColor,
+					fontSize: 220,
+					shadowColor: 'rgba(0, 0, 0, 0.65)',
+					shadowBlur: 10,
+					shadowOffsetX: 4,
+					shadowOffsetY: 4,
+					width: 768,
+					height: 256,
+					textVerticalAlignment:
+						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+				}
+			);
+			if (meshBindings.alias) {
+				trackedName = meshBindings.alias.text;
+			}
+		}
+
+		if (meshTarget?.scoreMeshes?.length) {
+			const primary = attachTextToMesh(
+				meshTarget.scoreMeshes[0],
+				`score${idx + 1}-primary`,
+				score.text,
+				{
+					fontSize: 400,
+					color: 'white',
+					shadowColor: 'rgba(0, 0, 0, 0.7)',
+					shadowBlur: 12,
+					shadowOffsetX: 4,
+					shadowOffsetY: 4,
+					width: 768,
+					height: 256,
+					textVerticalAlignment:
+						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+					normalizeBaseline: true,
+				}
+			);
+			meshBindings.score = primary;
+			if (primary) {
+				trackedScore = primary.text;
+
+				meshTarget.scoreMeshes.slice(1).forEach((mesh, mirrorIdx) => {
+					const mirror = attachTextToMesh(
+						mesh,
+						`score${idx + 1}-mirror${mirrorIdx + 1}`,
+						score.text,
+						{
+							fontSize: 400,
+							color: 'white',
+							shadowColor: 'rgba(0, 0, 0, 0.7)',
+							shadowBlur: 12,
+							shadowOffsetX: 4,
+							shadowOffsetY: 4,
+							width: 768,
+							height: 256,
+							textVerticalAlignment:
+								GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+							normalizeBaseline: true,
+						}
+					);
+					if (mirror) {
+						meshBindings.scoreMirrors.push(mirror.text);
+					}
+				});
+
+				if (meshBindings.scoreMirrors.length) {
+					const syncMirrors = () => {
+						const value = trackedScore.text;
+						meshBindings.scoreMirrors.forEach(mirror => {
+							if (mirror.text !== value) {
+								mirror.text = value;
+							}
+						});
+					};
+					primary.text.onTextChangedObservable.add(syncMirrors);
+					syncMirrors();
+				}
+			}
+		}
+
+		const aliasOnMesh = Boolean(meshBindings.alias);
+		const scoreOnMesh = Boolean(
+			meshBindings.score || meshBindings.scoreMirrors.length
+		);
+
+		if (aliasOnMesh) {
+			name.isVisible = false;
+		}
+		if (scoreOnMesh) {
+			score.isVisible = false;
+		}
+
+		if (aliasOnMesh && scoreOnMesh) {
+			usesMeshTargets[idx] = true;
+		}
+		stack.isVisible = !usesMeshTargets[idx];
+
 		playerStacks.push(stack);
-		playerNameTexts.push(name);
-		playerScoreTexts.push(score);
+		playerNameTexts.push(trackedName);
+		playerScoreTexts.push(trackedScore);
 	}
 
 	for (let i = 0; i < 4; i++) makePlayerBlock(i);
@@ -162,6 +463,21 @@ export function createPong3DUI(
 	) {
 		if (playerIndex < 0 || playerIndex >= playerStacks.length) return;
 		const stack = playerStacks[playerIndex];
+		if (!stack) return;
+		if (usesMeshTargets[playerIndex]) {
+			const prevParent = currentParent[playerIndex];
+			try {
+				if (
+					prevParent &&
+					typeof (prevParent as any).removeControl === 'function'
+				) {
+					(prevParent as any).removeControl(stack);
+				}
+			} catch (e) {}
+			currentParent[playerIndex] = null;
+			stack.isVisible = false;
+			return;
+		}
 		const target = containerFor(position);
 		// remove from existing parent
 		const prev = currentParent[playerIndex];
@@ -313,7 +629,7 @@ export function createPong3DUI(
 
 	// Function to show winner
 	const showWinner = (playerIndex: number, playerName: string) => {
-		const colors = ['red', 'blue', 'green', 'cyan'];
+		const colors = ['red', '#5bc8ff', 'lightgreen', 'cyan'];
 		const color = colors[playerIndex] || 'white';
 		winnerMessage.text = `${playerName} WINS!`;
 		winnerMessage.color = color;
@@ -338,6 +654,14 @@ export function createPong3DUI(
 		movePlayerTo,
 		showWinner,
 		hideWinner,
-		dispose: () => guiTexture.dispose(),
+		dispose: () => {
+			texturesToDispose.forEach(texture => {
+				try {
+					texture.dispose();
+				} catch (err) {
+					conditionalWarn('Failed to dispose UI texture', err);
+				}
+			});
+		},
 	};
 }

@@ -37,7 +37,7 @@ async function handleIncomingConnection(
 
 	try {
 		await LockService.withLock(LockType.Auth, async () =>
-			addConnection(authRequest.user.userId, webSocket as GameSocket)
+			addConnection(authRequest.token.userId, webSocket as GameSocket)
 		);
 	} catch (error) {
 		webSocket.close(WS_ALREADY_CONNECTED, ERROR_USER_ALREADY_CONNECTED);
