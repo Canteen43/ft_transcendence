@@ -44,15 +44,11 @@ interface MeshTextBinding {
 export interface Pong3DUIOptions {
 	playerNames?: string[]; // up to 4
 	playerScores?: number[]; // up to 4
-	positions?: ('top' | 'bottom' | 'left' | 'right')[]; // optional initial placement per player
+	positions?: ('top' | 'bottom' | 'left' | 'right')[]; // deprecated: no longer used
 }
 
 export interface Pong3DUIHandles {
 	guiTexture: GUI.AdvancedDynamicTexture;
-	topContainer: GUI.Rectangle;
-	bottomContainer: GUI.Rectangle;
-	leftContainer: GUI.Rectangle;
-	rightContainer: GUI.Rectangle;
 	// per-player controls
 	playerStacks: Array<GUI.StackPanel>;
 	playerNameTexts: Array<GUI.TextBlock>;
@@ -86,51 +82,7 @@ export function createPong3DUI(
 	texturesToDispose.add(guiTexture);
 	ensureMeshUIFontLoaded();
 
-	// create containers
-	const topContainer = new GUI.Rectangle();
-	topContainer.width = '380px';
-	topContainer.height = '100px';
-	topContainer.thickness = 0;
-	topContainer.background = 'transparent';
-	topContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-	topContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-	topContainer.top = -40;
-	topContainer.left = 40; // nudge to the right
-	guiTexture.addControl(topContainer);
-
-	const bottomContainer = new GUI.Rectangle();
-	bottomContainer.width = '380px';
-	bottomContainer.height = '100px';
-	bottomContainer.thickness = 0;
-	bottomContainer.background = 'transparent';
-	bottomContainer.horizontalAlignment =
-		GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-	bottomContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-	topContainer.top = -40;
-	bottomContainer.left = 40; // nudge to the right
-	guiTexture.addControl(bottomContainer);
-
-	const leftContainer = new GUI.Rectangle();
-	leftContainer.width = '280px';
-	leftContainer.height = '400px';
-	leftContainer.thickness = 0;
-	leftContainer.background = 'transparent';
-	leftContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-	leftContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-	leftContainer.left = 10;
-	leftContainer.top = '-15%'; // move up by 15% of canvas height
-	guiTexture.addControl(leftContainer);
-
-	const rightContainer = new GUI.Rectangle();
-	rightContainer.width = '280px';
-	rightContainer.height = '400px';
-	rightContainer.thickness = 0;
-	rightContainer.background = 'transparent';
-	rightContainer.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-	rightContainer.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-	rightContainer.left = -10;
-	rightContainer.top = '-15%'; // move up by 15% of canvas height
-	guiTexture.addControl(rightContainer);
+	// No legacy 2D containers; fullscreen ADT is kept only for winner overlay
 
 	const playerStacks: Array<GUI.StackPanel> = [];
 	const playerNameTexts: Array<GUI.TextBlock> = [];
@@ -373,8 +325,8 @@ export function createPong3DUI(
 					shadowBlur: 12,
 					shadowOffsetX: 4,
 					shadowOffsetY: 4,
-					width: 768,
-					height: 256,
+					width: 960,
+					height: 320,
 					textVerticalAlignment:
 						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
 					normalizeBaseline: true,
@@ -384,42 +336,13 @@ export function createPong3DUI(
 			if (primary) {
 				trackedScore = primary.text;
 
-				meshTarget.scoreMeshes.slice(1).forEach((mesh, mirrorIdx) => {
-					const mirror = attachTextToMesh(
-						mesh,
-						`score${idx + 1}-mirror${mirrorIdx + 1}`,
-						score.text,
-						{
-							fontSize: 400,
-							color: 'white',
-							shadowColor: 'rgba(0, 0, 0, 0.7)',
-							shadowBlur: 12,
-							shadowOffsetX: 4,
-							shadowOffsetY: 4,
-							width: 768,
-							height: 256,
-							textVerticalAlignment:
-								GUI.Control.VERTICAL_ALIGNMENT_CENTER,
-							normalizeBaseline: true,
-						}
-					);
-					if (mirror) {
-						meshBindings.scoreMirrors.push(mirror.text);
+				// Share the same material/texture with any additional score meshes
+				const sharedMaterial = meshTarget.scoreMeshes[0].material;
+				meshTarget.scoreMeshes.slice(1).forEach(mesh => {
+					if (sharedMaterial) {
+						mesh.material = sharedMaterial;
 					}
 				});
-
-				if (meshBindings.scoreMirrors.length) {
-					const syncMirrors = () => {
-						const value = trackedScore.text;
-						meshBindings.scoreMirrors.forEach(mirror => {
-							if (mirror.text !== value) {
-								mirror.text = value;
-							}
-						});
-					};
-					primary.text.onTextChangedObservable.add(syncMirrors);
-					syncMirrors();
-				}
 			}
 		}
 
@@ -447,162 +370,13 @@ export function createPong3DUI(
 
 	for (let i = 0; i < 4; i++) makePlayerBlock(i);
 
-	// place stacks according to positions array
-	const containerFor = (pos: 'top' | 'bottom' | 'left' | 'right') => {
-		if (pos === 'top') return topContainer;
-		if (pos === 'bottom') return bottomContainer;
-		if (pos === 'left') return leftContainer;
-		return rightContainer;
-	};
 
-	const currentParent: Array<GUI.Container | null> = [null, null, null, null];
-
+	// No-op move function kept for compatibility with callers
 	function movePlayerTo(
-		playerIndex: number,
-		position: 'top' | 'bottom' | 'left' | 'right'
+		_playerIndex: number,
+		_position: 'top' | 'bottom' | 'left' | 'right'
 	) {
-		if (playerIndex < 0 || playerIndex >= playerStacks.length) return;
-		const stack = playerStacks[playerIndex];
-		if (!stack) return;
-		if (usesMeshTargets[playerIndex]) {
-			const prevParent = currentParent[playerIndex];
-			try {
-				if (
-					prevParent &&
-					typeof (prevParent as any).removeControl === 'function'
-				) {
-					(prevParent as any).removeControl(stack);
-				}
-			} catch (e) {}
-			currentParent[playerIndex] = null;
-			stack.isVisible = false;
-			return;
-		}
-		const target = containerFor(position);
-		// remove from existing parent
-		const prev = currentParent[playerIndex];
-		try {
-			if (prev && typeof (prev as any).removeControl === 'function') {
-				(prev as any).removeControl(stack);
-			}
-		} catch (e) {}
-		try {
-			target.addControl(stack);
-			currentParent[playerIndex] = target;
-		} catch (e) {
-			conditionalWarn('Failed to move player stack', e);
-		}
-		// COMPLETE STYLE RESET: Ensure all properties are reset to defaults before applying position-specific styling
-		const isSide = position === 'left' || position === 'right';
-		const name = playerNameTexts[playerIndex];
-		const score = playerScoreTexts[playerIndex];
-
-		// Reset all position-dependent properties to defaults
-		stack.left = 0;
-		stack.width = 'auto';
-		stack.height = '120px';
-		stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-		stack.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-
-		name.left = 0;
-		name.paddingRight = '6px';
-		name.paddingLeft = '0px';
-		name.width = '100%';
-		name.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-		name.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-		name.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-		name.textWrapping = true;
-		name.resizeToFit = true;
-
-		score.left = 0;
-		score.paddingLeft = '0px';
-		score.width = 'auto';
-		score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-		score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-		score.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-		score.textWrapping = false;
-		score.resizeToFit = false;
-
-		// Now apply position-specific styling
-		if (isSide) {
-			// left/right: stack vertical, align text left/right
-			stack.isVertical = true;
-			stack.horizontalAlignment =
-				position === 'left'
-					? GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-					: GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-			// make stack fill the container so child controls with 100% width are visible
-			stack.width = '100%';
-			stack.left = 0;
-			name.textHorizontalAlignment =
-				position === 'left'
-					? GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-					: GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-			score.textHorizontalAlignment =
-				position === 'left'
-					? GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-					: GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-			// padding and width: make name take container width so it wraps nicely, score centered below
-			name.paddingRight = '6px';
-			// Use explicit positioning instead of text alignment for scores
-			if (position === 'left') {
-				score.horizontalAlignment =
-					GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-				score.left = '0px'; // move 20px further left (was 10px, now -10px)
-				score.textHorizontalAlignment =
-					GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-			} else {
-				score.horizontalAlignment =
-					GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-				score.left = '-10px'; // move 5px further right (was -10px, now -15px)
-				score.textHorizontalAlignment =
-					GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-			}
-			name.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-			score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-			name.width = '100%';
-			score.width = '100%'; // keep full width so alignment works properly
-			// allow text to scale if needed
-			name.resizeToFit = true;
-			score.resizeToFit = true;
-		} else {
-			// top/bottom: stack horizontal, center both texts on one line
-			stack.isVertical = false;
-			stack.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-			// align stack to top for top container, center for bottom
-			stack.verticalAlignment =
-				position === 'top'
-					? GUI.Control.VERTICAL_ALIGNMENT_TOP
-					: GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-			// set fixed width to match content (name + score + padding)
-			stack.width = '370px';
-			stack.left = 0;
-			// for horizontal layout, let text align naturally in their containers
-			name.textHorizontalAlignment =
-				GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-			score.textHorizontalAlignment =
-				GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-			// align both to bottom so they sit on same baseline
-			name.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-			score.textVerticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-			// give a little space between name and score when horizontal
-			name.paddingRight = '12px';
-			score.paddingLeft = '6px';
-			// ensure stack height accommodates score
-			stack.height = '100px';
-			// tune widths so both name and score can sit side-by-side
-			name.textWrapping = false;
-			name.resizeToFit = false;
-			name.width = '200px';
-			score.width = '150px';
-			score.resizeToFit = false;
-		}
-	}
-
-	// initial placement
-	for (let i = 0; i < 4; i++) {
-		const pos = positions[i] ?? ['top', 'bottom', 'left', 'right'][i];
-		movePlayerTo(i, pos);
+		// Intentionally empty: legacy 2D positioning removed
 	}
 
 	// Create winner message (initially hidden)
@@ -641,19 +415,15 @@ export function createPong3DUI(
 		winnerMessage.isVisible = false;
 	};
 
-	return {
-		guiTexture,
-		topContainer,
-		bottomContainer,
-		leftContainer,
-		rightContainer,
-		playerStacks,
-		playerNameTexts,
-		playerScoreTexts,
-		winnerMessage,
-		movePlayerTo,
-		showWinner,
-		hideWinner,
+		return {
+			guiTexture,
+			playerStacks,
+			playerNameTexts,
+			playerScoreTexts,
+			winnerMessage,
+			movePlayerTo,
+			showWinner,
+			hideWinner,
 		dispose: () => {
 			texturesToDispose.forEach(texture => {
 				try {
