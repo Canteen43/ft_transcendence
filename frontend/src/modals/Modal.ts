@@ -16,15 +16,16 @@ export class Modal {
 
 		this.box = document.createElement('div');
 		this.box.className =
-			'bg-white rounded-lg shadow-lg p-10 relative flex flex-col items-center justify-center gap-4';
+			'bg-white shadow-lg p-10 relative flex flex-col items-center justify-center gap-4';
 
 		if (showCloseButton) {
 			this.closeButton = document.createElement('button');
 			this.closeButton.innerHTML = '×';
 			this.closeButton.className =
-				'absolute top-2 right-2 w-8 h-8 flex items-center justify-center ' +
-				'text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full ' +
-				'text-xl font-bold cursor-pointer transition-colors duration-200';
+				'bg-white shadow-lg p-4 sm:p-6 md:p-10' +
+				' relative flex flex-col items-center justify-center' +
+				' gap-3 sm:gap-4' +
+				' w-full max-w-[90vw] sm:max-w-[500px] md:max-w-[600px]';
 			this.closeButton.addEventListener('click', () => this.quit());
 			this.box.appendChild(this.closeButton);
 		}

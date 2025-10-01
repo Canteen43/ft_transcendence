@@ -11,6 +11,6 @@ export function formatError(error: unknown): string {
 export function getAuthData<T extends RouteGenericInterface>(
 	request: FastifyRequest<T>
 ): AuthenticatedRequest<T> {
-	if (!request.user) throw new AuthenticationError('User not authenticated');
+	if (!request.token) throw new AuthenticationError('User not authenticated');
 	return request as AuthenticatedRequest<T>;
 }

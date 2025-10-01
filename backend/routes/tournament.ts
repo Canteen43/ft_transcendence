@@ -68,7 +68,7 @@ async function joinTournament(
 	try {
 		await TournamentService.joinQueue(
 			request.body.size,
-			authRequest.user.userId,
+			authRequest.token.userId,
 			request.body.alias
 		);
 	} catch (error: any) {
@@ -85,7 +85,7 @@ async function joinTournament(
 async function leaveQueue(request: FastifyRequest) {
 	const authRequest = getAuthData(request);
 	logger.debug('Leave queue request received');
-	TournamentService.leaveQueue(authRequest.user.userId);
+	TournamentService.leaveQueue(authRequest.token.userId);
 	//TournamentService.quitCurrentTournament(authRequest.user.userId);
 }
 

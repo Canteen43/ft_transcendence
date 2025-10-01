@@ -1,3 +1,10 @@
+export class UserNotFoundError extends Error {
+	constructor(id: string) {
+		super(`User not found: ${id}`);
+		this.name = 'UserNotFoundError';
+	}
+}
+
 export class SettingsNotFoundError extends Error {
 	constructor(reference: string, id: string) {
 		super(`Settings not found for ${reference}: ${id}`);
@@ -94,5 +101,18 @@ export class UserNotQueuedError extends Error {
 	constructor(userId: string) {
 		super(`User not in queue: ${userId}`);
 		this.name = 'UserNotQueuedError';
+	}
+}
+
+export class TwoFactorAlreadyEnabledError extends Error {
+	constructor(id: string) {
+		super(`Two factor authentication already enabled for user: ${id}`);
+		this.name = 'TwoFactorAlreadyEnabledError';
+	}
+}
+
+export class TwoFactorVerificationError extends Error {
+	constructor(message: string) {
+		super(message);
 	}
 }
