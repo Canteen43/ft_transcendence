@@ -8,22 +8,24 @@ const passwordRequirements = z
 	.regex(/[a-z]/, 'must contain at least one lowercase letter')
 	.regex(/[A-Z]/, 'must contain at least one uppercase letter')
 	.regex(/[0-9]/, 'must contain at least one number')
-	.regex(/[^a-zA-Z0-9]/,'must contain at least one special character');
+	.regex(/[^a-zA-Z0-9]/, 'must contain at least one special character');
 
 export const passwordSchema =
-	process.env.NODE_ENV === 'development' ? z.string() : passwordRequirements;
+	process.env.NODE_ENV?.toLowerCase() === 'development'
+		? z.string()
+		: passwordRequirements;
 
 const loginSchema = z
 	.string()
 	.min(3, 'at least 3 characters')
 	.max(20, 'at most 20 characters')
-	.regex(/^[a-zA-Z0-9_-]+$/,'can contain only letters, numbers, _ or -');
+	.regex(/^[a-zA-Z0-9_-]+$/, 'can contain only letters, numbers, _ or -');
 
 const nameSchema = z
 	.string()
 	.min(2, 'at least 2 characters')
 	.max(128, 'at most 128 characters')
-	.regex(/^[a-zA-Z-\.\s]+$/,'can contain only letters, numbers, - or .');
+	.regex(/^[a-zA-Z-\.\s]+$/, 'can contain only letters, numbers, - or .');
 
 export const UserSchema = z.object({
 	id: zUUID,

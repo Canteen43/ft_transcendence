@@ -53,24 +53,6 @@ export const WS_AUTHENTICATION_FAILED = 4001;
 export const WS_TOKEN_EXPIRED = 4002;
 export const WS_ALREADY_CONNECTED = 4003;
 
-export const TOKEN_VALIDITY_2FA = '2m';
-export const TOKEN_VALIDITY_AUTH = '1d';
-
-export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
-export const FIELD_WIDTH = 1800;
-export const FIELD_HEIGTH = 1000;
-export const PADDLE_WIDTH = 100;
-
-export const FASTIFY_LOG_LEVEL = 'info';
-export const APP_LOG_LEVEL = 'debug';
-
-export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
-export const EMPTY_PLAYER: Player = {
-	userId: EMPTY_UUID,
-	score: 0,
-	status: PlayerStatus.Pending,
-};
-
 export const MESSAGE_START_TOURNAMENT = 'st';
 export const MESSAGE_ACCEPT = 'a';
 export const MESSAGE_START = 's';
@@ -82,6 +64,27 @@ export const MESSAGE_POINT = 'x';
 export const MESSAGE_FINISH = 'f';
 export const MESSAGE_REPLAY = 'r';
 export const MESSAGE_CHAT = 'c';
+
+export const TWO_FACTOR_ISSUER = 'No pong intended';
+export const TWO_FACTOR_ALGORITHM = 'SHA1';
+export const TOKEN_VALIDITY_2FA = '2m';
+export const TOKEN_VALIDITY_AUTH = '1d';
+
+export const FASTIFY_LOG_LEVEL = 'info';
+export const APP_LOG_LEVEL =
+	process.env.NODE_ENV?.toLowerCase() === 'development' ? 'debug' : 'info';
+
+export const ALLOWED_TOURNAMENT_SIZES = [2, 4];
+export const FIELD_WIDTH = 1800;
+export const FIELD_HEIGTH = 1000;
+export const PADDLE_WIDTH = 100;
+
+export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
+export const EMPTY_PLAYER: Player = {
+	userId: EMPTY_UUID,
+	score: 0,
+	status: PlayerStatus.Pending,
+};
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
