@@ -285,6 +285,13 @@ export class Pong3D {
 			return;
 		}
 
+		const loopRunning = this.gameLoop?.getGameState().isRunning ?? false;
+		const shouldBeActive = loopRunning && !this.gameEnded;
+		this.powerupManager.setActive(shouldBeActive);
+		if (!shouldBeActive) {
+			return;
+		}
+
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
 		if (this.lastPowerupUpdateTimeMs === 0) {
