@@ -22,6 +22,11 @@ import { Trophy } from '../visual/Trophy';
 import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
+import {
+	Pong3DPowerups,
+	POWERUP_SESSION_FLAGS,
+	type PowerupType,
+} from './Pong3Dpowerups';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import { Pong3DGameLoopClient } from './Pong3DGameLoopClient';
 import { Pong3DGameLoopMaster } from './Pong3DGameLoopMaster';
@@ -231,6 +236,91 @@ export class Pong3D {
 		{ baseColor: BABYLON.Color3; timeoutId: number }
 	>();
 	private glowFadeAnimation: number | null = null;
+	private powerupManager: Pong3DPowerups | null = null;
+	private enabledPowerupTypes: PowerupType[] = [];
+	private lastPowerupUpdateTimeMs = 0;
+
+	private refreshPowerupConfiguration(): void {
+		if (!this.powerupManager) return;
+		if (this.gameMode !== 'local') {
+			this.enabledPowerupTypes = [];
+			this.powerupManager.setEnabledTypes([]);
+			this.powerupManager.clearActivePowerups();
+			return;
+		}
+
+		const enabled: PowerupType[] = [];
+		try {
+			Object.entries(POWERUP_SESSION_FLAGS).forEach(([typeKey, sessionKey]) => {
+				const value = sessionStorage.getItem(sessionKey);
+				if (value === '1') {
+					enabled.push(typeKey as PowerupType);
+				}
+			});
+		} catch (error) {
+			this.conditionalWarn(
+				'Session storage unavailable when reading power-up flags',
+				error
+			);
+		}
+
+		this.enabledPowerupTypes = enabled;
+		this.powerupManager.setEnabledTypes(enabled);
+		if (enabled.length > 0) {
+			this.powerupManager
+				.loadAssets()
+				.catch(error => {
+					this.conditionalWarn(
+						'Power-up assets failed to load',
+						error
+					);
+				});
+		} else {
+			this.powerupManager.clearActivePowerups();
+		}
+	}
+
+	private updatePowerups(): void {
+		if (!this.powerupManager || this.enabledPowerupTypes.length === 0) {
+			return;
+		}
+
+		const now =
+			typeof performance !== 'undefined' ? performance.now() : Date.now();
+		if (this.lastPowerupUpdateTimeMs === 0) {
+			this.lastPowerupUpdateTimeMs = now;
+			return;
+		}
+
+		let deltaSeconds = (now - this.lastPowerupUpdateTimeMs) / 1000;
+		this.lastPowerupUpdateTimeMs = now;
+		if (!isFinite(deltaSeconds) || deltaSeconds <= 0) {
+			return;
+		}
+		deltaSeconds = Math.min(deltaSeconds, 0.25); // Clamp to avoid huge teleporting steps
+
+		this.powerupManager.update(
+			deltaSeconds,
+			this.paddles,
+			(type, paddleIndex) => this.handlePowerupPickup(type, paddleIndex),
+			type => this.handlePowerupOutOfBounds(type)
+		);
+	}
+
+	private handlePowerupPickup(type: PowerupType, paddleIndex: number): void {
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`⚡ Power-up collected: ${type} by paddle ${paddleIndex + 1}`
+			);
+		}
+		// TODO: Apply concrete power-up effects (ball split, speed boost, paddle sizing)
+	}
+
+	private handlePowerupOutOfBounds(type: PowerupType): void {
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(`💨 Power-up ${type} expired before pickup`);
+		}
+	}
 
 	// === GAME PHYSICS CONFIGURATION ===
 
@@ -487,6 +577,9 @@ export class Pong3D {
 		this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
 		this.setupHDR();
 		this.setupGlowEffects();
+		this.powerupManager = new Pong3DPowerups(this.scene);
+		this.lastPowerupUpdateTimeMs =
+			typeof performance !== 'undefined' ? performance.now() : Date.now();
 
 		// Apply provided options
 		if (options) {
@@ -534,19 +627,21 @@ export class Pong3D {
 				},
 				this
 			);
-		} else if (this.gameMode === 'client') {
-			this.gameLoop = new Pong3DGameLoopClient(
-				this.scene,
-				this.thisPlayer,
-				input => {
-					this.sendInputToMaster(input);
-				},
-				this
-			);
-		}
+			} else if (this.gameMode === 'client') {
+				this.gameLoop = new Pong3DGameLoopClient(
+					this.scene,
+					this.thisPlayer,
+					input => {
+						this.sendInputToMaster(input);
+					},
+					this
+				);
+			}
 
-		this.loadModel(modelUrl);
-	}
+			this.refreshPowerupConfiguration();
+
+			this.loadModel(modelUrl);
+		}
 
 	private loadModel(modelUrl: string): void {
 		BABYLON.SceneLoader.Append(
@@ -2844,18 +2939,20 @@ export class Pong3D {
 		// If GUI has hooked into the render loop, it replaced runRenderLoop itself.
 		if (this.guiTexture) return;
 
-		this.engine.runRenderLoop(() => {
-			// Only update paddles in local/master modes - client receives paddle positions from network
-			if (this.gameMode !== 'client') {
-				this.updatePaddles();
-			}
-			this.updateBounds();
-			this.checkManualGoalCollisions();
+			this.engine.runRenderLoop(() => {
+				// Only update paddles in local/master modes - client receives paddle positions from network
+				if (this.gameMode !== 'client') {
+					this.updatePaddles();
+				}
+				this.updateBounds();
+				this.checkManualGoalCollisions();
 
-			this.scene.render();
-			this.maybeLogPaddles();
-		});
-	}
+				this.updatePowerups();
+
+				this.scene.render();
+				this.maybeLogPaddles();
+			});
+		}
 
 	/** Create a simple GUI overlay with scores and optional FPS */
 	private setupGui(): void {
@@ -2888,20 +2985,21 @@ export class Pong3D {
 			this.score2Text = this.uiPlayerScoreTexts[1];
 
 		// Keep a simple render loop that updates the scene
-		this.engine.runRenderLoop(() => {
-			// Update AI controllers with current game state
-			this.updateAIControllers();
+			this.engine.runRenderLoop(() => {
+				// Update AI controllers with current game state
+				this.updateAIControllers();
 
-			// Only update paddles in local/master modes - client receives paddle positions from network
-			if (this.gameMode !== 'client') {
-				this.updatePaddles();
-			}
-			this.updateBounds();
-			this.checkManualGoalCollisions();
-			this.scene.render();
-			this.maybeLogPaddles();
-		});
-	}
+				// Only update paddles in local/master modes - client receives paddle positions from network
+				if (this.gameMode !== 'client') {
+					this.updatePaddles();
+				}
+				this.updateBounds();
+				this.checkManualGoalCollisions();
+				this.updatePowerups();
+				this.scene.render();
+				this.maybeLogPaddles();
+			});
+		}
 
 	/**
 	 * Position player info blocks based on active player count and court layout:
@@ -4434,14 +4532,20 @@ export class Pong3D {
 			this.conditionalLog('✅ Removed resize event listener');
 		}
 
-		// Dispose audio system
-		if (this.audioSystem) {
-			this.audioSystem.dispose();
-			this.conditionalLog('✅ Disposed audio system');
-		}
+			// Dispose audio system
+			if (this.audioSystem) {
+				this.audioSystem.dispose();
+				this.conditionalLog('✅ Disposed audio system');
+			}
 
-		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
-		if (this.scene) {
+			if (this.powerupManager) {
+				this.powerupManager.clearActivePowerups();
+				this.powerupManager = null;
+				this.conditionalLog('✅ Cleared power-up manager');
+			}
+
+			// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
+			if (this.scene) {
 			this.scene.dispose();
 			this.conditionalLog('✅ Disposed Babylon scene');
 		}
