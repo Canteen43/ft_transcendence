@@ -53,7 +53,7 @@ export class Pong3DPowerups {
 	private elapsedSinceSpawn: number = 0;
 	private enabledTypes: Set<PowerupType> = new Set();
 	private assetsLoaded = false;
-	private inactive = false;
+	private spawningPaused = false;
 
 	constructor(scene: BABYLON.Scene, options: PowerupManagerOptions = {}) {
 		this.scene = scene;
@@ -136,11 +136,13 @@ export class Pong3DPowerups {
 		onPickup: (type: PowerupType, paddleIndex: number) => void,
 		terminateWhenOutOfBounds: (type: PowerupType) => void
 	): void {
-		if (!this.assetsLoaded || this.inactive) return;
+		if (!this.assetsLoaded) return;
 
 		this.elapsedSinceSpawn += deltaSeconds;
 		if (
+			!this.spawningPaused &&
 			this.enabledTypes.size > 0 &&
+			this.activePowerups.size === 0 &&
 			this.elapsedSinceSpawn >= this.nextSpawnInSeconds
 		) {
 			this.spawnRandomPowerup();
@@ -182,11 +184,8 @@ export class Pong3DPowerups {
 		this.hidePrototypeMeshes();
 	}
 
-	public setActive(isActive: boolean): void {
-		this.inactive = !isActive;
-		if (!isActive) {
-			this.clearActivePowerups();
-		}
+	public setSpawningPaused(paused: boolean): void {
+		this.spawningPaused = paused;
 	}
 
 	/** Force-spawn a given power-up type (primarily for testing). */
