@@ -37,3 +37,8 @@ node_modules
 .env
 
 .normignore
+ *.blend1
+
+graphics/pong2p.blend1
+graphics/pong3p.blend1
+graphics/pong4p.blend1
