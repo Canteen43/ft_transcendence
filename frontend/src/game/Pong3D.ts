@@ -87,6 +87,11 @@ interface BoundingInfo {
 	max: BABYLON.Vector3;
 }
 
+interface SplitBall {
+	mesh: BABYLON.Mesh;
+	impostor: BABYLON.PhysicsImpostor;
+}
+
 export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
@@ -236,6 +241,9 @@ export class Pong3D {
 		{ baseColor: BABYLON.Color3; timeoutId: number }
 	>();
 	private glowFadeAnimation: number | null = null;
+	private splitBalls: SplitBall[] = [];
+	private mainBallHandlersAttached = false;
+	private baseBallY = 0;
 	private powerupManager: Pong3DPowerups | null = null;
 	private enabledPowerupTypes: PowerupType[] = [];
 	private lastPowerupUpdateTimeMs = 0;
@@ -285,12 +293,8 @@ export class Pong3D {
 			return;
 		}
 
-		const loopRunning = this.gameLoop?.getGameState().isRunning ?? false;
-		const shouldBeActive = loopRunning && !this.gameEnded;
-		this.powerupManager.setActive(shouldBeActive);
-		if (!shouldBeActive) {
-			return;
-		}
+		const pauseSpawning = this.gameEnded || this.splitBalls.length > 0;
+		this.powerupManager.setSpawningPaused(pauseSpawning);
 
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -321,11 +325,271 @@ export class Pong3D {
 			);
 		}
 		// TODO: Apply concrete power-up effects (ball split, speed boost, paddle sizing)
+		switch (type) {
+			case 'split':
+				this.activateSplitBallPowerup();
+				break;
+			default:
+				break;
+		}
 	}
 
 	private handlePowerupOutOfBounds(type: PowerupType): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(`💨 Power-up ${type} expired before pickup`);
+		}
+	}
+
+	private activateSplitBallPowerup(): void {
+		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
+		if (this.gameMode === 'client') return;
+		if (this.splitBalls.length >= 1) {
+			return;
+		}
+
+		const clone = this.ballMesh.clone(
+			`splitBall.${performance.now()}`
+		) as BABYLON.Mesh | null;
+		if (!clone) return;
+
+		clone.position = this.ballMesh.position.clone();
+		clone.position.y = this.baseBallY;
+		clone.rotationQuaternion =
+			this.ballMesh.rotationQuaternion?.clone() ?? BABYLON.Quaternion.Identity();
+		clone.rotation = BABYLON.Vector3.Zero();
+		clone.scaling = this.ballMesh.scaling.clone();
+		clone.material = this.ballMesh.material;
+		clone.isVisible = true;
+
+		const rallyInfo = this.ballEffects.getRallyInfo();
+		const targetSpeed = rallyInfo.baseSpeed;
+
+		const mainImpostor = this.ballMesh.physicsImpostor;
+		let currentVelocity = mainImpostor.getLinearVelocity()?.clone() ?? null;
+		let normalizedDirection: BABYLON.Vector3;
+		if (!currentVelocity || currentVelocity.lengthSquared() < 1e-4) {
+			normalizedDirection = new BABYLON.Vector3(1, 0, 0);
+		} else {
+			currentVelocity.y = 0;
+			normalizedDirection = currentVelocity.normalize();
+			if (!isFinite(normalizedDirection.x)) {
+				normalizedDirection = new BABYLON.Vector3(1, 0, 0);
+			}
+		}
+
+		const mainVelocity = normalizedDirection.scale(targetSpeed);
+		mainImpostor.setLinearVelocity(mainVelocity);
+
+		const splitVelocity = mainVelocity.scale(-1);
+
+		const impostor = new BABYLON.PhysicsImpostor(
+			clone,
+			BABYLON.PhysicsImpostor.SphereImpostor,
+			{ mass: 1, restitution: 1.0, friction: 0 },
+			this.scene
+		);
+		if (impostor.physicsBody?.shapes?.[0]) {
+			impostor.physicsBody.shapes[0].radius = Pong3D.BALL_RADIUS;
+		}
+		impostor.setLinearVelocity(splitVelocity);
+		impostor.setAngularVelocity(BABYLON.Vector3.Zero());
+		const impostorBody = impostor.physicsBody;
+		if (impostorBody) {
+			impostorBody.position.set(clone.position.x, this.baseBallY, clone.position.z);
+		}
+
+		const splitBall: SplitBall = {
+			mesh: clone,
+			impostor,
+		};
+		this.splitBalls.push(splitBall);
+		this.attachSplitBallCollisionHandlers(splitBall);
+		this.ballEffects.resetRallySpeed();
+	}
+
+	private attachSplitBallCollisionHandlers(splitBall: SplitBall): void {
+		const impostor = splitBall.impostor;
+		const paddleImpostors = this.paddles
+			.filter(p => p && p.physicsImpostor)
+			.map(p => p!.physicsImpostor!);
+		if (paddleImpostors.length > 0) {
+			impostor.registerOnPhysicsCollide(
+				paddleImpostors,
+				(main, collided) => {
+					this.handleBallPaddleCollision(main, collided);
+				}
+			);
+		}
+
+		const wallImpostors = this.scene.meshes
+			.filter(mesh => mesh && mesh.name && /wall/i.test(mesh.name) && mesh.physicsImpostor)
+			.map(mesh => mesh.physicsImpostor!);
+		if (wallImpostors.length > 0) {
+			impostor.registerOnPhysicsCollide(
+				wallImpostors,
+				(main, collided) => {
+					this.handleBallWallCollision(main, collided);
+				}
+			);
+		}
+
+		const goalImpostors = this.goalMeshes
+			.filter(goal => goal && goal.physicsImpostor)
+			.map(goal => goal!.physicsImpostor!);
+		if (goalImpostors.length > 0) {
+			impostor.registerOnPhysicsCollide(
+				goalImpostors,
+				(main, collided) => {
+					const goalIndex = this.goalMeshes.findIndex(
+						goal => goal && goal.physicsImpostor === collided
+					);
+					if (goalIndex !== -1) {
+						this.handleGoalCollision(goalIndex, main);
+					}
+				}
+			);
+		}
+	}
+
+	private attachMainBallCollisionHandlers(force: boolean = false): void {
+		if (!this.ballMesh?.physicsImpostor) return;
+		if (this.gameMode !== 'local' && this.gameMode !== 'master') return;
+		if (this.mainBallHandlersAttached && !force) return;
+
+		const impostor = this.ballMesh.physicsImpostor;
+		const paddleImpostors = this.paddles
+			.filter(p => p && p.physicsImpostor)
+			.map(p => p!.physicsImpostor!);
+		if (paddleImpostors.length > 0) {
+			impostor.registerOnPhysicsCollide(
+				paddleImpostors,
+				(main, collided) => {
+					this.handleBallPaddleCollision(main, collided);
+				}
+			);
+		}
+
+		const wallImpostors = this.scene.meshes
+			.filter(
+				mesh => mesh && mesh.name && /wall/i.test(mesh.name) && mesh.physicsImpostor
+			)
+			.map(mesh => mesh.physicsImpostor!);
+		if (wallImpostors.length > 0) {
+			impostor.registerOnPhysicsCollide(
+				wallImpostors,
+				(main, collided) => {
+					this.handleBallWallCollision(main, collided);
+				}
+			);
+		}
+
+		const goalImpostors = this.goalMeshes
+			.filter(goal => goal && goal.physicsImpostor)
+			.map(goal => goal!.physicsImpostor!);
+		if (goalImpostors.length > 0) {
+			impostor.registerOnPhysicsCollide(
+				goalImpostors,
+				(main, collided) => {
+					const goalIndex = this.goalMeshes.findIndex(
+						goal => goal && goal.physicsImpostor === collided
+					);
+					if (goalIndex !== -1) {
+						this.handleGoalCollision(goalIndex, main);
+					}
+				}
+			);
+		}
+
+		this.mainBallHandlersAttached = true;
+	}
+
+	private promoteSplitBall(splitBall: SplitBall): void {
+		const index = this.splitBalls.indexOf(splitBall);
+		if (index !== -1) {
+			this.splitBalls.splice(index, 1);
+		}
+
+		this.ballMesh = splitBall.mesh;
+		this.ballMesh.position.y = this.baseBallY;
+		this.ballEffects.setBallMesh(this.ballMesh);
+		if (this.gameLoop) {
+			this.gameLoop.setBallMesh(this.ballMesh);
+		}
+		this.mainBallHandlersAttached = false;
+		this.attachMainBallCollisionHandlers(true);
+}
+
+	private removeSplitBallByImpostor(
+		impostor: BABYLON.PhysicsImpostor | null | undefined
+	): void {
+		if (!impostor) return;
+		const index = this.splitBalls.findIndex(ball => ball.impostor === impostor);
+		if (index === -1) return;
+		const ball = this.splitBalls[index];
+		if (ball.impostor) {
+			ball.impostor.dispose();
+		}
+		if (!ball.mesh.isDisposed()) {
+			ball.mesh.material = null;
+			ball.mesh.dispose();
+		}
+		this.splitBalls.splice(index, 1);
+		if (this.splitBalls.length === 0) {
+			this.ballEffects.resetRallySpeed();
+		}
+	}
+
+	private clearSplitBalls(): void {
+		while (this.splitBalls.length > 0) {
+			const ball = this.splitBalls.pop()!;
+			if (ball.impostor) {
+				ball.impostor.dispose();
+			}
+			if (!ball.mesh.isDisposed()) {
+				ball.mesh.material = null;
+				ball.mesh.dispose();
+			}
+		}
+		this.splitBalls.length = 0;
+	}
+
+	private isSplitBallImpostor(
+		impostor: BABYLON.PhysicsImpostor | null | undefined
+	): boolean {
+		if (!impostor) return false;
+		return this.splitBalls.some(ball => ball.impostor === impostor);
+	}
+
+	private maintainSplitBallVelocities(): void {
+		if (this.splitBalls.length === 0) return;
+		const targetSpeed = this.ballEffects.getCurrentBallSpeed();
+		this.splitBalls.forEach(ball => {
+			const velocity = ball.impostor.getLinearVelocity();
+			if (!velocity) return;
+			const xz = new BABYLON.Vector3(velocity.x, 0, velocity.z);
+			const speed = xz.length();
+			if (speed === 0) return;
+			const normalized = xz.scale(1 / speed);
+			const corrected = normalized.scale(targetSpeed);
+			ball.impostor.setLinearVelocity(
+				new BABYLON.Vector3(corrected.x, 0, corrected.z)
+			);
+			const mesh = ball.mesh;
+			if (Math.abs(mesh.position.y - this.baseBallY) > 0.001) {
+				mesh.position.y = this.baseBallY;
+				const body = ball.impostor.physicsBody;
+				if (body) {
+					body.position.y = this.baseBallY;
+				}
+			}
+		});
+	}
+
+	private handleSplitBallAfterGoal(
+		ballImpostor?: BABYLON.PhysicsImpostor | null
+	): void {
+		if (ballImpostor && this.isSplitBallImpostor(ballImpostor)) {
+			this.removeSplitBallByImpostor(ballImpostor);
 		}
 	}
 
@@ -1149,100 +1413,12 @@ export class Pong3D {
 			}
 		});
 
-		// Set up collision detection for local, master, AND client modes (all need goal detection)
+		// Set up collision detection for local and master modes
 		if (
 			this.ballMesh?.physicsImpostor &&
 			(this.gameMode === 'local' || this.gameMode === 'master')
 		) {
-			const paddleImpostors = this.paddles
-				.filter(p => p && p.physicsImpostor)
-				.map(p => p!.physicsImpostor!);
-
-			if (paddleImpostors.length > 0) {
-				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
-					paddleImpostors,
-					(main, collided) => {
-						this.handleBallPaddleCollision(main, collided);
-					}
-				);
-				this.conditionalLog(
-					`Set up ball-paddle collision detection for ${paddleImpostors.length} paddles`
-				);
-			}
-
-			// Set up wall collision detection for spin handling
-			const wallImpostors = this.scene.meshes
-				.filter(
-					mesh =>
-						mesh &&
-						mesh.name &&
-						/wall/i.test(mesh.name) &&
-						mesh.physicsImpostor
-				)
-				.map(mesh => mesh.physicsImpostor!);
-
-			if (wallImpostors.length > 0) {
-				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
-					wallImpostors,
-					(main, collided) => {
-						this.handleBallWallCollision(main, collided);
-					}
-				);
-				this.conditionalLog(
-					`Set up ball-wall collision detection for ${wallImpostors.length} walls`
-				);
-			}
-
-			// Set up goal collision detection using physics
-			const goalImpostors = this.goalMeshes
-				.filter(goal => goal && goal.physicsImpostor)
-				.map(goal => goal!.physicsImpostor!);
-
-			this.conditionalLog(
-				`🎯 Goal collision setup: Found ${this.goalMeshes.length} goal meshes, ${goalImpostors.length} with physics impostors`
-			);
-
-			if (goalImpostors.length > 0 && this.ballMesh?.physicsImpostor) {
-				this.conditionalLog(
-					`🎯 Registering physics collision detection for ${goalImpostors.length} goals...`
-				);
-
-				this.ballMesh.physicsImpostor.registerOnPhysicsCollide(
-					goalImpostors,
-					(main, collided) => {
-						this.conditionalLog(
-							`🎯 RAW PHYSICS COLLISION: main=${main}, collided=${collided}`
-						);
-
-						// Find which goal was hit
-						const goalIndex = this.goalMeshes.findIndex(
-							goal => goal && goal.physicsImpostor === collided
-						);
-						this.conditionalLog(
-							`🎯 Physics goal collision detected! Goal index: ${goalIndex}, Collided impostor: ${collided}`
-						);
-						if (goalIndex !== -1) {
-							this.conditionalLog(
-								`🎯 Calling handleGoalCollision for goal ${goalIndex}`
-							);
-							this.handleGoalCollision(goalIndex);
-						} else {
-							this.conditionalLog(
-								`❌ Could not find goal index for collided impostor`
-							);
-						}
-					}
-				);
-				this.conditionalLog(
-					`✅ Successfully set up ball-goal collision detection for ${goalImpostors.length} goals`
-				);
-			} else {
-				this.conditionalLog(
-					`❌ No goal physics impostors found! Goals may not be set up correctly.`
-				);
-			}
-
-			// Set up manual goal detection as fallback
+			this.attachMainBallCollisionHandlers(true);
 			this.setupManualGoalDetection();
 		} else if (this.gameMode !== 'local') {
 			this.conditionalLog(
@@ -1914,14 +2090,17 @@ export class Pong3D {
 
 		// Corner handling: if near a convex corner (near X and Z bounds),
 		// reflect velocity about the corner bisector to avoid unstable normals.
+		const collisionMesh =
+			(ballImpostor.object as BABYLON.Mesh | undefined) || this.ballMesh;
+
 		if (
 			this.boundsXMin !== null &&
 			this.boundsXMax !== null &&
 			this.boundsZMin !== null &&
 			this.boundsZMax !== null &&
-			this.ballMesh
+			collisionMesh
 		) {
-			const pos = this.ballMesh.position;
+			const pos = collisionMesh.position;
 			const eps = 0.25; // proximity threshold to consider as at-boundary
 			const nearXMin = Math.abs(pos.x - this.boundsXMin) < eps;
 			const nearXMax = Math.abs(pos.x - this.boundsXMax) < eps;
@@ -1943,12 +2122,12 @@ export class Pong3D {
 					);
 					// Nudge out along bisector to prevent re-colliding this frame
 					const nudge = n.scale(0.15);
-					this.ballMesh.position = this.ballMesh.position.add(nudge);
-					if (this.ballMesh.physicsImpostor?.physicsBody) {
-						this.ballMesh.physicsImpostor.physicsBody.position.set(
-							this.ballMesh.position.x,
-							this.ballMesh.position.y,
-							this.ballMesh.position.z
+					collisionMesh.position = collisionMesh.position.add(nudge);
+					if (ballImpostor.physicsBody) {
+						ballImpostor.physicsBody.position.set(
+							collisionMesh.position.x,
+							collisionMesh.position.y,
+							collisionMesh.position.z
 						);
 					}
 				}
@@ -1989,11 +2168,20 @@ export class Pong3D {
 		);
 	}
 
-	private handleGoalCollision(goalIndex: number): void {
+private handleGoalCollision(
+	goalIndex: number,
+	triggeringBall?: BABYLON.PhysicsImpostor | null
+): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(
 				`🏆 GOAL COLLISION DETECTED! Goal index: ${goalIndex}`
 			);
+		}
+
+		const wasSplitTrigger =
+			triggeringBall && this.isSplitBallImpostor(triggeringBall);
+		if (wasSplitTrigger) {
+			this.removeSplitBallByImpostor(triggeringBall);
 		}
 
 		// Store the conceding player for serve system
@@ -2088,6 +2276,7 @@ export class Pong3D {
 			this.currentServer = goalPlayer; // Conceding player serves next
 			this.secondLastPlayerToHitBall = -1;
 			this.lastGoalTime = performance.now();
+			this.handleSplitBallAfterGoal(triggeringBall);
 			return; // Exit without awarding points
 		}
 
@@ -2329,6 +2518,7 @@ export class Pong3D {
 			this.conditionalLog(
 				`🏀 Ball will continue and exit naturally - no respawn`
 			);
+			this.handleSplitBallAfterGoal(triggeringBall);
 			return;
 		}
 
@@ -2353,6 +2543,23 @@ export class Pong3D {
 		}
 
 		// Instead of immediately resetting the ball, let it continue to the boundary
+ 		let continuingBall = false;
+		if (wasSplitTrigger) {
+			continuingBall = true;
+		} else if (this.splitBalls.length > 0) {
+			const replacement = this.splitBalls.shift()!;
+			this.promoteSplitBall(replacement);
+			continuingBall = true;
+		}
+
+		if (continuingBall) {
+			this.ballEffects.resetRallySpeed();
+			this.lastPlayerToHitBall = -1;
+			this.secondLastPlayerToHitBall = -1;
+			this.lastGoalTime = performance.now();
+			return;
+		}
+
 		// Store the goal data for later processing when the ball reaches the boundary
 		this.goalScored = true;
 		this.pendingGoalData = { scoringPlayer, goalPlayer, wasOwnGoal };
@@ -2402,64 +2609,96 @@ export class Pong3D {
 	}
 
 	public checkManualGoalCollisions(): void {
-		if (!this.ballMesh) return;
-
-		const ballPosition = this.ballMesh.position;
-
-		// Always check for general out of bounds (independent of goal scoring)
-		this.checkGeneralOutOfBounds(ballPosition);
-
-		// If a goal was scored and we're waiting for the ball to reach the boundary, check for boundary collision
-		if (this.goalScored && this.pendingGoalData) {
-			this.checkBoundaryCollisionAfterGoal(ballPosition);
+		if (this.ballMesh) {
+			const ballPosition = this.ballMesh.position;
+			this.checkGeneralOutOfBounds(
+				ballPosition,
+				this.ballMesh.physicsImpostor ?? null
+			);
+			if (this.goalScored && this.pendingGoalData) {
+				this.checkBoundaryCollisionAfterGoal(ballPosition);
+			}
 		}
 
-		// Manual goal detection is disabled - we rely on physics collision detection only
-		// The MeshImpostor handles rotated goals properly
-	}
+		if (this.splitBalls.length > 0) {
+			this.splitBalls.forEach(ball => {
+				this.checkGeneralOutOfBounds(ball.mesh.position, ball.impostor);
+			});
+		}
+}
 
-	private checkGeneralOutOfBounds(ballPosition: BABYLON.Vector3): void {
-		// If a goal was scored and we're waiting for boundary collision, don't do general out-of-bounds check
-		if (this.goalScored && this.pendingGoalData) {
-			return; // Let checkBoundaryCollisionAfterGoal handle the reset
+	private checkGeneralOutOfBounds(
+		ballPosition: BABYLON.Vector3,
+		ballImpostor?: BABYLON.PhysicsImpostor | null
+	): void {
+		const isSplitBall = this.isSplitBallImpostor(ballImpostor);
+		const mainImpostor = this.ballMesh?.physicsImpostor ?? null;
+		const isMainBall = ballImpostor === mainImpostor || (!ballImpostor && !isSplitBall);
+
+		if (isMainBall && this.goalScored && this.pendingGoalData) {
+			return; // Let goal resolution handle the main ball exit
 		}
 
-		// Simple out-of-bounds check using configurable distance threshold
 		const isOutOfBounds =
 			Math.abs(ballPosition.x) > this.outOfBoundsDistance ||
 			Math.abs(ballPosition.z) > this.outOfBoundsDistance;
 
-		if (isOutOfBounds) {
+		if (!isOutOfBounds) {
+			return;
+		}
+
+		if (isSplitBall) {
 			this.conditionalLog(
-				`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
+				`🌀 Split ball went out of bounds at ${ballPosition.toString()} - removing`
 			);
+			this.removeSplitBallByImpostor(ballImpostor ?? null);
+			return;
+		}
 
-			// Check if game has ended - if so, stop the game loop instead of respawning
-			if (this.gameEnded) {
-				this.conditionalLog(
-					`🏆 Game ended - stopping game loop, ball will not respawn`
-				);
-				if (this.gameLoop) {
-					this.gameLoop.stop();
-				}
-				return; // Exit without resetting ball
+		if (isMainBall && this.splitBalls.length > 0) {
+			this.conditionalLog(
+				`🌀 Primary ball exited play; promoting remaining split ball`
+			);
+			const replacement = this.splitBalls.shift()!;
+			if (ballImpostor) {
+				ballImpostor.dispose();
 			}
-
-			// Reset ball immediately for general out of bounds (normal gameplay)
-			if (this.gameLoop) {
-				this.gameLoop.resetBall();
+			if (this.ballMesh && !this.ballMesh.isDisposed()) {
+				this.ballMesh.material = null;
+				this.ballMesh.dispose();
 			}
-
-			// Reset rally speed system - new rally starts
-			this.resetRallySpeed();
-
-			// Clear any pending goal state if ball went truly out of bounds
+			this.promoteSplitBall(replacement);
 			this.goalScored = false;
 			this.pendingGoalData = null;
 			this.ballEffects.resetAllEffects();
-
-			this.conditionalLog(`⚡ Ball reset due to out of bounds`);
+			return;
 		}
+
+		this.conditionalLog(
+			`🏓 Ball went out of bounds! Position: ${ballPosition.toString()}, Threshold: ±${this.outOfBoundsDistance}`
+		);
+
+		if (this.gameEnded) {
+			this.conditionalLog(
+				`🏆 Game ended - stopping game loop, ball will not respawn`
+			);
+			if (this.gameLoop) {
+				this.gameLoop.stop();
+			}
+			return;
+		}
+
+		if (this.gameLoop) {
+			this.gameLoop.resetBall();
+		}
+
+		this.resetRallySpeed();
+		this.goalScored = false;
+		this.pendingGoalData = null;
+		this.ballEffects.resetAllEffects();
+		this.clearSplitBalls();
+
+		this.conditionalLog(`⚡ Ball reset due to out of bounds`);
 	}
 	private checkBoundaryCollisionAfterGoal(
 		ballPosition: BABYLON.Vector3
@@ -2734,6 +2973,7 @@ export class Pong3D {
 				this.gameLoop.setBallMesh(this.ballMesh);
 			}
 			this.ballEffects.setBallMesh(this.ballMesh);
+			this.baseBallY = this.ballMesh.position.y;
 		} else {
 			this.conditionalWarn('No ball mesh found in the scene!');
 			// Create a simple ball if none exists
@@ -2764,6 +3004,7 @@ export class Pong3D {
 		if (this.gameLoop) {
 			this.gameLoop.setBallMesh(this.ballMesh);
 		}
+		this.baseBallY = this.ballMesh.position.y;
 	}
 
 	private findGoals(scene: BABYLON.Scene): void {
@@ -3442,6 +3683,15 @@ export class Pong3D {
 			);
 			this.ballMesh.physicsImpostor.setLinearVelocity(correctedVelocity);
 		}
+
+		// Clamp ball to baseline height to avoid drifting below/above court
+		if (Math.abs(this.ballMesh.position.y - this.baseBallY) > 0.001) {
+			this.ballMesh.position.y = this.baseBallY;
+			const body = this.ballMesh.physicsImpostor.physicsBody;
+			if (body) {
+				body.position.y = this.baseBallY;
+			}
+		}
 	}
 
 	private applyMagnusForce(): void {
@@ -3482,6 +3732,7 @@ export class Pong3D {
 		}
 		// Maintain constant ball velocity
 		this.maintainConstantBallVelocity();
+		this.maintainSplitBallVelocities();
 
 		// Get current key state from input handler
 		const keyState = this.inputHandler?.getKeyState() || {
@@ -4509,6 +4760,7 @@ export class Pong3D {
 	 */
 	public dispose(): void {
 		this.conditionalLog('🧹 Disposing Pong3D instance...');
+		this.clearSplitBalls();
 		this.teardownGlowEffects();
 		this.clearLocalTournamentTrophy();
 

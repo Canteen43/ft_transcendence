@@ -31,7 +31,7 @@ Visual + Technical Notes
 Power Up Concepts
 -----------------
 1. Split Ball
-   - On pickup, spawn a second ball mirroring the current ball's position and velocity, with a + or - 90 degree offset velocity.
+   - On pickup, spawn a second ball mirroring the current ball's position and velocity, with -180 degree offset velocity.
    - Both balls stay active until one exits play; then the remaining ball continues as the primary.
 
 2. Overdrive
