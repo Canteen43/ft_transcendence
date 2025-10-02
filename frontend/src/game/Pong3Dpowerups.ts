@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import '@babylonjs/core/Meshes/meshBuilder';
 
 export type PowerupType = 'split' | 'boost' | 'stretch' | 'shrink';
 
@@ -14,6 +15,7 @@ export interface PowerupManagerOptions {
 	spawnMaxSeconds?: number;
 	driftSpeed?: number;
 	assetUrl?: string;
+	visualSpinSpeed?: number; // radians per second
 }
 
 interface BasePowerupPrototype {
@@ -26,8 +28,10 @@ interface BasePowerupPrototype {
 interface ActivePowerup {
 	id: string;
 	type: PowerupType;
-	root: BABYLON.TransformNode;
-	collisionMesh: BABYLON.AbstractMesh;
+	root: BABYLON.TransformNode; // physics proxy (invisible)
+	visualRoot: BABYLON.TransformNode;
+	collisionMesh: BABYLON.Mesh;
+	physicsImpostor: BABYLON.PhysicsImpostor | null;
 	velocity: BABYLON.Vector3;
 	spawnTime: number;
 }
@@ -57,6 +61,7 @@ export class Pong3DPowerups {
 			spawnMaxSeconds: options.spawnMaxSeconds ?? DEFAULT_MAX_SPAWN,
 			driftSpeed: options.driftSpeed ?? DEFAULT_DRIFT_SPEED,
 			assetUrl: options.assetUrl ?? POWERUP_ASSET_URL,
+			visualSpinSpeed: options.visualSpinSpeed ?? 0.5,
 		};
 
 		if (this.options.spawnMaxSeconds < this.options.spawnMinSeconds) {
@@ -165,10 +170,15 @@ export class Pong3DPowerups {
 	/** Remove all active power-up discs and reset spawn timing. */
 	public clearActivePowerups(): void {
 		this.activePowerups.forEach(powerup => {
+			if (powerup.physicsImpostor) {
+				powerup.physicsImpostor.dispose();
+				powerup.physicsImpostor = null;
+			}
 			powerup.root.dispose(true, true);
 		});
 		this.activePowerups.clear();
 		this.scheduleNextSpawn();
+		this.hidePrototypeMeshes();
 	}
 
 	/** Force-spawn a given power-up type (primarily for testing). */
@@ -234,40 +244,63 @@ export class Pong3DPowerups {
 		collisionMesh.isPickable = false;
 
 		const direction = this.randomHorizontalDirection();
-		const velocity = direction.scale(this.options.driftSpeed);
+		const initialVelocity = direction.scale(this.options.driftSpeed);
 
-		const active: ActivePowerup = {
-			id: cloneRoot.uniqueId.toString(),
-			type: base.type,
-			root: cloneRoot,
+		const active = this.setupPhysicsForPowerup(
+			base,
+			cloneRoot,
 			collisionMesh,
-			velocity,
-			spawnTime: performance.now(),
-		};
+			initialVelocity
+		);
 
 		this.activePowerups.set(active.id, active);
 
-		console.log(`✨ Spawned power-up ${base.type} with velocity ${velocity.toString()}`);
+		console.log(`✨ Spawned power-up ${base.type} with velocity ${initialVelocity.toString()}`);
 		this.hidePrototypeMeshes();
 	}
 
 	private advancePowerup(powerup: ActivePowerup, deltaSeconds: number): void {
+		if (powerup.physicsImpostor) {
+			const currentVelocity = powerup.physicsImpostor.getLinearVelocity();
+			if (currentVelocity) {
+				powerup.velocity.copyFrom(currentVelocity);
+			}
+			this.applyVisualSpin(powerup, deltaSeconds);
+			return;
+		}
 		const displacement = powerup.velocity.scale(deltaSeconds);
 		powerup.root.position.addInPlace(displacement);
+		this.applyVisualSpin(powerup, deltaSeconds);
 	}
 
 	private removePowerup(id: string): void {
 		const powerup = this.activePowerups.get(id);
 		if (!powerup) return;
+		if (powerup.physicsImpostor) {
+			powerup.physicsImpostor.dispose();
+			powerup.physicsImpostor = null;
+		}
+		if (powerup.visualRoot && !powerup.visualRoot.isDisposed()) {
+			powerup.visualRoot.setEnabled(false);
+		}
 		if (!powerup.root.isDisposed()) {
 			powerup.root.dispose(true, true);
 		}
 		this.activePowerups.delete(id);
+		this.hidePrototypeMeshes();
 	}
 
 	private randomHorizontalDirection(): BABYLON.Vector3 {
 		const angle = Math.random() * Math.PI * 2;
 		return new BABYLON.Vector3(Math.cos(angle), 0, Math.sin(angle));
+	}
+
+	private applyVisualSpin(powerup: ActivePowerup, deltaSeconds: number): void {
+		if (!powerup.visualRoot || powerup.visualRoot.isDisposed()) return;
+		const spin = this.options.visualSpinSpeed * deltaSeconds;
+		const rotationQuaternion = powerup.visualRoot.rotationQuaternion ?? BABYLON.Quaternion.Identity();
+		const incremental = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), spin);
+		powerup.visualRoot.rotationQuaternion = rotationQuaternion.multiply(incremental);
 	}
 
 	private findCollectingPaddle(
@@ -300,6 +333,76 @@ export class Pong3DPowerups {
 		});
 	}
 
+	private setupPhysicsForPowerup(
+		base: BasePowerupPrototype,
+		cloneRoot: BABYLON.TransformNode,
+		collisionMesh: BABYLON.Mesh,
+		initialVelocity: BABYLON.Vector3
+	): ActivePowerup {
+		cloneRoot.computeWorldMatrix(true);
+		const worldPosition = cloneRoot.getAbsolutePosition();
+		const worldRotation =
+			cloneRoot.rotationQuaternion?.clone() ??
+			BABYLON.Quaternion.FromEulerAngles(
+				cloneRoot.rotation.x,
+				cloneRoot.rotation.y,
+				cloneRoot.rotation.z
+			);
+
+		collisionMesh.computeWorldMatrix(true);
+		collisionMesh.refreshBoundingInfo();
+		const bounds = collisionMesh.getBoundingInfo().boundingBox.extendSizeWorld;
+		const radius = Math.max(bounds.x, bounds.z);
+		const diameter = Math.max(radius * 2, 0.2);
+
+		const physicsMesh = BABYLON.MeshBuilder.CreateSphere(
+			`powerup.${base.type}.physics.${performance.now()}`,
+			{ diameter },
+			this.scene
+		);
+		physicsMesh.isVisible = false;
+		physicsMesh.isPickable = false;
+		physicsMesh.position.copyFrom(worldPosition);
+		physicsMesh.rotationQuaternion = worldRotation;
+		physicsMesh.layerMask = collisionMesh.layerMask;
+
+		cloneRoot.parent = physicsMesh;
+		cloneRoot.position = BABYLON.Vector3.Zero();
+		cloneRoot.rotationQuaternion = BABYLON.Quaternion.Identity();
+		cloneRoot.rotation = BABYLON.Vector3.Zero();
+
+		collisionMesh.parent = cloneRoot;
+		collisionMesh.setEnabled(true);
+
+		const physicsImpostor = new BABYLON.PhysicsImpostor(
+			physicsMesh,
+			BABYLON.PhysicsImpostor.SphereImpostor,
+			{
+				mass: 3.0,
+				restitution: 0.85,
+				friction: 0.0,
+			},
+			this.scene
+		);
+		physicsImpostor.setLinearVelocity(initialVelocity);
+		const physicsBody: any = physicsImpostor.physicsBody;
+		if (physicsBody) {
+			physicsBody.angularDamping = 0.9;
+			physicsBody.linearDamping = 0.01;
+		}
+
+		return {
+			id: physicsMesh.uniqueId.toString(),
+			type: base.type,
+			root: physicsMesh,
+			visualRoot: cloneRoot,
+			collisionMesh,
+			physicsImpostor,
+			velocity: initialVelocity.clone(),
+			spawnTime: performance.now(),
+		};
+	}
+
 	private resolvePowerupRoot(mesh: BABYLON.AbstractMesh): BABYLON.TransformNode {
 		let current: BABYLON.Node = mesh;
 		const ownsPowerupName = (node: BABYLON.Node | null | undefined): boolean => {
@@ -319,16 +422,19 @@ export class Pong3DPowerups {
 	private findCollisionMesh(
 		node: BABYLON.TransformNode,
 		targetName?: string
-	): BABYLON.AbstractMesh | null {
-		if (node instanceof BABYLON.AbstractMesh) {
+	): BABYLON.Mesh | null {
+		if (node instanceof BABYLON.Mesh) {
 			return node;
 		}
 		const meshes = node.getChildMeshes(false);
 		if (meshes.length === 0) return null;
 		if (targetName) {
-			const match = meshes.find(m => m.name === targetName);
-			if (match) return match;
+			const match = meshes.find(
+				m => m.name === targetName && m instanceof BABYLON.Mesh
+			);
+			if (match) return match as BABYLON.Mesh;
 		}
-		return meshes[0];
+		const firstMesh = meshes.find(m => m instanceof BABYLON.Mesh);
+		return firstMesh ? (firstMesh as BABYLON.Mesh) : null;
 	}
 }
