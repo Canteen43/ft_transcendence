@@ -235,7 +235,7 @@ export class Pong3D {
 	// === GAME PHYSICS CONFIGURATION ===
 
 	// Simple ball radius for physics impostor
-	private static readonly BALL_RADIUS = 0.325;
+	private static readonly BALL_RADIUS = 0.32;
 
 	// Ball settings (non-effects)
 	public WINNING_SCORE = DEFAULT_MAX_SCORE; // Points needed to win the game
@@ -243,7 +243,8 @@ export class Pong3D {
 	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_TIME_STEP = 1 / 200; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_SOLVER_ITERATIONS = 20; // Cannon solver iterations per step (constraint convergence)
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -309,6 +310,9 @@ export class Pong3D {
 	private audioSystem: Pong3DAudio;
 
 	private ballMesh: BABYLON.Mesh | null = null;
+
+	// Physics plugin reference for runtime tuning
+	private physicsPlugin: CannonJSPlugin | null = null;
 
 	// Resize handler reference for cleanup
 	private resizeHandler: (() => void) | null = null;
@@ -693,7 +697,12 @@ export class Pong3D {
 
 		// Enable physics engine with Cannon.js (back to working version)
 		const gravityVector = BABYLON.Vector3.Zero(); // No gravity for Pong
-		const physicsPlugin = new CannonJSPlugin(true, 10, CANNON);
+		const physicsPlugin = new CannonJSPlugin(
+			true,
+			this.PHYSICS_SOLVER_ITERATIONS,
+			CANNON
+		);
+		this.physicsPlugin = physicsPlugin;
 		this.scene.enablePhysics(gravityVector, physicsPlugin);
 
 		// Set physics time step for higher frequency updates to reduce tunneling
@@ -1801,30 +1810,73 @@ export class Pong3D {
 		// Send sound effect to clients (Master mode only)
 		this.sendSoundEffectToClients(1); // 1 = wall ping
 
-		// Position correction: move ball slightly away from wall to prevent embedding
-		if (this.ballMesh && ballImpostor) {
-			const velocity = ballImpostor.getLinearVelocity();
-			if (velocity && velocity.length() > 0) {
-				// Move ball in direction of velocity (away from wall)
-				// Use gentle correction to avoid physics instability
-				const correctionDistance = 0.15; // Small, consistent correction
-				const correctionVector = velocity
-					.normalize()
-					.scale(correctionDistance);
-				const newPosition =
-					this.ballMesh.position.add(correctionVector);
-				this.ballMesh.position = newPosition;
+		// Corner handling: if near a convex corner (near X and Z bounds),
+		// reflect velocity about the corner bisector to avoid unstable normals.
+		if (
+			this.boundsXMin !== null &&
+			this.boundsXMax !== null &&
+			this.boundsZMin !== null &&
+			this.boundsZMax !== null &&
+			this.ballMesh
+		) {
+			const pos = this.ballMesh.position;
+			const eps = 0.25; // proximity threshold to consider as at-boundary
+			const nearXMin = Math.abs(pos.x - this.boundsXMin) < eps;
+			const nearXMax = Math.abs(pos.x - this.boundsXMax) < eps;
+			const nearZMin = Math.abs(pos.z - this.boundsZMin) < eps;
+			const nearZMax = Math.abs(pos.z - this.boundsZMax) < eps;
 
-				// If too many rapid wall collisions, apply velocity damping
-				if (this.wallCollisionCount > 3) {
-					this.conditionalLog(
-						`🚫 Rapid wall collisions detected - applying velocity damping`
+			const nx = nearXMin ? 1 : nearXMax ? -1 : 0;
+			const nz = nearZMin ? 1 : nearZMax ? -1 : 0;
+
+			if (nx !== 0 && nz !== 0) {
+				const v = ballImpostor.getLinearVelocity();
+				if (v && (Math.abs(v.x) + Math.abs(v.z)) > 1e-4) {
+					const n = new BABYLON.Vector3(nx, 0, nz).normalize();
+					const vXZ = new BABYLON.Vector3(v.x, 0, v.z);
+					const dot = BABYLON.Vector3.Dot(vXZ, n);
+					const reflected = vXZ.subtract(n.scale(2 * dot));
+					ballImpostor.setLinearVelocity(
+						new BABYLON.Vector3(reflected.x, 0, reflected.z)
 					);
-					const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
-					ballImpostor.setLinearVelocity(dampedVel);
+					// Nudge out along bisector to prevent re-colliding this frame
+					const nudge = n.scale(0.15);
+					this.ballMesh.position = this.ballMesh.position.add(nudge);
+					if (this.ballMesh.physicsImpostor?.physicsBody) {
+						this.ballMesh.physicsImpostor.physicsBody.position.set(
+							this.ballMesh.position.x,
+							this.ballMesh.position.y,
+							this.ballMesh.position.z
+						);
+					}
 				}
 			}
 		}
+
+		// // Position correction: move ball slightly away from wall to prevent embedding
+		// if (this.ballMesh && ballImpostor) {
+		// 	const velocity = ballImpostor.getLinearVelocity();
+		// 	if (velocity && velocity.length() > 0) {
+		// 		// Move ball in direction of velocity (away from wall)
+		// 		// Use gentle correction to avoid physics instability
+		// 		const correctionDistance = 0.15; // Small, consistent correction
+		// 		const correctionVector = velocity
+		// 			.normalize()
+		// 			.scale(correctionDistance);
+		// 		const newPosition =
+		// 			this.ballMesh.position.add(correctionVector);
+		// 		this.ballMesh.position = newPosition;
+
+		// 		// If too many rapid wall collisions, apply velocity damping
+		// 		if (this.wallCollisionCount > 3) {
+		// 			this.conditionalLog(
+		// 				`🚫 Rapid wall collisions detected - applying velocity damping`
+		// 			);
+		// 			const dampedVel = velocity.scale(0.8); // Reduce velocity by 20%
+		// 			ballImpostor.setLinearVelocity(dampedVel);
+		// 		}
+		// 	}
+		// }
 
 		// When ball hits wall, spin is preserved but may be modified by friction
 		// For realistic physics, some spin energy is lost
@@ -3680,6 +3732,26 @@ export class Pong3D {
 
 	public getPhysicsTimeStep(): number {
 		return this.PHYSICS_TIME_STEP;
+	}
+
+	public setPhysicsSolverIterations(iterations: number): void {
+		const iters = Math.max(1, Math.min(100, Math.floor(iterations)));
+		this.PHYSICS_SOLVER_ITERATIONS = iters;
+		// Try to update live plugin if available
+		const physicsEngine: any = this.scene.getPhysicsEngine?.() ?? null;
+		const plugin: any = physicsEngine?._physicsPlugin ?? this.physicsPlugin;
+		try {
+			if (plugin && plugin.world && plugin.world.solver) {
+				plugin.world.solver.iterations = iters;
+				this.conditionalLog('Physics solver iterations ->', iters);
+			}
+		} catch (_) {
+			// Silent if plugin internals are not accessible
+		}
+	}
+
+	public getPhysicsSolverIterations(): number {
+		return this.PHYSICS_SOLVER_ITERATIONS;
 	}
 
 	public setPaddleRange(value: number): void {
