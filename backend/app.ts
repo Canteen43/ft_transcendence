@@ -10,10 +10,6 @@ import fastifyInit from './fastify.js';
 
 const fastify: FastifyInstance = Fastify({
 	logger: { level: FASTIFY_LOG_LEVEL },
-	https: {
-		key: fs.readFileSync('/home/wpepping/temp/keys/server.key'),
-		cert: fs.readFileSync('/home/wpepping/temp/keys/server.crt'),
-	},
 }).withTypeProvider<FastifyZodOpenApiTypeProvider>();
 
 try {
