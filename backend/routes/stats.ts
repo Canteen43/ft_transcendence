@@ -2,7 +2,11 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import z from 'zod';
 import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
-import { PercentageWinsHistory, Ranking } from '../../shared/schemas/stats.js';
+import {
+	PercentageWinsHistory,
+	Ranking,
+	RankingSchema,
+} from '../../shared/schemas/stats.js';
 import { UUID, zUUID } from '../../shared/types.js';
 import { StatsRepository } from '../repositories/stats_repository.js';
 import { routeConfig } from '../utils/http_utils.js';
@@ -41,7 +45,13 @@ export default async function statsRoutes(
 	fastify: FastifyInstance,
 	opts: Record<string, any>
 ) {
-	fastify.get('/ranking', getRanking);
+	fastify.get(
+		'/ranking',
+		routeConfig({
+			response: RankingSchema,
+		}),
+		getRanking
+	);
 	fastify.get(
 		'/wins_history/:user_id',
 		routeConfig({

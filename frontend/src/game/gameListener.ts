@@ -7,6 +7,7 @@ import {
 	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
+	MESSAGE_REPLAY,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -69,6 +70,10 @@ export function gameListener(event: MessageEvent) {
 			// 	}
 
 			// 	break;
+
+			case MESSAGE_REPLAY:
+				console.debug('Replay received');
+				break;
 
 			case MESSAGE_MOVE:
 				// Extract player ID and input from the message

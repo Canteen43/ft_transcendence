@@ -50,7 +50,7 @@ export class Modal {
 		this.destroy();
 	}
 
-	public destroy() {
+	public destroy(): void {
 		document.removeEventListener('keydown', this.escHandler);
 		this.overlay.removeEventListener('click', this.clickOutside);
 		this.overlay.remove();

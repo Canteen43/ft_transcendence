@@ -36,7 +36,7 @@ export class GameScreen extends Screen {
 	}
 
 	// Override destroy to properly clean up Pong3D resources
-	public destroy() {
+	public destroy(): void {
 		if (this.pong3DInstance) {
 			this.pong3DInstance.dispose();
 		}
