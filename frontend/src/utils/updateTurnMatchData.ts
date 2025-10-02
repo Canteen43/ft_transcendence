@@ -104,10 +104,8 @@ export function updateTournData(tournData: any): void {
 			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
 			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
 		const match2_finished =
-			tournData.matches[2] && (
 				tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE ||
-				tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE
-			);
+				tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE;
 
 		if (match0_finished) {
 			const winner1UserId =
@@ -145,7 +143,7 @@ export function updateTournData(tournData: any): void {
 		}
 
 		// Tournament first round
-		if (!tournData.matches[2] || !tournData.matches[2].participant_1_user_id) {
+		if (!tournData.matches[2].participant_1_user_id) {
 			if (
 				(userID == tournPlyr1 || userID == tournPlyr2) &&
 				!match0_finished
@@ -192,7 +190,7 @@ export function updateTournData(tournData: any): void {
 			}
 		}
 		// Tournament finale
-		else {
+		else if (!match2_finished) {
 			const tournPlyr5 = tournData.matches[2].participant_1_user_id;
 			const tournPlyr6 = tournData.matches[2].participant_2_user_id;
 

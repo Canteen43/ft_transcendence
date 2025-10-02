@@ -15,6 +15,7 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { TextModal } from '../modals/TextModal';
+import { ReplayModal } from '../modals/ReplayModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
@@ -2156,7 +2157,8 @@ export class Pong3D {
 					sessionStorage.getItem('gameMode') === 'remote' &&
 					sessionStorage.getItem('tournament') === '0'
 				) {
-					location.hash = '#home';
+new ReplayModal(this.container);
+					// location.hash = '#home';
 				}
 			}, 4500);
 
@@ -4633,7 +4635,8 @@ export class Pong3D {
 					sessionStorage.getItem('gameMode') === 'remote' &&
 					sessionStorage.getItem('tournament') === '0'
 				) {
-					location.hash = '#home';
+					new ReplayModal(this.container);
+					// location.hash = '#home';
 				}
 			}, 2000);
 		}

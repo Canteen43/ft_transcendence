@@ -347,7 +347,7 @@ export class TournamentScreen extends Screen {
 		document.head.appendChild(style);
 	}
 
-	public destroy() {
+	public destroy(): void {
 		console.log('Destroying TournamentScreen...');
 		if (this.trophyInstance) {
 			this.trophyInstance.dispose();

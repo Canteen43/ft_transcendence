@@ -70,7 +70,7 @@ export class AuthComponent {
 		this.button = undefined;
 	}
 
-	public destroy() {
+	public destroy(): void {
 		this.destroyButton();
 		this.loginModal?.destroy();
 		document.removeEventListener('login-success', this.renderHandler);

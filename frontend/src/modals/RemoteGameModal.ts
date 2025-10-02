@@ -99,10 +99,8 @@ export class RemoteGameModal extends Modal {
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();
-		state.tournamentOngoing = false;
 
 		state.gameMode = 'remote';
-		state.tournamentOngoing = true;
 		state.tournamentSize = tournamentSize;
 		state.tournamentOngoing = (tournamentSize === 4);
 
