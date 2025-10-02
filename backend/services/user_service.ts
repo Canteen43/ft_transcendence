@@ -12,6 +12,8 @@ import {
 	ERROR_USER_NOT_FOUND,
 	TOKEN_VALIDITY_2FA,
 	TOKEN_VALIDITY_AUTH,
+	TWO_FACTOR_ALGORITHM,
+	TWO_FACTOR_ISSUER,
 } from '../../shared/constants.js';
 import { Token } from '../../shared/enums.js';
 import {
@@ -182,9 +184,9 @@ export default class UserService {
 		login: string
 	): Promise<TwoFactorSecret> {
 		const totp = new TOTP({
-			issuer: 'Space Pong',
+			issuer: TWO_FACTOR_ISSUER,
 			label: login,
-			algorithm: 'SHA1',
+			algorithm: TWO_FACTOR_ALGORITHM,
 			digits: 6,
 			period: 30,
 		});
