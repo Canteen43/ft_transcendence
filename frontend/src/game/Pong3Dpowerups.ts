@@ -32,9 +32,9 @@ interface ActivePowerup {
 	spawnTime: number;
 }
 
-const DEFAULT_MIN_SPAWN = 2;
-const DEFAULT_MAX_SPAWN = 5;
-const DEFAULT_DRIFT_SPEED = 0.2;
+const DEFAULT_MIN_SPAWN = 5;
+const DEFAULT_MAX_SPAWN = 10;
+const DEFAULT_DRIFT_SPEED = 2;
 const POWERUP_ASSET_URL = '/powerups.glb';
 
 /**
@@ -107,9 +107,10 @@ export class Pong3DPowerups {
 			});
 
 			this.assetsLoaded = true;
-		console.log(
-			`🟡 Power-up assets loaded: ${Array.from(discoveredTypes).join(', ')}`
-		);
+			console.log(
+				`🟡 Power-up assets loaded: ${Array.from(discoveredTypes).join(', ')}`
+			);
+			this.hidePrototypeMeshes();
 			this.scheduleNextSpawn();
 		} catch (error) {
 			console.error('Failed to load power-up assets', error);
@@ -219,6 +220,7 @@ export class Pong3DPowerups {
 			null
 		);
 		if (!cloneRoot) return;
+		base.root.setEnabled(false);
 		cloneRoot.setEnabled(true);
 		const spawnY = Math.max(base.spawnHeight, 0.5);
 		cloneRoot.position.set(0, spawnY, 0);
@@ -246,6 +248,7 @@ export class Pong3DPowerups {
 		this.activePowerups.set(active.id, active);
 
 		console.log(`✨ Spawned power-up ${base.type} with velocity ${velocity.toString()}`);
+		this.hidePrototypeMeshes();
 	}
 
 	private advancePowerup(powerup: ActivePowerup, deltaSeconds: number): void {
@@ -286,6 +289,15 @@ export class Pong3DPowerups {
 		return (
 			Math.abs(position.x) > limit || Math.abs(position.z) > limit
 		);
+	}
+
+	private hidePrototypeMeshes(): void {
+		this.baseMeshes.forEach(proto => {
+			if (proto.root.isDisposed()) return;
+			if (proto.root.isEnabled()) {
+				proto.root.setEnabled(false);
+			}
+		});
 	}
 
 	private resolvePowerupRoot(mesh: BABYLON.AbstractMesh): BABYLON.TransformNode {
