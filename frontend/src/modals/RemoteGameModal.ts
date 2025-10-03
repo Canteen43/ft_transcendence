@@ -9,6 +9,8 @@ import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
+import { leaveTournament } from '../utils/tournamentJoin';
+
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -32,11 +34,11 @@ export class RemoteGameModal extends Modal {
 		// fixed button size
 		[this.btn2plyr, this.btnTourn].forEach(btn => {
 			btn.element.className +=
-				'w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
-				'h-[100px] sm:h-[120px] md:h-[140px]' +
-				'flex items-center justify-center' +
-				'hover:bg-[var(--color1bis)] transition-colors duration-300' +
-				'focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
+				' w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
+				' h-[100px] sm:h-[120px] md:h-[140px]' +
+				' flex items-center justify-center' +
+				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
+				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
 		// modal box background
@@ -44,9 +46,9 @@ export class RemoteGameModal extends Modal {
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
-			'bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
-			'relative flex flex-col items-center justify-center' +
-			'gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px]';
+			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
+			' relative flex flex-col items-center justify-center' +
+			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px]';
 
 		this.btn2plyr.element.focus();
 		this.btn2plyr.element.tabIndex = 0;
@@ -88,14 +90,16 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number) {
-		const { error } = await apiCall('POST', `/tournaments/leave`);
-		if (error) {
-			console.error('Error leaving tournament:', error);
-			new TextModal(
-				this.parent,
-				`Failed to leave tournament: ${error.message}`
-			);
-		}
+		
+		// leaveTournament();
+		// const { error } = await apiCall('POST', `/tournaments/leave`);
+		// if (error) {
+		// 	console.error('Error leaving tournament:', error);
+		// 	new TextModal(
+		// 		this.parent,
+		// 		`Failed to leave tournament: ${error.message}`
+		// 	);
+		// }
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();

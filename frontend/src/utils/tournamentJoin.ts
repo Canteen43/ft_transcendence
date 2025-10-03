@@ -28,7 +28,7 @@ export async function joinTournament(
 		};
 	}
 
-	console.debug('Sending to /tournaments/join:', joinData);
+	console.debug('Sending to POST /tournaments/join:', joinData);
 	const { data: playerQueue, error } = await apiCall(
 		'POST',
 		'/tournaments/join',
@@ -69,7 +69,7 @@ export async function joinTournament(
 	};
 }
 
-async function createTournament(
+export async function createTournament(
 	playerQueue: any
 ): Promise<TournamentJoinResult> {
 	const body = {
@@ -86,7 +86,7 @@ async function createTournament(
 		};
 	}
 
-	console.log('Sending to /tournaments:', body);
+	console.log('Sending to POST /tournaments:', body);
 	const { data: tournament, error } = await apiCall(
 		'POST',
 		'/tournaments',
@@ -118,7 +118,8 @@ async function createTournament(
 	};
 }
 
-async function leaveTournament(): Promise<void> {
+export async function leaveTournament(): Promise<void> {
+	console.debug('POST /tournaments/leave');
 	const { error } = await apiCall('POST', '/tournaments/leave');
 	if (error) {
 		console.error('Error leaving tournament:', error);
