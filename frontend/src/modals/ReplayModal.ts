@@ -2,8 +2,14 @@ import { hourglass, jelly, newtonsCradle } from 'ldrs';
 import { z } from 'zod';
 import { MESSAGE_REPLAY } from '../../../shared/constants';
 import { Button } from '../buttons/Button';
+import { clearMatchData } from '../utils/cleanSessionStorage';
 import { router } from '../utils/Router';
-import { joinTournament } from '../utils/tournamentJoin';
+import { state } from '../utils/State';
+import {
+	createTournament,
+	joinTournament,
+	leaveTournament,
+} from '../utils/tournamentJoin';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
@@ -14,9 +20,9 @@ hourglass.register();
 
 // Waiting for players, eventListener for game Ready
 export class ReplayModal extends Modal {
-	private remoteReplayHandler: () => void;
+	private remoteReplayHandler = () => this.handleRemoteReplay();
 	private timeoutId: number | null = null;
-	private isDestroyed = false;
+	private wantreplay: boolean | null = false;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -28,26 +34,14 @@ export class ReplayModal extends Modal {
 
 		new Button('Replay', () => this.replayClicked(), this.box);
 
-		this.remoteReplayHandler = () => this.handleRemoteReplay();
-		document.addEventListener('RemoteReplay', this.remoteReplayHandler);
-
-		// Start 10 second timer
+		// Start 10 second timer- redirected to home after
 		this.startTimer();
+
+		// both players sent R -> activate RemoteReplay
+		document.addEventListener('RemoteReplay', this.remoteReplayHandler);
 	}
 
-	private startTimer() {
-		this.timeoutId = window.setTimeout(() => {
-			console.debug('Replay timer expired, returning to home');
-			if (!this.isDestroyed) {
-				location.hash = '#home';
-				this.destroy();
-				setTimeout(() => {
-					new TextModal(router.currentScreen!.element, 'Your opponent got scared.');
-				}, 50);
-			}
-		}, 10000);
-	}
-
+	// replay -> sends R
 	private replayClicked() {
 		const matchID = sessionStorage.getItem('matchID');
 		if (!matchID) {
@@ -57,18 +51,58 @@ export class ReplayModal extends Modal {
 		}
 		console.debug('Sending REPLAY and matchID: ' + matchID);
 		webSocket.send({ t: MESSAGE_REPLAY, d: matchID });
+		this.wantreplay = true;
 		this.showLoader();
+	}
+
+	private startTimer() {
+		this.timeoutId = window.setTimeout(() => {
+			console.debug('Replay timer expired, returning to home');
+
+			setTimeout(() => {
+				const exitReplay = new TextModal(
+					router.currentScreen!.element,
+					undefined,
+					'Replay timer expired'
+				);
+				exitReplay.onClose = () => {
+					// if ((this.queuing = true)) {
+					// 	leaveTournament();
+					// 	this.queuing = false;
+					// }
+					location.hash = '#home';
+				};
+			}, 50);
+			this.destroy();
+		}, 10000);
 	}
 
 	private async handleRemoteReplay() {
 		console.debug('Both players ready for replay, joining game...');
-		this.showLoader();
 
-		const result = await joinTournament(2);
-		if (!result.success) {
-			this.showError(result.error, result.zodError);
-			return;
+		this.wantreplay = false;
+		// LOGIC for CREATE TOURNAMENT DIRECTLY
+		const thisPlayer = sessionStorage.getItem('thisPlayer');
+		if (thisPlayer == '1') {
+			const player1 = sessionStorage.getItem('player1');
+			const player2 = sessionStorage.getItem('player2');
+			const result = await createTournament({
+				queue: [player1, player2],
+			});
+			if (!result.success) {
+				this.showError(result.error, result.zodError);
+				return;
+			}
 		}
+
+		// LOGIC for JOIN TOURNAMENT first
+		// const thisPlayer = sessionStorage.getItem('thisPlayer');
+		// const result = await joinTournament(2);
+		// if (!result.success) {
+		// 	this.showError(result.error, result.zodError);
+		// 	return;
+		// }
+
 		// Close the modal after successfully joining
 		this.destroy();
 	}
@@ -101,7 +135,11 @@ export class ReplayModal extends Modal {
 	}
 
 	public destroy(): void {
-		this.isDestroyed = true;
+		if ((this.wantreplay = true)) {
+			location.hash = '#home';
+			clearMatchData();
+		}
+
 		if (this.timeoutId !== null) {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;

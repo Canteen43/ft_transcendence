@@ -15,7 +15,7 @@ export class GameScreen extends Screen {
 		const matchID = sessionStorage.getItem('matchID');
 		const gameMode = sessionStorage.getItem('gameMode');
 		if (gameMode == 'remote' && !matchID) {
-			new TextModal(
+			const modal = new TextModal(
 				this.element,
 				'No remote game happening at the moment.',
 				undefined,
@@ -23,6 +23,9 @@ export class GameScreen extends Screen {
 					location.hash = '#home';
 				}
 			);
+			modal.onClose = () => {
+					location.hash = '#home';
+				}
 			return;
 		}
 
