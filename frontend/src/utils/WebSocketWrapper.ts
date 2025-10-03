@@ -164,7 +164,7 @@ export class WebSocketWrapper {
 			console.warn('Websocket not opened, message not sent.');
 			return;
 		}
-		// console.debug('Sending:', message);
+		console.debug('Sending:', message);
 		this.ws.send(JSON.stringify(message));
 	}
 

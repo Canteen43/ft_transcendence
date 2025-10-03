@@ -13,7 +13,11 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
+
+import { FullTournamentSchema } from '../../../shared/schemas/tournament';
 import { TextModal } from '../modals/TextModal';
+import { GameScreen } from '../screens/GameScreen';
+import { apiCall } from '../utils/apiCall';
 import {
 	clearMatchData,
 	clearOtherGameData,
@@ -21,9 +25,13 @@ import {
 } from '../utils/cleanSessionStorage';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
+import { updateTournData } from '../utils/updateTurnMatchData';
+import { webSocket } from '../utils/WebSocketWrapper';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
-export function gameListener(event: MessageEvent) {
+let replayCounter = 0;
+
+export async function gameListener(event: MessageEvent) {
 	try {
 		const raw =
 			typeof event.data === 'string'
@@ -32,21 +40,68 @@ export function gameListener(event: MessageEvent) {
 		const msg: Message = MessageSchema.parse(raw);
 
 		switch (msg.t) {
-			// case MESSAGE_START_TOURNAMENT:
-			// 	alert('#GAME Start Tournament: ' + JSON.stringify(msg));
-			// 	break;
+			case MESSAGE_START_TOURNAMENT:
+				console.info('Received "st":', msg);
+				clearMatchData();
+				clearTournData();
+				sessionStorage.setItem('tournamentID', `${msg.d}`);
 
-			// case MESSAGE_ACCEPT:
-			// 	alert('#GAME Accept: ' + JSON.stringify(msg));
-			// 	break;
+				const { data: tournData, error } = await apiCall(
+					'GET',
+					`/tournaments/${msg.d}`,
+					FullTournamentSchema
+				);
+				if (error) {
+					console.error('Tournament join error:', error);
+					const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+					new TextModal(
+						router.currentScreen!.element,
+						message,
+						undefined
+					);
+					return;
+				}
+				if (!tournData) {
+					console.error('Getting tournament data failed, QUIT sent');
+					webSocket.send({ t: MESSAGE_QUIT });
+					new TextModal(
+						router.currentScreen!.element,
+						'Failed to get tournament data'
+					);
+					return;
+				}
+				if (tournData.matches.length === 1) {
+					updateTournData(tournData);
+					const matchID = sessionStorage.getItem('matchID');
+					if (!matchID) {
+						new TextModal(
+							router.currentScreen!.element,
+							'No match ID found'
+						);
+						console.error('No match ID found in session storage');
+						return;
+					}
+					console.debug({ matchID });
+					webSocket.send({ t: MESSAGE_ACCEPT, d: matchID });
+				} else {
+					console.warn('received ST on game screen-> redir to home');
+					new TextModal(
+						router.currentScreen!.element,
+						'Error: Received data for more than a match'
+					);
+					location.hash = '#home';
+				}
+				break;
 
-			// case MESSAGE_START:
-			// 	alert('#GAME Start: ' + JSON.stringify(msg));
-			// 	break;
+			case MESSAGE_START:
+				console.info('Received start message:', msg);
+				state.gameOngoing = true;
+				state.gameMode = 'remote';
+				replayCounter = 0;
+				location.hash = '#game';
+				(router.currentScreen as GameScreen)?.reloadPong();
+				break;
 
-			// case MESSAGE_PAUSE:
-			// 	alert('#GAME Pause: ' + JSON.stringify(msg));
-			// 	break;
 			case MESSAGE_QUIT:
 				location.hash = '#home';
 				clearMatchData();
@@ -59,7 +114,7 @@ export function gameListener(event: MessageEvent) {
 					);
 				}, 100);
 				break;
-				// TODO : maybe remove the refreshing and redirecting when we are on the game
+			// TODO : maybe remove the refreshing and redirecting when we are on the game
 			// case MESSAGE_FINISH:
 			// 	console.info('Received finish message:', msg);
 			// 	if (state.gameOngoing = false) {
@@ -73,6 +128,18 @@ export function gameListener(event: MessageEvent) {
 
 			case MESSAGE_REPLAY:
 				console.debug('Replay received');
+
+				replayCounter += 1;
+				console.debug('Replay counter:', replayCounter);
+				// putting the game as ongoing to handle the Quit with HomeButton
+				// does not work since the game is finished
+				// state.gameOngoing = true;
+				if (replayCounter === 2) {
+					console.debug(
+						'Both players ready for replay, dispatching event'
+					);
+					document.dispatchEvent(new CustomEvent('RemoteReplay'));
+				}
 				break;
 
 			case MESSAGE_MOVE:
