@@ -189,4 +189,10 @@ export class BallEntity {
 
   getLastHitter(): number { return this.lastHitter; }
   getSecondLastHitter(): number { return this.secondLastHitter; }
+
+  /** Directly set hit history (used when cloning/splitting) */
+  setHitHistory(last: number, second: number): void {
+    this.lastHitter = typeof last === 'number' ? last : -1;
+    this.secondLastHitter = typeof second === 'number' ? second : -1;
+  }
 }
