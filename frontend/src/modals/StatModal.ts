@@ -6,6 +6,7 @@ import { Button } from '../buttons/Button';
 import { apiCall } from '../utils/apiCall';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
+import Chart from 'chart.js/auto';
 
 export class StatModal extends Modal {
 	private element: HTMLElement;
@@ -22,7 +23,7 @@ export class StatModal extends Modal {
 	}
 
 	private showErrorModal(message: string) {
-		new TextModal(this.element, message, undefined, () => this.destroy);
+		new TextModal(this.element, message, undefined, () => this.destroy());
 	}
 
 	private async getData() {
