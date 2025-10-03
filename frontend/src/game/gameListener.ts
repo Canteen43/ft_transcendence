@@ -29,7 +29,6 @@ import { updateTournData } from '../utils/updateTurnMatchData';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
 
-let replayCounter = 0;
 
 export async function gameListener(event: MessageEvent) {
 	try {
@@ -97,8 +96,8 @@ export async function gameListener(event: MessageEvent) {
 				console.info('Received start message:', msg);
 				state.gameOngoing = true;
 				state.gameMode = 'remote';
-				replayCounter = 0;
 				location.hash = '#game';
+				console.debug('reloading pong.ts');
 				(router.currentScreen as GameScreen)?.reloadPong();
 				break;
 
@@ -129,12 +128,12 @@ export async function gameListener(event: MessageEvent) {
 			case MESSAGE_REPLAY:
 				console.debug('Replay received');
 
-				replayCounter += 1;
-				console.debug('Replay counter:', replayCounter);
+				state.replayCounter += 1;
+				console.debug('Replay counter:', state.replayCounter);
 				// putting the game as ongoing to handle the Quit with HomeButton
 				// does not work since the game is finished
 				// state.gameOngoing = true;
-				if (replayCounter === 2) {
+				if (state.replayCounter === 2) {
 					console.debug(
 						'Both players ready for replay, dispatching event'
 					);
