@@ -2121,16 +2121,25 @@ private handleBallPaddleCollision(
 				);
 			}
         } else {
-            // STATIONARY PADDLE: Use raw physics reflection, then clamp in XZ relative to a reliable normal
+            // STATIONARY PADDLE: Use raw physics reflection, then clamp in XZ.
+            // Deterministic face normals per court:
+            // - 2P: P1 = +Z, P2 = -Z
+            // - 3P: inward normals at 0°, 120°, 240° (toward origin)
+            // - 4P: cardinals P1=+Z, P2=-Z, P3=-X, P4=+X
             const ballVelNormalized = ballVelocity.normalize();
             let refNormal = paddleNormal;
-            // If the contact normal is nearly perpendicular to the incoming velocity,
-            // the reflection will be nearly unchanged (bad). In 2P, fall back to the face normal by index.
-            const dotAbs = Math.abs(BABYLON.Vector3.Dot(ballVelNormalized, refNormal));
-            if (this.playerCount === 2 && dotAbs < 0.2) {
+            if (this.playerCount === 2) {
                 refNormal = (paddleIndex === 0)
                     ? new BABYLON.Vector3(0, 0, 1)
                     : new BABYLON.Vector3(0, 0, -1);
+            } else if (this.playerCount === 3) {
+                // Use Cannon contact normal projected to XZ for 3P stationary reflections
+                refNormal = new BABYLON.Vector3(paddleNormal.x, 0, paddleNormal.z).normalize();
+            } else if (this.playerCount === 4) {
+                if (paddleIndex === 0) refNormal = new BABYLON.Vector3(0, 0, 1);
+                else if (paddleIndex === 1) refNormal = new BABYLON.Vector3(0, 0, -1);
+                else if (paddleIndex === 2) refNormal = new BABYLON.Vector3(-1, 0, 0);
+                else refNormal = new BABYLON.Vector3(1, 0, 0);
             }
 
             const dotProduct = BABYLON.Vector3.Dot(ballVelNormalized, refNormal);
@@ -2161,6 +2170,8 @@ private handleBallPaddleCollision(
                     `reflAngle=${(reflAngle*180/Math.PI).toFixed(1)}°, clampedAngle=${(clampedAngle*180/Math.PI).toFixed(1)}° (limit ${(this.ANGULAR_RETURN_LIMIT*180/Math.PI).toFixed(1)}°)`
                 );
             }
+            // Ensure the downstream final clamp uses the same reference normal we used here
+            paddleNormal = refNormal;
         }
 
         // Final safety clamp: enforce the same angular limit for both stationary and moving paddles
@@ -5017,72 +5028,28 @@ private handleGoalCollision(
 				);
 			}
 
-			// 🚨 CRITICAL: Ensure normal points AWAY from paddle surface (for proper reflection)
-			// For correct physics reflection: normal should point into the space where ball reflects
-			// Check if ball velocity and normal have same direction (both positive or both negative)
-			const ballVelocity =
-				this.ballMesh!.physicsImpostor!.getLinearVelocity()!;
-			const normalizedVelocity = ballVelocity.normalize();
+			// Project the normal to X-Z plane (we constrain motion to XZ)
 			const normalizedNormal = babylonNormal.normalize();
-			const dotProduct = BABYLON.Vector3.Dot(
-				normalizedVelocity,
-				normalizedNormal
-			);
-
-			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(
-					`🔧 Ball velocity direction: (${normalizedVelocity.x.toFixed(3)}, ${normalizedVelocity.y.toFixed(3)}, ${normalizedVelocity.z.toFixed(3)})`
-				);
-				this.conditionalLog(
-					`🔧 Dot product (velocity·normal): ${dotProduct.toFixed(3)}`
-				);
-			}
-
-			let correctedNormal = normalizedNormal;
-			if (dotProduct > 0.1) {
-				// Ball moving toward normal means normal points AWAY from surface - this is CORRECT for reflection
-				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog(
-						'🔧 Normal correctly points away from paddle surface'
-					);
-				}
-			} else if (dotProduct < -0.1) {
-				// Ball moving away from normal means normal points wrong way - flip it
-				correctedNormal = normalizedNormal.negate();
-				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog(
-						'🔧 CORRECTED: Flipped normal to point away from paddle surface'
-					);
-					this.conditionalLog(
-						`🔧 Corrected normal: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
-					);
-				}
-			}
-
-			// Validate the normal direction - it should point roughly toward the center
-			// For a 2-player game, paddle normals should be roughly ±Z direction
-			// Since Y movement is constrained, project the normal to X-Z plane
 			const normalXZ = new BABYLON.Vector3(
-				correctedNormal.x,
+				normalizedNormal.x,
 				0,
-				correctedNormal.z
+				normalizedNormal.z
 			);
 			if (normalXZ.length() > 0.1) {
-				// Use the projected normal if it's significant
-				correctedNormal = normalXZ.normalize();
+				const correctedNormal = normalXZ.normalize();
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
 						`🔧 Projected normal to X-Z plane: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
 					);
 				}
+				return correctedNormal;
 			} else {
 				// If X-Z components are too small, this might be a top/bottom collision
 				this.conditionalWarn(
 					`🚨 Normal has minimal X-Z components: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
 				);
 			}
-
-			return correctedNormal;
+			return normalXZ.normalize();
 		} catch (error) {
 			this.conditionalWarn(
 				'Failed to get collision normal from Cannon.js:',
