@@ -258,10 +258,10 @@ export class Pong3D {
 	private glowLayer: BABYLON.GlowLayer | null = null;
 	private readonly glowBaseIntensity = 3;
 	private readonly glowBaseColor = new BABYLON.Color3(0, 1, 1);
-	private glowPaddleStates = new Map<
-		number,
-		{ baseColor: BABYLON.Color3; timeoutId: number }
-	>();
+    private glowPaddleStates = new Map<
+        number,
+        { baseColor: BABYLON.Color3; timeoutId: number }
+    >();
 	private glowFadeAnimation: number | null = null;
 	private splitBalls: SplitBall[] = [];
 	private shadowGenerators: BABYLON.ShadowGenerator[] = [];
@@ -348,20 +348,20 @@ private baseBallMaterial: BABYLON.Material | null = null;
 		}
 		deltaSeconds = Math.min(deltaSeconds, 0.25); // Clamp to avoid huge teleporting steps
 
-		this.powerupManager.update(
-			deltaSeconds,
-			this.paddles,
-			(type, paddleIndex) => this.handlePowerupPickup(type, paddleIndex),
-			type => this.handlePowerupOutOfBounds(type)
-		);
+        this.powerupManager.update(
+            deltaSeconds,
+            this.paddles,
+            (type, paddleIndex, entity) => this.handlePowerupPickup(type, paddleIndex, entity as any),
+            type => this.handlePowerupOutOfBounds(type)
+        );
 	}
 
-	private handlePowerupPickup(type: PowerupType, paddleIndex: number): void {
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(
-				`⚡ Power-up collected: ${type} by paddle ${paddleIndex + 1}`
-			);
-		}
+private handlePowerupPickup(type: PowerupType, paddleIndex: number, entity?: any): void {
+    if (GameConfig.isDebugLoggingEnabled()) {
+        this.conditionalLog(
+            `⚡ Power-up collected: ${type} by paddle ${paddleIndex + 1}`
+        );
+    }
 		// If a goal has been scored and the ball is continuing to boundary, consider the ball out of play.
 		// In this state, disallow split activation to prevent post-goal splitting.
 		if (this.goalScored && type === 'split') {
@@ -373,12 +373,22 @@ private baseBallMaterial: BABYLON.Material | null = null;
 			return;
 		}
 		// TODO: Apply concrete power-up effects (ball split, speed boost, paddle sizing)
-		switch (type) {
-			case 'split':
-				this.activateSplitBallPowerup();
-				break;
-			default:
-				break;
+    // Apply collect glow to paddle and disc (yellow)
+    try {
+        const paddle = this.paddles[paddleIndex] as BABYLON.Mesh | null;
+        const yellow = new BABYLON.Color3(1, 0.95, 0.2);
+        if (paddle) this.flashMeshGlow(paddle, 500, yellow);
+        if (entity && entity.collisionMesh) {
+            this.flashMeshGlow(entity.collisionMesh as BABYLON.Mesh, 500, yellow);
+        }
+    } catch (_) {}
+
+    switch (type) {
+        case 'split':
+            this.activateSplitBallPowerup();
+            break;
+        default:
+            break;
 		}
 	}
 
@@ -5605,84 +5615,92 @@ private setupGlowEffects(): void {
     });
 }
 
-	private flashPaddleGlow(
-		playerNumber: number,
-		durationMs = 1500,
-		point_gained = true
-	): void {
-		if (!this.glowLayer) return;
-		if (playerNumber < 1 || playerNumber > 4) return;
-		const paddle = this.paddles[playerNumber - 1];
-		if (!paddle) return;
+    /** Generic glow for any mesh with emissiveColor, using the global glow layer */
+    private flashMeshGlow(
+        mesh: BABYLON.Mesh,
+        durationMs: number,
+        glowColor: BABYLON.Color3
+    ): void {
+        if (!this.glowLayer) return;
+        const material = mesh.material as
+            | (BABYLON.Material & { emissiveColor?: BABYLON.Color3 })
+            | null;
+        if (!material) return;
+        if (!material.emissiveColor)
+            material.emissiveColor = BABYLON.Color3.Black();
 
-		const material = paddle.material as
-			| (BABYLON.Material & { emissiveColor?: BABYLON.Color3 })
-			| null;
-		if (!material) return;
-		if (!material.emissiveColor)
-			material.emissiveColor = BABYLON.Color3.Black();
+        const meshId = mesh.uniqueId;
+        const existing = this.glowPaddleStates.get(meshId);
+        if (existing) {
+            window.clearTimeout(existing.timeoutId);
+            material.emissiveColor = existing.baseColor.clone();
+            this.glowPaddleStates.delete(meshId);
+        }
 
-		const meshId = paddle.uniqueId;
-		const existing = this.glowPaddleStates.get(meshId);
-		if (existing) {
-			window.clearTimeout(existing.timeoutId);
-			material.emissiveColor = existing.baseColor.clone();
-			this.glowPaddleStates.delete(meshId);
-		}
+        const baseColor = material.emissiveColor
+            ? material.emissiveColor.clone()
+            : BABYLON.Color3.Black();
 
-		const baseColor = material.emissiveColor
-			? material.emissiveColor.clone()
-			: BABYLON.Color3.Black();
+        if (this.glowFadeAnimation !== null) {
+            window.cancelAnimationFrame(this.glowFadeAnimation);
+            this.glowFadeAnimation = null;
+        }
 
-		if (this.glowFadeAnimation !== null) {
-			window.cancelAnimationFrame(this.glowFadeAnimation);
-			this.glowFadeAnimation = null;
-		}
+        const glowLayer = this.glowLayer;
+        if (!glowLayer) return;
+        const glowBase = glowColor;
+        const initialGlow = new BABYLON.Color3(
+            Math.min(baseColor.r + glowBase.r, 1),
+            Math.min(baseColor.g + glowBase.g, 1),
+            Math.min(baseColor.b + glowBase.b, 1)
+        );
+        material.emissiveColor = initialGlow;
+        glowLayer.intensity = this.glowBaseIntensity;
 
-		const glowLayer = this.glowLayer;
-		if (!glowLayer) return;
-		const glowBase = point_gained
-			? new BABYLON.Color3(0, 1, 1)
-			: new BABYLON.Color3(1, 0, 0); // cyan for gain, red for loss
-		const initialGlow = new BABYLON.Color3(
-			Math.min(baseColor.r + glowBase.r, 1),
-			Math.min(baseColor.g + glowBase.g, 1),
-			Math.min(baseColor.b + glowBase.b, 1)
-		);
-		material.emissiveColor = initialGlow;
-		glowLayer.intensity = this.glowBaseIntensity;
+        const start = performance.now();
+        const gColor = glowBase;
+        const animate = () => {
+            const elapsed = performance.now() - start;
+            const progress = Math.min(elapsed / durationMs, 1);
+            const fadeFactor = 1 - progress;
+            glowLayer.intensity = this.glowBaseIntensity * fadeFactor;
+            const glowComponent = gColor.scale(fadeFactor);
+            const blended = new BABYLON.Color3(
+                Math.min(baseColor.r + glowComponent.r, 1),
+                Math.min(baseColor.g + glowComponent.g, 1),
+                Math.min(baseColor.b + glowComponent.b, 1)
+            );
+            material.emissiveColor = blended;
+            if (progress < 1) {
+                this.glowFadeAnimation = window.requestAnimationFrame(animate);
+            } else {
+                glowLayer.intensity = 0;
+                material.emissiveColor = baseColor.clone();
+                this.glowFadeAnimation = null;
+            }
+        };
+        this.glowFadeAnimation = window.requestAnimationFrame(animate);
 
-		const start = performance.now();
-		const glowColor = glowBase;
-		const animate = () => {
-			const elapsed = performance.now() - start;
-			const progress = Math.min(elapsed / durationMs, 1);
-			const fadeFactor = 1 - progress;
-			glowLayer.intensity = this.glowBaseIntensity * fadeFactor;
-			const glowComponent = glowColor.scale(fadeFactor);
-			const blended = new BABYLON.Color3(
-				Math.min(baseColor.r + glowComponent.r, 1),
-				Math.min(baseColor.g + glowComponent.g, 1),
-				Math.min(baseColor.b + glowComponent.b, 1)
-			);
-			material.emissiveColor = blended;
-			if (progress < 1) {
-				this.glowFadeAnimation = window.requestAnimationFrame(animate);
-			} else {
-				glowLayer.intensity = 0;
-				material.emissiveColor = baseColor.clone();
-				this.glowFadeAnimation = null;
-			}
-		};
-		this.glowFadeAnimation = window.requestAnimationFrame(animate);
+        const timeoutId = window.setTimeout(() => {
+            material.emissiveColor = baseColor.clone();
+            this.glowPaddleStates.delete(meshId);
+        }, durationMs);
 
-		const timeoutId = window.setTimeout(() => {
-			material.emissiveColor = baseColor.clone();
-			this.glowPaddleStates.delete(meshId);
-		}, durationMs);
+        this.glowPaddleStates.set(meshId, { baseColor, timeoutId });
+    }
 
-		this.glowPaddleStates.set(meshId, { baseColor, timeoutId });
-	}
+    // Backwards-compatible wrapper for paddle glow on score
+    private flashPaddleGlow(
+        playerNumber: number,
+        durationMs = 1500,
+        point_gained = true
+    ): void {
+        if (playerNumber < 1 || playerNumber > 4) return;
+        const paddle = this.paddles[playerNumber - 1];
+        if (!paddle || !this.glowLayer) return;
+        const color = point_gained ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(1, 0, 0);
+        this.flashMeshGlow(paddle, durationMs, color);
+    }
 
 	private teardownGlowEffects(): void {
 		if (this.glowFadeAnimation !== null) {

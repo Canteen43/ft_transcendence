@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Meshes/meshBuilder';
+import { PowerupEntity } from './PowerupEntity';
 
 export type PowerupType = 'split' | 'boost' | 'stretch' | 'shrink';
 
@@ -11,11 +12,12 @@ export const POWERUP_SESSION_FLAGS: Record<PowerupType, string> = {
 };
 
 export interface PowerupManagerOptions {
-	spawnMinSeconds?: number;
-	spawnMaxSeconds?: number;
-	driftSpeed?: number;
-	assetUrl?: string;
-	visualSpinSpeed?: number; // radians per second
+    spawnMinSeconds?: number;
+    spawnMaxSeconds?: number;
+    driftSpeed?: number;
+    assetUrl?: string;
+    visualSpinSpeed?: number; // radians per second
+    spawnScaleDurationSeconds?: number; // visual grow-in duration
 }
 
 interface BasePowerupPrototype {
@@ -25,17 +27,7 @@ interface BasePowerupPrototype {
 	spawnHeight: number;
 }
 
-interface ActivePowerup {
-	id: string;
-	type: PowerupType;
-	root: BABYLON.TransformNode; // physics proxy (invisible)
-	visualRoot: BABYLON.TransformNode;
-	collisionMesh: BABYLON.Mesh;
-	physicsImpostor: BABYLON.PhysicsImpostor | null;
-	velocity: BABYLON.Vector3;
-	spawnTime: number;
-	planeY: number; // lock Y plane for X-Z only motion
-}
+// Replaced by PowerupEntity
 
 const DEFAULT_MIN_SPAWN = 5;
 const DEFAULT_MAX_SPAWN = 10;
@@ -49,22 +41,23 @@ export class Pong3DPowerups {
 	private scene: BABYLON.Scene;
 	private options: Required<PowerupManagerOptions>;
 	private baseMeshes: Map<PowerupType, BasePowerupPrototype> = new Map();
-	private activePowerups: Map<string, ActivePowerup> = new Map();
+    private activePowerups: Map<string, PowerupEntity> = new Map();
 	private nextSpawnInSeconds: number = Number.POSITIVE_INFINITY;
 	private elapsedSinceSpawn: number = 0;
 	private enabledTypes: Set<PowerupType> = new Set();
 	private assetsLoaded = false;
 	private spawningPaused = false;
 
-	constructor(scene: BABYLON.Scene, options: PowerupManagerOptions = {}) {
-		this.scene = scene;
-		this.options = {
-			spawnMinSeconds: options.spawnMinSeconds ?? DEFAULT_MIN_SPAWN,
-			spawnMaxSeconds: options.spawnMaxSeconds ?? DEFAULT_MAX_SPAWN,
-			driftSpeed: options.driftSpeed ?? DEFAULT_DRIFT_SPEED,
-			assetUrl: options.assetUrl ?? POWERUP_ASSET_URL,
-			visualSpinSpeed: options.visualSpinSpeed ?? 0.5,
-		};
+    constructor(scene: BABYLON.Scene, options: PowerupManagerOptions = {}) {
+        this.scene = scene;
+        this.options = {
+            spawnMinSeconds: options.spawnMinSeconds ?? DEFAULT_MIN_SPAWN,
+            spawnMaxSeconds: options.spawnMaxSeconds ?? DEFAULT_MAX_SPAWN,
+            driftSpeed: options.driftSpeed ?? DEFAULT_DRIFT_SPEED,
+            assetUrl: options.assetUrl ?? POWERUP_ASSET_URL,
+            visualSpinSpeed: options.visualSpinSpeed ?? 0.5,
+            spawnScaleDurationSeconds: options.spawnScaleDurationSeconds ?? 0.25,
+        };
 
 		if (this.options.spawnMaxSeconds < this.options.spawnMinSeconds) {
 			const tmp = this.options.spawnMinSeconds;
@@ -131,12 +124,12 @@ export class Pong3DPowerups {
 	}
 
 	/** Advance timers, spawn new power-ups if needed, and update active discs. */
-	public update(
-		deltaSeconds: number,
-		paddles: (BABYLON.Mesh | null)[],
-		onPickup: (type: PowerupType, paddleIndex: number) => void,
-		terminateWhenOutOfBounds: (type: PowerupType) => void
-	): void {
+    public update(
+        deltaSeconds: number,
+        paddles: (BABYLON.Mesh | null)[],
+        onPickup: (type: PowerupType, paddleIndex: number, entity?: PowerupEntity) => void,
+        terminateWhenOutOfBounds: (type: PowerupType) => void
+    ): void {
 		if (!this.assetsLoaded) return;
 
 		this.elapsedSinceSpawn += deltaSeconds;
@@ -151,35 +144,37 @@ export class Pong3DPowerups {
 		}
 
 		const disposals: string[] = [];
-
-		this.activePowerups.forEach(powerup => {
-			this.advancePowerup(powerup, deltaSeconds);
-
-			if (this.isOutOfBounds(powerup.root.position)) {
-				terminateWhenOutOfBounds(powerup.type);
-				disposals.push(powerup.id);
+		this.activePowerups.forEach(entity => {
+			entity.update(deltaSeconds);
+			// Remove after collect animation finishes
+			if ((entity as any).isCollectDone && (entity as any).isCollectDone()) {
+				disposals.push(entity.id);
 				return;
 			}
-
-			const collector = this.findCollectingPaddle(powerup.collisionMesh, paddles);
-			if (collector !== -1) {
-				onPickup(powerup.type, collector);
-				disposals.push(powerup.id);
+			// Out of bounds removal when not collecting
+			if (!(entity as any).collecting && this.isOutOfBounds(entity.root.position as BABYLON.Vector3)) {
+				terminateWhenOutOfBounds(entity.type);
+				disposals.push(entity.id);
+				return;
+			}
+			// Pickup trigger when not already collecting
+			if (!(entity as any).collecting) {
+				const collector = this.findCollectingPaddle(entity.collisionMesh, paddles);
+				if (collector !== -1) {
+                onPickup(entity.type, collector, entity);
+                // Begin shrink-into-paddle animation
+                entity.beginCollect(paddles[collector]!);
+				}
 			}
 		});
-
 		disposals.forEach(id => this.removePowerup(id));
 	}
 
 	/** Remove all active power-up discs and reset spawn timing. */
 	public clearActivePowerups(): void {
-		this.activePowerups.forEach(powerup => {
-			if (powerup.physicsImpostor) {
-				powerup.physicsImpostor.dispose();
-				powerup.physicsImpostor = null;
-			}
-			powerup.root.dispose(true, true);
-		});
+	this.activePowerups.forEach(entity => {
+		entity.dispose();
+	});
 		this.activePowerups.clear();
 		this.scheduleNextSpawn();
 		this.hidePrototypeMeshes();
@@ -267,53 +262,12 @@ export class Pong3DPowerups {
 		this.hidePrototypeMeshes();
 	}
 
-	private advancePowerup(powerup: ActivePowerup, deltaSeconds: number): void {
-		if (powerup.physicsImpostor) {
-			const currentVelocity = powerup.physicsImpostor.getLinearVelocity();
-			if (currentVelocity) {
-				// Hard-lock Y velocity to 0 for X-Z plane drift
-				if (Math.abs(currentVelocity.y) > 0.0001) {
-					powerup.physicsImpostor.setLinearVelocity(
-						new BABYLON.Vector3(currentVelocity.x, 0, currentVelocity.z)
-					);
-					powerup.velocity.set(currentVelocity.x, 0, currentVelocity.z);
-				} else {
-					powerup.velocity.copyFrom(currentVelocity);
-				}
-
-				// Clamp position Y to plane
-				const body: any = powerup.physicsImpostor.physicsBody;
-				if (Math.abs(powerup.root.position.y - powerup.planeY) > 0.001) {
-					powerup.root.position.y = powerup.planeY;
-					if (body) body.position.y = powerup.planeY;
-				}
-			}
-			this.applyVisualSpin(powerup, deltaSeconds);
-			return;
-		}
-
-		// Kinematic fallback (no physics): move only in X-Z, clamp Y
-		const displacement = powerup.velocity.scale(deltaSeconds);
-		powerup.root.position.addInPlace(new BABYLON.Vector3(displacement.x, 0, displacement.z));
-		if (Math.abs(powerup.root.position.y - powerup.planeY) > 0.001) {
-			powerup.root.position.y = powerup.planeY;
-		}
-		this.applyVisualSpin(powerup, deltaSeconds);
-	}
+    // Movement and spin handled by PowerupEntity
 
 	private removePowerup(id: string): void {
-		const powerup = this.activePowerups.get(id);
-		if (!powerup) return;
-		if (powerup.physicsImpostor) {
-			powerup.physicsImpostor.dispose();
-			powerup.physicsImpostor = null;
-		}
-		if (powerup.visualRoot && !powerup.visualRoot.isDisposed()) {
-			powerup.visualRoot.setEnabled(false);
-		}
-		if (!powerup.root.isDisposed()) {
-			powerup.root.dispose(true, true);
-		}
+		const entity = this.activePowerups.get(id);
+		if (!entity) return;
+		entity.dispose();
 		this.activePowerups.delete(id);
 		this.hidePrototypeMeshes();
 	}
@@ -323,13 +277,7 @@ export class Pong3DPowerups {
 		return new BABYLON.Vector3(Math.cos(angle), 0, Math.sin(angle));
 	}
 
-	private applyVisualSpin(powerup: ActivePowerup, deltaSeconds: number): void {
-		if (!powerup.visualRoot || powerup.visualRoot.isDisposed()) return;
-		const spin = this.options.visualSpinSpeed * deltaSeconds;
-		const rotationQuaternion = powerup.visualRoot.rotationQuaternion ?? BABYLON.Quaternion.Identity();
-		const incremental = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), spin);
-		powerup.visualRoot.rotationQuaternion = rotationQuaternion.multiply(incremental);
-	}
+    // Removed; handled inside entity
 
 	private findCollectingPaddle(
 		collisionMesh: BABYLON.AbstractMesh,
@@ -366,7 +314,7 @@ export class Pong3DPowerups {
 		cloneRoot: BABYLON.TransformNode,
 		collisionMesh: BABYLON.Mesh,
 		initialVelocity: BABYLON.Vector3
-	): ActivePowerup {
+): PowerupEntity {
 		cloneRoot.computeWorldMatrix(true);
 		const worldPosition = cloneRoot.getAbsolutePosition();
 		const worldRotation =
@@ -419,18 +367,20 @@ export class Pong3DPowerups {
 			physicsBody.linearDamping = 0.01;
 		}
 
-		return {
-			id: physicsMesh.uniqueId.toString(),
-			type: base.type,
-			root: physicsMesh,
-			visualRoot: cloneRoot,
-			collisionMesh,
-			physicsImpostor,
-			velocity: initialVelocity.clone(),
-			spawnTime: performance.now(),
-			planeY: worldPosition.y,
-		};
-	}
+        const entity = new PowerupEntity({
+            id: physicsMesh.uniqueId.toString(),
+            type: base.type,
+            physicsRoot: physicsMesh,
+            visualRoot: cloneRoot,
+            collisionMesh,
+            physicsImpostor,
+            initialVelocity: initialVelocity.clone(),
+            planeY: worldPosition.y,
+            visualSpinSpeed: this.options.visualSpinSpeed,
+            spawnScaleDuration: this.options.spawnScaleDurationSeconds,
+        });
+        return entity;
+    }
 
 	private resolvePowerupRoot(mesh: BABYLON.AbstractMesh): BABYLON.TransformNode {
 		let current: BABYLON.Node = mesh;
