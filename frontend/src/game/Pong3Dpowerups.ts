@@ -34,6 +34,7 @@ interface ActivePowerup {
 	physicsImpostor: BABYLON.PhysicsImpostor | null;
 	velocity: BABYLON.Vector3;
 	spawnTime: number;
+	planeY: number; // lock Y plane for X-Z only motion
 }
 
 const DEFAULT_MIN_SPAWN = 5;
@@ -270,13 +271,33 @@ export class Pong3DPowerups {
 		if (powerup.physicsImpostor) {
 			const currentVelocity = powerup.physicsImpostor.getLinearVelocity();
 			if (currentVelocity) {
-				powerup.velocity.copyFrom(currentVelocity);
+				// Hard-lock Y velocity to 0 for X-Z plane drift
+				if (Math.abs(currentVelocity.y) > 0.0001) {
+					powerup.physicsImpostor.setLinearVelocity(
+						new BABYLON.Vector3(currentVelocity.x, 0, currentVelocity.z)
+					);
+					powerup.velocity.set(currentVelocity.x, 0, currentVelocity.z);
+				} else {
+					powerup.velocity.copyFrom(currentVelocity);
+				}
+
+				// Clamp position Y to plane
+				const body: any = powerup.physicsImpostor.physicsBody;
+				if (Math.abs(powerup.root.position.y - powerup.planeY) > 0.001) {
+					powerup.root.position.y = powerup.planeY;
+					if (body) body.position.y = powerup.planeY;
+				}
 			}
 			this.applyVisualSpin(powerup, deltaSeconds);
 			return;
 		}
+
+		// Kinematic fallback (no physics): move only in X-Z, clamp Y
 		const displacement = powerup.velocity.scale(deltaSeconds);
-		powerup.root.position.addInPlace(displacement);
+		powerup.root.position.addInPlace(new BABYLON.Vector3(displacement.x, 0, displacement.z));
+		if (Math.abs(powerup.root.position.y - powerup.planeY) > 0.001) {
+			powerup.root.position.y = powerup.planeY;
+		}
 		this.applyVisualSpin(powerup, deltaSeconds);
 	}
 
@@ -407,6 +428,7 @@ export class Pong3DPowerups {
 			physicsImpostor,
 			velocity: initialVelocity.clone(),
 			spawnTime: performance.now(),
+			planeY: worldPosition.y,
 		};
 	}
 
