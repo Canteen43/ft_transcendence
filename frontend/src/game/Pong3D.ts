@@ -418,19 +418,15 @@ private baseBallMaterial: BABYLON.Material | null = null;
 				const pbr = (this.ballMesh.material as any).clone(
 					`splitBall.material.${performance.now()}`
 				);
-				(pbr as any).albedoColor = darkOrange;
-				if ('emissiveColor' in (pbr as any)) {
-					(pbr as any).emissiveColor = faintEmissive;
-				}
+				(pbr as any).albedoColor = darkOrange; // no emissive to avoid glow layer pickup
 				clone.material = pbr as any;
 			} else {
 				const mat = new BABYLON.StandardMaterial(
 					`splitBall.standardMat.${performance.now()}`,
 					this.scene
 				);
-				mat.diffuseColor = darkOrange;
+				mat.diffuseColor = darkOrange; // no emissive to avoid glow layer pickup
 				mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
-				mat.emissiveColor = faintEmissive;
 				clone.material = mat;
 			}
 		} catch (_) {
@@ -490,7 +486,19 @@ private baseBallMaterial: BABYLON.Material | null = null;
 		};
 		this.splitBalls.push(splitBall);
 		// Register with ball manager for per-ball effects and normalization
-		this.ballManager.addSplitBall(clone, impostor, this.baseBallY);
+		const splitEntity = this.ballManager.addSplitBall(
+			clone,
+			impostor,
+			this.baseBallY
+		);
+		// Inherit hitter history from current primary ball (or global fallback)
+		let inheritLast = this.lastPlayerToHitBall;
+		let inheritSecond = this.secondLastPlayerToHitBall;
+		if (this.mainBallEntity) {
+			inheritLast = this.mainBallEntity.getLastHitter();
+			inheritSecond = this.mainBallEntity.getSecondLastHitter();
+		}
+		splitEntity.setHitHistory(inheritLast, inheritSecond);
 		this.attachSplitBallCollisionHandlers(splitBall);
 		this.ballEffects.resetRallySpeed();
 	}
@@ -606,13 +614,18 @@ private baseBallMaterial: BABYLON.Material | null = null;
 		this.mainBallHandlersAttached = false;
 		this.attachMainBallCollisionHandlers(true);
 
-        // This split ball becomes the main ball entity
+        // This split ball becomes the main ball entity - reuse existing entity to preserve history/effects
+        const existingEntity = this.ballManager.findByImpostor(splitBall.impostor);
         this.ballManager.removeByImpostor(splitBall.impostor);
-        this.mainBallEntity = new BallEntity(
-            splitBall.mesh,
-            splitBall.impostor,
-            this.baseBallY
-        );
+        if (existingEntity) {
+            this.mainBallEntity = existingEntity;
+        } else {
+            this.mainBallEntity = new BallEntity(
+                splitBall.mesh,
+                splitBall.impostor,
+                this.baseBallY
+            );
+        }
 }
 
     private removeSplitBallByImpostor(
@@ -4161,20 +4174,24 @@ private handleGoalCollision(
 			const velAlong = BABYLON.Vector3.Dot(currentVelocity, axisNorm);
 			const speedAlong = Math.abs(velAlong);
 
-			// Check bounds - use AI xLimit for AI players, otherwise use PADDLE_RANGE
-			const posAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
-			const originAlongAxis = BABYLON.Vector3.Dot(
-				new BABYLON.Vector3(originalPos.x, 0, originalPos.z),
-				axisNorm
-			);
-			const paddleRange = this.inputHandler?.hasAIController(i)
-				? this.inputHandler.getAIControllerConfig(i)?.xLimit ||
-					this.PADDLE_RANGE
-				: this.PADDLE_RANGE;
-			const minBound = originAlongAxis - paddleRange;
-			const maxBound = originAlongAxis + paddleRange;
-			const isOutOfBounds =
-				posAlongAxis < minBound || posAlongAxis > maxBound;
+            // Check bounds - use AI xLimit for AI players, otherwise use PADDLE_RANGE
+            const posAlongAxis = BABYLON.Vector3.Dot(currentPos, axisNorm);
+            const originAlongAxis = BABYLON.Vector3.Dot(
+                new BABYLON.Vector3(originalPos.x, 0, originalPos.z),
+                axisNorm
+            );
+            const paddleRange = this.inputHandler?.hasAIController(i)
+                ? this.inputHandler.getAIControllerConfig(i)?.xLimit ||
+                    this.PADDLE_RANGE
+                : this.PADDLE_RANGE;
+            const minBound = originAlongAxis - paddleRange;
+            const maxBound = originAlongAxis + paddleRange;
+            // Boundary hysteresis to avoid vibrational clamp near extremes (especially 3P P2/P3)
+            const BOUND_EPS = 0.02;
+            const atMin = posAlongAxis <= minBound + BOUND_EPS;
+            const atMax = posAlongAxis >= maxBound - BOUND_EPS;
+            const isOutOfBounds =
+                posAlongAxis < minBound - BOUND_EPS || posAlongAxis > maxBound + BOUND_EPS;
 
 			// Get player input
 			const inputDir = (rightKeys[i] ? 1 : 0) - (leftKeys[i] ? 1 : 0);
@@ -4214,51 +4231,55 @@ private handleGoalCollision(
 				);
 			}
 
-			// State machine: Only apply forces when needed
-			if (isOutOfBounds) {
-				// PRIORITY 1: Hit boundary - stop and clamp position to prevent overshoot
-				if (!this.paddleStoppedAtBoundary[i]) {
-					// First time hitting boundary - stop the paddle
-					paddle.physicsImpostor.setLinearVelocity(
-						BABYLON.Vector3.Zero()
-					);
-					this.paddleStoppedAtBoundary[i] = true;
-				}
+            // State machine: Only apply forces when needed
+            if (isOutOfBounds || atMin || atMax) {
+                // PRIORITY 1: Hit boundary - stop and clamp position to prevent overshoot
+                if (!this.paddleStoppedAtBoundary[i]) {
+                    // First time hitting boundary - stop the paddle
+                    paddle.physicsImpostor.setLinearVelocity(
+                        BABYLON.Vector3.Zero()
+                    );
+                    this.paddleStoppedAtBoundary[i] = true;
+                }
 
-				// Clamp position to boundary to prevent overshoot
-				const clampedPosAlongAxis = Math.max(
-					minBound,
-					Math.min(maxBound, posAlongAxis)
-				);
-				const clampedPos = new BABYLON.Vector3(
-					originalPos.x,
-					paddle.position.y,
-					originalPos.z
-				).add(axisNorm.scale(clampedPosAlongAxis - originAlongAxis));
-				paddle.position = clampedPos;
+                // Clamp position to boundary to prevent overshoot
+                const clampedPosAlongAxis = Math.max(
+                    minBound,
+                    Math.min(maxBound, posAlongAxis)
+                );
+                const clampedPos = new BABYLON.Vector3(
+                    originalPos.x,
+                    paddle.position.y,
+                    originalPos.z
+                ).add(axisNorm.scale(clampedPosAlongAxis - originAlongAxis));
+                paddle.position = clampedPos;
 
-				// Allow movement back toward valid area (any inward direction)
-				if (inputDir !== 0) {
-					const wantedDirection = Math.sign(inputDir);
-					const isMovingInward =
-						(posAlongAxis < minBound && wantedDirection > 0) ||
-						(posAlongAxis > maxBound && wantedDirection < 0);
-
-					// Allow any movement that brings paddle back inward
-					if (isMovingInward) {
-						const impulse = axisNorm.scale(
-							wantedDirection * this.PADDLE_FORCE
-						);
-						paddle.physicsImpostor.applyImpulse(
-							impulse,
-							paddle.getAbsolutePosition()
-						);
-						this.paddleStoppedAtBoundary[i] = false; // Reset boundary stop flag
-					}
-				}
-			} else {
-				// Reset boundary stop flag when paddle is back in valid area
-				this.paddleStoppedAtBoundary[i] = false;
+                // Allow movement back toward valid area (any inward direction)
+                if (inputDir !== 0) {
+                    const wantedDirection = Math.sign(inputDir);
+                    const outward = (atMax && wantedDirection > 0) || (atMin && wantedDirection < 0);
+                    if (outward) {
+                        // At boundary and pushing outward: hold position, zero velocity, no impulse
+                        paddle.physicsImpostor.setLinearVelocity(BABYLON.Vector3.Zero());
+                        // keep stopped flag true until user moves inward
+                    } else {
+                        // Inward movement: apply impulse inward and clear stopped flag
+                        const impulse = axisNorm.scale(wantedDirection * this.PADDLE_FORCE);
+                        paddle.physicsImpostor.applyImpulse(
+                            impulse,
+                            paddle.getAbsolutePosition()
+                        );
+                        this.paddleStoppedAtBoundary[i] = false;
+                    }
+                }
+            } else {
+                // Reset boundary stop flag when paddle is back in valid area
+                if (
+                    posAlongAxis > minBound + BOUND_EPS &&
+                    posAlongAxis < maxBound - BOUND_EPS
+                ) {
+                    this.paddleStoppedAtBoundary[i] = false;
+                }
 
 				if (inputDir !== 0) {
 					// PRIORITY 2: Move based on input
@@ -4281,14 +4302,14 @@ private handleGoalCollision(
 							paddle.getAbsolutePosition()
 						);
 					} else {
-						// Same direction or starting from rest - accelerate
-						const impulse = axisNorm.scale(
-							wantedDirection * this.PADDLE_FORCE
-						);
-						paddle.physicsImpostor.applyImpulse(
-							impulse,
-							paddle.getAbsolutePosition()
-						);
+                    // Same direction or starting from rest - accelerate
+                    const impulse = axisNorm.scale(
+                        wantedDirection * this.PADDLE_FORCE
+                    );
+                    paddle.physicsImpostor.applyImpulse(
+                        impulse,
+                        paddle.getAbsolutePosition()
+                    );
 					}
 				}
 
@@ -5566,10 +5587,23 @@ private handleGoalCollision(
 		this.showLocalTournamentTrophy(winnerName);
 	}
 
-	private setupGlowEffects(): void {
-		this.glowLayer = new BABYLON.GlowLayer('pongGlowLayer', this.scene);
-		this.glowLayer.intensity = 0;
-	}
+private setupGlowEffects(): void {
+    this.glowLayer = new BABYLON.GlowLayer('pongGlowLayer', this.scene);
+    this.glowLayer.intensity = 0;
+    // Exclude balls from glow so they never bloom during paddle glow effects
+    if (this.ballMesh) {
+        this.glowLayer.addExcludedMesh(this.ballMesh);
+    }
+    // Also exclude any future meshes whose name contains 'ball' (e.g., split clones)
+    this.scene.onNewMeshAddedObservable.add(m => {
+        try {
+            const nm = (m?.name || '').toLowerCase();
+            if (nm.includes('ball')) {
+                this.glowLayer!.addExcludedMesh(m as BABYLON.Mesh);
+            }
+        } catch (_) {}
+    });
+}
 
 	private flashPaddleGlow(
 		playerNumber: number,
