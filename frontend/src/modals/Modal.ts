@@ -18,6 +18,7 @@ export class Modal {
 		this.box.className =
 			'bg-white shadow-lg p-10 relative flex flex-col items-center justify-center gap-4';
 
+
 		if (showCloseButton) {
 			this.closeButton = document.createElement('button');
 			this.closeButton.innerHTML = '×';
