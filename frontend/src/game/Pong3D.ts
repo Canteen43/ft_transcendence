@@ -23,10 +23,12 @@ import { GameConfig } from './GameConfig';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import {
-	Pong3DPowerups,
-	POWERUP_SESSION_FLAGS,
-	type PowerupType,
+    Pong3DPowerups,
+    POWERUP_SESSION_FLAGS,
+    type PowerupType,
 } from './Pong3Dpowerups';
+import { BallEntity } from './BallEntity';
+import { BallManager } from './BallManager';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import { Pong3DGameLoopClient } from './Pong3DGameLoopClient';
 import { Pong3DGameLoopMaster } from './Pong3DGameLoopMaster';
@@ -120,6 +122,26 @@ export class Pong3D {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			console.error(...args);
 		}
+	}
+
+	/** Called by game loop when a serve starts to reset per-ball visual/effect state */
+	public onServeStart(): void {
+		// Restore base material on main ball to avoid lingering orange after promotions
+		if (this.ballMesh && this.baseBallMaterial) {
+			this.ballMesh.material = this.baseBallMaterial;
+		}
+		// Reset global hit trackers
+		this.lastPlayerToHitBall = -1;
+		this.secondLastPlayerToHitBall = -1;
+		// Reset per-ball histories and effects
+		if (this.mainBallEntity) {
+			this.mainBallEntity.resetHitHistory();
+			this.mainBallEntity.resetEffects();
+		}
+		this.ballManager.resetHistories();
+		this.ballManager.resetEffectsAll();
+		// Reset shared effects (spin/rally) for safety
+		this.ballEffects.resetAllEffects();
 	}
 
 	private engine!: BABYLON.Engine;
@@ -242,8 +264,21 @@ export class Pong3D {
 	>();
 	private glowFadeAnimation: number | null = null;
 	private splitBalls: SplitBall[] = [];
+	private shadowGenerators: BABYLON.ShadowGenerator[] = [];
+	private ballManager: BallManager = new BallManager();
+    private mainBallEntity: BallEntity | null = null;
 	private mainBallHandlersAttached = false;
 	private baseBallY = 0;
+	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
+	private lastCollisionTimeMs: number = 0;
+	private lastCollisionPaddleIndex: number = -1;
+private readonly COLLISION_DEBOUNCE_MS = 120;
+// Global rally increment throttle (prevents rapid alternating-hit speed spikes)
+private lastRallyIncrementTimeGlobalMs: number = 0;
+private readonly MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
+private lastRallyIncrementPosXZ: BABYLON.Vector3 | null = null;
+private readonly MIN_RALLY_INCREMENT_DISTANCE = 0.8;
+private baseBallMaterial: BABYLON.Material | null = null;
 	private powerupManager: Pong3DPowerups | null = null;
 	private enabledPowerupTypes: PowerupType[] = [];
 	private lastPowerupUpdateTimeMs = 0;
@@ -293,7 +328,10 @@ export class Pong3D {
 			return;
 		}
 
-		const pauseSpawning = this.gameEnded || this.splitBalls.length > 0;
+		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
+		// and we are waiting for the ball to reach boundary (dead-ball state).
+		const pauseSpawning =
+			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
 		this.powerupManager.setSpawningPaused(pauseSpawning);
 
 		const now =
@@ -324,6 +362,16 @@ export class Pong3D {
 				`⚡ Power-up collected: ${type} by paddle ${paddleIndex + 1}`
 			);
 		}
+		// If a goal has been scored and the ball is continuing to boundary, consider the ball out of play.
+		// In this state, disallow split activation to prevent post-goal splitting.
+		if (this.goalScored && type === 'split') {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					'⛔ Split ignored: ball is out of play (goal scored, waiting for boundary)'
+				);
+			}
+			return;
+		}
 		// TODO: Apply concrete power-up effects (ball split, speed boost, paddle sizing)
 		switch (type) {
 			case 'split':
@@ -343,6 +391,8 @@ export class Pong3D {
 	private activateSplitBallPowerup(): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 		if (this.gameMode === 'client') return;
+		// Prevent split if the ball is out of play (after a goal, before boundary reset)
+		if (this.goalScored) return;
 		if (this.splitBalls.length >= 1) {
 			return;
 		}
@@ -358,7 +408,34 @@ export class Pong3D {
 			this.ballMesh.rotationQuaternion?.clone() ?? BABYLON.Quaternion.Identity();
 		clone.rotation = BABYLON.Vector3.Zero();
 		clone.scaling = this.ballMesh.scaling.clone();
-		clone.material = this.ballMesh.material;
+		// Assign a distinct orange material to the split ball for visual clarity
+		try {
+			// Darker, stronger orange for clear visual distinction
+			const darkOrange = new BABYLON.Color3(0.5, 0.2, 0.0);
+			const faintEmissive = new BABYLON.Color3(0.15, 0.05, 0.0);
+			if (this.ballMesh.material && 'albedoColor' in (this.ballMesh.material as any)) {
+				// PBR-based material clone
+				const pbr = (this.ballMesh.material as any).clone(
+					`splitBall.material.${performance.now()}`
+				);
+				(pbr as any).albedoColor = darkOrange;
+				if ('emissiveColor' in (pbr as any)) {
+					(pbr as any).emissiveColor = faintEmissive;
+				}
+				clone.material = pbr as any;
+			} else {
+				const mat = new BABYLON.StandardMaterial(
+					`splitBall.standardMat.${performance.now()}`,
+					this.scene
+				);
+				mat.diffuseColor = darkOrange;
+				mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+				mat.emissiveColor = faintEmissive;
+				clone.material = mat;
+			}
+		} catch (_) {
+			clone.material = this.ballMesh.material;
+		}
 		clone.isVisible = true;
 
 		const rallyInfo = this.ballEffects.getRallyInfo();
@@ -393,6 +470,15 @@ export class Pong3D {
 		}
 		impostor.setLinearVelocity(splitVelocity);
 		impostor.setAngularVelocity(BABYLON.Vector3.Zero());
+		// Ensure split balls behave exactly like the main ball in plane and damping
+		const sbBody: any = impostor.physicsBody;
+		if (sbBody) {
+			if (sbBody.linearFactor) {
+				sbBody.linearFactor.set(1, 0, 1); // XZ only
+			}
+			sbBody.linearDamping = 0;
+			sbBody.angularDamping = 0;
+		}
 		const impostorBody = impostor.physicsBody;
 		if (impostorBody) {
 			impostorBody.position.set(clone.position.x, this.baseBallY, clone.position.z);
@@ -403,6 +489,8 @@ export class Pong3D {
 			impostor,
 		};
 		this.splitBalls.push(splitBall);
+		// Register with ball manager for per-ball effects and normalization
+		this.ballManager.addSplitBall(clone, impostor, this.baseBallY);
 		this.attachSplitBallCollisionHandlers(splitBall);
 		this.ballEffects.resetRallySpeed();
 	}
@@ -503,11 +591,11 @@ export class Pong3D {
 		this.mainBallHandlersAttached = true;
 	}
 
-	private promoteSplitBall(splitBall: SplitBall): void {
-		const index = this.splitBalls.indexOf(splitBall);
-		if (index !== -1) {
-			this.splitBalls.splice(index, 1);
-		}
+    private promoteSplitBall(splitBall: SplitBall): void {
+        const index = this.splitBalls.indexOf(splitBall);
+        if (index !== -1) {
+            this.splitBalls.splice(index, 1);
+        }
 
 		this.ballMesh = splitBall.mesh;
 		this.ballMesh.position.y = this.baseBallY;
@@ -517,41 +605,52 @@ export class Pong3D {
 		}
 		this.mainBallHandlersAttached = false;
 		this.attachMainBallCollisionHandlers(true);
+
+        // This split ball becomes the main ball entity
+        this.ballManager.removeByImpostor(splitBall.impostor);
+        this.mainBallEntity = new BallEntity(
+            splitBall.mesh,
+            splitBall.impostor,
+            this.baseBallY
+        );
 }
 
-	private removeSplitBallByImpostor(
-		impostor: BABYLON.PhysicsImpostor | null | undefined
-	): void {
-		if (!impostor) return;
-		const index = this.splitBalls.findIndex(ball => ball.impostor === impostor);
-		if (index === -1) return;
-		const ball = this.splitBalls[index];
-		if (ball.impostor) {
-			ball.impostor.dispose();
-		}
-		if (!ball.mesh.isDisposed()) {
-			ball.mesh.material = null;
-			ball.mesh.dispose();
-		}
-		this.splitBalls.splice(index, 1);
-		if (this.splitBalls.length === 0) {
-			this.ballEffects.resetRallySpeed();
-		}
-	}
+    private removeSplitBallByImpostor(
+        impostor: BABYLON.PhysicsImpostor | null | undefined
+    ): void {
+        if (!impostor) return;
+        const index = this.splitBalls.findIndex(ball => ball.impostor === impostor);
+        if (index === -1) return;
+        const ball = this.splitBalls[index];
+        this.ballManager.removeByImpostor(impostor);
+        if (ball.impostor) {
+            ball.impostor.dispose();
+        }
+        if (!ball.mesh.isDisposed()) {
+            ball.mesh.material = null;
+            ball.mesh.dispose();
+        }
+        this.splitBalls.splice(index, 1);
+        if (this.splitBalls.length === 0) {
+            this.ballEffects.resetRallySpeed();
+        }
+    }
 
-	private clearSplitBalls(): void {
-		while (this.splitBalls.length > 0) {
-			const ball = this.splitBalls.pop()!;
-			if (ball.impostor) {
-				ball.impostor.dispose();
-			}
-			if (!ball.mesh.isDisposed()) {
-				ball.mesh.material = null;
-				ball.mesh.dispose();
-			}
-		}
-		this.splitBalls.length = 0;
-	}
+    private clearSplitBalls(): void {
+        while (this.splitBalls.length > 0) {
+            const ball = this.splitBalls.pop()!;
+            this.ballManager.removeByImpostor(ball.impostor);
+            if (ball.impostor) {
+                ball.impostor.dispose();
+            }
+            if (!ball.mesh.isDisposed()) {
+                ball.mesh.material = null;
+                ball.mesh.dispose();
+            }
+        }
+        this.splitBalls.length = 0;
+        this.ballManager.clear();
+    }
 
 	private isSplitBallImpostor(
 		impostor: BABYLON.PhysicsImpostor | null | undefined
@@ -605,7 +704,7 @@ export class Pong3D {
 
 	// Physics engine settings
 	private PHYSICS_TIME_STEP = 1 / 200; // Physics update frequency (120 Hz to reduce tunneling)
-	private PHYSICS_SOLVER_ITERATIONS = 20; // Cannon solver iterations per step (constraint convergence)
+	private PHYSICS_SOLVER_ITERATIONS = 10; // Cannon solver iterations per step (constraint convergence)
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -1153,6 +1252,16 @@ export class Pong3D {
 					`Created SphereImpostor for: ${this.ballMesh.name}`
 				);
 			}
+
+			// Initialize main ball entity for per-ball updates
+			if (this.ballMesh.physicsImpostor) {
+				const baseY = this.ballMesh.position.y;
+				this.mainBallEntity = new BallEntity(
+					this.ballMesh,
+					this.ballMesh.physicsImpostor,
+					baseY
+				);
+			}
 		} else if (this.ballMesh) {
 			this.conditionalLog(
 				`🏐 Skipped physics impostor for ball in ${this.gameMode} mode - using custom physics`
@@ -1401,12 +1510,12 @@ export class Pong3D {
 					);
 				}
 
-				mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
-					mesh,
-					BABYLON.PhysicsImpostor.MeshImpostor, // Use exact mesh shape instead of box
-					{ mass: 0, restitution: 0.95, friction: 0.1 }, // Slightly reduce restitution and add minimal friction
-					this.scene
-				);
+                mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
+                    mesh,
+                    BABYLON.PhysicsImpostor.MeshImpostor, // Use exact mesh shape instead of box
+                    { mass: 0, restitution: 1.0, friction: 0.0 }, // Perfectly elastic walls, no friction (preserve speed)
+                    this.scene
+                );
 				this.conditionalLog(
 					`Created static MeshImpostor for wall: ${mesh.name}`
 				);
@@ -1431,10 +1540,10 @@ export class Pong3D {
 	 * Handle ball-paddle collision to implement velocity-based ball control
 	 * The paddle's velocity influences the ball's reflection angle
 	 */
-	private handleBallPaddleCollision(
-		ballImpostor: BABYLON.PhysicsImpostor,
-		paddleImpostor: BABYLON.PhysicsImpostor
-	): void {
+private handleBallPaddleCollision(
+    ballImpostor: BABYLON.PhysicsImpostor,
+    paddleImpostor: BABYLON.PhysicsImpostor
+): void {
 		// TEMPORARILY DISABLED: Collision debouncing to test stability
 		// const currentTime = Date.now();
 		// if (currentTime - this.lastCollisionTime < this.COLLISION_DEBOUNCE_MS) {
@@ -1442,29 +1551,76 @@ export class Pong3D {
 		// 	return;
 		// }
 		// this.lastCollisionTime = currentTime;
-		if (!this.ballMesh || !ballImpostor.physicsBody) return;
+    if (!this.ballMesh || !ballImpostor.physicsBody) return;
 
-		// Find which paddle was hit
-		let paddleIndex = -1;
-		for (let i = 0; i < this.playerCount; i++) {
-			if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
-				paddleIndex = i;
-				break;
-			}
-		}
+    // Debounce: ignore repeated collisions with the same paddle within a short window
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    // Identify paddle index early to use in debounce logic
+    let paddleIndexForDebounce = -1;
+    for (let i = 0; i < this.playerCount; i++) {
+        if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
+            paddleIndexForDebounce = i;
+            break;
+        }
+    }
+    if (
+        paddleIndexForDebounce !== -1 &&
+        this.lastCollisionPaddleIndex === paddleIndexForDebounce &&
+        now - this.lastCollisionTimeMs < this.COLLISION_DEBOUNCE_MS
+    ) {
+        // Debounced: let physics determine direction but enforce target speed immediately
+        const v = ballImpostor.getLinearVelocity();
+        if (v) {
+            const xz = new BABYLON.Vector3(v.x, 0, v.z);
+            const spd = xz.length();
+            const target = this.ballEffects.getCurrentBallSpeed();
+            if (spd > 0.0001) {
+                const scale = target / spd;
+                const corrected = new BABYLON.Vector3(xz.x * scale, 0, xz.z * scale);
+                ballImpostor.setLinearVelocity(corrected);
+            }
+        }
+        if (GameConfig.isDebugLoggingEnabled()) {
+            this.conditionalLog(
+                `🚫 Collision debounced for paddle ${paddleIndexForDebounce + 1} (Δt=${(now - this.lastCollisionTimeMs).toFixed(1)}ms) – speed clamped to target`
+            );
+        }
+        return;
+    }
+
+    // Find which paddle was hit
+    let paddleIndex = -1;
+    for (let i = 0; i < this.playerCount; i++) {
+        if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
+            paddleIndex = i;
+            break;
+        }
+    }
+
+    // Update debounce tracking on first valid contact
+    if (paddleIndex !== -1) {
+        this.lastCollisionPaddleIndex = paddleIndex;
+        this.lastCollisionTimeMs = now;
+    }
 
 		if (paddleIndex === -1) return; // Unknown paddle
 
-		// Track which player last hit the ball
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(`🏓 Ball hit by Player ${paddleIndex + 1}`);
-		}
-		// Only shift last hitter to second last if it's a different player
-		// If the same player hits twice in succession, they only become the last hitter
-		if (this.lastPlayerToHitBall !== paddleIndex) {
-			this.secondLastPlayerToHitBall = this.lastPlayerToHitBall;
-		}
-		this.lastPlayerToHitBall = paddleIndex;
+    // Track which player last hit the ball
+    if (GameConfig.isDebugLoggingEnabled()) {
+        this.conditionalLog(`🏓 Ball hit by Player ${paddleIndex + 1}`);
+    }
+    // Only shift last hitter to second last if it's a different player
+    // If the same player hits twice in succession, they only become the last hitter
+    if (this.lastPlayerToHitBall !== paddleIndex) {
+        this.secondLastPlayerToHitBall = this.lastPlayerToHitBall;
+    }
+    this.lastPlayerToHitBall = paddleIndex;
+    // Update per-ball hit history
+    if (this.isSplitBallImpostor(ballImpostor)) {
+        this.ballManager.recordHit(ballImpostor, paddleIndex);
+    } else if (this.mainBallEntity) {
+        this.mainBallEntity.recordHit(paddleIndex);
+    }
 		this.conditionalLog(
 			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}, Second last: ${this.secondLastPlayerToHitBall}`
 		);
@@ -1936,15 +2092,64 @@ export class Pong3D {
 			}
 		}
 
-		this.conditionalLog(
-			`🎯 Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
-		);
-		this.conditionalLog(
-			`🎯 Final angle from normal: ${((Math.acos(Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))) * 180) / Math.PI).toFixed(1)}°`
+		// Final safety clamp: enforce the same angular limit for both stationary and moving paddles
+		finalDirection = this.clampDirectionToLimit(
+			paddleNormal,
+			finalDirection,
+			this.ANGULAR_RETURN_LIMIT
 		);
 
-		// Increment rally speed - ball gets faster with each paddle hit during rally
-		this.ballEffects.incrementRallyHit();
+		this.conditionalLog(
+			`🎯 Final direction (clamped): (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+		);
+		const signedAngle = this.signedAngleXZ(paddleNormal, finalDirection);
+		this.conditionalLog(
+			`🎯 Final signed angle from normal: ${((signedAngle * 180) / Math.PI).toFixed(1)}° (limit ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°)`
+		);
+
+        // Increment rally speed - globally throttled by time and distance traveled
+        let allowIncrement =
+            now - this.lastRallyIncrementTimeGlobalMs >=
+            this.MIN_RALLY_INCREMENT_INTERVAL_MS;
+
+        const currentBallPosXZ = new BABYLON.Vector3(
+            this.ballMesh.position.x,
+            0,
+            this.ballMesh.position.z
+        );
+        if (this.lastRallyIncrementPosXZ) {
+            const dx = currentBallPosXZ.x - this.lastRallyIncrementPosXZ.x;
+            const dz = currentBallPosXZ.z - this.lastRallyIncrementPosXZ.z;
+            const dist = Math.hypot(dx, dz);
+            allowIncrement = allowIncrement && dist >= this.MIN_RALLY_INCREMENT_DISTANCE;
+            if (GameConfig.isDebugLoggingEnabled()) {
+                this.conditionalLog(
+                    `⏱️/📏 Increment gating: dt=${(
+                        now - this.lastRallyIncrementTimeGlobalMs
+                    ).toFixed(1)}ms, dist=${dist.toFixed(2)} (min ${this.MIN_RALLY_INCREMENT_DISTANCE})`
+                );
+            }
+        }
+
+        if (allowIncrement) {
+            this.ballEffects.incrementRallyHit();
+            this.lastRallyIncrementTimeGlobalMs = now;
+            this.lastRallyIncrementPosXZ = currentBallPosXZ;
+            if (GameConfig.isDebugLoggingEnabled()) {
+                this.conditionalLog(
+                    `🚀 Rally speed incremented (global throttle ok)`
+                );
+            }
+        } else {
+            // Skip increment but still clamp to current target speed via newVelocity below
+            if (GameConfig.isDebugLoggingEnabled()) {
+                this.conditionalLog(
+                    `⏱️/📏 Rally increment throttled (Δt=${(
+                        now - this.lastRallyIncrementTimeGlobalMs
+                    ).toFixed(1)}ms < ${this.MIN_RALLY_INCREMENT_INTERVAL_MS}ms or moved < ${this.MIN_RALLY_INCREMENT_DISTANCE})`
+                );
+            }
+        }
 
 		// Apply the new velocity with rally-adjusted speed
 		const newVelocity = finalDirection.scale(
@@ -1965,8 +2170,8 @@ export class Pong3D {
 			`🎯 Velocity after Y-zero: (${newVelocity.x.toFixed(3)}, ${newVelocity.y.toFixed(3)}, ${newVelocity.z.toFixed(3)})`
 		);
 
-		// Apply the modified velocity
-		ballImpostor.setLinearVelocity(newVelocity);
+    // Apply the modified velocity
+    ballImpostor.setLinearVelocity(newVelocity);
 
 		// Position correction: ensure ball is outside paddle to prevent pass-through
 		// Move ball slightly away from paddle surface along the paddle normal
@@ -1977,39 +2182,54 @@ export class Pong3D {
 		const paddleThickness = 0.2; // Approximate paddle thickness
 		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.05; // Smaller buffer for stability
 
-		// Gentle position correction - only if ball is too close
-		const currentDistance = Math.abs(
-			BABYLON.Vector3.Dot(paddleToBall, paddleNormal)
-		);
-		if (currentDistance < minSeparation) {
-			const correctionDistance = minSeparation - currentDistance + 0.02; // Small additional buffer
-			const correction = paddleNormal.scale(correctionDistance);
-			this.ballMesh.position = ballPosition.add(correction);
-
-			// Also update physics impostor position to sync with visual position
-			if (this.ballMesh.physicsImpostor) {
-				this.ballMesh.physicsImpostor.physicsBody.position.set(
-					this.ballMesh.position.x,
-					this.ballMesh.position.y,
-					this.ballMesh.position.z
-				);
-			}
+    // Gentle position correction - only if ball is too close
+    const currentDistance = Math.abs(
+        BABYLON.Vector3.Dot(paddleToBall, paddleNormal)
+    );
+    if (currentDistance < minSeparation) {
+        const correctionDistance = minSeparation - currentDistance + 0.02; // Small additional buffer
+        const correction = paddleNormal.scale(correctionDistance);
+        // Determine which mesh this impostor belongs to (main or split)
+        let targetMesh: BABYLON.Mesh | null = this.ballMesh;
+        if (this.isSplitBallImpostor(ballImpostor)) {
+            const found = this.splitBalls.find(b => b.impostor === ballImpostor);
+            if (found) targetMesh = found.mesh;
+        }
+        if (targetMesh) {
+            targetMesh.position = ballPosition.add(correction);
+            // Also update physics impostor position to sync with visual position
+            if (ballImpostor.physicsBody) {
+                ballImpostor.physicsBody.position.set(
+                    targetMesh.position.x,
+                    targetMesh.position.y,
+                    targetMesh.position.z
+                );
+            }
+        }
 
 			this.conditionalLog(
 				`🔧 Position correction applied: ${correctionDistance.toFixed(3)} units along normal`
 			);
-			this.conditionalLog(
-				`🔧 Ball moved from (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)}) to (${this.ballMesh.position.x.toFixed(3)}, ${this.ballMesh.position.y.toFixed(3)}, ${this.ballMesh.position.z.toFixed(3)})`
-			);
+        if (targetMesh) {
+            this.conditionalLog(
+                `🔧 Ball moved from (${ballPosition.x.toFixed(3)}, ${ballPosition.y.toFixed(3)}, ${ballPosition.z.toFixed(3)}) to (${targetMesh.position.x.toFixed(3)}, ${targetMesh.position.y.toFixed(3)}, ${targetMesh.position.z.toFixed(3)})`
+            );
+        }
 		} else {
 			this.conditionalLog(
 				`🔧 No position correction needed - current distance: ${currentDistance.toFixed(3)}, minimum: ${minSeparation.toFixed(3)}`
 			);
 		}
-		if (hasPaddleVelocity) {
-			// Apply spin to ball using the full paddle velocity vector (preserve direction)
-			this.ballEffects.applySpinFromPaddle(paddleVelocity);
-		} else {
+        if (hasPaddleVelocity) {
+            // Apply spin to the correct ball instance
+            if (this.isSplitBallImpostor(ballImpostor)) {
+                this.ballManager.applySpinToBall(ballImpostor, paddleVelocity);
+            } else if (this.mainBallEntity) {
+                this.mainBallEntity.applySpinFromPaddle(paddleVelocity);
+            } else {
+                this.ballEffects.applySpinFromPaddle(paddleVelocity);
+            }
+        } else {
 			// Stationary paddle - no new spin added, but preserve existing spin
 			if (GameConfig.isDebugLoggingEnabled()) {
 				this.conditionalLog(
@@ -2159,18 +2379,29 @@ export class Pong3D {
 		// 	}
 		// }
 
-		// When ball hits wall, spin is preserved but may be modified by friction
-		// For realistic physics, some spin energy is lost
-		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
 
+		// Preserve spin with slight reduction only
+		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
 		this.conditionalLog(
 			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballEffects.getBallSpin().y.toFixed(2)}`
 		);
+
+		// Enforce minimum speed immediately after collision to avoid visible slowdowns
+		const v = ballImpostor.getLinearVelocity();
+		if (v) {
+			const target = this.ballEffects.getCurrentBallSpeed();
+			const xz = new BABYLON.Vector3(v.x, 0, v.z);
+			const spd = xz.length();
+			if (spd < target - 0.01 && spd > 0.0001) {
+				const scaled = xz.scale(target / spd);
+				ballImpostor.setLinearVelocity(new BABYLON.Vector3(scaled.x, 0, scaled.z));
+			}
+		}
 	}
 
 private handleGoalCollision(
-	goalIndex: number,
-	triggeringBall?: BABYLON.PhysicsImpostor | null
+    goalIndex: number,
+    triggeringBall?: BABYLON.PhysicsImpostor | null
 ): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(
@@ -2180,9 +2411,7 @@ private handleGoalCollision(
 
 		const wasSplitTrigger =
 			triggeringBall && this.isSplitBallImpostor(triggeringBall);
-		if (wasSplitTrigger) {
-			this.removeSplitBallByImpostor(triggeringBall);
-		}
+		// Do NOT remove the split ball here; allow it to continue to boundary for the post-goal delay
 
 		// Store the conceding player for serve system
 		this.lastConcedingPlayer = goalIndex;
@@ -2194,23 +2423,37 @@ private handleGoalCollision(
 			return;
 		}
 
-		// goalIndex is the player whose goal was hit (they conceded)
-		// Check for own goals using secondLastPlayerToHitBall
-		let scoringPlayer = this.lastPlayerToHitBall;
-		const goalPlayer = goalIndex;
-		let wasOwnGoal = false;
-		let wasDirectServeOwnGoal = false;
+    // goalIndex is the player whose goal was hit (they conceded)
+    // Determine last hitters based on the ball that triggered the goal
+    let ballLast = this.lastPlayerToHitBall;
+    let ballSecondLast = this.secondLastPlayerToHitBall;
+    if (triggeringBall && this.isSplitBallImpostor(triggeringBall)) {
+        const e = this.ballManager.findByImpostor(triggeringBall);
+        if (e) {
+            ballLast = e.getLastHitter();
+            ballSecondLast = e.getSecondLastHitter();
+        }
+    } else if (this.mainBallEntity) {
+        ballLast = this.mainBallEntity.getLastHitter();
+        ballSecondLast = this.mainBallEntity.getSecondLastHitter();
+    }
 
-		this.conditionalLog(`Last player to hit ball: ${scoringPlayer}`);
-		this.conditionalLog(
-			`Second last player to hit ball: ${this.secondLastPlayerToHitBall}`
-		);
+    // Check for own goals using per-ball last hitters
+    let scoringPlayer = ballLast;
+    const goalPlayer = goalIndex;
+    let wasOwnGoal = false;
+    let wasDirectServeOwnGoal = false;
+
+    this.conditionalLog(`Last player to hit triggering ball: ${ballLast}`);
+    this.conditionalLog(
+        `Second last player to hit triggering ball: ${ballSecondLast}`
+    );
 		this.conditionalLog(`Goal player (conceding): ${goalPlayer}`);
 		this.conditionalLog(`Current scores before goal:`, this.playerScores);
 
 		// Check for own goal: if the player who last hit the ball is the same as the goal player
-		if (scoringPlayer === goalPlayer) {
-			wasOwnGoal = true;
+    if (scoringPlayer === goalPlayer) {
+        wasOwnGoal = true;
 			// For own goals, pick a random server from players that have paddles
 			const validServers = [];
 			for (let i = 0; i < this.playerCount; i++) {
@@ -2234,15 +2477,15 @@ private handleGoalCollision(
 			);
 
 			// Check if this is a direct serve into own goal (no other players hit the ball)
-			if (this.secondLastPlayerToHitBall === -1) {
-				wasDirectServeOwnGoal = true;
+        if (ballSecondLast === -1) {
+            wasDirectServeOwnGoal = true;
 				// Direct serve own goal - no points awarded, but ball still travels to boundary
 				this.conditionalLog(
 					`🏴 DIRECT SERVE OWN GOAL! Player ${goalPlayer + 1} served directly into their own goal - no point awarded, ball will travel to boundary`
 				);
 			} else {
-				// Normal own goal after rally - award to second last player
-				scoringPlayer = this.secondLastPlayerToHitBall;
+            // Normal own goal after rally - award to second last player of triggering ball
+            scoringPlayer = ballSecondLast;
 				this.conditionalLog(
 					`🏴 OWN GOAL! Player ${goalPlayer + 1} scored in their own goal. Awarding point to Player ${scoringPlayer + 1} (second last hitter)`
 				);
@@ -2250,11 +2493,11 @@ private handleGoalCollision(
 		}
 
 		// Skip scoring only for direct-serve own goals (server never lost possession)
-		if (
-			this.currentServer === goalPlayer &&
-			this.lastPlayerToHitBall === this.currentServer &&
-			this.secondLastPlayerToHitBall === -1
-		) {
+    if (
+        this.currentServer === goalPlayer &&
+        ballLast === this.currentServer &&
+        ballSecondLast === -1
+    ) {
 			this.conditionalLog(
 				`🏓 DIRECT SERVE OWN GOAL by Player ${goalPlayer + 1} - no point awarded`
 			);
@@ -2264,11 +2507,11 @@ private handleGoalCollision(
 		}
 
 		// Check if the same player hit the ball twice in a row - no point awarded (except own goals)
-		if (
-			!wasOwnGoal &&
-			scoringPlayer === this.secondLastPlayerToHitBall &&
-			scoringPlayer !== -1
-		) {
+    if (
+        !wasOwnGoal &&
+        scoringPlayer === ballSecondLast &&
+        scoringPlayer !== -1
+    ) {
 			this.conditionalLog(
 				`🚫 DOUBLE HIT! Player ${scoringPlayer + 1} hit the ball twice in a row - no point awarded`
 			);
@@ -2553,6 +2796,32 @@ private handleGoalCollision(
 		}
 
 		if (continuingBall) {
+			// Mark goal state so boundary check will perform a proper serve reset
+			this.goalScored = true;
+			this.pendingGoalData = { scoringPlayer, goalPlayer, wasOwnGoal };
+
+			// Determine next server now (conceding player unless own goal chooses random)
+			if (!wasOwnGoal) {
+				this.currentServer = goalPlayer; // Conceding player serves next
+			} else {
+				const validServers = [] as number[];
+				for (let i = 0; i < this.playerCount; i++) {
+					if (this.paddles[i]) {
+						validServers.push(i);
+					}
+				}
+				if (validServers.length > 0) {
+					this.currentServer =
+						validServers[Math.floor(Math.random() * validServers.length)];
+				} else {
+					this.currentServer = Math.floor(Math.random() * this.playerCount);
+				}
+				this.conditionalLog(
+					`🏴 OWN GOAL: Random server selected from ${validServers.length} valid paddles - Player ${this.currentServer + 1} will serve next`
+				);
+			}
+
+			// Reset rally/effect trackers and wait for boundary to trigger the serve
 			this.ballEffects.resetRallySpeed();
 			this.lastPlayerToHitBall = -1;
 			this.secondLastPlayerToHitBall = -1;
@@ -2750,6 +3019,9 @@ private handleGoalCollision(
 			this.pendingGoalData = null;
 			this.ballEffects.resetAllEffects();
 
+			// Important: reset goal cooldown for the new rally so immediate goals count
+			this.lastGoalTime = 0;
+
 			this.conditionalLog(
 				`⚡ Ball reset completed after boundary collision`
 			);
@@ -2799,6 +3071,7 @@ private handleGoalCollision(
 			}
 
 			// Setup shadow generators for each light
+			this.shadowGenerators = [];
 			shadowCastingLights.forEach(light => {
 				this.conditionalLog(
 					`✅ Setting up shadow generator for light: ${light.name} (${light.getClassName()})`
@@ -2809,6 +3082,7 @@ private handleGoalCollision(
 					1024,
 					light as BABYLON.DirectionalLight | BABYLON.SpotLight
 				);
+				this.shadowGenerators.push(shadowGenerator);
 
 				// Add ball as shadow caster
 				if (this.ballMesh) {
@@ -2825,6 +3099,22 @@ private handleGoalCollision(
 				// Configure shadow quality
 				shadowGenerator.useExponentialShadowMap = true;
 				shadowGenerator.bias = 0.00001;
+			});
+
+			// Add any existing split balls and powerup meshes as casters
+			const addCasterIfMatch = (mesh: BABYLON.AbstractMesh) => {
+				const name = (mesh?.name || '').toLowerCase();
+				if (!name) return;
+				if (name.includes('ball') || name.includes('powerup')) {
+					this.shadowGenerators.forEach(gen => gen.addShadowCaster(mesh as BABYLON.Mesh));
+				}
+			};
+			// Existing scene meshes
+			scene.meshes.forEach(m => addCasterIfMatch(m));
+
+			// Dynamically add future meshes (split balls, spawned powerups)
+			scene.onNewMeshAddedObservable.add(m => {
+				addCasterIfMatch(m);
 			});
 
 			// Find and setup shadow receivers (any mesh with court or wall in name)
@@ -2974,6 +3264,7 @@ private handleGoalCollision(
 			}
 			this.ballEffects.setBallMesh(this.ballMesh);
 			this.baseBallY = this.ballMesh.position.y;
+			this.baseBallMaterial = this.ballMesh.material || null;
 		} else {
 			this.conditionalWarn('No ball mesh found in the scene!');
 			// Create a simple ball if none exists
@@ -2997,6 +3288,7 @@ private handleGoalCollision(
 		ballMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1); // White ball
 		ballMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Slight glow
 		this.ballMesh.material = ballMaterial;
+		this.baseBallMaterial = ballMaterial;
 
 		this.conditionalLog('Created default ball mesh');
 
@@ -3637,20 +3929,31 @@ private handleGoalCollision(
 	}
 
 	/** Reset the rally speed system - called when a new rally starts */
-	private resetRallySpeed(): void {
-		this.ballEffects.resetRallySpeed();
-		const currentSpeed = this.ballEffects.getCurrentBallSpeed();
-		this.conditionalLog(
-			`🔄 Rally reset: Speed back to base ${currentSpeed}`
-		);
+    private resetRallySpeed(): void {
+        this.ballEffects.resetRallySpeed();
+        const currentSpeed = this.ballEffects.getCurrentBallSpeed();
+        this.conditionalLog(
+            `🔄 Rally reset: Speed back to base ${currentSpeed}`
+        );
 
-		// Reset last player to hit ball - new rally starts
-		this.lastPlayerToHitBall = -1;
-		this.secondLastPlayerToHitBall = -1;
-	}
+        // Reset last player to hit ball - new rally starts
+        this.lastPlayerToHitBall = -1;
+        this.secondLastPlayerToHitBall = -1;
 
-	private maintainConstantBallVelocity(): void {
-		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
+        // Reset global increment gating reference position to current ball pos
+        if (this.ballMesh) {
+            this.lastRallyIncrementPosXZ = new BABYLON.Vector3(
+                this.ballMesh.position.x,
+                0,
+                this.ballMesh.position.z
+            );
+        } else {
+            this.lastRallyIncrementPosXZ = null;
+        }
+    }
+
+    private maintainConstantBallVelocity(): void {
+        if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 
 		const currentVelocity =
 			this.ballMesh.physicsImpostor.getLinearVelocity();
@@ -3668,20 +3971,25 @@ private handleGoalCollision(
 				currentVelocity.z * currentVelocity.z
 		);
 
-		// Only adjust if ball is moving and speed differs significantly from target
-		const currentBallSpeed = this.ballEffects.getCurrentBallSpeed();
-		if (
-			currentSpeed > 0.1 &&
-			Math.abs(currentSpeed - currentBallSpeed) > 0.5
-		) {
-			// Normalize the X-Z velocity and scale to current rally speed
-			const scale = currentBallSpeed / currentSpeed;
-			const correctedVelocity = new BABYLON.Vector3(
-				currentVelocity.x * scale,
-				0, // Keep Y locked to 0
-				currentVelocity.z * scale
+        // Target speed from rally system
+        const currentBallSpeed = this.ballEffects.getCurrentBallSpeed();
+
+        // Always normalize main ball speed exactly to the current rally target
+        if (currentSpeed > 0.0001) {
+            const scale = currentBallSpeed / currentSpeed;
+            const correctedVelocity = new BABYLON.Vector3(
+                currentVelocity.x * scale,
+                0,
+                currentVelocity.z * scale
+            );
+            this.ballMesh.physicsImpostor.setLinearVelocity(correctedVelocity);
+        }
+
+		// Regardless of speed correction above, hard-lock Y velocity to 0 to keep ball in X-Z plane
+		if (Math.abs(currentVelocity.y) > 0.0001) {
+			this.ballMesh.physicsImpostor.setLinearVelocity(
+				new BABYLON.Vector3(currentVelocity.x, 0, currentVelocity.z)
 			);
-			this.ballMesh.physicsImpostor.setLinearVelocity(correctedVelocity);
 		}
 
 		// Clamp ball to baseline height to avoid drifting below/above court
@@ -3722,17 +4030,23 @@ private handleGoalCollision(
 		}
 	}
 
-	private updatePaddles(): void {
-		if (this.gameEnded) {
-			return;
-		}
-		const loopRunning = this.gameLoop?.getGameState().isRunning ?? true;
-		if (!loopRunning) {
-			return;
-		}
-		// Maintain constant ball velocity
-		this.maintainConstantBallVelocity();
-		this.maintainSplitBallVelocities();
+    private updatePaddles(): void {
+        if (this.gameEnded) {
+            return;
+        }
+        const loopRunning = this.gameLoop?.getGameState().isRunning ?? true;
+        if (!loopRunning) {
+            return;
+        }
+        // Maintain main ball via per-ball entity if available, otherwise fallback
+        const targetSpeedForMain = this.ballEffects.getCurrentBallSpeed();
+        if (this.mainBallEntity) {
+            this.mainBallEntity.update(targetSpeedForMain);
+        } else {
+            this.maintainConstantBallVelocity();
+        }
+        const targetSpeedForSplits = this.ballEffects.getCurrentBallSpeed();
+        this.ballManager.updateAll(targetSpeedForSplits);
 
 		// Get current key state from input handler
 		const keyState = this.inputHandler?.getKeyState() || {
@@ -4376,6 +4690,39 @@ private handleGoalCollision(
 		return [...this.playerScores];
 	}
 
+	/**
+	 * Get an inward-facing serve direction for a paddle (XZ plane normal toward arena)
+	 * Used by the serve system to ensure serves go into the court for all layouts (2p/3p/4p).
+	 */
+    public getServeDirectionForPaddle(index: number): BABYLON.Vector3 {
+        const paddle = this.paddles[index];
+        if (!paddle) return new BABYLON.Vector3(0, 0, 0);
+        // Robust inward direction: vector from paddle to arena origin in XZ plane
+        const toCenter = new BABYLON.Vector3(0 - paddle.position.x, 0, 0 - paddle.position.z);
+        if (toCenter.lengthSquared() > 1e-6) return toCenter.normalize();
+        return new BABYLON.Vector3(0, 0, 0);
+    }
+
+    /** Apply Magnus force to all active split balls using the same spin state */
+    private applyMagnusToSplitBalls(): void {
+        if (this.splitBalls.length === 0) return;
+        // Remember original mesh bound to ballEffects
+        const originalMesh = this.ballMesh || null;
+        for (const sb of this.splitBalls) {
+            if (!sb.mesh || !sb.impostor) continue;
+            // Temporarily bind effects to this split ball and apply Magnus
+            this.ballEffects.setBallMesh(sb.mesh);
+            this.ballEffects.applyMagnusForce();
+            // Ensure Y velocity is locked to plane
+            const v = sb.impostor.getLinearVelocity();
+            if (v && Math.abs(v.y) > 0.0001) {
+                sb.impostor.setLinearVelocity(new BABYLON.Vector3(v.x, 0, v.z));
+            }
+        }
+        // Restore original main ball binding
+        this.ballEffects.setBallMesh(originalMesh);
+    }
+
 	/** Get active player count */
 	public getActivePlayerCount(): number {
 		return this.playerCount;
@@ -4660,10 +5007,10 @@ private handleGoalCollision(
 	 * Calculate the actual surface normal of a paddle mesh
 	 * This uses the mesh geometry to determine the true normal direction
 	 */
-	private getPaddleNormal(
-		paddle: BABYLON.Mesh,
-		paddleIndex: number
-	): BABYLON.Vector3 | null {
+    private getPaddleNormal(
+        paddle: BABYLON.Mesh,
+        paddleIndex: number
+    ): BABYLON.Vector3 | null {
 		try {
 			// Get the paddle's bounding box to understand its orientation
 			const boundingInfo = paddle.getBoundingInfo();
@@ -4718,19 +5065,28 @@ private handleGoalCollision(
 				);
 			}
 
-			normal = normal.normalize();
+            normal = normal.normalize();
 
-			// Ensure the normal points toward the center of the play area (inward)
-			// Calculate vector from paddle to center (0,0,0)
-			const paddleToCenter = new BABYLON.Vector3(0, 0, 0).subtract(
-				paddle.position
-			);
-			paddleToCenter.normalize();
-
-			// If normal points away from center, flip it
-			if (BABYLON.Vector3.Dot(normal, paddleToCenter) < 0) {
-				normal.scaleInPlace(-1);
-			}
+            // Robust inward normal for 3P courts: use paddle->center vector in XZ plane
+            if (this.playerCount === 3) {
+                const inwardXZ = new BABYLON.Vector3(
+                    -paddle.position.x,
+                    0,
+                    -paddle.position.z
+                );
+                if (inwardXZ.lengthSquared() > 1e-6) {
+                    normal = inwardXZ.normalize();
+                }
+            } else {
+                // Ensure the normal points toward the center of the play area (inward)
+                const paddleToCenter = new BABYLON.Vector3(0, 0, 0).subtract(
+                    paddle.position
+                );
+                paddleToCenter.normalize();
+                if (BABYLON.Vector3.Dot(normal, paddleToCenter) < 0) {
+                    normal.scaleInPlace(-1);
+                }
+            }
 
 			this.conditionalLog(
 				`🎯 Paddle ${paddleIndex + 1} calculated normal: (${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)})`
@@ -4747,6 +5103,35 @@ private handleGoalCollision(
 			);
 			return null;
 		}
+	}
+
+	/** Compute signed angle between two XZ-plane vectors around Y axis */
+	private signedAngleXZ(from: BABYLON.Vector3, to: BABYLON.Vector3): number {
+		const a = new BABYLON.Vector3(from.x, 0, from.z).normalize();
+		const b = new BABYLON.Vector3(to.x, 0, to.z).normalize();
+		const dot = BABYLON.Vector3.Dot(a, b);
+		const clampedDot = Math.max(-1, Math.min(1, dot));
+		const crossY = a.x * b.z - a.z * b.x; // Y component of cross(a,b)
+		const angle = Math.acos(clampedDot);
+		return crossY >= 0 ? angle : -angle;
+	}
+
+	/** Clamp a desired outgoing direction to an angular limit relative to a normal (XZ plane) */
+	private clampDirectionToLimit(
+		normal: BABYLON.Vector3,
+		desired: BABYLON.Vector3,
+		limitRad: number
+	): BABYLON.Vector3 {
+		const n = new BABYLON.Vector3(normal.x, 0, normal.z).normalize();
+		const d = new BABYLON.Vector3(desired.x, 0, desired.z).normalize();
+		let signed = this.signedAngleXZ(n, d);
+		const capped = Math.max(-limitRad, Math.min(limitRad, signed));
+		if (capped === signed) {
+			return d; // already within limit
+		}
+		const rot = BABYLON.Matrix.RotationAxis(BABYLON.Vector3.Up(), capped);
+		const result = BABYLON.Vector3.TransformCoordinates(n, rot).normalize();
+		return new BABYLON.Vector3(result.x, 0, result.z);
 	}
 
 	/** Set the last player to hit the ball (used by game loop for serve tracking) */

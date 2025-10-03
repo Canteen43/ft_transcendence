@@ -128,30 +128,53 @@ export class Pong3DGameLoop {
 				// Update hit tracking - the server "hit" the ball
 				this.pong3D.setLastPlayerToHitBall(servingPlayerIndex);
 
-				// Position ball at paddle origin
-				servePosition = paddle.position.clone();
+				// Position ball slightly in front of paddle toward origin to avoid spawning inside paddle
+				let baseDirection = new BABYLON.Vector3(0, 0, 0);
+				if (this.pong3D && typeof this.pong3D.getServeDirectionForPaddle === 'function') {
+					baseDirection = this.pong3D.getServeDirectionForPaddle(servingPlayerIndex);
+				}
+				if (baseDirection.lengthSquared() < 1e-6) {
+					const courtCenter = BABYLON.Vector3.Zero();
+					baseDirection = courtCenter.subtract(paddle.position);
+					baseDirection.y = 0;
+					baseDirection = baseDirection.normalize();
+				}
+				const spawnOffset = 0.25; // meters toward origin
+				servePosition = paddle.position.add(baseDirection.scale(spawnOffset));
+				// Preserve original ball Y plane
+				servePosition.y = this.originalBallPosition.y;
 
-				// Calculate direction toward court center (0, 0, 0)
-				const courtCenter = BABYLON.Vector3.Zero();
-				let directionToCenter = courtCenter.subtract(servePosition);
-				directionToCenter.y = 0; // Keep in X-Z plane
-				directionToCenter = directionToCenter.normalize();
+				// Recompute baseDirection from new servePosition toward origin to ensure correctness
+				{
+					const courtCenter = BABYLON.Vector3.Zero();
+					baseDirection = courtCenter.subtract(servePosition);
+					baseDirection.y = 0;
+					baseDirection = baseDirection.normalize();
+				}
 
-				// Add 20-degree random spread
-				const spreadAngle =
-					(Math.random() - 0.5) * ((20 * Math.PI) / 180); // ±20 degrees in radians
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(
-					BABYLON.Vector3.Up(),
-					spreadAngle
-				);
-				const spreadDirection = BABYLON.Vector3.TransformCoordinates(
-					directionToCenter,
-					rotationMatrix
-				);
+				// Add 20-degree random spread around the base direction
+				const spreadAngle = (Math.random() - 0.5) * ((20 * Math.PI) / 180);
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(BABYLON.Vector3.Up(), spreadAngle);
+				let spreadDirection = BABYLON.Vector3.TransformCoordinates(baseDirection, rotationMatrix).normalize();
 
-				// Set serve speed (can be adjusted)
-				const serveSpeed = 5;
+				// Safety: if the spread accidentally points away from origin, flip it
+				const toOrigin = BABYLON.Vector3.Zero().subtract(servePosition).normalize();
+				if (BABYLON.Vector3.Dot(spreadDirection, toOrigin) < 0) {
+					spreadDirection = spreadDirection.scale(-1);
+				}
+
+				// Set serve speed to base rally speed for immediate consistency
+				let serveSpeed = 5;
+				try {
+					if (this.pong3D && typeof this.pong3D.getRallyInfo === 'function') {
+						const info = this.pong3D.getRallyInfo();
+						if (info && typeof info.baseSpeed === 'number') {
+							serveSpeed = info.baseSpeed;
+						}
+					}
+				} catch (_) {}
 				serveVelocity = spreadDirection.scale(serveSpeed);
+				serveVelocity.y = 0; // Keep in X-Z plane
 
 				if (GameConfig.isDebugLoggingEnabled()) {
 					conditionalLog(
@@ -203,6 +226,13 @@ export class Pong3DGameLoop {
 		// Sync gameState
 		this.gameState.ball.position = this.ballMesh.position.clone();
 		this.gameState.ball.velocity = serveVelocity;
+
+		// Notify main Pong3D to reset per-serve visual/effect state
+		try {
+			if (this.pong3D && typeof this.pong3D.onServeStart === 'function') {
+				this.pong3D.onServeStart();
+			}
+		} catch (_) {}
 
 		// conditionalLog(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
 	}
