@@ -854,7 +854,7 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 	// Physics engine settings
 	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
 	private PHYSICS_SOLVER_ITERATIONS = 15; // Cannon solver iterations per step (constraint convergence)
-	private WALL_BOUNCE_ANGULAR_INCREMENT = (0.5 * Math.PI) / 180; // radians added to wall reflections
+	private WALL_BOUNCE_ANGULAR_INCREMENT = (1 * Math.PI) / 180; // radians added to wall reflections
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -864,7 +864,8 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 	// clamped toward the paddle normal so the ball cannot be returned at an
 	// extreme grazing/perpendicular angle which causes excessive wall bounces.
     // Max angle between outgoing ball vector and paddle normal (radians)
-    private ANGULAR_RETURN_LIMIT = Math.PI / 4;
+	private ANGULAR_RETURN_LIMIT = Math.PI / 4;
+	public SERVE_ANGLE_LIMIT = (10 * Math.PI) / 180; // ±10° serve spread (20° total)
 
 	// Paddle physics settings
 	private PADDLE_MASS = 2.8; // Paddle mass for collision response
@@ -2624,23 +2625,26 @@ private handleBallPaddleCollision(
 				const vXZ = new BABYLON.Vector3(velocity.x, 0, velocity.z);
 				const speed = vXZ.length();
 				if (speed > 1e-6) {
-					const crossY =
-						wallNormalForAngularAdjustment.x * vXZ.z -
-						wallNormalForAngularAdjustment.z * vXZ.x;
-					const rotationDir = crossY >= 0 ? 1 : -1;
-					const rotationMatrix = BABYLON.Matrix.RotationAxis(
-						BABYLON.Vector3.Up(),
-						rotationDir * this.WALL_BOUNCE_ANGULAR_INCREMENT
-					);
-					const rotatedXZ = BABYLON.Vector3.TransformCoordinates(vXZ, rotationMatrix);
-					const normalizedRotated = rotatedXZ.normalize().scale(speed);
-					ballImpostor.setLinearVelocity(
-						new BABYLON.Vector3(
-							normalizedRotated.x,
-							velocity.y,
-							normalizedRotated.z
-						)
-					);
+					const normalXZ = wallNormalForAngularAdjustment.clone().normalize();
+					const directionXZ = vXZ.normalize();
+					if (normalXZ.lengthSquared() > 1e-6 && directionXZ.lengthSquared() > 1e-6) {
+						const signedAngle = this.signedAngleXZ(normalXZ, directionXZ);
+						const widenDir = signedAngle >= 0 ? 1 : -1;
+						const rotationMatrix = BABYLON.Matrix.RotationAxis(
+							BABYLON.Vector3.Up(),
+							widenDir * this.WALL_BOUNCE_ANGULAR_INCREMENT
+						);
+						const widened = BABYLON.Vector3.TransformNormal(directionXZ, rotationMatrix)
+							.normalize()
+							.scale(speed);
+						ballImpostor.setLinearVelocity(
+							new BABYLON.Vector3(
+								widened.x,
+								velocity.y,
+								widened.z
+							)
+						);
+					}
 				}
 			}
 		}
@@ -4992,9 +4996,10 @@ private handleGoalCollision(
     /** Clamp a serve direction against the standard angular return limit */
     public enforceAngularLimitForDirection(
         normal: BABYLON.Vector3,
-        desired: BABYLON.Vector3
+        desired: BABYLON.Vector3,
+        limitRad: number = this.ANGULAR_RETURN_LIMIT
     ): BABYLON.Vector3 {
-        return this.clampDirectionToLimit(normal, desired, this.ANGULAR_RETURN_LIMIT);
+        return this.clampDirectionToLimit(normal, desired, limitRad);
     }
 
     /** Apply Magnus force to all active split balls using the same spin state */

@@ -166,7 +166,11 @@ export class Pong3DGameLoop {
 				}
 
 				if (this.pong3D && typeof this.pong3D.enforceAngularLimitForDirection === 'function') {
-					spreadDirection = this.pong3D.enforceAngularLimitForDirection(serveNormal, spreadDirection);
+					spreadDirection = this.pong3D.enforceAngularLimitForDirection(
+						serveNormal,
+						spreadDirection,
+						this.pong3D.SERVE_ANGLE_LIMIT
+					);
 				}
 
 				// Set serve speed to base rally speed for immediate consistency
