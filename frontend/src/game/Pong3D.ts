@@ -274,7 +274,7 @@ export class Pong3D {
 	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
 	private lastCollisionTimeMs: number = 0;
 	private lastCollisionPaddleIndex: number = -1;
-private readonly COLLISION_DEBOUNCE_MS = 120;
+private readonly COLLISION_DEBOUNCE_MS = 200;
 // Global rally increment throttle (prevents rapid alternating-hit speed spikes)
 private lastRallyIncrementTimeGlobalMs: number = 0;
 private readonly MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
@@ -439,16 +439,16 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 }
 
 /** Recreate a paddle's BoxImpostor with the current mesh scaling and reapply constraints */
-private recreatePaddleImpostor(paddleIndex: number): void {
-    const paddle = this.paddles[paddleIndex];
-    if (!paddle) return;
-    try { paddle.physicsImpostor?.dispose(); } catch (_) {}
-    // Ensure bounding info reflects latest scaling before creating the impostor
-    try {
-        paddle.computeWorldMatrix(true);
-        paddle.refreshBoundingInfo();
-    } catch (_) {}
-    paddle.physicsImpostor = new BABYLON.PhysicsImpostor(
+	private recreatePaddleImpostor(paddleIndex: number): void {
+		const paddle = this.paddles[paddleIndex];
+		if (!paddle) return;
+		try { paddle.physicsImpostor?.dispose(); } catch (_) {}
+		// Ensure bounding info reflects latest scaling before creating the impostor
+		try {
+			paddle.computeWorldMatrix(true);
+			paddle.refreshBoundingInfo();
+		} catch (_) {}
+		paddle.physicsImpostor = new BABYLON.PhysicsImpostor(
         paddle,
         BABYLON.PhysicsImpostor.BoxImpostor,
         {
@@ -458,25 +458,58 @@ private recreatePaddleImpostor(paddleIndex: number): void {
         },
         this.scene
     );
-    const body: any = paddle.physicsImpostor.physicsBody;
-    if (body) {
-        body.linearDamping = 0;
-        body.angularDamping = 1.0;
-        body.fixedRotation = true;
-        if (body.linearFactor) {
-            if (this.playerCount === 3) {
-                body.linearFactor.set(1, 0, 1);
-            } else if (this.playerCount === 4 && paddleIndex >= 2) {
-                body.linearFactor.set(0, 0, 1);
-            } else {
-                body.linearFactor.set(1, 0, 0);
-            }
-        }
-        if (body.angularFactor) {
-            body.angularFactor.set(0, 0, 0);
-        }
-    }
-}
+		const body: any = paddle.physicsImpostor.physicsBody;
+		if (body) {
+			body.linearDamping = 0;
+			body.angularDamping = 1.0;
+			body.fixedRotation = true;
+			if (body.linearFactor) {
+				if (this.playerCount === 3) {
+					body.linearFactor.set(1, 0, 1);
+				} else if (this.playerCount === 4 && paddleIndex >= 2) {
+					body.linearFactor.set(0, 0, 1);
+				} else {
+					body.linearFactor.set(1, 0, 0);
+				}
+			}
+			if (body.angularFactor) {
+				body.angularFactor.set(0, 0, 0);
+			}
+		}
+
+		this.bindPaddleToExistingBalls(paddleIndex);
+	}
+
+	/** Ensure a (re)created paddle impostor notifies all active balls on collision */
+	private bindPaddleToExistingBalls(paddleIndex: number): void {
+		if (this.gameMode !== 'local' && this.gameMode !== 'master') {
+			return;
+		}
+		const paddle = this.paddles[paddleIndex];
+		if (!paddle || !paddle.physicsImpostor) {
+			return;
+		}
+		const paddleImpostor = paddle.physicsImpostor;
+
+		const register = (ballImpostor?: BABYLON.PhysicsImpostor | null) => {
+			if (!ballImpostor) return;
+			const callback = (
+				main: BABYLON.PhysicsImpostor,
+				collided: BABYLON.PhysicsImpostor
+			) => {
+				const isBallMain = main === ballImpostor;
+				const ball = isBallMain ? main : collided;
+				const paddleBody = isBallMain ? collided : main;
+				this.handleBallPaddleCollision(ball, paddleBody);
+			};
+			ballImpostor.registerOnPhysicsCollide(paddleImpostor, callback);
+		};
+
+		register(this.ballMesh?.physicsImpostor ?? null);
+		for (const splitBall of this.splitBalls) {
+			register(splitBall.impostor);
+		}
+	}
 
 	private handlePowerupOutOfBounds(type: PowerupType): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
@@ -506,22 +539,21 @@ private recreatePaddleImpostor(paddleIndex: number): void {
 		clone.scaling = this.ballMesh.scaling.clone();
 		// Assign a distinct orange material to the split ball for visual clarity
 		try {
-			// Darker, stronger orange for clear visual distinction
-			const darkOrange = new BABYLON.Color3(0.5, 0.2, 0.0);
-			const faintEmissive = new BABYLON.Color3(0.15, 0.05, 0.0);
+			// second ball colour
+			const ballColour = new BABYLON.Color3(0, 1, 1); 
 			if (this.ballMesh.material && 'albedoColor' in (this.ballMesh.material as any)) {
 				// PBR-based material clone
 				const pbr = (this.ballMesh.material as any).clone(
 					`splitBall.material.${performance.now()}`
 				);
-				(pbr as any).albedoColor = darkOrange; // no emissive to avoid glow layer pickup
+				(pbr as any).albedoColor = ballColour; // no emissive to avoid glow layer pickup
 				clone.material = pbr as any;
 			} else {
 				const mat = new BABYLON.StandardMaterial(
 					`splitBall.standardMat.${performance.now()}`,
 					this.scene
 				);
-				mat.diffuseColor = darkOrange; // no emissive to avoid glow layer pickup
+				mat.diffuseColor = ballColour;
 				mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
 				clone.material = mat;
 			}
@@ -534,22 +566,30 @@ private recreatePaddleImpostor(paddleIndex: number): void {
 		const targetSpeed = rallyInfo.baseSpeed;
 
 		const mainImpostor = this.ballMesh.physicsImpostor;
-		let currentVelocity = mainImpostor.getLinearVelocity()?.clone() ?? null;
-		let normalizedDirection: BABYLON.Vector3;
-		if (!currentVelocity || currentVelocity.lengthSquared() < 1e-4) {
-			normalizedDirection = new BABYLON.Vector3(1, 0, 0);
-		} else {
+		const currentVelocity = mainImpostor.getLinearVelocity()?.clone() ?? null;
+		let mainDirection = new BABYLON.Vector3(1, 0, 0);
+		let mainSpeed = targetSpeed;
+		if (currentVelocity && currentVelocity.lengthSquared() >= 1e-4) {
 			currentVelocity.y = 0;
-			normalizedDirection = currentVelocity.normalize();
-			if (!isFinite(normalizedDirection.x)) {
-				normalizedDirection = new BABYLON.Vector3(1, 0, 0);
+			const magnitude = currentVelocity.length();
+			if (magnitude >= 1e-6) {
+				mainDirection = currentVelocity.normalize();
 			}
+			mainSpeed = Math.max(magnitude, targetSpeed);
 		}
-
-		const mainVelocity = normalizedDirection.scale(targetSpeed);
+		const mainVelocity = mainDirection.scale(mainSpeed);
 		mainImpostor.setLinearVelocity(mainVelocity);
 
-		const splitVelocity = mainVelocity.scale(-1);
+		// Position the clone one diameter behind the main ball along travel direction to avoid overlap
+		const separation = mainDirection
+			.clone()
+			.normalize()
+			.scale(Pong3D.BALL_RADIUS * 2 + 0.01);
+		if (isFinite(separation.x)) {
+			clone.position = clone.position.subtract(separation);
+		}
+
+		const splitVelocity = mainDirection.scale(-targetSpeed);
 
 		const impostor = new BABYLON.PhysicsImpostor(
 			clone,
@@ -812,8 +852,9 @@ private recreatePaddleImpostor(paddleIndex: number): void {
 	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 200; // Physics update frequency (120 Hz to reduce tunneling)
-	private PHYSICS_SOLVER_ITERATIONS = 10; // Cannon solver iterations per step (constraint convergence)
+	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_SOLVER_ITERATIONS = 15; // Cannon solver iterations per step (constraint convergence)
+	private WALL_BOUNCE_ANGULAR_INCREMENT = (0.5 * Math.PI) / 180; // radians added to wall reflections
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -1661,11 +1702,11 @@ private handleBallPaddleCollision(
 		// 	return;
 		// }
 		// this.lastCollisionTime = currentTime;
-    if (!this.ballMesh || !ballImpostor.physicsBody) return;
+		if (!this.ballMesh || !ballImpostor.physicsBody) return;
 
-    // Debounce detection (but do not early-return; still apply spin/reflection)
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    let paddleIndexForDebounce = -1;
+		// Debounce detection (but do not early-return; still apply spin/reflection)
+		const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+		let paddleIndexForDebounce = -1;
     for (let i = 0; i < this.playerCount; i++) {
         if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
             paddleIndexForDebounce = i;
@@ -1770,7 +1811,6 @@ private handleBallPaddleCollision(
 			}
 		}
 
-        // Guard: ensure paddleNormal is normalized and valid
         if (!isFinite(paddleNormal.x) || !isFinite(paddleNormal.z) || paddleNormal.lengthSquared() < 1e-6) {
             // Fallback to inward vector toward center for safety
             const inward = new BABYLON.Vector3(-paddle.position.x, 0, -paddle.position.z).normalize();
@@ -1779,422 +1819,441 @@ private handleBallPaddleCollision(
             paddleNormal = paddleNormal.normalize();
         }
 
-        // Hybrid normal: if Cannon normal disagrees strongly with geometric paddle face normal, trust geometry
-        const geomNormal = this.getPaddleNormal(paddle, paddleIndex);
-        if (geomNormal) {
-            const dotNG = Math.abs(BABYLON.Vector3.Dot(paddleNormal, geomNormal.normalize()));
-            if (dotNG < 0.5) {
-                // Cannon normal likely unreliable (edge/vertex contact), use geometric normal instead
-                paddleNormal = geomNormal.normalize();
-            }
-        }
         this.conditionalLog(
             `🎯 Using final normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
         );
 
-		// Validate collision point to avoid edge collisions
-		const ballPosition = this.ballMesh.position;
-		const paddlePosition = paddle.position;
-		const paddleBounds = paddle.getBoundingInfo().boundingBox;
+        // Validate collision point to avoid edge collisions
+        const ballPosition = this.ballMesh.position;
+        const paddlePosition = paddle.position;
+        const paddleBounds = paddle.getBoundingInfo().boundingBox;
 
-		// Calculate relative position of ball to paddle center
-		const relativePos = ballPosition.subtract(paddlePosition);
+        // Calculate relative position of ball to paddle center
+        const relativePos = ballPosition.subtract(paddlePosition);
 
-		// CRITICAL: Ensure normal always points toward the ball (away from paddle)
-		const ballDirection = relativePos.normalize();
-		if (BABYLON.Vector3.Dot(paddleNormal, ballDirection) < 0) {
-			paddleNormal = paddleNormal.negate();
-			this.conditionalLog(
-				`🔄 Flipped normal to point toward ball: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
-			);
-		}
+        // CRITICAL: Ensure normal always points toward the ball (away from paddle)
+        const ballDirection = relativePos.normalize();
+        if (BABYLON.Vector3.Dot(paddleNormal, ballDirection) < 0) {
+            paddleNormal = paddleNormal.negate();
+            this.conditionalLog(
+                `🔄 Flipped normal to point toward ball: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
+            );
+        }
 
-		// For 2-player mode, check if collision is near the paddle face (not edges)
-		if (this.playerCount === 2) {
-			// Players 1,2 move on X-axis, paddle faces are on Z-axis
-			const maxXOffset =
-				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
-			if (Math.abs(relativePos.x) > maxXOffset) {
-				this.conditionalLog(
-					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`
-				);
-				return; // Ignore edge collisions
-			}
-		} else if (this.playerCount === 4) {
-			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles)
-			// P3 and P4 use Z-axis edge collision detection
-			const maxZOffset =
-				(paddleBounds.maximum.z - paddleBounds.minimum.z) * 0.6; // Same as 2P X-offset
-			if (Math.abs(relativePos.z) > maxZOffset) {
-				this.conditionalLog(
-					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (4P Z-axis check)`
-				);
-				return; // Ignore edge collisions
-			}
-		}
-		// For 3-player mode, we could add similar checks but it's more complex due to rotation
+        // For 2-player mode, check if collision is near the paddle face (not edges)
+        if (this.playerCount === 2) {
+            // Players 1,2 move on X-axis, paddle faces are on Z-axis
+            const maxXOffset =
+                (paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
+            if (Math.abs(relativePos.x) > maxXOffset) {
+                this.conditionalLog(
+                    `🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`
+                );
+                return; // Ignore edge collisions
+            }
+        } else if (this.playerCount === 4) {
+            // 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles)
+            // P3 and P4 use Z-axis edge collision detection
+            const maxZOffset =
+                (paddleBounds.maximum.z - paddleBounds.minimum.z) * 0.6; // Same as 2P X-offset
+            if (Math.abs(relativePos.z) > maxZOffset) {
+                this.conditionalLog(
+                    `🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (4P Z-axis check)`
+                );
+                return; // Ignore edge collisions
+            }
+        }
+        // For 3-player mode, we could add similar checks but it's more complex due to rotation
 
-		// Get current velocities
-		const ballVelocity = ballImpostor.getLinearVelocity();
-		const paddleVelocity = paddle.physicsImpostor.getLinearVelocity();
+        // Get current velocities
+        const ballVelocity = ballImpostor.getLinearVelocity();
+        const paddleVelocity = paddle.physicsImpostor.getLinearVelocity();
 
-		if (!ballVelocity || !paddleVelocity) return; // Determine movement axis for this paddle
-		let paddleAxis = new BABYLON.Vector3(1, 0, 0); // Default for 2-player
-		if (this.playerCount === 2) {
-			// Handle paddle 2's 180° rotation in Blender
-			// Paddle 2 was rotated 180° to face the opposite direction, so its local X-axis is flipped
-			if (paddleIndex === 1) {
-				// Paddle 2 (index 1)
-				paddleAxis = new BABYLON.Vector3(-1, 0, 0); // Flipped X-axis due to 180° rotation
-			}
-		} else if (this.playerCount === 3) {
-			// Player 1: 0°, Player 2: 120°, Player 3: 240°
-			// All paddles are rotated to face center, so their movement axes are adjusted
-			if (paddleIndex === 0) {
-				// Player 1 (0°) - bottom paddle
-				paddleAxis = new BABYLON.Vector3(1, 0, 0); // Moves left-right (X-axis)
-			} else if (paddleIndex === 1) {
-				// Player 2 (120°) - upper left
-				paddleAxis = new BABYLON.Vector3(-0.5, 0, -0.866); // Perpendicular to facing direction
-			} else if (paddleIndex === 2) {
-				// Player 3 (240°) - upper right
-				paddleAxis = new BABYLON.Vector3(-0.5, 0, 0.866); // Perpendicular to facing direction
-			}
-			this.conditionalLog(
-				`🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`
-			);
-		} else if (this.playerCount === 4) {
-			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles at 90° and 270°)
-			if (paddleIndex === 2) {
-				// P3 - Right paddle (270°)
-				paddleAxis = new BABYLON.Vector3(0, 0, -1); // Moves up-down (negative Z)
-			} else if (paddleIndex === 3) {
-				// P4 - Left paddle (90°)
-				paddleAxis = new BABYLON.Vector3(0, 0, 1); // Moves up-down (positive Z)
-			}
-			// P1 and P2 use default but they're walled off anyway
-		}
-		paddleAxis = paddleAxis.normalize();
+        if (!ballVelocity || !paddleVelocity) return; // Determine movement axis for this paddle
+        let paddleAxis = new BABYLON.Vector3(1, 0, 0); // Default for 2-player
+        if (this.playerCount === 2) {
+            // Handle paddle 2's 180° rotation in Blender
+            // Paddle 2 was rotated 180° to face the opposite direction, so its local X-axis is flipped
+            if (paddleIndex === 1) {
+                // Paddle 2 (index 1)
+                paddleAxis = new BABYLON.Vector3(-1, 0, 0); // Flipped X-axis due to 180° rotation
+            }
+        } else if (this.playerCount === 3) {
+            // Player 1: 0°, Player 2: 120°, Player 3: 240°
+            // All paddles are rotated to face center, so their movement axes are adjusted
+            if (paddleIndex === 0) {
+                // Player 1 (0°) - bottom paddle
+                paddleAxis = new BABYLON.Vector3(1, 0, 0); // Moves left-right (X-axis)
+            } else if (paddleIndex === 1) {
+                // Player 2 (120°) - upper left
+                paddleAxis = new BABYLON.Vector3(-0.5, 0, -0.866); // Perpendicular to facing direction
+            } else if (paddleIndex === 2) {
+                // Player 3 (240°) - upper right
+                paddleAxis = new BABYLON.Vector3(-0.5, 0, 0.866); // Perpendicular to facing direction
+            }
+            this.conditionalLog(
+                `🔍 3P Mode: Paddle ${paddleIndex + 1} movement axis set to: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)})`
+            );
+        } else if (this.playerCount === 4) {
+            // 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles at 90° and 270°)
+            if (paddleIndex === 2) {
+                // P3 - Right paddle (270°)
+                paddleAxis = new BABYLON.Vector3(0, 0, -1); // Moves up-down (negative Z)
+            } else if (paddleIndex === 3) {
+                // P4 - Left paddle (90°)
+                paddleAxis = new BABYLON.Vector3(0, 0, 1); // Moves up-down (positive Z)
+            }
+            // P1 and P2 use default but they're walled off anyway
+        }
+        paddleAxis = paddleAxis.normalize();
 
-		// Get paddle velocity along its movement axis
-		const paddleVelAlong = BABYLON.Vector3.Dot(paddleVelocity, paddleAxis);
+        // Get paddle velocity along its movement axis
+        const paddleVelAlong = BABYLON.Vector3.Dot(paddleVelocity, paddleAxis);
 
-		// Define a threshold for "significant" paddle velocity
-		// Lower threshold for 3P mode to make effects more visible
-		const VELOCITY_THRESHOLD = this.playerCount === 3 ? 0.05 : 0.1;
-		const hasPaddleVelocity = Math.abs(paddleVelAlong) > VELOCITY_THRESHOLD;
+        // Define a threshold for "significant" paddle velocity
+        // Lower threshold for 3P mode to make effects more visible
+        const VELOCITY_THRESHOLD = this.playerCount === 3 ? 0.05 : 0.1;
+        const hasPaddleVelocity = Math.abs(paddleVelAlong) > VELOCITY_THRESHOLD;
 
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(
-				`🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlong.toFixed(2)})`
-			);
-			this.conditionalLog(
-				`🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`
-			);
-		}
+        if (GameConfig.isDebugLoggingEnabled()) {
+            this.conditionalLog(
+                `🏓 Player ${paddleIndex + 1} - ${hasPaddleVelocity ? 'Moving' : 'Stationary'} paddle (${paddleVelAlong.toFixed(2)})`
+            );
+            this.conditionalLog(
+                `🔍 Paddle velocity: (${paddleVelocity.x.toFixed(3)}, ${paddleVelocity.y.toFixed(3)}, ${paddleVelocity.z.toFixed(3)})`
+            );
+        }
 
-		let axisNote = '';
-		if (this.playerCount === 2 && paddleIndex === 1)
-			axisNote = '[180° rotation]';
-		else if (this.playerCount === 3) axisNote = '[Facing center]';
-		else if (this.playerCount === 4) axisNote = '[P3/P4 side paddles]';
+        let axisNote = '';
+        if (this.playerCount === 2 && paddleIndex === 1)
+            axisNote = '[180° rotation]';
+        else if (this.playerCount === 3) axisNote = '[Facing center]';
+        else if (this.playerCount === 4) axisNote = '[P3/P4 side paddles]';
 
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(
-				`🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
-			);
-			this.conditionalLog(
-				`🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlong).toFixed(3)}`
-			);
-		}
+        if (GameConfig.isDebugLoggingEnabled()) {
+            this.conditionalLog(
+                `🔍 Paddle movement axis: (${paddleAxis.x.toFixed(3)}, ${paddleAxis.y.toFixed(3)}, ${paddleAxis.z.toFixed(3)}) ${axisNote}`
+            );
+            this.conditionalLog(
+                `🔍 Velocity threshold: ${VELOCITY_THRESHOLD}, actual abs velocity: ${Math.abs(paddleVelAlong).toFixed(3)}`
+            );
+        }
 
-		// 🚨 DEBUG: Extra logging for 4P mode paddle detection
-		if (this.playerCount === 4) {
-			this.conditionalLog(
-				`🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`
-			);
-			this.conditionalLog(
-				`🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlong.toFixed(3)}`
-			);
-			this.conditionalLog(
-				`🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`
-			);
-		}
-		const velocityRatio = Math.max(
-			-1.0,
-			Math.min(1.0, paddleVelAlong / this.PADDLE_MAX_VELOCITY)
-		);
+        // 🚨 DEBUG: Extra logging for 4P mode paddle detection
+        if (this.playerCount === 4) {
+            this.conditionalLog(
+                `🚨 4P DEBUG: paddleIndex=${paddleIndex}, P3=${paddleIndex === 2}, P4=${paddleIndex === 3}`
+            );
+            this.conditionalLog(
+                `🚨 4P DEBUG: Paddle velocity dot product = ${paddleVelAlong.toFixed(3)}`
+            );
+            this.conditionalLog(
+                `🚨 4P DEBUG: Has paddle velocity? ${hasPaddleVelocity} (threshold: ${VELOCITY_THRESHOLD})`
+            );
+        }
+        const velocityRatio = Math.max(
+            -1.0,
+            Math.min(1.0, paddleVelAlong / this.PADDLE_MAX_VELOCITY)
+        );
 
-		// IMPORTANT: For paddle orientation consistency
-		// - Paddle 1 (bottom): moving right (+X) should deflect ball to +X (right side of court)
-		// - Paddle 2 (top): moving right (+X) should deflect ball to +X (right side of court)
-		// The rotation is applied around Y-axis, where positive rotation = rightward deflection
-		// No inversion needed - the physics reflection handles orientation correctly
+        // IMPORTANT: For paddle orientation consistency
+        // - Paddle 1 (bottom): moving right (+X) should deflect ball to +X (right side of court)
+        // - Paddle 2 (top): moving right (+X) should deflect ball to +X (right side of court)
+        // The rotation is applied around Y-axis, where positive rotation = rightward deflection
+        // No inversion needed - the physics reflection handles orientation correctly
 
-		// Calculate proper reflection direction first
-		// We already have the collision normal from Cannon.js above
+        // Calculate proper reflection direction first
+        // We already have the collision normal from Cannon.js above
 
-		let finalDirection: BABYLON.Vector3;
+        let finalDirection: BABYLON.Vector3;
 
-		// ====== DEBUG: Verify we're detecting the right mode ======
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(
-				`🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
-			);
-			this.conditionalLog(
-				`🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlong.toFixed(3)}`
-			);
-		}
+        // ====== DEBUG: Verify we're detecting the right mode ======
+        if (GameConfig.isDebugLoggingEnabled()) {
+            this.conditionalLog(
+                `🚨 COLLISION DEBUG: activePlayerCount = ${this.playerCount}, paddleIndex = ${paddleIndex}, hasPaddleVelocity = ${hasPaddleVelocity}`
+            );
+            this.conditionalLog(
+                `🚨 velocityRatio = ${velocityRatio.toFixed(3)}, paddleVelAlongAxis = ${paddleVelAlong.toFixed(3)}`
+            );
+        }
 
-		if (hasPaddleVelocity) {
-			// MOVING PADDLE: Return angle directly proportional to velocity
-			// Ball deflects IN THE SAME DIRECTION as paddle movement
-			// Moving left at max velocity → ball deflects left at max angle
-			// Moving right at max velocity → ball deflects right at max angle
-			let velocityBasedAngle = -velocityRatio * this.ANGULAR_RETURN_LIMIT; // NEGATED to correct direction
+        if (hasPaddleVelocity) {
+            // MOVING PADDLE: Return angle directly proportional to velocity
+            // Ball deflects IN THE SAME DIRECTION as paddle movement
+            // Moving left at max velocity → ball deflects left at max angle
+            // Moving right at max velocity → ball deflects right at max angle
+            let velocityBasedAngle = -velocityRatio * this.ANGULAR_RETURN_LIMIT; // NEGATED to correct direction
 
-			// 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
-			velocityBasedAngle = Math.max(
-				-this.ANGULAR_RETURN_LIMIT,
-				Math.min(this.ANGULAR_RETURN_LIMIT, velocityBasedAngle)
-			);
+            // 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
+            velocityBasedAngle = Math.max(
+                -this.ANGULAR_RETURN_LIMIT,
+                Math.min(this.ANGULAR_RETURN_LIMIT, velocityBasedAngle)
+            );
 
-			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(
-					`🚨 velocityBasedAngle = ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° (after clamping)`
-				);
-				if (GameConfig.isDebugLoggingEnabled()) {
-					if (GameConfig.isDebugLoggingEnabled()) {
-						this.conditionalLog(`🎯 MOVING PADDLE ANGULAR EFFECT:`);
-					}
-				}
-				this.conditionalLog(
-					`  - Paddle velocity: ${paddleVelAlong.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
-				);
-			}
-			if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(
-					`  - Ball deflects IN SAME DIRECTION as paddle movement`
-				);
-				this.conditionalLog(
-					`  - Return angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`
-				);
-				this.conditionalLog(
-					`  - Angular return limit: ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
-				);
-			}
+            if (GameConfig.isDebugLoggingEnabled()) {
+                this.conditionalLog(
+                    `🚨 velocityBasedAngle = ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° (after clamping)`
+                );
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    if (GameConfig.isDebugLoggingEnabled()) {
+                        this.conditionalLog(`🎯 MOVING PADDLE ANGULAR EFFECT:`);
+                    }
+                }
+                this.conditionalLog(
+                    `  - Paddle velocity: ${paddleVelAlong.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
+                );
+            }
+            if (GameConfig.isDebugLoggingEnabled()) {
+                this.conditionalLog(
+                    `  - Ball deflects IN SAME DIRECTION as paddle movement`
+                );
+                this.conditionalLog(
+                    `  - Return angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° from normal [CORRECTED DIRECTION]`
+                );
+                this.conditionalLog(
+                    `  - Angular return limit: ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+                );
+            }
 
-			// 🚨 DEBUG: Extra logging for 4P mode
-			if (this.playerCount === 4) {
-				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog(
-						`🚨🚨🚨 4P MODE MOVING PADDLE DETECTED! 🚨🚨🚨`
-					);
-				}
-				this.conditionalLog(
-					`🚨 Player ${paddleIndex + 1} velocity: ${paddleVelAlong.toFixed(3)}`
-				);
-				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog(
-						`🚨 Velocity ratio: ${velocityRatio.toFixed(3)}`
-					);
-				}
-				this.conditionalLog(
-					`🚨 Calculated angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
-				);
-			}
+            // 🚨 DEBUG: Extra logging for 4P mode
+            if (this.playerCount === 4) {
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    this.conditionalLog(
+                        `🚨🚨🚨 4P MODE MOVING PADDLE DETECTED! 🚨🚨🚨`
+                    );
+                }
+                this.conditionalLog(
+                    `🚨 Player ${paddleIndex + 1} velocity: ${paddleVelAlong.toFixed(3)}`
+                );
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    this.conditionalLog(
+                        `🚨 Velocity ratio: ${velocityRatio.toFixed(3)}`
+                    );
+                }
+                this.conditionalLog(
+                    `🚨 Calculated angle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
+                );
+            }
 
-			// === SEPARATE PHYSICS FOR 2P vs 3P MODE ===
+            // === SEPARATE PHYSICS FOR 2P vs 3P MODE ===
             if (this.playerCount === 2) {
-                // 2-PLAYER MODE: Use inward reference normal for robust angle control
+                // 2-PLAYER MODE: Standard Y-axis rotation
                 const rotationAxis = BABYLON.Vector3.Up();
                 const rotationMatrix = BABYLON.Matrix.RotationAxis(
                     rotationAxis,
                     velocityBasedAngle
                 );
-                const inward = new BABYLON.Vector3(-paddle.position.x, 0, -paddle.position.z).normalize();
-                const base = inward.lengthSquared() > 0 ? inward : paddleNormal;
                 finalDirection = BABYLON.Vector3.TransformCoordinates(
-                    base,
+                    paddleNormal,
                     rotationMatrix
                 ).normalize();
-				if (GameConfig.isDebugLoggingEnabled()) {
-					if (GameConfig.isDebugLoggingEnabled()) {
-						this.conditionalLog(
-							`🎯 2P Mode: Y-axis rotation applied`
-						);
-					}
-				}
-			} else if (this.playerCount === 3) {
-				// 3-PLAYER MODE: Use same Y-axis rotation as 2P mode but adjust angle for paddle orientation
-				this.conditionalLog(
-					`🚨🚨🚨 3P Mode: EXECUTING 3P PHYSICS CODE PATH! 🚨🚨🚨`
-				);
-				this.conditionalLog(
-					`🎯 3P Mode: Paddle ${paddleIndex + 1} at ${paddleIndex * 120}° - using proven 2P physics`
-				);
-
-				// Adjust angle direction for players 2 and 3 due to their paddle rotation
-				let adjustedAngle = velocityBasedAngle;
-				if (paddleIndex === 1 || paddleIndex === 2) {
-					// Players 2 and 3
-					adjustedAngle = -velocityBasedAngle; // Flip the angle direction
-					this.conditionalLog(
-						`🔄 3P Mode: Flipped angle for Player ${paddleIndex + 1} from ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° to ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
-					);
-				}
-
-				const rotationAxis = BABYLON.Vector3.Up(); // Y-axis rotation (same as 2P mode)
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(
-					rotationAxis,
-					adjustedAngle
-				);
-				finalDirection = BABYLON.Vector3.TransformCoordinates(
-					paddleNormal,
-					rotationMatrix
-				).normalize();
-
-				this.conditionalLog(
-					`🚨 3P Mode: Y-axis rotation applied - angle: ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
-				);
-				this.conditionalLog(
-					`🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
-				);
-				this.conditionalLog(
-					`🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`
-				);
-			} else if (this.playerCount === 4) {
-				// 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation
-				// Side paddles deflect ball along Z-axis using X-axis rotation (same effect as 2P Y-axis rotation)
-				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog(
-						`🚨🚨🚨 4P MODE ANGULAR EFFECTS EXECUTING! 🚨🚨🚨`
-					);
-				}
-				this.conditionalLog(
-					`🚨 Player ${paddleIndex + 1}, original velocityBasedAngle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
-				);
-
-				// Flip the angle direction for side paddles to correct the direction
-				const flippedAngle = -velocityBasedAngle;
-				this.conditionalLog(
-					`🔄 4P Mode: Flipped angle for side paddle from ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° to ${((flippedAngle * 180) / Math.PI).toFixed(1)}°`
-				);
-
-				const rotationAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis rotation (keeps ball in XZ plane)
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(
-					rotationAxis,
-					flippedAngle
-				);
-				finalDirection = BABYLON.Vector3.TransformCoordinates(
-					paddleNormal,
-					rotationMatrix
-				).normalize();
-
-				this.conditionalLog(
-					`🎯 4P Mode: Y-axis rotation applied for side paddles P3/P4 (keeps ball in XZ plane)`
-				);
-				this.conditionalLog(
-					`🚨 Paddle normal before: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
-				);
-				this.conditionalLog(
-					`🚨 Final direction after: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
-				);
-				if (GameConfig.isDebugLoggingEnabled()) {
-					this.conditionalLog(
-						`🚨🚨🚨 4P MODE ANGULAR EFFECTS COMPLETE! 🚨🚨🚨`
-					);
-				}
-			} else {
-				// FALLBACK: Default to 2P behavior for unknown player counts
-				const rotationAxis = BABYLON.Vector3.Up();
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(
-					rotationAxis,
-					velocityBasedAngle
-				);
-				finalDirection = BABYLON.Vector3.TransformCoordinates(
-					paddleNormal,
-					rotationMatrix
-				).normalize();
-				this.conditionalLog(
-					`🎯 ${this.playerCount}P Mode: Using 2P physics (fallback)`
-				);
-			}
-        } else {
-            // STATIONARY PADDLE: Use raw physics reflection, then clamp in XZ.
-            // Deterministic face normals per court:
-            // - 2P: P1 = +Z, P2 = -Z
-            // - 3P: inward normals at 0°, 120°, 240° (toward origin)
-            // - 4P: cardinals P1=+Z, P2=-Z, P3=-X, P4=+X
-            const ballVelNormalized = ballVelocity.normalize();
-            let refNormal = paddleNormal;
-            if (this.playerCount === 2) {
-                refNormal = (paddleIndex === 0)
-                    ? new BABYLON.Vector3(0, 0, 1)
-                    : new BABYLON.Vector3(0, 0, -1);
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    if (GameConfig.isDebugLoggingEnabled()) {
+                        this.conditionalLog(
+                            `🎯 2P Mode: Y-axis rotation applied`
+                        );
+                    }
+                }
             } else if (this.playerCount === 3) {
-                // Use Cannon contact normal projected to XZ for 3P stationary reflections
-                refNormal = new BABYLON.Vector3(paddleNormal.x, 0, paddleNormal.z).normalize();
-            } else if (this.playerCount === 4) {
-                if (paddleIndex === 0) refNormal = new BABYLON.Vector3(0, 0, 1);
-                else if (paddleIndex === 1) refNormal = new BABYLON.Vector3(0, 0, -1);
-                else if (paddleIndex === 2) refNormal = new BABYLON.Vector3(-1, 0, 0);
-                else refNormal = new BABYLON.Vector3(1, 0, 0);
-            }
-
-            const dotProduct = BABYLON.Vector3.Dot(ballVelNormalized, refNormal);
-            const perfectReflection3D = ballVelNormalized.subtract(
-                refNormal.scale(2 * dotProduct)
-            );
-            const perfectReflection = new BABYLON.Vector3(
-                perfectReflection3D.x,
-                0,
-                perfectReflection3D.z
-            ).normalize();
-
-            finalDirection = this.clampDirectionToLimit(
-                refNormal,
-                perfectReflection,
-                this.ANGULAR_RETURN_LIMIT
-            );
-            if (GameConfig.isDebugLoggingEnabled()) {
-                // Trace details to diagnose inconsistent reflections
-                const inXZ = new BABYLON.Vector3(ballVelNormalized.x, 0, ballVelNormalized.z).normalize();
-                const nXZ = new BABYLON.Vector3(refNormal.x, 0, refNormal.z).normalize();
-                const reflDot = BABYLON.Vector3.Dot(perfectReflection, nXZ);
-                const reflAngle = Math.acos(Math.max(-1, Math.min(1, Math.abs(reflDot))));
-                const clampedDot = BABYLON.Vector3.Dot(finalDirection, nXZ);
-                const clampedAngle = Math.acos(Math.max(-1, Math.min(1, Math.abs(clampedDot))));
+                // 3-PLAYER MODE: Use same Y-axis rotation as 2P mode but adjust angle for paddle orientation
                 this.conditionalLog(
-                    `🔎 TRACE stationary: in=(${inXZ.x.toFixed(3)}, ${inXZ.z.toFixed(3)}), n=(${nXZ.x.toFixed(3)}, ${nXZ.z.toFixed(3)}), ` +
-                    `reflAngle=${(reflAngle*180/Math.PI).toFixed(1)}°, clampedAngle=${(clampedAngle*180/Math.PI).toFixed(1)}° (limit ${(this.ANGULAR_RETURN_LIMIT*180/Math.PI).toFixed(1)}°)`
+                    `🚨🚨🚨 3P Mode: EXECUTING 3P PHYSICS CODE PATH! 🚨🚨🚨`
+                );
+                this.conditionalLog(
+                    `🎯 3P Mode: Paddle ${paddleIndex + 1} at ${paddleIndex * 120}° - using proven 2P physics`
+                );
+
+                // Adjust angle direction for players 2 and 3 due to their paddle rotation
+                let adjustedAngle = velocityBasedAngle;
+                if (paddleIndex === 1 || paddleIndex === 2) {
+                    // Players 2 and 3
+                    adjustedAngle = -velocityBasedAngle; // Flip the angle direction
+                    this.conditionalLog(
+                        `🔄 3P Mode: Flipped angle for Player ${paddleIndex + 1} from ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° to ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
+                    );
+                }
+
+                const rotationAxis = BABYLON.Vector3.Up(); // Y-axis rotation (same as 2P mode)
+                const rotationMatrix = BABYLON.Matrix.RotationAxis(
+                    rotationAxis,
+                    adjustedAngle
+                );
+                finalDirection = BABYLON.Vector3.TransformCoordinates(
+                    paddleNormal,
+                    rotationMatrix
+                ).normalize();
+
+                this.conditionalLog(
+                    `🚨 3P Mode: Y-axis rotation applied - angle: ${((adjustedAngle * 180) / Math.PI).toFixed(1)}°`
+                );
+                this.conditionalLog(
+                    `🚨 3P Mode: Final direction: (${finalDirection.x.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+                );
+                this.conditionalLog(
+                    `🚨🚨🚨 3P Mode: CODE PATH EXECUTED SUCCESSFULLY! 🚨🚨🚨`
+                );
+            } else if (this.playerCount === 4) {
+                // 4-PLAYER MODE: P1/P2 walled off, P3/P4 (side paddles) use X-axis rotation
+                // Side paddles deflect ball along Z-axis using X-axis rotation (same effect as 2P Y-axis rotation)
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    this.conditionalLog(
+                        `🚨🚨🚨 4P MODE ANGULAR EFFECTS EXECUTING! 🚨🚨🚨`
+                    );
+                }
+                this.conditionalLog(
+                    `🚨 Player ${paddleIndex + 1}, original velocityBasedAngle: ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}°`
+                );
+
+                // Flip the angle direction for side paddles to correct the direction
+                const flippedAngle = -velocityBasedAngle;
+                this.conditionalLog(
+                    `🔄 4P Mode: Flipped angle for side paddle from ${((velocityBasedAngle * 180) / Math.PI).toFixed(1)}° to ${((flippedAngle * 180) / Math.PI).toFixed(1)}°`
+                );
+
+                const rotationAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis rotation (keeps ball in XZ plane)
+                const rotationMatrix = BABYLON.Matrix.RotationAxis(
+                    rotationAxis,
+                    flippedAngle
+                );
+                finalDirection = BABYLON.Vector3.TransformCoordinates(
+                    paddleNormal,
+                    rotationMatrix
+                ).normalize();
+
+                this.conditionalLog(
+                    `🎯 4P Mode: Y-axis rotation applied for side paddles P3/P4 (keeps ball in XZ plane)`
+                );
+                this.conditionalLog(
+                    `🚨 Paddle normal before: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
+                );
+                this.conditionalLog(
+                    `🚨 Final direction after: (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+                );
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    this.conditionalLog(
+                        `🚨🚨🚨 4P MODE ANGULAR EFFECTS COMPLETE! 🚨🚨🚨`
+                    );
+                }
+            } else {
+                // FALLBACK: Default to 2P behavior for unknown player counts
+                const rotationAxis = BABYLON.Vector3.Up();
+                const rotationMatrix = BABYLON.Matrix.RotationAxis(
+                    rotationAxis,
+                    velocityBasedAngle
+                );
+                finalDirection = BABYLON.Vector3.TransformCoordinates(
+                    paddleNormal,
+                    rotationMatrix
+                ).normalize();
+                this.conditionalLog(
+                    `🎯 ${this.playerCount}P Mode: Using 2P physics (fallback)`
                 );
             }
-            // Ensure the downstream final clamp uses the same reference normal we used here
-            paddleNormal = refNormal;
+        } else {
+            // STATIONARY PADDLE: Physics-based reflection with angular limit
+            const ballVelNormalized = ballVelocity.normalize();
+            this.conditionalLog(
+                `  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`
+            );
+            this.conditionalLog(
+                `  - Paddle normal: (${paddleNormal.x.toFixed(3)}, ${paddleNormal.y.toFixed(3)}, ${paddleNormal.z.toFixed(3)})`
+            );
+            const dotProduct = BABYLON.Vector3.Dot(
+                ballVelNormalized,
+                paddleNormal
+            );
+            this.conditionalLog(
+                `  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
+            );
+
+            // Calculate perfect physics reflection
+            const perfectReflection = ballVelNormalized.subtract(
+                paddleNormal.scale(2 * dotProduct)
+            );
+            this.conditionalLog(
+                `  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
+            );
+
+            // === 2D REFLECTION LOGIC ===
+            // Check angle of perfect reflection from normal
+            const reflectionDot = BABYLON.Vector3.Dot(
+                perfectReflection,
+                paddleNormal
+            );
+            const reflectionAngle = Math.acos(Math.abs(reflectionDot));
+
+            this.conditionalLog(
+                `  - Perfect reflection angle from normal: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}°`
+            );
+            this.conditionalLog(
+                `  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+            );
+
+            if (reflectionAngle <= this.ANGULAR_RETURN_LIMIT) {
+                // Ball approach angle is within limits - use perfect reflection
+                if (GameConfig.isDebugLoggingEnabled()) {
+                    this.conditionalLog(
+                        `✅ Using perfect reflection (incoming angle within limits)`
+                    );
+                }
+                finalDirection = perfectReflection.normalize();
+            } else {
+                // Reflection angle exceeds limit - clamp by rotating toward normal
+                this.conditionalLog(
+                    `🔒 Clamping reflection: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+                );
+
+                // Rotate perfect reflection toward normal by the excess angle
+                const excessAngle = reflectionAngle - this.ANGULAR_RETURN_LIMIT;
+                const rotationAxis = new BABYLON.Vector3(0, 1, 0); // Y-axis for X-Z plane
+                const rotationMatrix = BABYLON.Matrix.RotationAxis(
+                    rotationAxis,
+                    excessAngle
+                );
+                finalDirection = BABYLON.Vector3.TransformCoordinates(
+                    perfectReflection,
+                    rotationMatrix
+                ).normalize();
+
+                // Ensure Y=0 for 2D movement
+                finalDirection.y = 0;
+                finalDirection = finalDirection.normalize();
+
+                const clampedAngle = Math.acos(
+                    Math.abs(BABYLON.Vector3.Dot(finalDirection, paddleNormal))
+                );
+                this.conditionalLog(
+                    `🔒 Clamped result: angle=${((clampedAngle * 180) / Math.PI).toFixed(1)}°, direction=(${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+                );
+            }
         }
 
-        // Final safety clamp: enforce the same angular limit for both stationary and moving paddles
-        // Use Cannon.js paddle normal for stationary paddles (pure reflection + clamp only if needed).
-        // For moving paddles in 2P, keep robust inward reference to avoid edge-normal noise.
-        let referenceNormal = paddleNormal;
-        if (hasPaddleVelocity && this.playerCount === 2) {
-            const inward = new BABYLON.Vector3(-paddle.position.x, 0, -paddle.position.z);
-            if (inward.lengthSquared() > 1e-6) referenceNormal = inward.normalize();
-        }
-        finalDirection = this.clampDirectionToLimit(
-            referenceNormal,
+        const preClampDirection = finalDirection;
+        const enforcedDirection = this.clampDirectionToLimit(
+            paddleNormal,
             finalDirection,
             this.ANGULAR_RETURN_LIMIT
         );
+        const changedByClamp = BABYLON.Vector3.DistanceSquared(preClampDirection, enforcedDirection) > 1e-6;
+        finalDirection = enforcedDirection;
 
-		this.conditionalLog(
-			`🎯 Final direction (clamped): (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
-		);
-		const signedAngle = this.signedAngleXZ(paddleNormal, finalDirection);
-		this.conditionalLog(
-			`🎯 Final signed angle from normal: ${((signedAngle * 180) / Math.PI).toFixed(1)}° (limit ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°)`
-		);
+        if (changedByClamp) {
+            this.conditionalLog(
+                `🔒 Enforced angular limit post-processing (Δ=${Math.sqrt(BABYLON.Vector3.DistanceSquared(preClampDirection, finalDirection)).toFixed(4)})`
+            );
+        }
+
+        const normalizedNormal = paddleNormal.clone().normalize();
+        const angleFromNormal = Math.acos(
+            Math.max(-1, Math.min(1, Math.abs(BABYLON.Vector3.Dot(finalDirection, normalizedNormal))))
+        );
+
+        this.conditionalLog(
+            `🎯 Final direction (enforced): (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
+        );
+        this.conditionalLog(
+            `🎯 Final angle from normal (enforced): ${((angleFromNormal * 180) / Math.PI).toFixed(1)}° (limit ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°)`
+        );
 
         // Increment rally speed - globally throttled by time and distance traveled
         let allowIncrement =
@@ -2400,6 +2459,8 @@ private handleBallPaddleCollision(
 		// Send sound effect to clients (Master mode only)
 		this.sendSoundEffectToClients(1); // 1 = wall ping
 
+		let wallNormalForAngularAdjustment: BABYLON.Vector3 | null = null;
+
 		// Corner handling: if near a convex corner (near X and Z bounds),
 		// reflect velocity about the corner bisector to avoid unstable normals.
 		const collisionMesh =
@@ -2421,6 +2482,10 @@ private handleBallPaddleCollision(
 
 			const nx = nearXMin ? 1 : nearXMax ? -1 : 0;
 			const nz = nearZMin ? 1 : nearZMax ? -1 : 0;
+
+			if ((nx !== 0 || nz !== 0) && !(nx !== 0 && nz !== 0)) {
+				wallNormalForAngularAdjustment = new BABYLON.Vector3(nx, 0, nz).normalize();
+			}
 
 			if (nx !== 0 && nz !== 0) {
 				const v = ballImpostor.getLinearVelocity();
@@ -2471,6 +2536,36 @@ private handleBallPaddleCollision(
 		// 	}
 		// }
 
+
+		if (
+			wallNormalForAngularAdjustment &&
+			this.WALL_BOUNCE_ANGULAR_INCREMENT > 0
+		) {
+			const velocity = ballImpostor.getLinearVelocity();
+			if (velocity) {
+				const vXZ = new BABYLON.Vector3(velocity.x, 0, velocity.z);
+				const speed = vXZ.length();
+				if (speed > 1e-6) {
+					const crossY =
+						wallNormalForAngularAdjustment.x * vXZ.z -
+						wallNormalForAngularAdjustment.z * vXZ.x;
+					const rotationDir = crossY >= 0 ? 1 : -1;
+					const rotationMatrix = BABYLON.Matrix.RotationAxis(
+						BABYLON.Vector3.Up(),
+						rotationDir * this.WALL_BOUNCE_ANGULAR_INCREMENT
+					);
+					const rotatedXZ = BABYLON.Vector3.TransformCoordinates(vXZ, rotationMatrix);
+					const normalizedRotated = rotatedXZ.normalize().scale(speed);
+					ballImpostor.setLinearVelocity(
+						new BABYLON.Vector3(
+							normalizedRotated.x,
+							velocity.y,
+							normalizedRotated.z
+						)
+					);
+				}
+			}
+		}
 
 		// Preserve spin with slight reduction only
 		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
@@ -4520,6 +4615,19 @@ private handleGoalCollision(
 		}
 	}
 
+	public setWallBounceAngularIncrement(degrees: number): void {
+		const clamped = Math.max(0, degrees);
+		this.WALL_BOUNCE_ANGULAR_INCREMENT = (clamped * Math.PI) / 180;
+		this.conditionalLog(
+			'WALL_BOUNCE_ANGULAR_INCREMENT (deg) ->',
+			clamped
+		);
+	}
+
+	public getWallBounceAngularIncrement(): number {
+		return (this.WALL_BOUNCE_ANGULAR_INCREMENT * 180) / Math.PI;
+	}
+
 	public getPhysicsSolverIterations(): number {
 		return this.PHYSICS_SOLVER_ITERATIONS;
 	}
@@ -4803,6 +4911,14 @@ private handleGoalCollision(
         return new BABYLON.Vector3(0, 0, 0);
     }
 
+    /** Clamp a serve direction against the standard angular return limit */
+    public enforceAngularLimitForDirection(
+        normal: BABYLON.Vector3,
+        desired: BABYLON.Vector3
+    ): BABYLON.Vector3 {
+        return this.clampDirectionToLimit(normal, desired, this.ANGULAR_RETURN_LIMIT);
+    }
+
     /** Apply Magnus force to all active split balls using the same spin state */
     private applyMagnusToSplitBalls(): void {
         if (this.splitBalls.length === 0) return;
@@ -5045,11 +5161,14 @@ private handleGoalCollision(
 				return correctedNormal;
 			} else {
 				// If X-Z components are too small, this might be a top/bottom collision
-				this.conditionalWarn(
-					`🚨 Normal has minimal X-Z components: (${correctedNormal.x.toFixed(3)}, ${correctedNormal.y.toFixed(3)}, ${correctedNormal.z.toFixed(3)})`
-				);
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalWarn(
+						`🚨 Normal has minimal X-Z components: (${normalXZ.x.toFixed(3)}, ${normalXZ.y.toFixed(3)}, ${normalXZ.z.toFixed(3)})`
+					);
+				}
+				// Fall back to the normalized original to avoid returning a zero vector
+				return normalizedNormal;
 			}
-			return normalXZ.normalize();
 		} catch (error) {
 			this.conditionalWarn(
 				'Failed to get collision normal from Cannon.js:',
