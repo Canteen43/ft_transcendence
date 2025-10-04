@@ -1965,7 +1965,9 @@ private handleBallPaddleCollision(
         // Calculate proper reflection direction first
         // We already have the collision normal from Cannon.js above
 
-        let finalDirection: BABYLON.Vector3;
+		let finalDirection: BABYLON.Vector3;
+		let finalNormalizedNormal: BABYLON.Vector3 =
+			paddleNormal.clone().normalize();
 
         // ====== DEBUG: Verify we're detecting the right mode ======
         if (GameConfig.isDebugLoggingEnabled()) {
@@ -2228,25 +2230,101 @@ private handleBallPaddleCollision(
             }
         }
 
-        const preClampDirection = finalDirection;
-        const enforcedDirection = this.clampDirectionToLimit(
-            paddleNormal,
-            finalDirection,
-            this.ANGULAR_RETURN_LIMIT
-        );
-        const changedByClamp = BABYLON.Vector3.DistanceSquared(preClampDirection, enforcedDirection) > 1e-6;
-        finalDirection = enforcedDirection;
+		const normalXZ = new BABYLON.Vector3(paddleNormal.x, 0, paddleNormal.z);
+		const directionXZ = new BABYLON.Vector3(finalDirection.x, 0, finalDirection.z);
+		const hasValidNormal = normalXZ.lengthSquared() > 1e-6;
+		const hasValidDirection = directionXZ.lengthSquared() > 1e-6;
+		let angleFromNormal = 0;
 
-        if (changedByClamp) {
-            this.conditionalLog(
-                `🔒 Enforced angular limit post-processing (Δ=${Math.sqrt(BABYLON.Vector3.DistanceSquared(preClampDirection, finalDirection)).toFixed(4)})`
-            );
+		if (hasValidNormal && hasValidDirection) {
+			const normalizedNormal = normalXZ.normalize();
+			const normalizedDirection = directionXZ.normalize();
+			const signedAngle = this.signedAngleXZ(
+				normalizedNormal,
+				normalizedDirection
+			);
+			const clampedAngle = Math.max(
+				-this.ANGULAR_RETURN_LIMIT,
+				Math.min(this.ANGULAR_RETURN_LIMIT, signedAngle)
+			);
+			if (Math.abs(clampedAngle - signedAngle) > 1e-4 && GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🛡️ Angular clamp enforced: requested ${((signedAngle * 180) / Math.PI).toFixed(1)}°, clamped to ${((clampedAngle * 180) / Math.PI).toFixed(1)}°`
+				);
+			}
+			const tangent = new BABYLON.Vector3(
+				-normalizedNormal.z,
+				0,
+				normalizedNormal.x
+			);
+			const clampedDirection = normalizedNormal
+				.scale(Math.cos(clampedAngle))
+				.add(tangent.scale(Math.sin(clampedAngle)))
+				.normalize();
+			finalDirection = new BABYLON.Vector3(
+				clampedDirection.x,
+				0,
+				clampedDirection.z
+			);
+			finalNormalizedNormal = normalizedNormal;
+			angleFromNormal = Math.abs(clampedAngle);
+		} else {
+            if (hasValidDirection) {
+                finalDirection = directionXZ.normalize();
+            } else if (finalDirection.lengthSquared() > 1e-6) {
+                finalDirection = finalDirection.clone().normalize();
+            } else {
+                finalDirection = new BABYLON.Vector3(0, 0, 0);
+            }
+            if (hasValidNormal) {
+                finalNormalizedNormal = normalXZ.normalize();
+            } else if (finalNormalizedNormal.lengthSquared() > 1e-6) {
+                finalNormalizedNormal = new BABYLON.Vector3(
+                    finalNormalizedNormal.x,
+                    0,
+                    finalNormalizedNormal.z
+                ).normalize();
+            } else if (paddleNormal.lengthSquared() > 1e-6) {
+                finalNormalizedNormal = paddleNormal.clone().normalize();
+            } else {
+                finalNormalizedNormal = new BABYLON.Vector3(0, 0, 0);
+            }
+            if (
+                finalDirection.lengthSquared() > 1e-6 &&
+                finalNormalizedNormal.lengthSquared() > 1e-6
+            ) {
+                const dot = BABYLON.Vector3.Dot(finalDirection, finalNormalizedNormal);
+                angleFromNormal = Math.acos(
+                    Math.max(-1, Math.min(1, Math.abs(dot)))
+                );
+            } else {
+                angleFromNormal = 0;
+            }
         }
 
-        const normalizedNormal = paddleNormal.clone().normalize();
-        const angleFromNormal = Math.acos(
-            Math.max(-1, Math.min(1, Math.abs(BABYLON.Vector3.Dot(finalDirection, normalizedNormal))))
+        finalDirection = new BABYLON.Vector3(
+            finalDirection.x,
+            0,
+            finalDirection.z
         );
+        if (
+            finalDirection.lengthSquared() <= 1e-6 &&
+            finalNormalizedNormal.lengthSquared() > 1e-6
+        ) {
+            finalDirection = finalNormalizedNormal.clone();
+            angleFromNormal = 0;
+        }
+
+        if (finalDirection.lengthSquared() > 1e-6) {
+            finalDirection.normalize();
+        }
+        if (finalNormalizedNormal.lengthSquared() > 1e-6) {
+            finalNormalizedNormal = new BABYLON.Vector3(
+                finalNormalizedNormal.x,
+                0,
+                finalNormalizedNormal.z
+            ).normalize();
+        }
 
         this.conditionalLog(
             `🎯 Final direction (enforced): (${finalDirection.x.toFixed(3)}, ${finalDirection.y.toFixed(3)}, ${finalDirection.z.toFixed(3)})`
