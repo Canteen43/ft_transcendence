@@ -152,6 +152,8 @@ export class Pong3DGameLoop {
 					baseDirection = baseDirection.normalize();
 				}
 
+				const serveNormal = baseDirection.clone();
+
 				// Add 20-degree random spread around the base direction
 				const spreadAngle = (Math.random() - 0.5) * ((20 * Math.PI) / 180);
 				const rotationMatrix = BABYLON.Matrix.RotationAxis(BABYLON.Vector3.Up(), spreadAngle);
@@ -161,6 +163,10 @@ export class Pong3DGameLoop {
 				const toOrigin = BABYLON.Vector3.Zero().subtract(servePosition).normalize();
 				if (BABYLON.Vector3.Dot(spreadDirection, toOrigin) < 0) {
 					spreadDirection = spreadDirection.scale(-1);
+				}
+
+				if (this.pong3D && typeof this.pong3D.enforceAngularLimitForDirection === 'function') {
+					spreadDirection = this.pong3D.enforceAngularLimitForDirection(serveNormal, spreadDirection);
 				}
 
 				// Set serve speed to base rally speed for immediate consistency
