@@ -30,6 +30,8 @@ export class Pong3DAudio {
 	// Musical harmony arrays (in cents)
 	private readonly PADDLE_HARMONICS = [0, 386, 702, 1200]; // Major chord: Root, Maj3rd, 5th, Octave
 	private readonly WALL_HARMONICS = [-500, -114, 202, -700]; // Lower harmonic series around -500 cents
+	private readonly POWERUP_HIGH_HARMONICS = [0, 386, 702, 1200]; // Bright chord for ball impacts
+	private readonly POWERUP_LOW_HARMONICS = [-900, -700, -500, -300]; // Darker chord for wall grazes
 
 	constructor(settings?: Partial<AudioSettings>) {
 		if (settings) {
@@ -93,14 +95,28 @@ export class Pong3DAudio {
 	/** Play a sound effect with a random harmonic pitch variation */
 	public async playSoundEffectWithHarmonic(
 		name: string,
-		harmonicType: 'paddle' | 'wall',
+		harmonicType: 'paddle' | 'wall' | 'powerupHigh' | 'powerupLow',
 		options: { volume?: number } = {}
 	): Promise<void> {
 		// Select random harmonic from the appropriate set
-		const harmonics =
-			harmonicType === 'paddle'
-				? this.PADDLE_HARMONICS
-				: this.WALL_HARMONICS;
+		let harmonics: number[];
+		switch (harmonicType) {
+			case 'paddle':
+				harmonics = this.PADDLE_HARMONICS;
+				break;
+			case 'wall':
+				harmonics = this.WALL_HARMONICS;
+				break;
+			case 'powerupHigh':
+				harmonics = this.POWERUP_HIGH_HARMONICS;
+				break;
+			case 'powerupLow':
+				harmonics = this.POWERUP_LOW_HARMONICS;
+				break;
+			default:
+				harmonics = this.PADDLE_HARMONICS;
+				break;
+		}
 		const randomIndex = Math.floor(Math.random() * harmonics.length);
 		const pitch = harmonics[randomIndex];
 
@@ -156,6 +172,9 @@ export class Pong3DAudio {
 		try {
 			// Load sound effects from sounds folder
 			await this.loadSoundEffect('ping', './src/game/sounds/ping.mp3');
+			await this.loadSoundEffect('dong', './src/game/sounds/dong.mp3');
+			await this.loadSoundEffect('powerup', './src/game/sounds/powerup.mp3');
+			await this.loadSoundEffect('shrink', './src/game/sounds/shrink.mp3');
 			await this.loadSoundEffect('goal', './src/game/sounds/goal.mp3');
 			await this.loadSoundEffect(
 				'victory',

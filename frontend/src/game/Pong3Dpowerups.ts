@@ -47,6 +47,10 @@ export class Pong3DPowerups {
 	private enabledTypes: Set<PowerupType> = new Set();
 	private assetsLoaded = false;
 	private spawningPaused = false;
+    private getBallCollisionTargets: (() => BABYLON.PhysicsImpostor[]) | null = null;
+    private getWallCollisionTargets: (() => BABYLON.PhysicsImpostor[]) | null = null;
+    private onBallCollision: ((entity: PowerupEntity) => void) | null = null;
+    private onWallCollision: ((entity: PowerupEntity) => void) | null = null;
 
     constructor(scene: BABYLON.Scene, options: PowerupManagerOptions = {}) {
         this.scene = scene;
@@ -122,6 +126,36 @@ export class Pong3DPowerups {
 	public setEnabledTypes(types: PowerupType[]): void {
 		this.enabledTypes = new Set(types);
 	}
+
+    public configureCollisionTracking(options: {
+        getBallTargets?: () => BABYLON.PhysicsImpostor[];
+        getWallTargets?: () => BABYLON.PhysicsImpostor[];
+        onBallCollision?: (entity: PowerupEntity) => void;
+        onWallCollision?: (entity: PowerupEntity) => void;
+    }): void {
+        this.getBallCollisionTargets = options.getBallTargets ?? null;
+        this.getWallCollisionTargets = options.getWallTargets ?? null;
+        this.onBallCollision = options.onBallCollision ?? null;
+        this.onWallCollision = options.onWallCollision ?? null;
+
+        if (this.activePowerups.size === 0) return;
+        this.activePowerups.forEach(entity => {
+            const impostor = entity.getPhysicsImpostor();
+            if (impostor) {
+                this.attachCollisionHandlers(impostor, entity);
+            }
+        });
+    }
+
+    public refreshCollisionHandlers(): void {
+        if (this.activePowerups.size === 0) return;
+        this.activePowerups.forEach(entity => {
+            const impostor = entity.getPhysicsImpostor();
+            if (impostor) {
+                this.attachCollisionHandlers(impostor, entity);
+            }
+        });
+    }
 
 	/** Advance timers, spawn new power-ups if needed, and update active discs. */
     public update(
@@ -309,6 +343,37 @@ export class Pong3DPowerups {
 		});
 	}
 
+	private attachCollisionHandlers(
+		impostor: BABYLON.PhysicsImpostor,
+		entity: PowerupEntity
+	): void {
+		if (this.getBallCollisionTargets) {
+			const ballTargets = this.getBallCollisionTargets() ?? [];
+			if (ballTargets.length > 0) {
+				entity.registerCollisionTargets('ball', ballTargets, target => {
+					impostor.registerOnPhysicsCollide(target, () => {
+						if (this.onBallCollision) {
+							this.onBallCollision(entity);
+						}
+					});
+				});
+			}
+		}
+
+		if (this.getWallCollisionTargets) {
+			const wallTargets = this.getWallCollisionTargets() ?? [];
+			if (wallTargets.length > 0) {
+				entity.registerCollisionTargets('wall', wallTargets, target => {
+					impostor.registerOnPhysicsCollide(target, () => {
+						if (this.onWallCollision) {
+							this.onWallCollision(entity);
+						}
+					});
+				});
+			}
+		}
+	}
+
 	private setupPhysicsForPowerup(
 		base: BasePowerupPrototype,
 		cloneRoot: BABYLON.TransformNode,
@@ -367,20 +432,22 @@ export class Pong3DPowerups {
 			physicsBody.linearDamping = 0.01;
 		}
 
-        const entity = new PowerupEntity({
-            id: physicsMesh.uniqueId.toString(),
-            type: base.type,
-            physicsRoot: physicsMesh,
-            visualRoot: cloneRoot,
-            collisionMesh,
-            physicsImpostor,
-            initialVelocity: initialVelocity.clone(),
-            planeY: worldPosition.y,
-            visualSpinSpeed: this.options.visualSpinSpeed,
-            spawnScaleDuration: this.options.spawnScaleDurationSeconds,
-        });
-        return entity;
-    }
+		const entity = new PowerupEntity({
+			id: physicsMesh.uniqueId.toString(),
+			type: base.type,
+			physicsRoot: physicsMesh,
+			visualRoot: cloneRoot,
+			collisionMesh,
+			physicsImpostor,
+			initialVelocity: initialVelocity.clone(),
+			planeY: worldPosition.y,
+			visualSpinSpeed: this.options.visualSpinSpeed,
+			spawnScaleDuration: this.options.spawnScaleDurationSeconds,
+		});
+
+		this.attachCollisionHandlers(physicsImpostor, entity);
+		return entity;
+	}
 
 	private resolvePowerupRoot(mesh: BABYLON.AbstractMesh): BABYLON.TransformNode {
 		let current: BABYLON.Node = mesh;

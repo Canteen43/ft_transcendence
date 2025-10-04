@@ -34,6 +34,8 @@ export class PowerupEntity {
   private collectElapsed = 0;
   private collectStartPos: BABYLON.Vector3 | null = null;
   private collecting = false;
+  private readonly registeredBallTargetIds = new Set<number>();
+  private readonly registeredWallTargetIds = new Set<number>();
 
   constructor(params: PowerupEntityParams) {
     this.id = params.id;
@@ -122,6 +124,35 @@ export class PowerupEntity {
       const current = this.visualRoot.rotationQuaternion ?? BABYLON.Quaternion.Identity();
       this.visualRoot.rotationQuaternion = current.multiply(inc);
     }
+  }
+
+  registerCollisionTargets(
+    type: 'ball' | 'wall',
+    targets: BABYLON.PhysicsImpostor[],
+    register: (target: BABYLON.PhysicsImpostor) => void
+  ): void {
+    const set = type === 'ball' ? this.registeredBallTargetIds : this.registeredWallTargetIds;
+    for (const target of targets) {
+      if (!target) continue;
+      const uniqueId =
+        (target as any).uniqueId ??
+        (target.object && (target.object as any).uniqueId) ??
+        (target.object && (target.object as any).id) ??
+        (target as any).id ??
+        target.hashCode ??
+        null;
+      if (uniqueId !== null && set.has(uniqueId)) {
+        continue;
+      }
+      if (uniqueId !== null) {
+        set.add(uniqueId);
+      }
+      register(target);
+    }
+  }
+
+  getPhysicsImpostor(): BABYLON.PhysicsImpostor | null {
+    return this.impostor;
   }
 
   /** Begin collection animation: stop physics and animate toward paddle center */

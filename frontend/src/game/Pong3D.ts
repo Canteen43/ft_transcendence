@@ -364,6 +364,8 @@ private handlePowerupPickup(type: PowerupType, paddleIndex: number, entity?: any
             `⚡ Power-up collected: ${type} by paddle ${paddleIndex + 1}`
         );
     }
+    const pickupSound = type === 'shrink' ? 'shrink' : 'powerup';
+    void this.audioSystem.playSoundEffect(pickupSound);
 		// If a goal has been scored and the ball is continuing to boundary, consider the ball out of play.
 		// In this state, disallow split activation to prevent post-goal splitting.
 		if (this.goalScored && type === 'split') {
@@ -636,6 +638,7 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 		}
 		splitEntity.setHitHistory(inheritLast, inheritSecond);
 		this.attachSplitBallCollisionHandlers(splitBall);
+		this.powerupManager?.refreshCollisionHandlers();
 		this.ballEffects.resetRallySpeed();
 	}
 
@@ -808,6 +811,27 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 		return this.splitBalls.some(ball => ball.impostor === impostor);
 	}
 
+	private getActiveBallImpostors(): BABYLON.PhysicsImpostor[] {
+		const impostors: BABYLON.PhysicsImpostor[] = [];
+		if (this.ballMesh?.physicsImpostor) {
+			impostors.push(this.ballMesh.physicsImpostor);
+		}
+		for (const splitBall of this.splitBalls) {
+			if (splitBall.impostor) {
+				impostors.push(splitBall.impostor);
+			}
+		}
+		return impostors;
+	}
+
+	private getWallPhysicsImpostors(): BABYLON.PhysicsImpostor[] {
+		if (!this.scene) return [];
+		return this.scene.meshes
+			.filter(mesh => mesh && mesh.name && /wall/i.test(mesh.name) && mesh.physicsImpostor)
+			.map(mesh => mesh.physicsImpostor!)
+			.filter(Boolean);
+	}
+
 	private maintainSplitBallVelocities(): void {
 		if (this.splitBalls.length === 0) return;
 		const targetSpeed = this.ballEffects.getCurrentBallSpeed();
@@ -854,7 +878,7 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 	// Physics engine settings
 	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
 	private PHYSICS_SOLVER_ITERATIONS = 15; // Cannon solver iterations per step (constraint convergence)
-	private WALL_BOUNCE_ANGULAR_INCREMENT = (1 * Math.PI) / 180; // radians added to wall reflections
+	private WALL_BOUNCE_ANGULAR_INCREMENT = (1 * Math.PI) / 90 // radians added to wall reflections
 
 	// Ball control settings - velocity-based reflection angle modification
 	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
@@ -1100,6 +1124,16 @@ private applyStretchPowerup(paddleIndex: number, entity?: any): void {
 		this.setupHDR();
 		this.setupGlowEffects();
 		this.powerupManager = new Pong3DPowerups(this.scene);
+		this.powerupManager.configureCollisionTracking({
+			getBallTargets: () => this.getActiveBallImpostors(),
+			getWallTargets: () => this.getWallPhysicsImpostors(),
+			onBallCollision: () => {
+				void this.audioSystem.playSoundEffectWithHarmonic('dong', 'powerupHigh');
+			},
+			onWallCollision: () => {
+				void this.audioSystem.playSoundEffectWithHarmonic('dong', 'powerupLow');
+			},
+		});
 		this.lastPowerupUpdateTimeMs =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
 
