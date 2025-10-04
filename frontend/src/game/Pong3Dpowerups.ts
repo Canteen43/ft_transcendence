@@ -38,6 +38,7 @@ const POWERUP_ASSET_URL = '/powerups.glb';
  * Manages loading, spawning, and updating power-up discs for Pong3D.
  */
 export class Pong3DPowerups {
+	private blockedTypes: Set<PowerupType> = new Set();
 	private scene: BABYLON.Scene;
 	private options: Required<PowerupManagerOptions>;
 	private baseMeshes: Map<PowerupType, BasePowerupPrototype> = new Map();
@@ -206,12 +207,20 @@ export class Pong3DPowerups {
 
 	/** Remove all active power-up discs and reset spawn timing. */
 	public clearActivePowerups(): void {
-	this.activePowerups.forEach(entity => {
-		entity.dispose();
-	});
+		this.activePowerups.forEach(entity => {
+			entity.dispose();
+		});
 		this.activePowerups.clear();
 		this.scheduleNextSpawn();
 		this.hidePrototypeMeshes();
+	}
+
+	public setTypeBlocked(type: PowerupType, blocked: boolean): void {
+		if (blocked) {
+			this.blockedTypes.add(type);
+		} else {
+			this.blockedTypes.delete(type);
+		}
 	}
 
 	public setSpawningPaused(paused: boolean): void {
@@ -221,6 +230,9 @@ export class Pong3DPowerups {
 	/** Force-spawn a given power-up type (primarily for testing). */
 	public spawnPowerup(type: PowerupType): void {
 		if (!this.assetsLoaded) return;
+		if (this.blockedTypes.has(type)) {
+			return;
+		}
 		const base = this.baseMeshes.get(type);
 			if (!base) {
 				console.warn(`Power-up prototype missing for type: ${type}`);
@@ -249,7 +261,10 @@ export class Pong3DPowerups {
 
 	private spawnRandomPowerup(): void {
 		if (this.enabledTypes.size === 0) return;
-		const available = Array.from(this.enabledTypes);
+		const available = Array.from(this.enabledTypes).filter(
+			type => !this.blockedTypes.has(type)
+		);
+		if (available.length === 0) return;
 		const selected = available[Math.floor(Math.random() * available.length)];
 		const base = this.baseMeshes.get(selected);
 		if (!base) {
