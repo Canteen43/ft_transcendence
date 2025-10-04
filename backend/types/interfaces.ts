@@ -26,7 +26,7 @@ export interface Player {
 
 export interface QueuedUser {
 	userId: UUID;
-	alias: string;
+	alias: string | null;
 }
 
 export interface AuthenticatedRequest<
