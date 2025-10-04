@@ -112,10 +112,7 @@ async function authenticate(
 	}
 }
 
-export default async function userRoutes(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
+export default async function userRoutes(fastify: FastifyInstance) {
 	fastify.get(
 		'/login/:login',
 		routeConfig({
