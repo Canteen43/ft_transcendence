@@ -69,9 +69,7 @@ export class AuthComponent {
 			clearTimeout(this.closeTimeout);
 			this.closeTimeout = undefined;
 		}
-		console.log('onEnter triggered', this.dropdown);
 		if (this.dropdown) {
-			console.log('Classes before:', this.dropdown.className);
 			this.dropdown.classList.remove(
 				'opacity-0',
 				'pointer-events-none',
@@ -82,7 +80,6 @@ export class AuthComponent {
 				'pointer-events-auto',
 				'scale-100'
 			);
-			console.log('Classes after:', this.dropdown.className);
 		}
 	};
 
