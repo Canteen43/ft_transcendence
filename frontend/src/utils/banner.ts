@@ -32,7 +32,6 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 	scrollWrapper.appendChild(onlinePlayersContainer);
 	bannerContainer.appendChild(scrollWrapper);
 
-
 	// Add scrolling animation styles with slower speed and better spacing
 	const styleElement = document.createElement('style');
 	styleElement.textContent = `
@@ -113,7 +112,7 @@ function updateOnlinePlayersDisplay(banner: OnlinePlayersBanner, users: any[]) {
 			const playerElement = document.createElement('span');
 			playerElement.textContent = displayName;
 			playerElement.className =
-				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
+				"inline-flex items-center font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-1 py-0.5 mr-1";
 			newContainer.appendChild(playerElement);
 		});
 	}

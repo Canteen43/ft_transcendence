@@ -3,7 +3,6 @@
 import { AuthComponent } from './buttons/AuthButton';
 import { HomeButton } from './buttons/HomeButton';
 import { TwoFactAuthButton } from './buttons/TwoFactAuthButton';
-import { RankButton } from './buttons/RankButton';
 
 import './style.css';
 import { router } from './utils/Router';
@@ -34,7 +33,6 @@ app.style.backgroundRepeat = 'no-repeat';
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
-new RankButton(app);
 new TwoFactAuthButton(app);
 
 // Create particles background
