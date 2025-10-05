@@ -9,7 +9,7 @@ export class RankButton {
 	constructor(parent: HTMLElement) {
 		this.button = document.createElement('button');
 		this.button.className =
-			'absolute z-10 top-4 right-65 fixed p-0 bg-transparent border-none';
+			'absolute z-10 top-4 left-65 fixed p-0 bg-transparent border-none';
 
 		const imgSrc = '../Leaderboard2.png';
 		const hoverImgSrc = '../Leaderboard2.png';
