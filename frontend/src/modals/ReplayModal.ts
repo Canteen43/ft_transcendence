@@ -4,12 +4,7 @@ import { MESSAGE_REPLAY } from '../../../shared/constants';
 import { Button } from '../buttons/Button';
 import { clearMatchData } from '../utils/cleanSessionStorage';
 import { router } from '../utils/Router';
-import { state } from '../utils/State';
-import {
-	createTournament,
-	joinTournament,
-	leaveTournament,
-} from '../utils/tournamentJoin';
+import { replayTournament } from '../utils/tournamentJoin';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
@@ -22,14 +17,10 @@ hourglass.register();
 export class ReplayModal extends Modal {
 	private remoteReplayHandler = () => this.handleRemoteReplay();
 	private timeoutId: number | null = null;
-	private soleWantReplay: boolean | null = false;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		const textElmt = document.createElement('p');
-		textElmt.className = 'text-center text-lg text-[var(--color3)]';
-		textElmt.textContent = 'Want to play again?';
-		this.box.appendChild(textElmt);
+
 		this.box.classList.add('replay-modal');
 
 		new Button('Replay', () => this.replayClicked(), this.box);
@@ -51,28 +42,22 @@ export class ReplayModal extends Modal {
 		}
 		console.debug('Sending REPLAY and matchID: ' + matchID);
 		webSocket.send({ t: MESSAGE_REPLAY, d: matchID });
-		this.soleWantReplay = true;
 		this.showLoader();
 	}
 
 	private startTimer() {
 		this.timeoutId = window.setTimeout(() => {
 			console.debug('Replay timer expired, returning to home');
-
+			console.debug('Clearing match data before home');
+			clearMatchData();
+			location.hash = '#home';
 			setTimeout(() => {
-				const exitReplay = new TextModal(
+				new TextModal(
 					router.currentScreen!.element,
 					undefined,
 					'Replay timer expired'
 				);
-				exitReplay.onClose = () => {
-					// if ((this.queuing = true)) {
-					// 	leaveTournament();
-					// 	this.queuing = false;
-					// }
-					location.hash = '#home';
-				};
-			}, 50);
+			}, 100);
 			this.destroy();
 		}, 10000);
 	}
@@ -80,13 +65,12 @@ export class ReplayModal extends Modal {
 	private async handleRemoteReplay() {
 		console.debug('Both players ready for replay, joining game...');
 
-		this.soleWantReplay = false;
-		// LOGIC for CREATE TOURNAMENT DIRECTLY
+		// LOGIC for REPLAY TOURNAMENT
 		const thisPlayer = sessionStorage.getItem('thisPlayer');
 		if (thisPlayer == '1') {
 			const player1 = sessionStorage.getItem('player1');
 			const player2 = sessionStorage.getItem('player2');
-			const result = await createTournament({
+			const result = await replayTournament({
 				queue: [player1, player2],
 			});
 			if (!result.success) {
@@ -94,14 +78,6 @@ export class ReplayModal extends Modal {
 				return;
 			}
 		}
-
-		// LOGIC for JOIN TOURNAMENT first
-		// const thisPlayer = sessionStorage.getItem('thisPlayer');
-		// const result = await joinTournament(2);
-		// if (!result.success) {
-		// 	this.showError(result.error, result.zodError);
-		// 	return;
-		// }
 
 		// Close the modal after successfully joining
 		this.destroy();
@@ -135,20 +111,13 @@ export class ReplayModal extends Modal {
 	}
 
 	public destroy(): void {
-		// if ((this.soleWantReplay = true)) {
-		// 	console.debug(
-		// 		'destroying Replay Modal, this.soleWantReplay = true -> home'
-		// 	);
-
-		// 	location.hash = '#home';
-		// 	clearMatchData();
-		// }
-
 		if (this.timeoutId !== null) {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
 		}
+		clearMatchData();
 		document.removeEventListener('RemoteReplay', this.remoteReplayHandler);
 		super.destroy();
+		// location.hash = '#home';
 	}
 }

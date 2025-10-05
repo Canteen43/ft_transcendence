@@ -22,6 +22,7 @@ export function updateTournData(tournData: any): void {
 	console.debug('isTourn =', isTourn);
 	console.debug('tournData =', tournData);
 
+	console.debug('Clearing match data before updating tournament');
 	clearMatchData();
 	clearTournData();
 
@@ -83,7 +84,7 @@ export function updateTournData(tournData: any): void {
 		const match0Score2 = tournData.matches[0].participant_2_score || 0;
 		const match1Score1 = tournData.matches[1].participant_1_score || 0;
 		const match1Score2 = tournData.matches[1].participant_2_score || 0;
-		
+
 		sessionStorage.setItem('p1Score', match0Score1.toString());
 		sessionStorage.setItem('p2Score', match0Score2.toString());
 		sessionStorage.setItem('p3Score', match1Score1.toString());
@@ -104,8 +105,8 @@ export function updateTournData(tournData: any): void {
 			tournData.matches[1].participant_1_score == DEFAULT_MAX_SCORE ||
 			tournData.matches[1].participant_2_score == DEFAULT_MAX_SCORE;
 		const match2_finished =
-				tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE ||
-				tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE;
+			tournData.matches[2].participant_1_score == DEFAULT_MAX_SCORE ||
+			tournData.matches[2].participant_2_score == DEFAULT_MAX_SCORE;
 
 		if (match0_finished) {
 			const winner1UserId =
@@ -241,6 +242,6 @@ export function updateTournData(tournData: any): void {
 			p4Score: sessionStorage.getItem('p4Score'),
 			w1Score: sessionStorage.getItem('w1Score'),
 			w2Score: sessionStorage.getItem('w2Score'),
-		}
+		},
 	});
 }
