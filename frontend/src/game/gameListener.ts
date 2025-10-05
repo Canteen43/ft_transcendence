@@ -41,6 +41,7 @@ export async function gameListener(event: MessageEvent) {
 		switch (msg.t) {
 			case MESSAGE_START_TOURNAMENT:
 				console.info('Received "st":', msg);
+				console.debug('Clearing match data before GET tournament');
 				clearMatchData();
 				clearTournData();
 				sessionStorage.setItem('tournamentID', `${msg.d}`);
@@ -102,10 +103,11 @@ export async function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_QUIT:
-				location.hash = '#home';
+				console.debug('Clearing game data');
 				clearMatchData();
 				clearTournData();
 				clearOtherGameData();
+				location.hash = '#home';
 				setTimeout(() => {
 					void new TextModal(
 						router.currentScreen!.element,
@@ -127,12 +129,8 @@ export async function gameListener(event: MessageEvent) {
 
 			case MESSAGE_REPLAY:
 				console.debug('Replay received');
-
 				state.replayCounter += 1;
 				console.debug('Replay counter:', state.replayCounter);
-				// putting the game as ongoing to handle the Quit with HomeButton
-				// does not work since the game is finished
-				// state.gameOngoing = true;
 				if (state.replayCounter === 2) {
 					console.debug(
 						'Both players ready for replay, dispatching event'

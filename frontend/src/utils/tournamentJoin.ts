@@ -111,12 +111,13 @@ export async function createTournament(
 		};
 	}
 
-	await leaveTournament();
+	// await leaveTournament();
 	return {
 		success: false,
 		error: 'Failed to create tournament',
 	};
 }
+
 
 export async function leaveTournament(): Promise<void> {
 	console.debug('POST /tournaments/leave');
@@ -125,3 +126,49 @@ export async function leaveTournament(): Promise<void> {
 		console.error('Error leaving tournament:', error);
 	}
 }
+
+
+
+export async function replayTournament(
+	playerQueue: any
+): Promise<TournamentJoinResult> {
+	const body = {
+		creator: sessionStorage.getItem('userID') || '',
+		participants: playerQueue.queue,
+	};
+
+	const parseInput = CreateTournamentApiSchema.safeParse(body);
+	if (!parseInput.success) {
+		return {
+			success: false,
+			error: 'Invalid tournament creation data',
+			zodError: parseInput.error,
+		};
+	}
+	console.log('Sending to POST /tournaments/replay:', body);
+	const { data: tournament, error } = await apiCall(
+		'POST',
+		'/tournaments/replay',
+		TournamentSchema,
+		body
+	);
+	if (error) {
+		return {
+			success: false,
+			error: `Error ${error.status}: ${error.statusText}, ${error.message}`,
+		};
+	}
+	if (tournament) {
+		console.info('Tournament created with ID:', tournament.id);
+		sessionStorage.setItem('tournamentID', tournament.id);
+		return {
+			success: true,
+			tournament,
+		};
+	}
+	return {
+		success: false,
+		error: 'Failed to create tournament',
+	};
+}
+
