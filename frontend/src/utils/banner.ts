@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { UserSchema } from '../../../shared/schemas/user';
 import { apiCall } from '../utils/apiCall';
+import { isLoggedIn } from '../buttons/AuthButton';
 
 export interface OnlinePlayersBanner {
 	bannerElement: HTMLElement;
@@ -58,8 +59,7 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 export async function loadOnlinePlayers(banner: OnlinePlayersBanner) {
 	if (!banner.onlinePlayersContainer) return;
 
-	const token = sessionStorage.getItem('token');
-	if (!token) {
+	if (!isLoggedIn()) {
 		updateOnlinePlayersDisplay(banner, []);
 		return;
 	}

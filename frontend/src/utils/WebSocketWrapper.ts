@@ -1,12 +1,14 @@
 import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
+	MESSAGE_CHAT,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_CLOSE_POLICY_VIOLATION,
 	WS_TOKEN_EXPIRED,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
 import { regListener } from './regListener';
@@ -33,7 +35,7 @@ export class WebSocketWrapper {
 	private reconnectModal?: TextModal | null;
 
 	constructor() {
-		if (sessionStorage.getItem('token')) {
+		if (isLoggedIn()) {
 			this.open();
 		}
 	}
