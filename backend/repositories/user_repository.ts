@@ -110,7 +110,7 @@ export default class UserRepository {
 		if (!row) return null;
 
 		let valid = await bcrypt.compare(request.password, row.password_hash);
-		if (!valid && process.env.NODE_ENV == 'development')
+		if (!valid && process.env.NODE_ENV?.toLowerCase() === 'development')
 			valid = request.password == row.password_hash;
 
 		if (!valid) return null;
