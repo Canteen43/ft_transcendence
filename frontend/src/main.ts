@@ -15,17 +15,16 @@ import { webSocket } from './utils/WebSocketWrapper';
 (window as any).state = state;
 (window as any).webSocket = webSocket;
 
-import sky from '/sky2.jpg';
-
 window.addEventListener('error', event => {
 	console.error('Unhandled error', event.error);
 });
 window.addEventListener('unhandledrejection', event => {
 	console.error('Unhandled promise rejection', event.reason);
 });
+
 const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col';
-app.style.backgroundColor = 'white';
+app.style.backgroundColor = 'black';
 app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
@@ -34,11 +33,3 @@ router.init();
 new AuthComponent(app);
 new HomeButton(app);
 new TwoFactAuthButton(app);
-
-// Create particles background
-// createParticlesBackground(app);
-// requestAnimationFrame(() => {
-// 	void initParticles();
-// });
-
-// new Video();

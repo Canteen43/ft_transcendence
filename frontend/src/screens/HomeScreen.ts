@@ -41,8 +41,7 @@ export class HomeScreen extends Screen {
 
 		this.landing = new Landing(threeDContainer, '/landingpage.glb', {
 			onLocalGameClick: () => this.localLogic(),
-			onRemoteGameClick: () => this.remoteLogic(),
-			onStatClick: () => this.statLogic(),
+			onRemoteGameClick: () => this.remoteLogic()
 		});
 	}
 
