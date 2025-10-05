@@ -6,11 +6,10 @@ import {
 	clearTournData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
+import { leaveTournament } from '../utils/tournamentJoin';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
-import { leaveTournament } from '../utils/tournamentJoin';
-
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -90,7 +89,6 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number) {
-		
 		// leaveTournament();
 		// const { error } = await apiCall('POST', `/tournaments/leave`);
 		// if (error) {
@@ -100,15 +98,15 @@ export class RemoteGameModal extends Modal {
 		// 		`Failed to leave tournament: ${error.message}`
 		// 	);
 		// }
+		console.debug('Clearing match data before queuing');
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();
 
-		
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
 		state.tournamentOngoing = tournamentSize === 4;
-		
+
 		sessionStorage.setItem('gameMode', 'remote');
 		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');

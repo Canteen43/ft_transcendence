@@ -85,7 +85,7 @@ export class WebSocketWrapper {
 			if (!this.reconnectModal) {
 				this.reconnectModal = new TextModal(
 					router.currentScreen!.element,
-					`${event.reason}. Trying to reconnect...`,
+					`${event.reason} Trying to reconnect...`,
 					'Dismiss',
 					() => {
 						this.reconnectModal?.destroy();
