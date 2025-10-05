@@ -92,13 +92,13 @@ export class AuthComponent {
 			'absolute top-full right-0 mt-1 ' +
 			' bg-white divide-y divide-[var(--color1)] text-gray-800 shadow-lg  ' +
 			' opacity-0 pointer-events-none transition-all duration-200 ease-in-out ' +
-			' transform z-30 flex flex-col w-full scale-95 shadow-lg';
+			' transform z-10 flex flex-col w-full scale-95 shadow-lg';
 		this.dropdown.addEventListener('mouseenter', this.onEnter);
 		this.dropdown.addEventListener('mouseleave', this.onLeave);
 
 		// Stats button
 		const statsBtn = document.createElement('button');
-		statsBtn.textContent = 'Stats';
+		statsBtn.textContent = 'stats';
 		statsBtn.className =
 			"font-outfit [font-variation-settings:'wght'_900] text-lg sm:text-2xl " +
 			'px-6 sm:px-12 py-3 sm:py-4 transition-colors ' +
@@ -111,7 +111,7 @@ export class AuthComponent {
 
 		// Sign out button
 		const logoutBtn = document.createElement('button');
-		logoutBtn.textContent = 'Sign out';
+		logoutBtn.textContent = 'sign out';
 		logoutBtn.className =
 			"font-outfit [font-variation-settings:'wght'_900] text-lg sm:text-2xl " +
 			'px-6 sm:px-12 py-3 sm:py-4 transition-colors ' +

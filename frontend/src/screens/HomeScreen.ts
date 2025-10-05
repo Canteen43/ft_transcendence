@@ -1,5 +1,4 @@
 import { isLoggedIn } from '../buttons/AuthButton';
-import { Button } from '../buttons/Button';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
@@ -10,7 +9,6 @@ import {
 	loadOnlinePlayers,
 	OnlinePlayersBanner,
 } from '../utils/banner';
-import { TwoFactorAuthModal } from '../modals/TwoFactorAuthModal';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
@@ -23,11 +21,14 @@ export class HomeScreen extends Screen {
 	constructor() {
 		super();
 		this.element.className =
-			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
+			'flex flex-col items-center justify-center min-h-screen ' +
+			' bg-transparent p-4 space-y-6';
 
 		try {
 			this.initThreeD();
-			this.initBanner();
+			if (isLoggedIn()) this.toggleBanner(true);
+			document.addEventListener('login-success', this.onLoginSuccess);
+			document.addEventListener('logout-success', this.onLogoutSuccess);
 		} catch (err) {
 			console.error('Error initializing HomeScreen:', err);
 		}
@@ -45,7 +46,21 @@ export class HomeScreen extends Screen {
 		});
 	}
 
+	public toggleBanner(show: boolean): void {
+		if (show) {
+			if (!this.banner && isLoggedIn()) {
+				this.initBanner();
+			} else if (this.banner) {
+				this.banner.bannerElement.style.display = '';
+			}
+		} else {
+			this.destroyBanner();
+		}
+	}
+
 	private initBanner() {
+		if (this.onlinePlayersInterval !== null)
+			clearInterval(this.onlinePlayersInterval);
 		this.banner = createOnlinePlayersBanner();
 		this.element.appendChild(this.banner.bannerElement);
 		loadOnlinePlayers(this.banner);
@@ -55,6 +70,25 @@ export class HomeScreen extends Screen {
 			}
 		}, 30000);
 	}
+
+	private destroyBanner() {
+		if (this.onlinePlayersInterval !== null) {
+			clearInterval(this.onlinePlayersInterval);
+			this.onlinePlayersInterval = null;
+		}
+		if (this.banner) {
+			destroyOnlinePlayersBanner(this.banner);
+			this.banner = undefined;
+		}
+	}
+
+	private onLoginSuccess = () => {
+		this.toggleBanner(isLoggedIn());
+	};
+
+	private onLogoutSuccess = () => {
+		this.toggleBanner(isLoggedIn());
+	};
 
 	private remoteLogic() {
 		if (!isLoggedIn()) {
@@ -77,12 +111,10 @@ export class HomeScreen extends Screen {
 			this.landing.dispose();
 			this.landing = null;
 		}
-		if (this.onlinePlayersInterval !== null) {
-			clearInterval(this.onlinePlayersInterval);
-			this.onlinePlayersInterval = null;
-		}
-		if (this.banner) destroyOnlinePlayersBanner(this.banner);
-		this.banner = undefined;
+		this.destroyBanner();
+
+		document.removeEventListener('login-success', this.onLoginSuccess);
+		document.removeEventListener('logout-success', this.onLogoutSuccess);
 
 		super.destroy();
 	}
