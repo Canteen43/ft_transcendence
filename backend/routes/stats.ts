@@ -41,17 +41,8 @@ async function getPercentageWinsHistory(
 	return result;
 }
 
-export default async function statsRoutes(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
-	fastify.get(
-		'/ranking',
-		routeConfig({
-			response: RankingSchema,
-		}),
-		getRanking
-	);
+export default async function statsRoutes(fastify: FastifyInstance) {
+	fastify.get('/ranking', getRanking);
 	fastify.get(
 		'/wins_history/:user_id',
 		routeConfig({

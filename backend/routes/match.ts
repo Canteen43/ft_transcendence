@@ -26,10 +26,7 @@ async function getMatch(
 	return result;
 }
 
-export default async function matchRoutes(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
+export default async function matchRoutes(fastify: FastifyInstance) {
 	fastify.get(
 		'/:id',
 		routeConfig({

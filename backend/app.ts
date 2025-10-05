@@ -3,6 +3,7 @@ import './init.js';
 import type { FastifyInstance } from 'fastify';
 import Fastify from 'fastify';
 import { FastifyZodOpenApiTypeProvider } from 'fastify-zod-openapi';
+import fs from 'fs';
 import { FASTIFY_LOG_LEVEL } from '../shared/constants.js';
 import { logger } from '../shared/logger.js';
 import fastifyInit from './fastify.js';

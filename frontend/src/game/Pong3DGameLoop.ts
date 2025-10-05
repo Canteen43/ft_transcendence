@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
 import { conditionalLog } from './Logger';
+import { state } from '../utils/State';
 import type { GameState } from './Pong3DGameLoopBase';
 
 export class Pong3DGameLoop {
@@ -74,6 +75,8 @@ export class Pong3DGameLoop {
 			setTimeout(() => {
 				if (this.gameState.isRunning) {
 					// Check if game is still running
+					// Mark game as ongoing right when we actually perform the first serve
+					state.gameOngoing = true;
 					this.resetBall(initialServingPlayer);
 				}
 			}, 1000); // 1 second delay
