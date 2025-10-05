@@ -27,7 +27,7 @@ export default class TournamentRepository {
 
 	static getTournament(id: UUID): Tournament | null {
 		const result = db.queryOne<Tournament>(
-			`SELECT id, size, settings_id, status
+			`SELECT id, created_at, size, settings_id, status
 		 FROM ${this.table}
 		 WHERE id = ?`,
 			[id]
@@ -41,7 +41,7 @@ export default class TournamentRepository {
 		user_id: UUID,
 		status?: TournamentStatus
 	): Tournament[] {
-		let query = `SELECT tournament.id, size, settings_id, status
+		let query = `SELECT tournament.id, created_at, size, settings_id, status
 			FROM ${this.table} tournament
 			INNER JOIN ${ParticipantRepository.table} participant
 				ON tournament.id = participant.tournament_id
@@ -62,7 +62,7 @@ export default class TournamentRepository {
 		const result = db.queryOne<Tournament>(
 			`INSERT INTO ${this.table} (size, settings_id, status)
 			VALUES (?, ?, ?)
-			RETURNING id, size, settings_id, status`,
+			RETURNING id, created_at, size, settings_id, status`,
 			[src.size, src.settings_id, src.status]
 		);
 
@@ -110,7 +110,7 @@ export default class TournamentRepository {
 			`UPDATE ${this.table}
 		 SET status = ?
 		 WHERE id = ?
-		 RETURNING id, size, settings_id, status`,
+		 RETURNING id, created_at, size, settings_id, status`,
 			[upd.status, tournament_id]
 		);
 

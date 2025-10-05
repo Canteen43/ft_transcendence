@@ -27,7 +27,25 @@ async function createTournament(
 ): Promise<Tournament> {
 	logger.debug('Create tournament request received');
 	try {
-		const tournament = TournamentService.createTournament(
+		const tournament = TournamentService.createTournamentFromQueue(
+			request.body.creator,
+			request.body.participants
+		);
+		return tournament;
+	} catch (error) {
+		logger.error(error);
+		throw request.server.httpErrors.internalServerError(
+			constants.ERROR_REQUEST_FAILED
+		);
+	}
+}
+
+async function createTournamentReplay(
+	request: FastifyRequest<{ Body: CreateTournamentApi }>
+): Promise<Tournament> {
+	logger.debug('Create tournament request received');
+	try {
+		const tournament = TournamentService.createTournamentForReplay(
 			request.body.creator,
 			request.body.participants
 		);
@@ -89,10 +107,7 @@ async function leaveQueue(request: FastifyRequest) {
 	//TournamentService.quitCurrentTournament(authRequest.user.userId);
 }
 
-export default async function tournamentRoutes(
-	fastify: FastifyInstance,
-	opts: Record<string, any>
-) {
+export default async function tournamentRoutes(fastify: FastifyInstance) {
 	fastify.get(
 		'/:id',
 		routeConfig({
@@ -108,6 +123,14 @@ export default async function tournamentRoutes(
 			response: TournamentSchema,
 		}),
 		createTournament
+	);
+	fastify.post(
+		'/replay',
+		routeConfig({
+			body: CreateTournamentApiSchema,
+			response: TournamentSchema,
+		}),
+		createTournamentReplay
 	);
 	fastify.post(
 		'/join',
