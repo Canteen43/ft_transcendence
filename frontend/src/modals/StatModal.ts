@@ -1,4 +1,3 @@
-import { initParticleNumericAnimationValue } from '@tsparticles/engine';
 import Chart from 'chart.js/auto';
 import { z } from 'zod';
 import {
@@ -36,7 +35,7 @@ export class StatModal extends Modal {
 		await this.getRankData();
 		await this.getHistData();
 		await this.getMatchData();
-		if (this.histData || this.rankData) {
+		if (this.histData || this.rankData || this.matchData) {
 			this.createOutput();
 		}
 	}
@@ -110,31 +109,187 @@ export class StatModal extends Modal {
 
 	private createOutput(): void {
 		const container = document.createElement('div');
-		container.className =
-			'w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6';
+		container.className = `font-azeret [font-variation-settings:'wght'_900] flex-col w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6`;
 
-		//////////////////////
-		// Left column: Historical data
-		const histColumn = document.createElement('div');
-		histColumn.className = 'bg-white p-4 rounded-lg';
+		const leftContainer = this.creatLeftSide();
+		container.appendChild(leftContainer);
 
-		const imageDivLeft = document.createElement('div');
-		imageDivLeft.className = 'bg-white p-8';
-		histColumn.appendChild(imageDivLeft);
+		if (this.rankData) {
+			const rightContainer = this.creatRightSide();
+			container.appendChild(rightContainer);
+		}
+		this.element.appendChild(container);
+	}
 
+	private creatLeftSide(): HTMLDivElement {
+		const imgTop = '../stat.png';
 		const imgLeft = '../stats2.png';
-		const imgHist = document.createElement('img');
-		imgHist.src = imgLeft;
-		imgHist.alt = 'Hist';
-		imgHist.className = 'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
-		imageDivLeft.appendChild(imgHist);
+
+		const leftContainer = document.createElement('div');
+		leftContainer.className = 'bg-white p-4 rounded-lg';
+
+		const leftContainerTitle = document.createElement('img');
+		leftContainerTitle.src = imgTop;
+		leftContainerTitle.alt = 'Hist';
+		leftContainerTitle.className =
+			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
+		leftContainer.appendChild(leftContainerTitle);
+
+		const indivData = this.createIndivData();
+		leftContainer.appendChild(indivData);
+
+		const cumGraph = this.createCumulativeGraph();
+		leftContainer.appendChild(cumGraph);
+
+		return leftContainer;
+	}
+
+	private creatRightSide(): HTMLDivElement {
+		const imgRight = '../Leaderboard2.png';
+
+		const rightContainer = document.createElement('div');
+		rightContainer.className = 'bg-white p-4 rounded-lg';
+
+		const rightContainerTitle = document.createElement('img');
+		rightContainerTitle.src = imgRight;
+		rightContainerTitle.alt = 'Hist';
+		rightContainerTitle.className =
+			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
+		rightContainer.appendChild(rightContainerTitle);
+
+		const leaderBoard = this.createLeaderBoard();
+		rightContainer.appendChild(leaderBoard);
+
+		return rightContainer;
+	}
+
+	private createLeaderBoard(): HTMLDivElement {
+		//////////////////////
+		// Right column: Leaderboard
+		const leaderBoard = document.createElement('div');
+		leaderBoard.className = 'bg-white p-3';
+
+		// header
+		const header = document.createElement('div');
+		header.className =
+			'grid grid-cols-[1rem_1fr_4rem_4rem] gap-3 sm:gap-12 ' +
+			' items-center px-2 sm:px-3  py-1 sm:py-0 text-[var(--color3)] ' +
+			' sticky top-2 bg-white text-sm sm:text-base';
+
+		// header cells
+		const emptyCell1 = document.createElement('span');
+		const emptyCell2 = document.createElement('span');
+		const playedHeader = document.createElement('span');
+		playedHeader.className = 'text-center';
+		playedHeader.textContent = 'Played';
+		const winsHeader = document.createElement('span');
+		winsHeader.className = 'text-center';
+		winsHeader.textContent = '% Wins';
+
+		header.appendChild(emptyCell1);
+		header.appendChild(emptyCell2);
+		header.appendChild(playedHeader);
+		header.appendChild(winsHeader);
+		leaderBoard.appendChild(header);
+
+		// Create grid wrapper
+		const grid = document.createElement('div');
+
+		const currentUsername = sessionStorage.getItem('username');
+		if (this.rankData) {
+			this.rankData.forEach(player => {
+				const playerUsername = player.login ?? player.alias ?? '—';
+				const isCurrentUser = currentUsername === playerUsername;
+
+				const row = document.createElement('div');
+				row.className = `grid grid-cols-[1rem_1fr_4rem_4rem] gap-3 sm:gap-12 items-center px-3 sm:px-4 py-2 sm:py-3  text-[var(--color3)] transition-colors ${
+					isCurrentUser ? '' : ''
+				}`;
+
+				// Rank
+				const rank = document.createElement('span');
+				rank.className = `text-xl sm:text-2xl text-xl sm:text-3xl ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				rank.textContent = player.rank.toString();
+
+				// Name
+				const name = document.createElement('span');
+				name.className = `text-xl sm:text-3xl font-bold truncate ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				name.textContent = playerUsername;
+
+				// Played
+				const played = document.createElement('div');
+				played.className = `text-base sm:text-xl text-center font-semibold  min-w-[3rem] sm:min-w-[4rem]  ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				played.textContent = player.played.toString();
+
+				// % Wins
+				const wins = document.createElement('div');
+				wins.className = `text-base sm:text-xl text-center font-semibold  min-w-[3rem] sm:min-w-[4rem] ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				wins.textContent = `${(player.percentage_wins * 100).toFixed(1)}%`;
+
+				row.appendChild(rank);
+				row.appendChild(name);
+				row.appendChild(played);
+				row.appendChild(wins);
+
+				grid.appendChild(row);
+			});
+
+			leaderBoard.appendChild(grid);
+		}
+		return leaderBoard;
+	}
+
+	private createIndivData(): HTMLDivElement {
+		/////////////////
+		// individual data
+		const indivContainer = document.createElement('div');
+		indivContainer.className = 'flex gap-2 mb-4 justify-center';
+
+		const number = document.createElement('div');
+		number.className =
+			` grid grid-cols-3 gap-3 sm:gap-12 ` +
+			' items-center px-2 sm:px-3  py-1 sm:py-0 text-[var(--color3)] ' +
+			' sticky top-2 bg-white text-sm sm:text-base';
+
+		// total played
+		const total = document.createElement('span');
+		total.className = ` text-xl sm:text-2xl text-xl sm:text-3xl truncate`;
+		total.textContent = this.matchData!.played.toString();
+
+		// total wins
+		const totalWin = document.createElement('span');
+		totalWin.className = ` text-xl sm:text-2xl text-xl sm:text-3xl  truncate`;
+		totalWin.textContent = this.matchData!.wins.toString();
+
+		// % wins
+		const percentWin = document.createElement('div');
+		percentWin.className = `text-xl sm:text-2xl text-xl sm:text-3xl  truncate`;
+		percentWin.textContent = `${(this.matchData!.percentage_wins * 100).toFixed(1)}%`;
+
+		number.appendChild(total);
+		number.appendChild(totalWin);
+		number.appendChild(percentWin);
+		indivContainer.appendChild(number);
+
+		// goals_against 257
+		// goals_scored 334
+		return indivContainer;
+	}
+
+
+	/////////////////
+	// GRAPH CUMULATIVE WINS
+	private createCumulativeGraph(): HTMLDivElement {
 
 		// Add filter buttons
+
+		const graph = document.createElement('div');
+
 		const buttonContainer = document.createElement('div');
 		buttonContainer.className = 'flex gap-2 mb-4 justify-center';
 
-		const limits = [10, 20, 50];
-		let currentLimit = 50;
+		const limits = [10, 20, 100];
+		let currentLimit = 100;
 		let chartInstance: Chart | null = null;
 
 		const createChart = (limit: number) => {
@@ -223,103 +378,16 @@ export class StatModal extends Modal {
 			buttonContainer.appendChild(button);
 		});
 
-		histColumn.appendChild(buttonContainer);
+		graph.appendChild(buttonContainer);
 
 		const canvas = document.createElement('canvas');
 		canvas.id = 'histChart';
 		canvas.className = 'w-full h-64';
-		histColumn.appendChild(canvas);
+		graph.appendChild(canvas);
 
 		if (this.histData) {
 			createChart(currentLimit);
 		}
-
-		//////////////////////
-		// Right column: Leaderboard
-		const rankColumn = document.createElement('div');
-		rankColumn.className = 'bg-white p-3 rounded-lg';
-
-		const imageDivRight = document.createElement('div');
-		imageDivRight.className = 'bg-white p-8';
-		rankColumn.appendChild(imageDivRight);
-
-		const imgRight = '../Leaderboard2.png';
-		const imgRank = document.createElement('img');
-		imgRank.src = imgRight;
-		imgRank.alt = 'Hist';
-		imgRank.className = 'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
-		imageDivRight.appendChild(imgRank);
-
-		// header
-		const header = document.createElement('div');
-		header.className =
-			'grid grid-cols-[1rem_1fr_4rem_4rem] gap-3 sm:gap-12 ' +
-			' items-center px-2 sm:px-3  py-1 sm:py-0 text-[var(--color3)] ' +
-			' sticky top-2 bg-white text-sm sm:text-base';
-
-		// header cells
-		const emptyCell1 = document.createElement('span');
-		const emptyCell2 = document.createElement('span');
-		const playedHeader = document.createElement('span');
-		playedHeader.className = 'text-center';
-		playedHeader.textContent = 'Played';
-		const winsHeader = document.createElement('span');
-		winsHeader.className = 'text-center';
-		winsHeader.textContent = '% Wins';
-
-		header.appendChild(emptyCell1);
-		header.appendChild(emptyCell2);
-		header.appendChild(playedHeader);
-		header.appendChild(winsHeader);
-		rankColumn.appendChild(header);
-
-		// Create grid wrapper
-		const grid = document.createElement('div');
-
-		const currentUsername = sessionStorage.getItem('username');
-		if (this.rankData) {
-			this.rankData.forEach(player => {
-				const playerUsername = player.login ?? player.alias ?? '—';
-				const isCurrentUser = currentUsername === playerUsername;
-
-				const row = document.createElement('div');
-				row.className = `grid grid-cols-[1rem_1fr_4rem_4rem] gap-3 sm:gap-12 items-center px-3 sm:px-4 py-2 sm:py-3  text-[var(--color3)] transition-colors ${
-					isCurrentUser ? '' : ''
-				}`;
-
-				// Rank
-				const rank = document.createElement('span');
-				rank.className = `text-xl sm:text-2xl text-xl sm:text-3xl ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
-				rank.textContent = player.rank.toString();
-
-				// Name
-				const name = document.createElement('span');
-				name.className = `text-xl sm:text-3xl font-bold truncate ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
-				name.textContent = playerUsername;
-
-				// Played
-				const played = document.createElement('div');
-				played.className = `text-base sm:text-xl text-center font-semibold  min-w-[3rem] sm:min-w-[4rem]  ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
-				played.textContent = player.played.toString();
-
-				// % Wins
-				const wins = document.createElement('div');
-				wins.className = `text-base sm:text-xl text-center font-semibold  min-w-[3rem] sm:min-w-[4rem] ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
-				wins.textContent = `${(player.percentage_wins * 100).toFixed(1)}%`;
-
-				row.appendChild(rank);
-				row.appendChild(name);
-				row.appendChild(played);
-				row.appendChild(wins);
-
-				grid.appendChild(row);
-			});
-
-			rankColumn.appendChild(grid);
-		}
-
-		container.appendChild(histColumn);
-		container.appendChild(rankColumn);
-		this.element.appendChild(container);
+		return graph;
 	}
 }

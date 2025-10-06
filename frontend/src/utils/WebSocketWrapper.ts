@@ -78,6 +78,7 @@ export class WebSocketWrapper {
 			);
 			return;
 		}
+		
 
 		// For other errors, trying to reopen after 3 seconds if target state is 'open'
 		if (this.targetState === 'open') {
