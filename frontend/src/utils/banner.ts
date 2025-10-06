@@ -88,7 +88,7 @@ function updateOnlinePlayersDisplay(banner: OnlinePlayersBanner, users: any[]) {
 	const scrollWrapper = container.parentElement;
 	if (!scrollWrapper) return;
 
-	scrollWrapper.innerHTML = '';
+	scrollWrapper.replaceChildren();
 
 	// Recreate main container
 	const newContainer = document.createElement('div');

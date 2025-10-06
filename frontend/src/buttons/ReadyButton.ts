@@ -23,7 +23,7 @@ export class ReadyButton extends Button {
 
 	private showLoader() {
 		// Clear the button content but keep button styling
-		this.element.innerHTML = '';
+		this.element.textContent = '';
 		this.element.disabled = true;
 
 		this.element.classList.remove('hover:bg-whatever');

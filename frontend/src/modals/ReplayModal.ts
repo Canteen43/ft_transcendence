@@ -85,7 +85,7 @@ export class ReplayModal extends Modal {
 
 	private showLoader() {
 		// Clear the button content but keep button styling
-		this.box.innerHTML = '';
+		this.box.textContent = '';
 		this.box.classList.remove('hover:bg-whatever');
 		this.box.classList.add('cursor-not-allowed');
 		this.box.style.backgroundColor = 'white';
