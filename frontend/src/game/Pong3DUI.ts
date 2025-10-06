@@ -145,7 +145,7 @@ export function createPong3DUI(
 			width,
 			height,
 			false,
-			1
+			true
 		);
 		texture.name = `${controlName}-adt`;
 		texture.renderAtIdealSize = true;
@@ -370,7 +370,6 @@ export function createPong3DUI(
 
 	for (let i = 0; i < 4; i++) makePlayerBlock(i);
 
-
 	// No-op move function kept for compatibility with callers
 	function movePlayerTo(
 		_playerIndex: number,
@@ -415,15 +414,15 @@ export function createPong3DUI(
 		winnerMessage.isVisible = false;
 	};
 
-		return {
-			guiTexture,
-			playerStacks,
-			playerNameTexts,
-			playerScoreTexts,
-			winnerMessage,
-			movePlayerTo,
-			showWinner,
-			hideWinner,
+	return {
+		guiTexture,
+		playerStacks,
+		playerNameTexts,
+		playerScoreTexts,
+		winnerMessage,
+		movePlayerTo,
+		showWinner,
+		hideWinner,
 		dispose: () => {
 			texturesToDispose.forEach(texture => {
 				try {
