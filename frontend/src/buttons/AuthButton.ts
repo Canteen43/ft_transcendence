@@ -17,6 +17,7 @@ export class AuthComponent {
 
 	constructor(parent: HTMLElement) {
 		this.parent = parent;
+		console.debug('Rendering the Auth button');
 		this.render();
 		document.addEventListener('login-success', this.renderHandler);
 		document.addEventListener('logout-success', this.renderHandler);
@@ -30,6 +31,7 @@ export class AuthComponent {
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
 		const isHomeScreen = location.hash === '#home';
+		const moveButton = isHomeScreen && userIsLoggedIn;
 
 		this.button = new Button(
 			userIsLoggedIn ? username : 'sign in',
@@ -37,31 +39,26 @@ export class AuthComponent {
 			this.parent
 		);
 
-		if (userIsLoggedIn) {
-			// Create a wrapper with fixed positioning
-			const wrapper = document.createElement('div');
-			const rightPosition = isHomeScreen ? 'right-[21rem]' : 'right-4';
-			wrapper.className = `fixed top-4 ${rightPosition} z-10 w-32 sm:w-48 md:w-60 transition-all duration-300`;
+		// Create a wrapper with fixed positioning
+		const wrapper = document.createElement('div');
+		wrapper.className =
+			`fixed top-4 z-10 w-32 sm:w-48 md:w-60 transition-all duration-300` +
+			` ${moveButton ? 'right-[21rem]' : 'right-4' }`;
 
-			// Update button to be relative within the wrapper
-			this.button.element.className +=
-				' relative w-full text-center truncate';
+		// Update button to be relative within the wrapper
+		this.button.element.className +=
+			' relative w-full text-center truncate';
 
-			// Move button into wrapper
-			const parent = this.button.element.parentElement!;
-			parent.removeChild(this.button.element);
-			wrapper.appendChild(this.button.element);
-			parent.appendChild(wrapper);
+		// Move button into wrapper
+		const parent = this.button.element.parentElement!;
+		parent.removeChild(this.button.element);
+		wrapper.appendChild(this.button.element);
+		parent.appendChild(wrapper);
 
-			this.createDropdown();
-			wrapper.addEventListener('mouseenter', this.onEnter);
-			wrapper.addEventListener('mouseleave', this.onLeave);
-		} else {
-			this.button.element.className +=
-				' top-4 right-4 fixed w-32 sm:w-48 md:w-60 z-10 text-center truncate group';
-		}
+		this.createDropdown();
+		wrapper.addEventListener('mouseenter', this.onEnter);
+		wrapper.addEventListener('mouseleave', this.onLeave);
 	}
-
 
 	private showLoginModal() {
 		this.loginModal = new LoginModal(this.parent);
