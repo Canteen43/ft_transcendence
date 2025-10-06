@@ -4,8 +4,11 @@ import * as constants from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
 import {
 	PercentageWinsHistory,
+	PercentageWinsHistorySchema,
 	Ranking,
 	RankingItem,
+	RankingItemSchema,
+	RankingSchema,
 } from '../../shared/schemas/stats.js';
 import { UUID, zUUID } from '../../shared/types.js';
 import { StatsRepository } from '../repositories/stats_repository.js';
@@ -61,11 +64,18 @@ async function getPercentageWinsHistory(
 }
 
 export default async function statsRoutes(fastify: FastifyInstance) {
-	fastify.get('/ranking', getRanking);
+	fastify.get(
+		'/ranking',
+		routeConfig({
+			response: RankingSchema,
+		}),
+		getRanking
+	);
 	fastify.get(
 		'/ranking/:user_id',
 		routeConfig({
 			params: z.object({ user_id: zUUID }),
+			response: RankingItemSchema,
 		}),
 		getUserRankingItem
 	);
@@ -73,6 +83,7 @@ export default async function statsRoutes(fastify: FastifyInstance) {
 		'/wins_history/:user_id',
 		routeConfig({
 			params: z.object({ user_id: zUUID }),
+			response: PercentageWinsHistorySchema,
 		}),
 		getPercentageWinsHistory
 	);
