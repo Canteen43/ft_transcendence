@@ -8,7 +8,7 @@ export class TwoFactAuthButton extends Button {
 		super('2FA', () => this.readyClicked(), parent);
 		this.parent = parent;
 		this.element.className +=
-			'absolute top-4 right-70 w-32 sm:w-48 md:w-60 z-10 text-center truncate';
+			'absolute top-4 right-140 w-32 sm:w-48 md:w-60 z-10 text-center truncate';
 	}
 
 	private readyClicked() {
