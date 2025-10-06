@@ -1,3 +1,4 @@
+import { MAX_RANKING_ITEMS } from '../../shared/constants.js';
 import { MatchStatus } from '../../shared/enums.js';
 import {
 	PercentageWinsHistorySchema,
@@ -140,7 +141,7 @@ export class StatsRepository {
 					1.0 * wins / NULLIF(played, 0) DESC,
 					(goals_scored - goals_against) DESC,
 					goals_scored DESC,
-					goals_against DESC
+					goals_against ASC
 			) AS rank,
 			id AS user_id,
 			login,
@@ -151,19 +152,28 @@ export class StatsRepository {
 			goals_scored,
 			goals_against,
 			1.0 * wins / NULLIF(played, 0) AS percentage_wins
-		FROM pre_calc
-		WHERE played > 10
-		ORDER BY
-			percentage_wins DESC,
-			goals_scored - goals_against DESC,
-			goals_scored DESC,
-			goals_against ASC`;
+		FROM pre_calc`;
 
-		if (minMatches)
-			query += `
-			LIMIT ${minMatches}`;
-		const filter = userId ? [userId] : [];
-		const rows = db.queryAll(query, filter);
+		const query_order = `
+		ORDER BY rank ASC
+		LIMIT ?;`;
+
+		let query_filter = `
+			WHERE 1 = 1`;
+		let params: any[] = [];
+		if (minMatches) {
+			query_filter += `
+				AND played >= ?`;
+			params.push(minMatches);
+		}
+		if (userId) {
+			query_filter += `
+				AND id = ?`;
+			params.push(userId);
+		}
+		params.push(MAX_RANKING_ITEMS);
+
+		const rows = db.queryAll(query + query_filter + query_order, params);
 		return RankingSchema.parse(rows);
 	}
 }
