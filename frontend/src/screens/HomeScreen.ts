@@ -7,7 +7,7 @@ import {
 	destroyOnlinePlayersBanner,
 	loadOnlinePlayers,
 	OnlinePlayersBanner,
-} from '../utils/banner';
+} from '../utils/Banner';
 import { Chat } from '../utils/Chat';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
@@ -61,7 +61,7 @@ export class HomeScreen extends Screen {
 	}
 
 	public toggleChat(show: boolean): void {
-		console.debug("toggling the chat" + show);
+		console.debug('toggling the chat' + show);
 		if (show) {
 			if (!this.chat && isLoggedIn()) {
 				this.chat = new Chat(document.body);
@@ -83,7 +83,6 @@ export class HomeScreen extends Screen {
 			}
 		}, 30000);
 	}
-
 
 	private destroyChat() {
 		if (this.chat) {
