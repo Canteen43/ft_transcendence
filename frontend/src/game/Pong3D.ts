@@ -14,6 +14,7 @@ import {
 	MESSAGE_POINT,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { ReplayModal } from '../modals/ReplayModal';
 import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
@@ -1831,7 +1832,7 @@ export class Pong3D {
 
 			if (nx !== 0 && nz !== 0) {
 				const v = ballImpostor.getLinearVelocity();
-				if (v && (Math.abs(v.x) + Math.abs(v.z)) > 1e-4) {
+				if (v && Math.abs(v.x) + Math.abs(v.z) > 1e-4) {
 					const n = new BABYLON.Vector3(nx, 0, nz).normalize();
 					const vXZ = new BABYLON.Vector3(v.x, 0, v.z);
 					const dot = BABYLON.Vector3.Dot(vXZ, n);
@@ -2188,6 +2189,14 @@ export class Pong3D {
 					);
 				}
 			}
+			else if (
+				sessionStorage.getItem('gameMode') === 'remote' &&
+				sessionStorage.getItem('tournament') === '0'
+			) {
+				state.replayCounter = 0;
+				new ReplayModal(this.container);
+				// location.hash = '#home';
+			}
 			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
 				state.gameOngoing = false;
@@ -2203,12 +2212,6 @@ export class Pong3D {
 						'remote game, tourn = 1 -> redirecting to tournament'
 					);
 					location.hash = '#tournament';
-				}
-				if (
-					sessionStorage.getItem('gameMode') === 'remote' &&
-					sessionStorage.getItem('tournament') === '0'
-				) {
-					location.hash = '#home';
 				}
 			}, 4500);
 
@@ -4683,6 +4686,15 @@ export class Pong3D {
 			if (this.gameLoop) {
 				this.gameLoop.stop();
 			}
+			
+			if (
+				sessionStorage.getItem('gameMode') === 'remote' &&
+				sessionStorage.getItem('tournament') === '0'
+			) {
+				state.replayCounter = 0;
+				new ReplayModal(this.container);
+				// location.hash = '#home';
+			}
 
 			// Wait 2 seconds for victory handling before redirecting when acting as master
 			setTimeout(() => {
@@ -4701,13 +4713,7 @@ export class Pong3D {
 					);
 					location.hash = '#tournament';
 				}
-				if (
-					sessionStorage.getItem('gameMode') === 'remote' &&
-					sessionStorage.getItem('tournament') === '0'
-				) {
-					location.hash = '#home';
-				}
-			}, 2000);
+			}, 4500);
 		}
 	}
 
