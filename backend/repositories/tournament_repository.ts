@@ -37,21 +37,27 @@ export default class TournamentRepository {
 		return TournamentSchema.parse(result);
 	}
 
-	static getTournamentsForUser(
-		user_id: UUID,
-		status?: TournamentStatus
+	static getTournamentsWithFilter(
+		user_id?: UUID,
+		statuses?: TournamentStatus[]
 	): Tournament[] {
 		let query = `SELECT tournament.id, created_at, size, settings_id, status
 			FROM ${this.table} tournament
 			INNER JOIN ${ParticipantRepository.table} participant
 				ON tournament.id = participant.tournament_id
-			WHERE participant.user_id = ?`;
+			WHERE 1 = 1`;
 
-		let params: any[] = [user_id];
+		let params: any[] = [];
 
-		if (status !== undefined) {
-			query += ` AND status = ?`;
-			params.push(status);
+		if (user_id !== undefined) {
+			query += ` AND participant.user_id = ?`;
+			params.push(user_id);
+		}
+
+		if (statuses !== undefined && statuses.length) {
+			const qs = '?,'.repeat(statuses.length).slice(0, -1);
+			query += ` AND status IN (${qs})`;
+			params.push(...statuses);
 		}
 
 		const result = db.queryAll<Tournament>(query, params);
