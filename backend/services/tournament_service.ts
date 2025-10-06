@@ -25,7 +25,7 @@ import {
 	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
-import { arrayMin, randomInt } from '../../shared/utils.js';
+import { arrayMax, randomInt } from '../../shared/utils.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
@@ -221,7 +221,7 @@ export default class TournamentService {
 		);
 		if (!tournaments.length)
 			throw new TournamentNotFoundError('user id', users[0]);
-		const tournament = arrayMin(tournaments, t => t.created_at.getTime());
+		const tournament = arrayMax(tournaments, t => t.created_at.getTime());
 		const participants = ParticipantRepository.getTournamentParticipants(
 			tournament.id
 		);
