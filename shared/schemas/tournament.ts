@@ -10,6 +10,7 @@ import { ParticipantSchema } from './participant.js';
 
 export const TournamentSchema = z.object({
 	id: zUUID,
+	created_at: z.coerce.date(),
 	size: z.number().int(),
 	settings_id: zUUID,
 	status: z.enum(TournamentStatus),
@@ -20,7 +21,10 @@ export const FullTournamentSchema = TournamentSchema.extend({
 	matches: z.array(MatchSchemaWithUserId),
 });
 
-export const CreateTournamentSchema = TournamentSchema.omit({ id: true });
+export const CreateTournamentSchema = TournamentSchema.omit({
+	id: true,
+	created_at: true,
+});
 
 export const CreateTournamentApiSchema = z.object({
 	creator: zUUID,

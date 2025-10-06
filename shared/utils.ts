@@ -8,3 +8,9 @@ export function randomInt(min: number, max: number) {
 export function zodError(error: ZodError): string {
 	return error.issues[0]?.message ?? constants.ERROR_INVALID_INPUT;
 }
+
+export function arrayMin<T>(items: T[], getValue: (item: T) => number): T {
+	return items.reduce((min, item) =>
+		getValue(item) < getValue(min) ? item : min
+	);
+}
