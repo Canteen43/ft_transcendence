@@ -22,6 +22,7 @@ import {
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
+	UpdateTournament,
 	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
@@ -121,6 +122,14 @@ export default class TournamentService {
 		return this.createTournament(creator, users, queuedUsers);
 	}
 
+	static cleanTournaments() {
+		let tournaments = TournamentRepository.getTournamentsWithFilter(
+			undefined,
+			[TournamentStatus.Pending, TournamentStatus.InProgress]
+		);
+		for (const t of tournaments) this.cancelTournament(t.id);
+	}
+
 	private static createTournament(
 		creator: UUID,
 		users: UUID[],
@@ -216,7 +225,7 @@ export default class TournamentService {
 	private static createQueuedUsersForReplay(users: UUID[]): QueuedUser[] {
 		if (!users.length)
 			throw new TournamentNotFoundError('non existing user', '');
-		const tournaments = TournamentRepository.getTournamentsForUser(
+		const tournaments = TournamentRepository.getTournamentsWithFilter(
 			users[0]
 		);
 		if (!tournaments.length)
