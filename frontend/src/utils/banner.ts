@@ -14,7 +14,7 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 	const bannerContainer = document.createElement('div');
 	bannerContainer.className =
 		'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
-		'border-t-2 border-[var(--color5)] py-2 z-50 overflow-hidden';
+		'border-t-2 border-[var(--color5)] py-2 z-20 overflow-hidden';
 
 	const scrollWrapper = document.createElement('div');
 	scrollWrapper.className = 'flex animate-scroll whitespace-nowrap';

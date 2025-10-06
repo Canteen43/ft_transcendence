@@ -16,15 +16,12 @@ import { Screen } from './Screen';
 export class HomeScreen extends Screen {
 	private banner?: OnlinePlayersBanner | null = null;
 	private chat?: Chat | null = null;
-
 	private landing: Landing | null = null;
 	private onlinePlayersInterval: number | null = null;
 
 	constructor() {
 		super();
-		this.element.className =
-			'flex flex-col items-center justify-center min-h-screen ' +
-			' bg-transparent p-4 space-y-6';
+		this.element.className = 'flex flex-row min-h-screen bg-transparent';
 
 		try {
 			this.initThreeD();
@@ -123,7 +120,6 @@ export class HomeScreen extends Screen {
 	private localLogic() {
 		new LocalGameModal(this.element);
 	}
-
 
 	public destroy(): void {
 		if (this.landing) {
