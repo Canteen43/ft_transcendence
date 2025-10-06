@@ -31,6 +31,7 @@ export class HomeScreen extends Screen {
 			}
 			document.addEventListener('login-success', this.onLoginChange);
 			document.addEventListener('logout-success', this.onLoginChange);
+			document.addEventListener('login-failed', this.onLoginChange);
 		} catch (err) {
 			console.error('Error initializing HomeScreen:', err);
 		}
@@ -60,9 +61,10 @@ export class HomeScreen extends Screen {
 	}
 
 	public toggleChat(show: boolean): void {
+		console.debug("toggling the chat" + show);
 		if (show) {
 			if (!this.chat && isLoggedIn()) {
-				this.initChat();
+				this.chat = new Chat(document.body);
 			}
 		} else {
 			this.destroyChat();
@@ -82,9 +84,6 @@ export class HomeScreen extends Screen {
 		}, 30000);
 	}
 
-	private initChat() {
-		this.chat = new Chat(document.body);
-	}
 
 	private destroyChat() {
 		if (this.chat) {

@@ -68,7 +68,7 @@ export class Chat {
 
 	private addMessageToUI(message: string): void {
 		const messageEl = document.createElement('div');
-		messageEl.className = 'px-2 py-1 bg-white rounded text-sm break-words';
+		messageEl.className = 'px-2 py-1 bg-[var(--color2)] rounded text-sm break-words';
 		messageEl.textContent = message;
 
 		this.messagesContainer.appendChild(messageEl);
