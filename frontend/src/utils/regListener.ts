@@ -1,24 +1,18 @@
 import {
+	MESSAGE_CHAT,
 	MESSAGE_FINISH,
-	MESSAGE_GAME_STATE,
-	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
-
 import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
-import {
-	FullTournamentSchema,
-	TournamentQueueSchema,
-} from '../../../shared/schemas/tournament';
+import { FullTournamentSchema } from '../../../shared/schemas/tournament';
+import { TextModal } from '../modals/TextModal';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
-
-import { TextModal } from '../modals/TextModal';
-import { router } from './Router';
 import { updateTournData } from '../utils/updateTurnMatchData.js';
+import { router } from './Router';
 import { webSocket } from './WebSocketWrapper';
 
 export async function regListener(event: MessageEvent): Promise<void> {
@@ -49,7 +43,11 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				if (error) {
 					console.error('Tournament join error:', error);
 					const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
-					new TextModal(router.currentScreen!.element, message, undefined);
+					new TextModal(
+						router.currentScreen!.element,
+						message,
+						undefined
+					);
 					return;
 				}
 
@@ -61,7 +59,6 @@ export async function regListener(event: MessageEvent): Promise<void> {
 						'Failed to get tournament data'
 					);
 					return;
-
 				} else if (tournData.matches.length === 1) {
 					updateTournData(tournData);
 					document.dispatchEvent(new Event('2plyrsGameReady'));
@@ -83,11 +80,19 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				location.hash = '#game';
 				break;
 
+			case MESSAGE_CHAT:
+				console.info('Received chat message:', msg);
+				document.dispatchEvent(
+					new CustomEvent('chat-message', {
+						detail: msg.d,
+					})
+				);
+				break;
+
 			case MESSAGE_QUIT:
 				console.info('Received quit message:', msg);
 				if (location.hash === '#home') {
-					const readyModal = document.querySelector(
-						'.ready-modal');
+					const readyModal = document.querySelector('.ready-modal');
 					readyModal?.remove();
 				}
 				location.hash = '#home';

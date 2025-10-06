@@ -222,8 +222,9 @@ export class GameProtocol {
 
 	private handleReplay(connectionId: UUID, message: Message) {
 		logger.debug('websocket: replay message received.');
-		const match = this.getMatchObject(connectionId);
-		this.sendMatchMessage(message, match.players);
+		const matchId = message.d as UUID;
+		// const match = this.getDbMatch(matchId);
+		this.sendTournamentMessage(message, this.getTournamentParticipants(matchId));
 	}
 
 	private handleChat(connectionId: UUID, message: Message) {

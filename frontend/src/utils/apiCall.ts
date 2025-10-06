@@ -1,5 +1,4 @@
 import { ZodType, z } from 'zod';
-import { TextModal } from '../modals/TextModal';
 
 // property/method	type			meaning
 // res.ok			boolean			true if the status is in the range 200–299 (success). false otherwise.

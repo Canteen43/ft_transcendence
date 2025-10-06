@@ -1,12 +1,14 @@
 import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
+	MESSAGE_CHAT,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_CLOSE_POLICY_VIOLATION,
 	WS_TOKEN_EXPIRED,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
+import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
 import { regListener } from './regListener';
@@ -33,7 +35,7 @@ export class WebSocketWrapper {
 	private reconnectModal?: TextModal | null;
 
 	constructor() {
-		if (sessionStorage.getItem('token')) {
+		if (isLoggedIn()) {
 			this.open();
 		}
 	}
@@ -85,7 +87,7 @@ export class WebSocketWrapper {
 			if (!this.reconnectModal) {
 				this.reconnectModal = new TextModal(
 					router.currentScreen!.element,
-					`${event.reason}. Trying to reconnect...`,
+					`${event.reason} Trying to reconnect...`,
 					'Dismiss',
 					() => {
 						this.reconnectModal?.destroy();
@@ -164,7 +166,7 @@ export class WebSocketWrapper {
 			console.warn('Websocket not opened, message not sent.');
 			return;
 		}
-		// console.debug('Sending:', message);
+		console.debug('Sending:', message);
 		this.ws.send(JSON.stringify(message));
 	}
 

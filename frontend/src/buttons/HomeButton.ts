@@ -1,5 +1,7 @@
 import { TextModal } from '../modals/TextModal';
 import { state } from '../utils/State';
+import { clearMatchData } from '../utils/cleanSessionStorage';
+
 
 export class HomeButton {
 	private button: HTMLButtonElement;
@@ -14,8 +16,8 @@ export class HomeButton {
 			'absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none';
 		('absolute z-10 top-4 left-4 fixed p-0 bg-transparent border-none');
 
-		const imgSrc = '../home_empty_black.png';
-		const hoverImgSrc = '../home_full_black.png';
+		const imgSrc = '../home_empty_white.png';
+		const hoverImgSrc = '../home_full_white.png';
 
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
@@ -41,6 +43,7 @@ export class HomeButton {
 				undefined,
 				'Leave',
 				() => {
+					clearMatchData();
 					location.hash = '#home';
 				}
 			);
