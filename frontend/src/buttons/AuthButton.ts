@@ -29,6 +29,7 @@ export class AuthComponent {
 		this.destroyButton();
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
+		const isHomeScreen = location.hash === '#home';
 
 		this.button = new Button(
 			userIsLoggedIn ? username : 'sign in',
@@ -39,7 +40,8 @@ export class AuthComponent {
 		if (userIsLoggedIn) {
 			// Create a wrapper with fixed positioning
 			const wrapper = document.createElement('div');
-			wrapper.className = 'fixed top-4 right-4 z-10 w-32 sm:w-48 md:w-60';
+			const rightPosition = isHomeScreen ? 'right-[21rem]' : 'right-4';
+			wrapper.className = `fixed top-4 ${rightPosition} z-10 w-32 sm:w-48 md:w-60 transition-all duration-300`;
 
 			// Update button to be relative within the wrapper
 			this.button.element.className +=
@@ -59,6 +61,7 @@ export class AuthComponent {
 				' top-4 right-4 fixed w-32 sm:w-48 md:w-60 z-10 text-center truncate group';
 		}
 	}
+
 
 	private showLoginModal() {
 		this.loginModal = new LoginModal(this.parent);
