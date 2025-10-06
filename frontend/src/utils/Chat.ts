@@ -38,6 +38,7 @@ export class Chat {
 			'flex-1 px-4 py-2 border border-gray-300 bg-[var(--color1)] rounded-sm ' +
 			'focus:outline-none focus:ring-2 focus:ring-grey text-[var(--color3)] text-sm';
 		this.input.addEventListener('keypress', this.handleKeypress);
+		this.input.focus();
 
 		// Toggle button
 		this.toggleButton = document.createElement('button');
@@ -54,14 +55,8 @@ export class Chat {
 		// inputContainer in Main container
 		this.container.appendChild(inputContainer);
 
-		// attached to main or parent
-		const main = document.querySelector('main');
-		if (main) {
-			main.appendChild(this.container);
-		} else {
-			// Fallback to parent if main doesn't exist
-			parent.appendChild(this.container);
-		}
+		// attached to parent
+		parent.appendChild(this.container);
 
 		// Listen for incoming messages via document event
 		document.addEventListener('chat-message', this.handleChatMessage);
