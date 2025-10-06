@@ -3,6 +3,7 @@ import Chart from 'chart.js/auto';
 import { z } from 'zod';
 import {
 	PercentageWinsHistorySchema,
+	RankingItemSchema,
 	RankingSchema,
 } from '../../../shared/schemas/stats';
 import { apiCall } from '../utils/apiCall';
@@ -11,11 +12,13 @@ import { TextModal } from './TextModal';
 
 type RankingData = z.infer<typeof RankingSchema>;
 type HistoryData = z.infer<typeof PercentageWinsHistorySchema>;
+type MatchData = z.infer<typeof RankingItemSchema>;
 
 export class StatModal extends Modal {
 	private element: HTMLElement;
 	private rankData: RankingData | null = null;
 	private histData: HistoryData | null = null;
+	private matchData: MatchData | null = null;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -32,6 +35,7 @@ export class StatModal extends Modal {
 	private async initialize() {
 		await this.getRankData();
 		await this.getHistData();
+		await this.getMatchData();
 		if (this.histData || this.rankData) {
 			this.createOutput();
 		}
@@ -82,13 +86,35 @@ export class StatModal extends Modal {
 		this.histData = histData;
 	}
 
+	private async getMatchData() {
+		const userID = sessionStorage.getItem('userID');
+		if (!userID) {
+			this.showErrorModal('No user ID found - please login');
+			return;
+		}
+		const { data: matchData, error: matchError } = await apiCall(
+			'GET',
+			`/stats/ranking/${userID}`,
+			RankingItemSchema
+		);
+		if (matchError) {
+			console.error('Error getting match history: ', matchError);
+			this.showErrorModal(
+				`Failed to get match data: ${matchError.message}`
+			);
+			return;
+		}
+		console.debug(matchData);
+		this.matchData = matchData;
+	}
+
 	private createOutput(): void {
 		const container = document.createElement('div');
 		container.className =
 			'w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-6';
 
 		//////////////////////
-		// Left column: Historical data (without innerHTML)
+		// Left column: Historical data
 		const histColumn = document.createElement('div');
 		histColumn.className = 'bg-white p-4 rounded-lg';
 
@@ -209,7 +235,7 @@ export class StatModal extends Modal {
 		}
 
 		//////////////////////
-		// Right column: Leaderboard (without innerHTML)
+		// Right column: Leaderboard
 		const rankColumn = document.createElement('div');
 		rankColumn.className = 'bg-white p-3 rounded-lg';
 
@@ -224,14 +250,14 @@ export class StatModal extends Modal {
 		imgRank.className = 'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
 		imageDivRight.appendChild(imgRank);
 
-		// Create header
+		// header
 		const header = document.createElement('div');
 		header.className =
 			'grid grid-cols-[1rem_1fr_4rem_4rem] gap-3 sm:gap-12 ' +
 			' items-center px-2 sm:px-3  py-1 sm:py-0 text-[var(--color3)] ' +
 			' sticky top-2 bg-white text-sm sm:text-base';
 
-		// Add header cells without innerHTML
+		// header cells
 		const emptyCell1 = document.createElement('span');
 		const emptyCell2 = document.createElement('span');
 		const playedHeader = document.createElement('span');

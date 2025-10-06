@@ -76,7 +76,7 @@ export class TournamentScreen extends Screen {
 	}
 
 	private render() {
-		this.element.innerHTML = '';
+		this.element.textContent = '';
 
 		this.element.className =
 			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
@@ -233,7 +233,6 @@ export class TournamentScreen extends Screen {
 		);
 		title.textContent = 'TOURNAMENT';
 	}
-
 	private createPlayerSlot(
 		name: string,
 		status: 'winner' | 'loser' | 'normal',
@@ -241,6 +240,7 @@ export class TournamentScreen extends Screen {
 	): HTMLElement {
 		const slot = document.createElement('div');
 
+		// Apply status class
 		let statusClass = '';
 		if (status === 'winner') {
 			statusClass = 'winner';
@@ -250,15 +250,29 @@ export class TournamentScreen extends Screen {
 
 		slot.className = `player-slot px-6 py-4 text-center font-semibold text-xl min-h-[60px] min-w-[160px] flex items-center justify-center truncate max-w-[200px] border-2 border-transparent ${statusClass}`;
 
-		// Create content with name and score
 		if (score !== undefined && score !== '0') {
-			slot.innerHTML = `
-				<div class="flex flex-col items-center">
-					<div class="font-bold">${name}</div>
-					<div class="text-lg mt-1">${score}</div>
-				</div>
-			`;
+			// Create container
+			const container = document.createElement('div');
+			container.className = 'flex flex-col items-center';
+
+			// Name element
+			const nameEl = document.createElement('div');
+			nameEl.className = 'font-bold';
+			nameEl.textContent = name;
+
+			// Score element
+			const scoreEl = document.createElement('div');
+			scoreEl.className = 'text-lg mt-1';
+			scoreEl.textContent = score;
+
+			// Append to container
+			container.appendChild(nameEl);
+			container.appendChild(scoreEl);
+
+			// Append container to slot
+			slot.appendChild(container);
 		} else {
+			// Only name
 			slot.textContent = name;
 		}
 
