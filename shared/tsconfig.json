@@ -5,11 +5,10 @@
 		"moduleResolution": "NodeNext",
 		"esModuleInterop": true,
 		"strict": true,
+		"composite": true,
 		"declaration": true,
-		"outDir": "../build/app/backend",
-		"rootDir": "."
+		"declarationMap": true,
+		"outDir": "../build/app/shared"
 	},
-	"references": [{ "path": "../shared" }],
-	"include": ["."],
-	"exclude": ["../node_modules"]
+	"include": ["."]
 }
