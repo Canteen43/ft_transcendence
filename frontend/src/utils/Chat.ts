@@ -9,26 +9,27 @@ export class Chat {
 
 	constructor(parent: HTMLElement) {
 		this.container = document.createElement('div');
+
 		this.container.className =
-			'fixed right-0 top-0 h-screen w-80 bg-white/90 backdrop-blur-sm ' +
+			'fixed right-0 top-0 h-[calc(100vh-2.5rem)] w-80 w-sm-80  bg-white/40 backdrop-blur-sm ' +
 			'shadow-lg flex flex-col z-40 border-l border-gray-300';
 
 		// Messages container
 		this.messagesContainer = document.createElement('div');
 		this.messagesContainer.className =
-			'flex-1 overflow-y-auto p-4 space-y-1 bg-gray-50';
+			'flex-1 overflow-y-auto p-2 space-y-1 bg-gray';
 		this.container.appendChild(this.messagesContainer);
 
 		// Input container
 		this.inputContainer = document.createElement('div');
-		this.inputContainer.className = 'p-4 bg-white';
+		this.inputContainer.className = 'p-4';
 
 		this.input = document.createElement('input');
 		this.input.type = 'text';
 		this.input.placeholder = 'Type a message...';
 		this.input.className =
-			'w-full px-4 py-2 border border-gray-300 rounded-sm ' +
-			'focus:outline-none focus:ring-2 focus:ring-[var(--color2)]';
+			'w-full px-4 py-2 border border-gray-300 bg-[var(--color1)] rounded-sm ' +
+			'focus:outline-none focus:ring-2 focus:ring-grey text-[var(--color3)] text-sm';
 
 		this.input.addEventListener('keypress', e => {
 			if (e.key === 'Enter' && this.input.value.trim()) {
@@ -68,7 +69,8 @@ export class Chat {
 
 	private addMessageToUI(message: string): void {
 		const messageEl = document.createElement('div');
-		messageEl.className = 'px-2 py-1 bg-[var(--color2)] rounded text-sm break-words';
+		messageEl.className =
+			'px-2 py-1 rounded-md text-sm text-white bg-gray-400/20 max-w-[90%] break-words';
 		messageEl.textContent = message;
 
 		this.messagesContainer.appendChild(messageEl);
