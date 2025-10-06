@@ -1,33 +1,36 @@
 import { isLoggedIn } from '../buttons/AuthButton';
-import { Button } from '../buttons/Button';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
-import { StatModal } from '../modals/StatModal';
 import {
 	createOnlinePlayersBanner,
 	destroyOnlinePlayersBanner,
 	loadOnlinePlayers,
 	OnlinePlayersBanner,
 } from '../utils/banner';
-import { TwoFactorAuthModal } from '../modals/TwoFactorAuthModal';
+import { Chat } from '../utils/Chat';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
 
 export class HomeScreen extends Screen {
 	private banner?: OnlinePlayersBanner | null = null;
+	private chat?: Chat | null = null;
 	private landing: Landing | null = null;
 	private onlinePlayersInterval: number | null = null;
 
 	constructor() {
 		super();
-		this.element.className =
-			'flex flex-col items-center justify-center min-h-screen bg-transparent p-4 space-y-6';
+		this.element.className = 'flex flex-row min-h-screen bg-transparent';
 
 		try {
 			this.initThreeD();
-			this.initBanner();
+			if (isLoggedIn()) {
+				this.toggleBanner(true);
+				this.toggleChat(true);
+			}
+			document.addEventListener('login-success', this.onLoginChange);
+			document.addEventListener('logout-success', this.onLoginChange);
 		} catch (err) {
 			console.error('Error initializing HomeScreen:', err);
 		}
@@ -41,11 +44,34 @@ export class HomeScreen extends Screen {
 		this.landing = new Landing(threeDContainer, '/landingpage.glb', {
 			onLocalGameClick: () => this.localLogic(),
 			onRemoteGameClick: () => this.remoteLogic(),
-			onStatClick: () => this.statLogic(),
 		});
 	}
 
+	public toggleBanner(show: boolean): void {
+		if (show) {
+			if (!this.banner && isLoggedIn()) {
+				this.initBanner();
+			} else if (this.banner) {
+				this.banner.bannerElement.style.display = '';
+			}
+		} else {
+			this.destroyBanner();
+		}
+	}
+
+	public toggleChat(show: boolean): void {
+		if (show) {
+			if (!this.chat && isLoggedIn()) {
+				this.initChat();
+			}
+		} else {
+			this.destroyChat();
+		}
+	}
+
 	private initBanner() {
+		if (this.onlinePlayersInterval !== null)
+			clearInterval(this.onlinePlayersInterval);
 		this.banner = createOnlinePlayersBanner();
 		this.element.appendChild(this.banner.bannerElement);
 		loadOnlinePlayers(this.banner);
@@ -55,6 +81,33 @@ export class HomeScreen extends Screen {
 			}
 		}, 30000);
 	}
+
+	private initChat() {
+		this.chat = new Chat(document.body);
+	}
+
+	private destroyChat() {
+		if (this.chat) {
+			this.chat.destroy();
+			this.chat = null;
+		}
+	}
+
+	private destroyBanner() {
+		if (this.onlinePlayersInterval !== null) {
+			clearInterval(this.onlinePlayersInterval);
+			this.onlinePlayersInterval = null;
+		}
+		if (this.banner) {
+			destroyOnlinePlayersBanner(this.banner);
+			this.banner = undefined;
+		}
+	}
+
+	private onLoginChange = () => {
+		this.toggleBanner(isLoggedIn());
+		this.toggleChat(isLoggedIn());
+	};
 
 	private remoteLogic() {
 		if (!isLoggedIn()) {
@@ -68,21 +121,16 @@ export class HomeScreen extends Screen {
 		new LocalGameModal(this.element);
 	}
 
-	private statLogic() {
-		new StatModal(this.element);
-	}
-
 	public destroy(): void {
 		if (this.landing) {
 			this.landing.dispose();
 			this.landing = null;
 		}
-		if (this.onlinePlayersInterval !== null) {
-			clearInterval(this.onlinePlayersInterval);
-			this.onlinePlayersInterval = null;
-		}
-		if (this.banner) destroyOnlinePlayersBanner(this.banner);
-		this.banner = undefined;
+		this.destroyBanner();
+		this.destroyChat();
+
+		document.removeEventListener('login-success', this.onLoginChange);
+		document.removeEventListener('logout-success', this.onLoginChange);
 
 		super.destroy();
 	}

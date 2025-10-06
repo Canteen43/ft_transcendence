@@ -58,8 +58,8 @@
 :root {
 	--color1: #dee5e6;
 	--color1bis: rgba(247, 231, 231, 0.712);
-	--color2: #aeafbb;
+	--color2: rgb(12, 26, 216);
 	--color3: #2c5fa5;
 	--color4: rgba(13, 20, 83, 0.5);
-	--color5: #f0f465;
+	--color5: #c6d6eb;
 }

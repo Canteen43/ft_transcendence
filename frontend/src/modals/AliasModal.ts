@@ -12,6 +12,8 @@ import { state } from '../utils/State';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
 import { WaitingModal } from './WaitingModal';
+import { joinTournament } from '../utils/tournamentJoin';
+
 
 export class AliasModal extends Modal {
 	private aliasFields: HTMLInputElement[] = [];
@@ -244,110 +246,14 @@ export class AliasModal extends Modal {
 			sessionStorage.removeItem(key)
 		);
 
-		await this.joinGame(state.tournamentSize);
+		const result = await joinTournament(state.tournamentSize);
+		if (!result.success) {
+			this.showError(result.error, result.zodError);
+			return;
+		}
 		new WaitingModal(this.parent);
 	}
 
-	private async joinGame(targetSize: number): Promise<void> {
-		const joinData = {
-			size: targetSize,
-			alias: sessionStorage.getItem('alias'),
-		};
-
-		const parseInput = JoinTournamentSchema.safeParse(joinData);
-		if (!parseInput.success) {
-			this.showError('Invalid tournament format', parseInput.error);
-			return;
-		}
-
-		console.debug('Sending to /tournaments/join:', joinData);
-		const { data: playerQueue, error } = await apiCall(
-			'POST',
-			'/tournaments/join',
-			TournamentQueueSchema,
-			joinData
-		);
-
-		if (error) {
-			this.showError(
-				`Error ${error.status}: ${error.statusText}, ${error.message}`
-			);
-			return;
-		}
-
-		if (!playerQueue) {
-			this.showError('No response from tournament creation');
-			this.showError('No response from tournament creation');
-			return;
-		}
-
-		await this.handlePlayerQueue(playerQueue, targetSize);
-	}
-
-	private async handlePlayerQueue(
-		playerQueue: any,
-		targetSize: number
-	): Promise<void> {
-		console.log('Tournament (game) actual players:', playerQueue.queue);
-		const currentPlayers = playerQueue.queue.length;
-		const isTournamentReady = currentPlayers === targetSize;
-
-		sessionStorage.setItem('thisPlayer', currentPlayers.toString());
-		sessionStorage.setItem('targetSize', targetSize.toString());
-		sessionStorage.setItem('gameMode', 'remote');
-
-		if (isTournamentReady) {
-			await this.createTournament(playerQueue);
-		}
-	}
-
-	private async createTournament(playerQueue: any): Promise<void> {
-		const body = {
-			creator: sessionStorage.getItem('userID') || '',
-			participants: playerQueue.queue,
-		};
-
-		const parseInput = CreateTournamentApiSchema.safeParse(body);
-		if (!parseInput.success) {
-			this.showError(
-				'Invalid tournament creation data',
-				parseInput.error
-			);
-			return;
-		}
-
-		console.log('Sending to /tournaments:', body);
-		const { data: tournament, error } = await apiCall(
-			'POST',
-			'/tournaments',
-			TournamentSchema,
-			body
-		);
-
-		if (error) {
-			this.showError(
-				`Error ${error.status}: ${error.statusText}, ${error.message}`
-			);
-			await this.leaveTournament();
-			return;
-		}
-
-		if (tournament) {
-			console.info('Tournament created with ID:', tournament.id);
-			sessionStorage.setItem('tournamentID', tournament.id);
-		} else {
-			this.showError('Failed to create tournament. Leaving queue.');
-			await this.leaveTournament();
-		}
-	}
-
-	private async leaveTournament(): Promise<void> {
-		const { error } = await apiCall('POST', '/tournaments/leave');
-		if (error) {
-			console.error('Error leaving tournament:', error);
-			this.showError(`Failed to leave tournament: ${error.message}`);
-		}
-	}
 
 	private showError(message: string, zodError?: z.ZodError): void {
 		new TextModal(this.parent, message);

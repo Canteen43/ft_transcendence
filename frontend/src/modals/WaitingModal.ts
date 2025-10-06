@@ -20,12 +20,12 @@ export class WaitingModal extends Modal {
 		this.printMessageLoader();
 	}
 
-	private async nextStep() {
+	private async nextStep(): Promise<void> {
 		new ReadyModal(this.parent);
 		this.destroy();
 	}
 
-	public async quit() {
+	public async quit(): Promise<void> {
 		const { error } = await apiCall('POST', `/tournaments/leave`);
 		if (error) {
 			console.error('Error leaving tournament:', error);
@@ -38,7 +38,7 @@ export class WaitingModal extends Modal {
 		super.quit();
 	}
 
-	private async printMessageLoader() {
+	private async printMessageLoader(): Promise<void> {
 		const container = document.createElement('div');
 		container.className = 'flex flex-col items-center';
 
@@ -57,7 +57,7 @@ export class WaitingModal extends Modal {
 		this.box.appendChild(container);
 	}
 
-	public destroy() {
+	public destroy(): void {
 		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
 		super.destroy();
 	}

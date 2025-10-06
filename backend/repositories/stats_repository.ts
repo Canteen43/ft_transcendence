@@ -65,7 +65,7 @@ export class StatsRepository {
 					ORDER BY timestamp
 					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 				) AS total_matches,
-				SUM(won) OVER (
+				1.0 * SUM(won) OVER (
 					ORDER BY timestamp
 					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 				) /

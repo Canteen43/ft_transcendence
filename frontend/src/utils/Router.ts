@@ -4,6 +4,9 @@ import { Screen } from '../screens/Screen';
 import { TournamentScreen } from '../screens/TournamentScreen';
 import { TextModal } from '../modals/TextModal';
 
+// router instance is never destroyed, the event listeners will remain active 
+// for the lifetime of the page. usually fine for a single-page app.
+
 export class Router {
 	public currentScreen: Screen | null = null;
 
