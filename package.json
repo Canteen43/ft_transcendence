@@ -5,9 +5,10 @@
 	"description": "Transcendence",
 	"main": "backend/app.js",
 	"scripts": {
-		"be_test": "node --test backend/test/**/*.test.js",
-		"be_start": "node backend/app.js",
-		"be_dev": "node --watch backend/app.js",
+		"startdev:backend": "node --watch build/app/backend/app.js",
+		"test:backend": "node --test backend/test/**/*.test.js",
+		"build:backend": "tsc --build backend",
+		"start:backend": "node backend/app.js",
 		"frontend_dev": "vite --config ./frontend/vite.config.ts",
 		"frontend_build": "tsc --project ./frontend && vite --config ./frontend/vite.config.ts build",
 		"frontend_preview": "vite --config ./frontend/vite.config.ts preview"
