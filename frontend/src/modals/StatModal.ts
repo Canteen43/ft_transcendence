@@ -123,11 +123,11 @@ export class StatModal extends Modal {
 
 	private creatLeftSide(): HTMLDivElement {
 		const imgTop = '../stat.png';
-		const imgLeft = '../stats2.png';
 
 		const leftContainer = document.createElement('div');
 		leftContainer.className = 'bg-white p-4 rounded-lg';
 
+		// top image
 		const leftContainerTitle = document.createElement('img');
 		leftContainerTitle.src = imgTop;
 		leftContainerTitle.alt = 'Hist';
@@ -135,9 +135,11 @@ export class StatModal extends Modal {
 			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
 		leftContainer.appendChild(leftContainerTitle);
 
+		// indiv data
 		const indivData = this.createIndivData();
 		leftContainer.appendChild(indivData);
 
+		// graph
 		const cumGraph = this.createCumulativeGraph();
 		leftContainer.appendChild(cumGraph);
 
@@ -150,6 +152,7 @@ export class StatModal extends Modal {
 		const rightContainer = document.createElement('div');
 		rightContainer.className = 'bg-white p-4 rounded-lg';
 
+		// top image
 		const rightContainerTitle = document.createElement('img');
 		rightContainerTitle.src = imgRight;
 		rightContainerTitle.alt = 'Hist';
@@ -157,15 +160,17 @@ export class StatModal extends Modal {
 			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28';
 		rightContainer.appendChild(rightContainerTitle);
 
+		// leaderboard
 		const leaderBoard = this.createLeaderBoard();
 		rightContainer.appendChild(leaderBoard);
 
 		return rightContainer;
 	}
 
+
+	//////////////////////
+	// Right column: Leaderboard
 	private createLeaderBoard(): HTMLDivElement {
-		//////////////////////
-		// Right column: Leaderboard
 		const leaderBoard = document.createElement('div');
 		leaderBoard.className = 'bg-white p-3';
 
@@ -239,17 +244,26 @@ export class StatModal extends Modal {
 		return leaderBoard;
 	}
 
+	/////////////////
+	// individual data
 	private createIndivData(): HTMLDivElement {
-		/////////////////
-		// individual data
+		const imgLeft = '../stats2.png';
+
 		const indivContainer = document.createElement('div');
 		indivContainer.className = 'flex gap-2 mb-4 justify-center';
 
 		const number = document.createElement('div');
 		number.className =
-			` grid grid-cols-3 gap-3 sm:gap-12 ` +
-			' items-center px-2 sm:px-3  py-1 sm:py-0 text-[var(--color3)] ' +
+			` grid grid-cols-4 gap-3 sm:gap-12 ` +
+			' items-center px-2 sm:px-3 py-1 sm:py-0 text-[var(--color3)] ' +
 			' sticky top-2 bg-white text-sm sm:text-base';
+
+		// image
+		const imgStat = document.createElement('img');
+		imgStat.src = imgLeft;
+		imgStat.alt = 'Stat';
+		imgStat.className = ` text-xl sm:text-2xl text-xl sm:text-3xl truncate`;
+		imgStat.textContent = this.matchData!.played.toString();
 
 		// total played
 		const total = document.createElement('span');
@@ -266,6 +280,7 @@ export class StatModal extends Modal {
 		percentWin.className = `text-xl sm:text-2xl text-xl sm:text-3xl  truncate`;
 		percentWin.textContent = `${(this.matchData!.percentage_wins * 100).toFixed(1)}%`;
 
+		number.appendChild(imgStat);
 		number.appendChild(total);
 		number.appendChild(totalWin);
 		number.appendChild(percentWin);
@@ -276,11 +291,9 @@ export class StatModal extends Modal {
 		return indivContainer;
 	}
 
-
 	/////////////////
 	// GRAPH CUMULATIVE WINS
 	private createCumulativeGraph(): HTMLDivElement {
-
 		// Add filter buttons
 
 		const graph = document.createElement('div');

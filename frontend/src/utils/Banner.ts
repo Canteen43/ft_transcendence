@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { UserSchema } from '../../../shared/schemas/user';
-import { apiCall } from '../utils/apiCall';
 import { isLoggedIn } from '../buttons/AuthButton';
+import { apiCall } from './apiCall';
 
 export interface OnlinePlayersBanner {
 	bannerElement: HTMLElement;
