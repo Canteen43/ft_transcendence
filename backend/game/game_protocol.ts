@@ -224,7 +224,10 @@ export class GameProtocol {
 		logger.debug('websocket: replay message received.');
 		const matchId = message.d as UUID;
 		// const match = this.getDbMatch(matchId);
-		this.sendTournamentMessage(message, this.getTournamentParticipants(matchId));
+		this.sendTournamentMessage(
+			message,
+			this.getTournamentParticipants(matchId)
+		);
 	}
 
 	private handleChat(connectionId: UUID, message: Message) {
@@ -243,9 +246,9 @@ export class GameProtocol {
 			return;
 		}
 
-		const activeTournaments = TournamentRepository.getTournamentsForUser(
+		const activeTournaments = TournamentRepository.getTournamentsWithFilter(
 			socket.userId,
-			TournamentStatus.InProgress
+			[TournamentStatus.InProgress]
 		);
 
 		if (activeTournaments.length != 1)
