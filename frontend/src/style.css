@@ -77,3 +77,14 @@
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.3);
 }
+
+@keyframes scroll {
+		0% { transform: translateX(100%); }
+		100% { transform: translateX(-100%); }
+	}
+	.animate-scroll {
+		animation: scroll 40s linear infinite;
+	}
+	.animate-scroll:hover {
+		animation-play-state: paused;
+	}
