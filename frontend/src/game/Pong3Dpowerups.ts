@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Meshes/meshBuilder';
 import { PowerupEntity } from './PowerupEntity';
+import { conditionalLog, conditionalWarn, conditionalError } from './Logger';
 
 export type PowerupType = 'split' | 'boost' | 'stretch' | 'shrink';
 
@@ -94,7 +95,7 @@ export class Pong3DPowerups {
 				const root = this.resolvePowerupRoot(mesh);
 				const collisionMesh = this.findCollisionMesh(root);
 				if (!collisionMesh) {
-					console.warn(`Power-up ${matchedType} is missing a collision mesh; skipping.`);
+					conditionalWarn(`Power-up ${matchedType} is missing a collision mesh; skipping.`);
 					return;
 				}
 
@@ -112,13 +113,13 @@ export class Pong3DPowerups {
 			});
 
 			this.assetsLoaded = true;
-			console.log(
+			conditionalLog(
 				`🟡 Power-up assets loaded: ${Array.from(discoveredTypes).join(', ')}`
 			);
 			this.hidePrototypeMeshes();
 			this.scheduleNextSpawn();
 		} catch (error) {
-			console.error('Failed to load power-up assets', error);
+			conditionalError('Failed to load power-up assets', error);
 			throw error;
 		}
 	}
@@ -235,7 +236,7 @@ export class Pong3DPowerups {
 		}
 		const base = this.baseMeshes.get(type);
 			if (!base) {
-				console.warn(`Power-up prototype missing for type: ${type}`);
+				conditionalWarn(`Power-up prototype missing for type: ${type}`);
 			return;
 		}
 		this.createActivePowerupInstance(base);
@@ -268,7 +269,7 @@ export class Pong3DPowerups {
 		const selected = available[Math.floor(Math.random() * available.length)];
 		const base = this.baseMeshes.get(selected);
 		if (!base) {
-			console.warn(
+			conditionalWarn(
 				`Attempted to spawn power-up of type ${selected} but prototype was not loaded.`
 			);
 			return;
@@ -289,7 +290,7 @@ export class Pong3DPowerups {
 
 		const collisionMesh = this.findCollisionMesh(cloneRoot, base.collisionMeshName);
 		if (!collisionMesh) {
-			console.warn(`Power-up ${base.type} clone missing collision mesh; disposing.`);
+			conditionalWarn(`Power-up ${base.type} clone missing collision mesh; disposing.`);
 			cloneRoot.dispose(true, true);
 			return;
 		}
@@ -307,7 +308,9 @@ export class Pong3DPowerups {
 
 		this.activePowerups.set(active.id, active);
 
-		console.log(`✨ Spawned power-up ${base.type} with velocity ${initialVelocity.toString()}`);
+		conditionalLog(
+			`✨ Spawned power-up ${base.type} with velocity ${initialVelocity.toString()}`
+		);
 		this.hidePrototypeMeshes();
 	}
 

@@ -40,8 +40,8 @@ export async function gameListener(event: MessageEvent) {
 
 		switch (msg.t) {
 			case MESSAGE_START_TOURNAMENT:
-				console.info('Received "st":', msg);
-				console.debug('Clearing match data before GET tournament');
+				conditionalLog('Received "st":', msg);
+				conditionalLog('Clearing match data before GET tournament');
 				clearMatchData();
 				clearTournData();
 				sessionStorage.setItem('tournamentID', `${msg.d}`);
@@ -52,7 +52,7 @@ export async function gameListener(event: MessageEvent) {
 					FullTournamentSchema
 				);
 				if (error) {
-					console.error('Tournament join error:', error);
+					conditionalError('Tournament join error:', error);
 					const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
 					new TextModal(
 						router.currentScreen!.element,
@@ -62,7 +62,7 @@ export async function gameListener(event: MessageEvent) {
 					return;
 				}
 				if (!tournData) {
-					console.error('Getting tournament data failed, QUIT sent');
+					conditionalError('Getting tournament data failed, QUIT sent');
 					webSocket.send({ t: MESSAGE_QUIT });
 					new TextModal(
 						router.currentScreen!.element,
@@ -78,13 +78,13 @@ export async function gameListener(event: MessageEvent) {
 							router.currentScreen!.element,
 							'No match ID found'
 						);
-						console.error('No match ID found in session storage');
+						conditionalError('No match ID found in session storage');
 						return;
 					}
-					console.debug({ matchID });
+					conditionalLog({ matchID });
 					webSocket.send({ t: MESSAGE_ACCEPT, d: matchID });
 				} else {
-					console.warn('received ST on game screen-> redir to home');
+					conditionalWarn('received ST on game screen-> redir to home');
 					new TextModal(
 						router.currentScreen!.element,
 						'Error: Received data for more than a match'
@@ -94,16 +94,16 @@ export async function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_START:
-				console.info('Received start message:', msg);
+				conditionalLog('Received start message:', msg);
 				state.gameOngoing = true;
 				state.gameMode = 'remote';
 				location.hash = '#game';
-				console.debug('reloading pong.ts');
+				conditionalLog('reloading pong.ts');
 				(router.currentScreen as GameScreen)?.reloadPong();
 				break;
 
 			case MESSAGE_QUIT:
-				console.debug('Clearing game data');
+				conditionalLog('Clearing game data');
 				clearMatchData();
 				clearTournData();
 				clearOtherGameData();
@@ -128,11 +128,11 @@ export async function gameListener(event: MessageEvent) {
 			// 	break;
 
 			case MESSAGE_REPLAY:
-				console.debug('Replay received');
+				conditionalLog('Replay received');
 				state.replayCounter += 1;
-				console.debug('Replay counter:', state.replayCounter);
+				conditionalLog('Replay counter:', state.replayCounter);
 				if (state.replayCounter === 2) {
-					console.debug(
+					conditionalLog(
 						'Both players ready for replay, dispatching event'
 					);
 					document.dispatchEvent(new CustomEvent('RemoteReplay'));
