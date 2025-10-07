@@ -46,6 +46,5 @@ graphics/powerups.blend1
 graphics/powerups.blend1
 
 # Build outputs
-frontend/dist/
-
-frontend/dist/assets
+frontend/dist
+build/backend/code

@@ -10,7 +10,6 @@ import {
 	MESSAGE_FINISH,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
-	MESSAGE_PAUSE,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_REPLAY,
@@ -66,7 +65,6 @@ export class GameProtocol {
 		[MESSAGE_MOVE]: this.handleMove,
 		[MESSAGE_GAME_STATE]: this.handleGameState,
 		[MESSAGE_POINT]: this.handlePoint,
-		[MESSAGE_PAUSE]: this.handlePause,
 		[MESSAGE_QUIT]: this.handleQuit,
 		[MESSAGE_REPLAY]: this.handleReplay,
 		[MESSAGE_CHAT]: this.handleChat,
@@ -212,12 +210,6 @@ export class GameProtocol {
 	private handleQuit(connectionId: UUID, message: Message) {
 		logger.debug('websocket: quit message received.');
 		this.quitAll(connectionId, QuitReason.Quit);
-	}
-
-	private handlePause(connectionId: UUID, message: Message) {
-		logger.debug('websocket: pause message received.');
-		const match = this.getMatchObject(connectionId);
-		this.sendMatchMessage(message, match.players);
 	}
 
 	private handleReplay(connectionId: UUID, message: Message) {

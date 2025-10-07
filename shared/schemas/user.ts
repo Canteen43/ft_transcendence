@@ -6,9 +6,7 @@ const passwordRequirements = z
 	.min(8, 'must be at least 8 characters')
 	.max(128, 'must be at most 128 characters')
 	.regex(/[a-z]/, 'must contain at least one lowercase letter')
-	.regex(/[A-Z]/, 'must contain at least one uppercase letter')
-	.regex(/[0-9]/, 'must contain at least one number')
-	.regex(/[^a-zA-Z0-9]/, 'must contain at least one special character');
+	.regex(/[A-Z]/, 'must contain at least one uppercase letter');
 
 export const passwordSchema =
 	process.env.NODE_ENV?.toLowerCase() === 'development'
