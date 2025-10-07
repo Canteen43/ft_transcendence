@@ -14,10 +14,14 @@ export class Pong3DBallEffects {
 	public SPIN_DELAY = 200; // Delay in milliseconds before spin effect activates
 
 	// Rally speed system
-	public RALLY_SPEED_INCREMENT_PERCENT = 11; // Percentage speed increase per paddle hit during rally
-	public MAX_BALL_SPEED = 25; // Maximum ball speed to prevent tunneling
-	private BALL_VELOCITY_CONSTANT = 12; // Base ball speed
-	private currentBallSpeed = 12; // Current ball speed (starts at base speed)
+	public RALLY_SPEED_INCREMENT_PERCENT =
+		GameConfig.getRallySpeedIncrementPercent(); // Percentage speed increase per paddle hit during rally
+	public MAX_BALL_SPEED = Math.max(
+		GameConfig.getBallBaseSpeed(),
+		GameConfig.getMaxBallSpeed()
+	); // Maximum ball speed to prevent tunneling
+	private BALL_VELOCITY_CONSTANT = GameConfig.getBallBaseSpeed(); // Base ball speed
+	private currentBallSpeed = GameConfig.getBallBaseSpeed(); // Current ball speed (starts at base speed)
 	private rallyHitCount = 0; // Number of paddle hits in current rally
 
 	// Ball state tracking
@@ -28,9 +32,10 @@ export class Pong3DBallEffects {
 	// Ball mesh reference (provided by main class)
 	private ballMesh: BABYLON.Mesh | null = null;
 
-	constructor(ballVelocityConstant: number = 12) {
-		this.BALL_VELOCITY_CONSTANT = ballVelocityConstant;
-		this.currentBallSpeed = ballVelocityConstant;
+	constructor(ballVelocityConstant: number = GameConfig.getBallBaseSpeed()) {
+		this.setBallVelocityConstant(ballVelocityConstant);
+		this.setRallySpeedIncrement(this.RALLY_SPEED_INCREMENT_PERCENT);
+		this.setMaxBallSpeed(GameConfig.getMaxBallSpeed());
 	}
 
 	/** Set the ball mesh reference for physics operations */
@@ -238,6 +243,7 @@ export class Pong3DBallEffects {
 	public setBallVelocityConstant(speed: number): void {
 		this.BALL_VELOCITY_CONSTANT = Math.max(1, Math.min(50, speed)); // Clamp between 1 and 50
 		this.currentBallSpeed = this.BALL_VELOCITY_CONSTANT;
+		GameConfig.setBallBaseSpeed(this.BALL_VELOCITY_CONSTANT);
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(
 				`⚽ Ball base speed set to ${this.BALL_VELOCITY_CONSTANT}`
@@ -250,6 +256,7 @@ export class Pong3DBallEffects {
 			0,
 			Math.min(100, percentage)
 		); // Clamp between 0 and 100
+		GameConfig.setRallySpeedIncrementPercent(this.RALLY_SPEED_INCREMENT_PERCENT);
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(
 				`🏎️ Rally speed increment set to ${this.RALLY_SPEED_INCREMENT_PERCENT}%`
@@ -262,6 +269,7 @@ export class Pong3DBallEffects {
 			this.BALL_VELOCITY_CONSTANT,
 			Math.min(100, maxSpeed)
 		); // Clamp between base speed and 100
+		GameConfig.setMaxBallSpeed(this.MAX_BALL_SPEED);
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(
 				`🏎️ Maximum ball speed set to ${this.MAX_BALL_SPEED}`

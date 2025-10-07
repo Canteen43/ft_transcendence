@@ -43,6 +43,9 @@ graphics/pong2p.blend1
 graphics/pong3p.blend1
 graphics/pong4p.blend1
 
+graphics/powerups.blend1
+graphics/powerups.blend1
+
 # Build outputs
 frontend/dist
 build/backend/code

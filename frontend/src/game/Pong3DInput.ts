@@ -225,7 +225,7 @@ export class Pong3DInput {
 	public setAIController(playerIndex: number, config: AIConfig): void {
 		if (playerIndex >= 0 && playerIndex < 4) {
 			this.aiControllers[playerIndex] = new Pong3DAI(playerIndex, config);
-			console.log(
+			conditionalLog(
 				`🤖 AI controller set up for player ${playerIndex + 1}`
 			);
 		}
@@ -237,7 +237,7 @@ export class Pong3DInput {
 	public removeAIController(playerIndex: number): void {
 		if (playerIndex >= 0 && playerIndex < 4) {
 			this.aiControllers[playerIndex] = null;
-			console.log(
+			conditionalLog(
 				`🤖 AI controller removed for player ${playerIndex + 1}`
 			);
 		}
@@ -269,7 +269,7 @@ export class Pong3DInput {
 	 */
 	public resetAIControllers(): void {
 		this.aiControllers.forEach(ai => ai?.reset());
-		console.log('🤖 All AI controllers reset');
+		conditionalLog('🤖 All AI controllers reset');
 	}
 
 	public cleanup(): void {
