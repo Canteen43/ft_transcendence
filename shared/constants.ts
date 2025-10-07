@@ -92,3 +92,4 @@ export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
 export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 
 export const DEFAULT_MAX_SCORE = 10;
+export const MAX_RANKING_ITEMS = 10;

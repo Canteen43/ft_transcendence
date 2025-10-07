@@ -31,7 +31,7 @@ export class Pong3DAudio {
 	private readonly PADDLE_HARMONICS = [0, 386, 702, 1200]; // Major chord: Root, Maj3rd, 5th, Octave
 	private readonly WALL_HARMONICS = [-500, -114, 202, -700]; // Lower harmonic series around -500 cents
 	private readonly POWERUP_HIGH_HARMONICS = [0, 386, 702, 1200]; // Bright chord for ball impacts
-	private readonly POWERUP_LOW_HARMONICS = [-900, -700, -500, -300]; // Darker chord for wall grazes
+	private readonly POWERUP_LOW_HARMONICS = [-500, -300, -100, 100]; // Darker chord for wall grazes
 
 	constructor(settings?: Partial<AudioSettings>) {
 		if (settings) {

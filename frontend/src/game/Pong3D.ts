@@ -277,7 +277,6 @@ export class Pong3D {
 	private trophyInstance: Trophy | null = null;
 	private trophyContainer: HTMLDivElement | null = null;
 	private glowLayer: BABYLON.GlowLayer | null = null;
-	private readonly glowBaseIntensity = 3;
 	private readonly glowPaddleStates = new Map<number, GlowMeshState>();
 	private glowEffectKeyCounter = 0;
 	private activeStretchTimeout: number | null = null;
@@ -977,33 +976,34 @@ export class Pong3D {
 	// === GAME PHYSICS CONFIGURATION ===
 
 	// Simple ball radius for physics impostor
-	private static readonly BALL_RADIUS = 0.32;
+	private static get BALL_RADIUS(): number {
+		return GameConfig.getBallRadius();
+	}
 
 	// Ball settings (non-effects)
 	public WINNING_SCORE = DEFAULT_MAX_SCORE; // Points needed to win the game
-	private static readonly OUT_OF_BOUNDS_DISTANCE = 20; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
-	private outOfBoundsDistance: number = Pong3D.OUT_OF_BOUNDS_DISTANCE; // Distance threshold for out-of-bounds detection (±units on X/Z axis)
+	private outOfBoundsDistance: number = GameConfig.getOutOfBoundsDistance(); // Distance threshold for out-of-bounds detection (±units on X/Z axis)
 
 	// Physics engine settings
-	private PHYSICS_TIME_STEP = 1 / 240; // Physics update frequency (120 Hz to reduce tunneling)
-	private PHYSICS_SOLVER_ITERATIONS = 15; // Cannon solver iterations per step (constraint convergence)
+	private PHYSICS_TIME_STEP = GameConfig.getPhysicsTimeStep(); // Physics update frequency (120 Hz to reduce tunneling)
+	private PHYSICS_SOLVER_ITERATIONS = GameConfig.getPhysicsSolverIterations(); // Cannon solver iterations per step (constraint convergence)
 	// Ball control settings - velocity-based reflection angle modification
-	private BALL_ANGLE_MULTIPLIER = 1.0; // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
+	private BALL_ANGLE_MULTIPLIER = GameConfig.getBallAngleMultiplier(); // Multiplier for angle influence strength (0.0 = no effect, 1.0 = full effect)
 
 	// Safety: maximum allowed angle between outgoing ball vector and paddle normal
 	// (in radians). If a computed outgoing direction would exceed this, it will be
 	// clamped toward the paddle normal so the ball cannot be returned at an
 	// extreme grazing/perpendicular angle which causes excessive wall bounces.
 	// Max angle between outgoing ball vector and paddle normal (radians)
-	private ANGULAR_RETURN_LIMIT = Math.PI / 4;
-	public SERVE_ANGLE_LIMIT = (10 * Math.PI) / 180; // ±10° serve spread (20° total)
+	private ANGULAR_RETURN_LIMIT = GameConfig.getAngularReturnLimit();
+	public SERVE_ANGLE_LIMIT = GameConfig.getServeAngleLimit(); // ±10° serve spread (20° total)
 
 	// Paddle physics settings
-	private PADDLE_MASS = 2.8; // Paddle mass for collision response
-	private PADDLE_FORCE = 15; // Force applied when moving
-	private PADDLE_RANGE = 5; // Movement range from center
-	private PADDLE_MAX_VELOCITY = 13; // Maximum paddle speed
-	private PADDLE_BRAKING_FACTOR = 0.8; // Velocity multiplier per frame when no input (0.92 = 8% reduction per frame)
+	private PADDLE_MASS = GameConfig.getPaddleMass(); // Paddle mass for collision response
+	private PADDLE_FORCE = GameConfig.getPaddleForce(); // Force applied when moving
+	private PADDLE_RANGE = GameConfig.getPaddleRange(); // Movement range from center
+	private PADDLE_MAX_VELOCITY = GameConfig.getPaddleMaxVelocity(); // Maximum paddle speed
+	private PADDLE_BRAKING_FACTOR = GameConfig.getPaddleBrakingFactor(); // Velocity multiplier per frame when no input (0.92 = 8% reduction per frame)
 
 	// === END CONFIGURATION ===
 
@@ -1202,7 +1202,7 @@ export class Pong3D {
 		);
 
 		// Initialize ball effects system
-		this.ballEffects = new Pong3DBallEffects(12); // 12 is default base ball speed
+		this.ballEffects = new Pong3DBallEffects();
 
 		// Initialize audio system
 		this.audioSystem = new Pong3DAudio();
@@ -1812,7 +1812,11 @@ export class Pong3D {
 				mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
 					mesh,
 					BABYLON.PhysicsImpostor.MeshImpostor, // Use exact mesh shape instead of box
-					{ mass: 0, restitution: 1.0, friction: 0.1 }, // Small tangential friction nudges exit angle without killing speed
+					{
+						mass: 0,
+						restitution: 1.0,
+						friction: GameConfig.getWallFriction(),
+					}, // Small tangential friction nudges exit angle without killing speed
 					this.scene
 				);
 				this.conditionalLog(
@@ -2682,6 +2686,26 @@ export class Pong3D {
 		}
 	}
 
+	private computeWallNormal(position: BABYLON.Vector3): BABYLON.Vector3 | null {
+		if (
+			this.boundsXMin === null ||
+			this.boundsXMax === null ||
+			this.boundsZMin === null ||
+			this.boundsZMax === null
+		)
+			return null;
+
+		const distances = [
+			{ value: Math.abs(position.x - this.boundsXMin), normal: new BABYLON.Vector3(1, 0, 0) },
+			{ value: Math.abs(position.x - this.boundsXMax), normal: new BABYLON.Vector3(-1, 0, 0) },
+			{ value: Math.abs(position.z - this.boundsZMin), normal: new BABYLON.Vector3(0, 0, 1) },
+			{ value: Math.abs(position.z - this.boundsZMax), normal: new BABYLON.Vector3(0, 0, -1) },
+		];
+
+		distances.sort((a, b) => a.value - b.value);
+		return distances[0]?.normal ?? null;
+	}
+
 	private handleBallWallCollision(
 		ballImpostor: BABYLON.PhysicsImpostor,
 		_wallImpostor: BABYLON.PhysicsImpostor
@@ -2786,8 +2810,70 @@ export class Pong3D {
 		// 	}
 		// }
 
-		// Preserve spin with slight reduction only
-		this.ballEffects.applyWallSpinFriction(0.8); // 20% spin loss on wall collision
+		// Preserve spin with configurable reduction only
+		this.ballEffects.applyWallSpinFriction(GameConfig.getWallSpinFriction());
+
+		const velocity = ballImpostor.getLinearVelocity();
+		if (velocity) {
+			const velocityXZ = new BABYLON.Vector3(velocity.x, 0, velocity.z);
+			const speed = velocityXZ.length();
+			if (speed > 0.0001 && collisionMesh) {
+				const normal = this.computeWallNormal(collisionMesh.position);
+				if (normal) {
+					const normalizedVelocity = velocityXZ.normalize();
+					const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
+					const angle = Math.acos(BABYLON.Scalar.Clamp(dot, -1, 1));
+					const ninety = Math.PI / 2;
+					const threshold = GameConfig.getWallNearParallelAngleThreshold();
+					const adjustment = GameConfig.getWallNearParallelAngleAdjustment();
+					const maxAngle = GameConfig.getWallNearParallelMaxAngle();
+					const deltaFromParallel = Math.abs(ninety - angle);
+					if (deltaFromParallel <= threshold) {
+						let targetAngle = Math.max(0, angle - adjustment);
+						targetAngle = Math.min(targetAngle, maxAngle);
+						if (targetAngle < angle - 1e-4) {
+							const rawTangent = normalizedVelocity.subtract(normal.scale(dot));
+							let tangentDir = rawTangent;
+							if (tangentDir.lengthSquared() < 1e-6) {
+								// Head-on collision: pick a stable tangent from axis cross product
+								tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.Y);
+								if (tangentDir.lengthSquared() < 1e-6) {
+									tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.X);
+								}
+							}
+							if (tangentDir.lengthSquared() >= 1e-6) {
+								const toCenter = BABYLON.Vector3.Zero().subtract(collisionMesh.position);
+								const projectedCenter = toCenter.subtract(normal.scale(BABYLON.Vector3.Dot(toCenter, normal)));
+								let tangentBasis = tangentDir;
+								if (projectedCenter.lengthSquared() >= 1e-6) {
+									tangentBasis = projectedCenter;
+								}
+								const tangentNormalized = tangentBasis.normalize();
+								let orientation = 1;
+								if (rawTangent.lengthSquared() >= 1e-6) {
+									orientation = Math.sign(BABYLON.Vector3.Dot(tangentNormalized, rawTangent));
+									if (orientation === 0) orientation = 1;
+								}
+								const adjustedDir = normal
+									.scale(Math.cos(targetAngle))
+									.add(tangentNormalized.scale(Math.sin(targetAngle) * orientation));
+								const adjusted = adjustedDir.normalize().scale(speed);
+								console.log(
+									`⬅️ Wall angle nudged: current=${(angle * 180 / Math.PI).toFixed(2)}°, target=${(targetAngle * 180 / Math.PI).toFixed(2)}°`
+								);
+								ballImpostor.setLinearVelocity(
+									new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
+								);
+							} else {
+								console.log(
+									`⛔ Wall angle adjustment skipped (no tangent basis). current=${(angle * 180 / Math.PI).toFixed(2)}°`
+								);
+							}
+						}
+					}
+				}
+			}
+		}
 		this.conditionalLog(
 			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballEffects.getBallSpin().y.toFixed(2)}`
 		);
@@ -4821,6 +4907,7 @@ export class Pong3D {
 	public setPhysicsTimeStep(timeStep: number): void {
 		if (timeStep > 0) {
 			this.PHYSICS_TIME_STEP = timeStep;
+			GameConfig.setPhysicsTimeStep(timeStep);
 			const physicsEngine = this.scene.getPhysicsEngine();
 			if (physicsEngine) {
 				physicsEngine.setTimeStep(this.PHYSICS_TIME_STEP);
@@ -4839,6 +4926,7 @@ export class Pong3D {
 	public setPhysicsSolverIterations(iterations: number): void {
 		const iters = Math.max(1, Math.min(100, Math.floor(iterations)));
 		this.PHYSICS_SOLVER_ITERATIONS = iters;
+		GameConfig.setPhysicsSolverIterations(iters);
 		// Try to update live plugin if available
 		const physicsEngine: any = this.scene.getPhysicsEngine?.() ?? null;
 		const plugin: any = physicsEngine?._physicsPlugin ?? this.physicsPlugin;
@@ -4858,16 +4946,19 @@ export class Pong3D {
 
 	public setPaddleRange(value: number): void {
 		this.PADDLE_RANGE = value;
+		GameConfig.setPaddleRange(value);
 		this.conditionalLog('PADDLE_RANGE ->', this.PADDLE_RANGE);
 	}
 
 	public setPaddleSpeed(value: number): void {
 		this.PADDLE_FORCE = value;
+		GameConfig.setPaddleForce(value);
 		this.conditionalLog('PADDLE_FORCE (speed) ->', this.PADDLE_FORCE);
 	}
 
 	public setBallAngleMultiplier(multiplier: number): void {
 		this.BALL_ANGLE_MULTIPLIER = Math.max(0, Math.min(2, multiplier)); // Clamp between 0-2
+		GameConfig.setBallAngleMultiplier(this.BALL_ANGLE_MULTIPLIER);
 		this.conditionalLog(
 			'BALL_ANGLE_MULTIPLIER ->',
 			this.BALL_ANGLE_MULTIPLIER
@@ -6134,7 +6225,7 @@ export class Pong3D {
 	private updateGlowLayerIntensity(): void {
 		if (!this.glowLayer) return;
 		this.glowLayer.intensity = this.hasActiveGlowEffects()
-			? this.glowBaseIntensity
+			? GameConfig.getGlowBaseIntensity()
 			: 0;
 	}
 
