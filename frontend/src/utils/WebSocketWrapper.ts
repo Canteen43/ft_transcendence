@@ -1,7 +1,7 @@
 import {
+	MESSAGE_CHAT,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
-	MESSAGE_CHAT,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_CLOSE_POLICY_VIOLATION,
@@ -11,10 +11,9 @@ import type { Message } from '../../../shared/schemas/message';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
+import { wsURL } from './endpoints';
 import { regListener } from './regListener';
 import { router } from './Router';
-
-const WS_ADDRESS = `ws://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}/websocket`;
 
 // INFO: A webSocket object opens automatically at creation.
 // That's why a wrapper class is used. It can be created without opening the connection.
@@ -33,6 +32,8 @@ export class WebSocketWrapper {
 	public ws: WebSocket | null = null;
 	public targetState: 'open' | 'closed' | null = null;
 	private reconnectModal?: TextModal | null;
+	private reconnectAttempt: number = 0;
+	private readonly MAX_RECONNECT_DELAY = 30000; // 30 secs
 
 	constructor() {
 		if (isLoggedIn()) {
@@ -70,24 +71,35 @@ export class WebSocketWrapper {
 				'Your session has expired. Please log in again.'
 			);
 			return;
-		}
-		if (event.code === WS_ALREADY_CONNECTED) {
+		} else if (event.code === WS_ALREADY_CONNECTED) {
 			console.warn('Already connected elsewhere');
 			this.handleAuthFailure(
 				'You are already logged in from another location.'
+			);
+			return;
+		} else if (event.code === WS_CLOSE_POLICY_VIOLATION) {
+			console.warn('Policy violation');
+			this.handleAuthFailure(
+				'Connection closed due to policy violation.'
 			);
 			return;
 		}
 
 		// For other errors, trying to reopen after 3 seconds if target state is 'open'
 		if (this.targetState === 'open') {
-			console.log('Reconnecting in 3 seconds...');
-			setTimeout(() => this.open(), 3000);
+			this.reconnectAttempt++;
+			const delay = Math.min(
+				3000 * this.reconnectAttempt,
+				this.MAX_RECONNECT_DELAY
+			);
+			console.log(`Reconnecting in ${delay} few seconds...`);
+			setTimeout(() => this.open(), delay);
 
 			if (!this.reconnectModal) {
+				const message = event.reason || 'Connection lost.';
 				this.reconnectModal = new TextModal(
 					router.currentScreen!.element,
-					`${event.reason} Trying to reconnect...`,
+					`${message} Trying to reconnect...`,
 					'Dismiss',
 					() => {
 						this.reconnectModal?.destroy();
@@ -101,7 +113,7 @@ export class WebSocketWrapper {
 	private handleAuthFailure(message: string): void {
 		sessionStorage.removeItem('token');
 		sessionStorage.removeItem('userID');
-		console.debug('dispatching event login-failed');
+		console.debug('Dispatching LOGIN FAIL');
 		document.dispatchEvent(new CustomEvent('login-failed'));
 		void new TextModal(router.currentScreen!.element, message);
 	}
@@ -144,9 +156,9 @@ export class WebSocketWrapper {
 		}
 
 		console.info('Opening WebSocket');
-		const wsUrl = `${WS_ADDRESS}?token=${token}`;
+		const wsUrlWithToken = `${wsURL}?token=${token}`;
 		this.targetState = 'open';
-		this.ws = new WebSocket(wsUrl);
+		this.ws = new WebSocket(wsUrlWithToken);
 
 		this.ws.addEventListener('open', () => this.onOpen());
 		this.ws.addEventListener('close', event =>

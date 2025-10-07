@@ -21,7 +21,7 @@ export class Modal {
 
 		if (showCloseButton) {
 			this.closeButton = document.createElement('button');
-			this.closeButton.innerHTML = '×';
+			this.closeButton.textContent = '×';
 			this.closeButton.className =
 				'bg-white shadow-lg p-4 sm:p-6 md:p-10' +
 				' relative flex flex-col items-center justify-center' +

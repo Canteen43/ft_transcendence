@@ -112,6 +112,7 @@ export class LoginModal extends Modal {
 		sessionStorage.setItem('userID', id);
 		webSocket.open();
 		document.dispatchEvent(new CustomEvent('login-success'));
+		console.debug('Dispatching LOGIN SUCCESS');
 		console.info('Login successful');
 	}
 
