@@ -95,6 +95,26 @@ interface SplitBall {
 	impostor: BABYLON.PhysicsImpostor;
 }
 
+interface GlowEffectState {
+	key: string;
+	color: BABYLON.Color3;
+	durationMs: number;
+	startTime: number;
+	strength: number;
+	animationFrame: number | null;
+	active: boolean;
+	holdDurationMs: number;
+	fadeDurationMs: number;
+}
+
+interface GlowMeshState {
+	mesh: BABYLON.Mesh;
+	material: BABYLON.Material & { emissiveColor?: BABYLON.Color3 };
+	baseEmissive: BABYLON.Color3;
+	addedToGlowLayer: boolean;
+	effects: Map<string, GlowEffectState>;
+}
+
 export class Pong3D {
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
@@ -258,18 +278,9 @@ export class Pong3D {
 	private trophyContainer: HTMLDivElement | null = null;
 	private glowLayer: BABYLON.GlowLayer | null = null;
 	private readonly glowBaseIntensity = 3;
-	private readonly glowBaseColor = new BABYLON.Color3(0, 1, 1);
-	private glowPaddleStates = new Map<
-		number,
-		{
-			originalEmissive: BABYLON.Color3;
-			timeoutId: number;
-			addedToGlowLayer: boolean;
-			cleanup: () => void;
-		}
-	>();
+	private readonly glowPaddleStates = new Map<number, GlowMeshState>();
+	private glowEffectKeyCounter = 0;
 	private activeStretchTimeout: number | null = null;
-	private glowFadeAnimation: number | null = null;
 	private splitBalls: SplitBall[] = [];
 	private shadowGenerators: BABYLON.ShadowGenerator[] = [];
 	private ballManager: BallManager = new BallManager();
@@ -457,7 +468,10 @@ export class Pong3D {
 		const paddle = this.paddles[paddleIndex] as BABYLON.Mesh | null;
 		if (!paddle) return;
 		const green = new BABYLON.Color3(0.2, 1, 0.2);
-		const stretchDurationMs = 20000;
+		const stretchHoldDurationMs = 20000;
+		const stretchGrowDurationMs = 1500;
+		const stretchShrinkDurationMs = 1500;
+		const totalGlowDurationMs = stretchHoldDurationMs + stretchShrinkDurationMs;
 		if (this.activeStretchTimeout !== null) {
 			window.clearTimeout(this.activeStretchTimeout);
 			this.activeStretchTimeout = null;
@@ -466,7 +480,11 @@ export class Pong3D {
 			this.powerupManager.setTypeBlocked('stretch', true);
 		}
 		try {
-			this.flashMeshGlow(paddle, stretchDurationMs, green);
+			this.flashMeshGlow(paddle, totalGlowDurationMs, green, {
+				key: `stretch-${paddle.uniqueId}`,
+				holdDurationMs: stretchHoldDurationMs,
+				fadeDurationMs: stretchShrinkDurationMs,
+			});
 		} catch (_) {}
 
 		// Store original scale if not stored
@@ -476,7 +494,7 @@ export class Pong3D {
 		const original = this.paddleOriginalScaleX.get(paddleIndex)!;
 		const target = original * 1.5; // 3 -> 4.5
 
-		this.animatePaddleScale(paddle, original, target, 1500, () => {
+		this.animatePaddleScale(paddle, original, target, stretchGrowDurationMs, () => {
 			this.recreatePaddleImpostor(paddleIndex);
 		});
 
@@ -487,19 +505,15 @@ export class Pong3D {
 		const timeoutId = window.setTimeout(() => {
 			const p = this.paddles[paddleIndex];
 			if (!p) return;
-			this.animatePaddleScale(p, p.scaling.x, original, 1500, () => {
+			this.animatePaddleScale(p, p.scaling.x, original, stretchShrinkDurationMs, () => {
 				this.recreatePaddleImpostor(paddleIndex);
 				this.paddleStretchTimeouts.delete(paddleIndex);
-				try {
-					this.flashMeshGlow(p, 500, new BABYLON.Color3(0.2, 1, 0.2));
-				} catch (_) {}
-				void this.audioSystem.playSoundEffect('shrink');
 				if (this.powerupManager) {
 					this.powerupManager.setTypeBlocked('stretch', false);
 				}
 				this.activeStretchTimeout = null;
 			});
-		}, stretchDurationMs); // 20 seconds
+		}, stretchHoldDurationMs); // 20 seconds
 		this.paddleStretchTimeouts.set(paddleIndex, timeoutId);
 		this.activeStretchTimeout = timeoutId;
 	}
@@ -1798,7 +1812,7 @@ export class Pong3D {
 				mesh.physicsImpostor = new BABYLON.PhysicsImpostor(
 					mesh,
 					BABYLON.PhysicsImpostor.MeshImpostor, // Use exact mesh shape instead of box
-					{ mass: 0, restitution: 1.0, friction: 0.0 }, // Perfectly elastic walls, no friction (preserve speed)
+					{ mass: 0, restitution: 1.0, friction: 0.1 }, // Small tangential friction nudges exit angle without killing speed
 					this.scene
 				);
 				this.conditionalLog(
@@ -5978,14 +5992,17 @@ export class Pong3D {
 		});
 	}
 
-	/** Generic glow for any mesh with emissiveColor, using the global glow layer */
+	/**
+	 * Apply a temporary glow to a mesh. Effects stack and fade independently so
+	 * long-running glows (stretch) can continue under short bursts (goals).
+	 */
 	private flashMeshGlow(
 		mesh: BABYLON.Mesh,
 		durationMs: number,
-		glowColor: BABYLON.Color3
+		glowColor: BABYLON.Color3,
+		options?: { key?: string; fadeDurationMs?: number; holdDurationMs?: number }
 	): void {
 		if (!this.glowLayer) return;
-		const glowLayer = this.glowLayer;
 		const material = mesh.material as
 			| (BABYLON.Material & { emissiveColor?: BABYLON.Color3 })
 			| null;
@@ -5994,80 +6011,138 @@ export class Pong3D {
 			material.emissiveColor = BABYLON.Color3.Black();
 
 		const meshId = mesh.uniqueId;
-		const existing = this.glowPaddleStates.get(meshId);
+		let state = this.glowPaddleStates.get(meshId);
+		if (!state) {
+			state = {
+				mesh,
+				material,
+				baseEmissive: material.emissiveColor.clone(),
+				addedToGlowLayer: false,
+				effects: new Map(),
+			};
+			this.glowPaddleStates.set(meshId, state);
+		}
+		const meshState = state;
+
+		if (!meshState.addedToGlowLayer && this.glowLayer) {
+			try {
+				this.glowLayer.addIncludedOnlyMesh(mesh);
+				meshState.addedToGlowLayer = true;
+			} catch (_) {}
+		}
+
+		const effectKey = options?.key ?? `glow-${++this.glowEffectKeyCounter}`;
+		const existing = meshState.effects.get(effectKey);
 		if (existing) {
-			existing.cleanup();
-			this.glowPaddleStates.delete(meshId);
+			this.stopGlowEffect(meshState, existing);
 		}
 
-		if (this.glowFadeAnimation !== null) {
-			window.cancelAnimationFrame(this.glowFadeAnimation);
-			this.glowFadeAnimation = null;
+		const holdDuration = Math.max(options?.holdDurationMs ?? 0, 0);
+		let fadeDuration = Math.max(options?.fadeDurationMs ?? 0, 0);
+		if (options?.fadeDurationMs === undefined) {
+			const impliedFade = Math.max(durationMs - holdDuration, 0);
+			fadeDuration = impliedFade;
 		}
-
-		const originalEmissive =
-			material.emissiveColor?.clone() ?? BABYLON.Color3.Black();
-		let addedToGlowLayer = false;
-		if (
-			glowLayer.includedOnlyMeshes &&
-			!glowLayer.includedOnlyMeshes.includes(mesh)
-		) {
-			glowLayer.addIncludedOnlyMesh(mesh);
-			addedToGlowLayer = true;
-		}
-
-		const baseIntensity = this.glowBaseIntensity;
-		glowLayer.intensity = baseIntensity;
-		material.emissiveColor = glowColor.clone();
-		const start = performance.now();
-		let cleaned = false;
-		const cleanup = () => {
-			if (cleaned) return;
-			cleaned = true;
-			material.emissiveColor = originalEmissive.clone();
-			if (addedToGlowLayer) {
-				try {
-					glowLayer.removeIncludedOnlyMesh(mesh);
-				} catch (_) {}
-			}
-			glowLayer.intensity = 0;
+		const totalDuration = holdDuration + fadeDuration;
+		const effect: GlowEffectState = {
+			key: effectKey,
+			color: glowColor.clone(),
+			durationMs: Math.max(totalDuration, 0),
+			startTime: performance.now(),
+			strength: 1,
+			animationFrame: null,
+			active: true,
+			holdDurationMs: holdDuration,
+			fadeDurationMs: fadeDuration,
 		};
-		let timeoutId = 0;
-		const finalize = () => {
-			cleanup();
-			if (timeoutId) {
-				window.clearTimeout(timeoutId);
-				timeoutId = 0;
-			}
-			this.glowPaddleStates.delete(meshId);
-		};
+		meshState.effects.set(effectKey, effect);
+		this.updateGlowLayerIntensity();
+		this.recomputeMeshGlow(meshState);
+
+		if (effect.durationMs === 0) {
+			this.stopGlowEffect(meshState, effect);
+			this.recomputeMeshGlow(meshState);
+			if (meshState.effects.size === 0) this.cleanupMeshGlowState(meshId);
+			return;
+		}
 
 		const animate = () => {
-			if (cleaned) return;
-			const elapsed = performance.now() - start;
-			const progress = Math.min(elapsed / durationMs, 1);
-			const fadeFactor = 1 - progress;
-			glowLayer.intensity = baseIntensity * fadeFactor;
-			material.emissiveColor = glowColor.scale(fadeFactor);
-			if (progress < 1) {
-				this.glowFadeAnimation = window.requestAnimationFrame(animate);
+			if (!effect.active || !this.glowLayer) return;
+			const elapsed = performance.now() - effect.startTime;
+			let remainingIntensity = 1;
+			if (elapsed <= effect.holdDurationMs) {
+				remainingIntensity = 1;
+			} else if (effect.fadeDurationMs > 0) {
+				const fadeElapsed = Math.min(
+					elapsed - effect.holdDurationMs,
+					effect.fadeDurationMs
+				);
+				const fadeProgress = fadeElapsed / effect.fadeDurationMs;
+				remainingIntensity = 1 - fadeProgress;
 			} else {
-				finalize();
-				this.glowFadeAnimation = null;
+				remainingIntensity = 0;
 			}
+			effect.strength = Math.max(remainingIntensity, 0);
+			this.recomputeMeshGlow(meshState);
+			if (elapsed >= effect.durationMs || effect.strength <= 0) {
+				this.stopGlowEffect(meshState, effect);
+				this.recomputeMeshGlow(meshState);
+				if (meshState.effects.size === 0) this.cleanupMeshGlowState(meshId);
+				return;
+			}
+			effect.animationFrame = window.requestAnimationFrame(animate);
 		};
-		this.glowFadeAnimation = window.requestAnimationFrame(animate);
+		effect.animationFrame = window.requestAnimationFrame(animate);
+	}
 
-		timeoutId = window.setTimeout(() => {
-			finalize();
-		}, durationMs);
+	private stopGlowEffect(state: GlowMeshState, effect: GlowEffectState): void {
+		if (!effect.active) return;
+		effect.active = false;
+		if (effect.animationFrame !== null) {
+			window.cancelAnimationFrame(effect.animationFrame);
+			effect.animationFrame = null;
+		}
+		state.effects.delete(effect.key);
+	}
 
-		this.glowPaddleStates.set(meshId, {
-			originalEmissive,
-			timeoutId,
-			addedToGlowLayer,
-			cleanup: finalize,
+	private recomputeMeshGlow(state: GlowMeshState): void {
+		const { material, baseEmissive, effects } = state;
+		const result = baseEmissive.clone();
+		effects.forEach(effect => {
+			if (!effect.active || effect.strength <= 0) return;
+			result.addInPlace(effect.color.scale(effect.strength));
 		});
+		material.emissiveColor = result;
+	}
+
+	private cleanupMeshGlowState(meshId: number): void {
+		const state = this.glowPaddleStates.get(meshId);
+		if (!state) return;
+		Array.from(state.effects.values()).forEach(effect => {
+			this.stopGlowEffect(state, effect);
+		});
+		state.material.emissiveColor = state.baseEmissive.clone();
+		if (state.addedToGlowLayer && this.glowLayer) {
+			try {
+				this.glowLayer.removeIncludedOnlyMesh(state.mesh);
+			} catch (_) {}
+		}
+		this.glowPaddleStates.delete(meshId);
+		this.updateGlowLayerIntensity();
+	}
+
+	private updateGlowLayerIntensity(): void {
+		if (!this.glowLayer) return;
+		this.glowLayer.intensity = this.hasActiveGlowEffects()
+			? this.glowBaseIntensity
+			: 0;
+	}
+
+	private hasActiveGlowEffects(): boolean {
+		for (const state of this.glowPaddleStates.values()) {
+			if (state.effects.size > 0) return true;
+		}
+		return false;
 	}
 
 	// Backwards-compatible wrapper for paddle glow on score
@@ -6082,20 +6157,15 @@ export class Pong3D {
 		const color = point_gained
 			? new BABYLON.Color3(0, 1, 1)
 			: new BABYLON.Color3(1, 0, 0);
-		this.flashMeshGlow(paddle, durationMs, color);
+		this.flashMeshGlow(paddle, durationMs, color, {
+			key: `goal-${playerNumber}`,
+		});
 	}
 
 	private teardownGlowEffects(): void {
-		if (this.glowFadeAnimation !== null) {
-			window.cancelAnimationFrame(this.glowFadeAnimation);
-			this.glowFadeAnimation = null;
-		}
-		this.glowPaddleStates.forEach(state => {
-			window.clearTimeout(state.timeoutId);
-			state.cleanup();
+		Array.from(this.glowPaddleStates.keys()).forEach(meshId => {
+			this.cleanupMeshGlowState(meshId);
 		});
-		this.glowPaddleStates.clear();
-		if (this.glowLayer) this.glowLayer.intensity = 0;
 		if (this.glowLayer) {
 			this.glowLayer.dispose();
 			this.glowLayer = null;
