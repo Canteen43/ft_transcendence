@@ -32,4 +32,4 @@ app.style.backgroundRepeat = 'no-repeat';
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
-new TwoFactAuthButton(app);
+//new TwoFactAuthButton(app);
