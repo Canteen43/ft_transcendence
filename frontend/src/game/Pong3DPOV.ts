@@ -68,9 +68,9 @@ export function getCameraPosition(
 					// Network 2-player mode: Standard view
 					return {
 						alpha: Math.PI / 2,
-						beta: defaultBeta,
-						radius: defaultRadius,
-						target: createTarget(),
+						beta: Math.PI / 4.5,
+						radius: defaultRadius+7,
+						target: createTarget(defaultTargetY-1.5),
 					};
 				}
 			} else if (activePlayerCount === 3) {
