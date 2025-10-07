@@ -4,7 +4,6 @@ import {
 	MESSAGE_MOVE,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
-	WS_CLOSE_POLICY_VIOLATION,
 	WS_TOKEN_EXPIRED,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
@@ -78,15 +77,9 @@ export class WebSocketWrapper {
 				'You are already logged in from another location.'
 			);
 			return;
-		} else if (event.code === WS_CLOSE_POLICY_VIOLATION) {
-			console.warn('Policy violation');
-			this.handleAuthFailure(
-				'Connection closed due to policy violation.'
-			);
-			return;
 		}
 
-		// For other errors, trying to reopen after 3 seconds if target state is 'open'
+		// For other errors, trying to reopen after 3*i seconds if target state is 'open'
 		if (this.targetState === 'open') {
 			this.reconnectAttempt++;
 			const delay = Math.min(

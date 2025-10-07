@@ -48,7 +48,6 @@ export const ERROR_NO_2FA_IN_PROGRESS =
 export const ERROR_2FA_NOT_CONFIGURED =
 	'Two factor authentication has not been setup for this account';
 
-export const WS_CLOSE_POLICY_VIOLATION = 1008;
 export const WS_AUTHENTICATION_FAILED = 4001;
 export const WS_TOKEN_EXPIRED = 4002;
 export const WS_ALREADY_CONNECTED = 4003;
@@ -56,7 +55,6 @@ export const WS_ALREADY_CONNECTED = 4003;
 export const MESSAGE_START_TOURNAMENT = 'st';
 export const MESSAGE_ACCEPT = 'a';
 export const MESSAGE_START = 's';
-export const MESSAGE_PAUSE = 'p';
 export const MESSAGE_QUIT = 'q';
 export const MESSAGE_MOVE = 'm';
 export const MESSAGE_GAME_STATE = 'g';

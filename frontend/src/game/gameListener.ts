@@ -1,10 +1,9 @@
 // gameListener.ts
 import {
 	MESSAGE_ACCEPT,
-	MESSAGE_FINISH,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
-	MESSAGE_PAUSE,
+	MESSAGE_CHAT,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_REPLAY,
@@ -28,7 +27,6 @@ import { state } from '../utils/State';
 import { updateTournData } from '../utils/updateTurnMatchData';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
-
 
 export async function gameListener(event: MessageEvent) {
 	try {
@@ -70,6 +68,7 @@ export async function gameListener(event: MessageEvent) {
 					);
 					return;
 				}
+
 				if (tournData.matches.length === 1) {
 					updateTournData(tournData);
 					const matchID = sessionStorage.getItem('matchID');
@@ -91,6 +90,15 @@ export async function gameListener(event: MessageEvent) {
 					);
 					location.hash = '#home';
 				}
+				break;
+
+			case MESSAGE_CHAT:
+				console.info('Received chat message:', msg);
+				document.dispatchEvent(
+					new CustomEvent('chat-message', {
+						detail: msg.d,
+					})
+				);
 				break;
 
 			case MESSAGE_START:
