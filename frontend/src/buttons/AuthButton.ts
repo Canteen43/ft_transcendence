@@ -32,15 +32,16 @@ export class AuthComponent {
 		this.destroyButton();
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
-		const isHomeScreen = location.hash === '#home';
-		const moveButton =
-			isHomeScreen && userIsLoggedIn && state.chatExpanded === true;
+		const moveButtonLeft = userIsLoggedIn && state.chatExpanded;
+		console.debug(
+			'RErendering auth Button, moveButtonLeft: ' + moveButtonLeft
+		);
 
 		// Create a wrapper with fixed positioning
 		const wrapper = document.createElement('div');
 		wrapper.className =
 			`fixed top-4 z-10 w-32 sm:w-48 md:w-60 transition-all duration-300` +
-			` ${moveButton ? 'right-[21rem]' : 'right-4'}`;
+			` ${moveButtonLeft ? 'right-[21rem]' : 'right-4'}`;
 
 		this.button = new Button(
 			userIsLoggedIn ? username : 'sign in',
@@ -142,6 +143,7 @@ export class AuthComponent {
 	private logout() {
 		sessionStorage.clear();
 		webSocket.close();
+		console.debug('Dispatching LOGOUT SUCCESS');
 		document.dispatchEvent(new CustomEvent('logout-success'));
 		console.info('Logout successful');
 	}

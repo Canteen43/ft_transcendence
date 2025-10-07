@@ -114,7 +114,7 @@ export class WebSocketWrapper {
 	private handleAuthFailure(message: string): void {
 		sessionStorage.removeItem('token');
 		sessionStorage.removeItem('userID');
-		console.debug('dispatching event login-failed');
+		console.debug('Dispatching LOGIN FAIL');
 		document.dispatchEvent(new CustomEvent('login-failed'));
 		void new TextModal(router.currentScreen!.element, message);
 	}
