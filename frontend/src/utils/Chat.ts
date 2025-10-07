@@ -72,6 +72,9 @@ export class Chat {
 	private handleToggle = () => {
 		this.isExpanded = !this.isExpanded;
 		state.chatExpanded = this.isExpanded;
+		console.debug('Dispatching CHAT TOGGLED');
+		console.debug('this.isExpanded ' + this.isExpanded);
+		console.debug('state.chatExpanded' + this.isExpanded);
 
 		document.dispatchEvent(new CustomEvent('chat-toggled'));
 
