@@ -1,13 +1,5 @@
 import { z } from 'zod';
-import {
-	CreateTournamentApiSchema,
-	FullTournamentSchema,
-	JoinTournamentSchema,
-	TournamentQueueSchema,
-	TournamentSchema,
-} from '../../../shared/schemas/tournament';
 import { Button } from '../buttons/Button';
-import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';

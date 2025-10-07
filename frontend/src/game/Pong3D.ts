@@ -2094,7 +2094,8 @@ export class Pong3D {
 							this.container,
 							undefined,
 							'Play again',
-							() => this.gameScreen!.reloadPong()
+							() => this.gameScreen!.reloadPong(),
+							true
 						);
 					}
 				} else {
@@ -2106,7 +2107,7 @@ export class Pong3D {
 
 			setTimeout(() => {
 				state.gameOngoing = false;
-			}, 2000);
+			}, 1000);
 
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
@@ -2176,11 +2177,12 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new TextModal(
+						const playAgain = new TextModal(
 							this.container,
 							undefined,
 							'Play again',
-							() => this.gameScreen!.reloadPong()
+							() => this.gameScreen!.reloadPong(),
+							true
 						);
 					}
 				} else {
@@ -2188,8 +2190,7 @@ export class Pong3D {
 						'GameScreen reference not available for Replay or next round'
 					);
 				}
-			}
-			else if (
+			} else if (
 				sessionStorage.getItem('gameMode') === 'remote' &&
 				sessionStorage.getItem('tournament') === '0'
 			) {
@@ -2197,6 +2198,8 @@ export class Pong3D {
 				new ReplayModal(this.container);
 				// location.hash = '#home';
 			}
+
+			state.gameOngoing = false;
 			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
 				state.gameOngoing = false;
@@ -4686,7 +4689,7 @@ export class Pong3D {
 			if (this.gameLoop) {
 				this.gameLoop.stop();
 			}
-			
+
 			if (
 				sessionStorage.getItem('gameMode') === 'remote' &&
 				sessionStorage.getItem('tournament') === '0'
@@ -4697,8 +4700,8 @@ export class Pong3D {
 			}
 
 			// Wait 2 seconds for victory handling before redirecting when acting as master
+			state.gameOngoing = false;
 			setTimeout(() => {
-				state.gameOngoing = false;
 				this.conditionalLog(
 					'🏆 Victory handler delay finished, gameOngoing set to false'
 				);

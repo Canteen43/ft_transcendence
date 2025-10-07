@@ -123,17 +123,6 @@ export async function gameListener(event: MessageEvent) {
 					);
 				}, 100);
 				break;
-			// TODO : maybe remove the refreshing and redirecting when we are on the game
-			// case MESSAGE_FINISH:
-			// 	console.info('Received finish message:', msg);
-			// 	if (state.gameOngoing = false) {
-			// 		console.debug(
-			// 			'Received finish, no game ongoing, redirecting to tournament'
-			// 		);
-			// 		location.hash = '#tournament';
-			// 	}
-
-			// 	break;
 
 			case MESSAGE_REPLAY:
 				console.debug('Replay received');

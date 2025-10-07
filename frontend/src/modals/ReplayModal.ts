@@ -21,6 +21,9 @@ export class ReplayModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
+		this.overlay.className =
+			'fixed inset-0 flex items-center justify-end flex-col pb-[25vh] bg-black/40 z-20';
+
 		this.box.classList.add('replay-modal');
 
 		new Button('Replay', () => this.replayClicked(), this.box);
