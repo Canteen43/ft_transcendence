@@ -1,3 +1,4 @@
+import { WebSocket } from '@fastify/websocket';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import z from 'zod';
 import {
@@ -20,6 +21,7 @@ async function handleIncomingConnection(
 	request: FastifyRequest<{ Querystring: { token: string } }>
 ) {
 	request.headers['authorization'] = `Bearer ${request.query.token}`;
+	const socket: GameSocket = webSocket as unknown as GameSocket;
 
 	try {
 		authenticateRequest(request);
@@ -29,18 +31,18 @@ async function handleIncomingConnection(
 				? error.message
 				: ERROR_AUTHENTICATION_FAILED;
 		if (message == ERROR_TOKEN_EXPIRED)
-			webSocket.close(WS_TOKEN_EXPIRED, message);
-		else webSocket.close(WS_AUTHENTICATION_FAILED, message);
+			socket.close(WS_TOKEN_EXPIRED, message);
+		else socket.close(WS_AUTHENTICATION_FAILED, message);
 		return;
 	}
 	const authRequest = getAuthData(request);
 
 	try {
 		await LockService.withLock(LockType.Auth, async () =>
-			addConnection(authRequest.token.userId, webSocket as GameSocket)
+			addConnection(authRequest.token.userId, socket as GameSocket)
 		);
 	} catch (error) {
-		webSocket.close(WS_ALREADY_CONNECTED, ERROR_USER_ALREADY_CONNECTED);
+		socket.close(WS_ALREADY_CONNECTED, ERROR_USER_ALREADY_CONNECTED);
 	}
 }
 

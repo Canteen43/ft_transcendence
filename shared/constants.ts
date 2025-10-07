@@ -1,5 +1,3 @@
-import type { Player } from '../backend/types/interfaces.js';
-import { PlayerStatus } from './enums.js';
 import type { Message } from './schemas/message.js';
 import type { UUID } from './types.js';
 
@@ -65,6 +63,7 @@ export const MESSAGE_FINISH = 'f';
 export const MESSAGE_REPLAY = 'r';
 export const MESSAGE_CHAT = 'c';
 
+export const DOTENV_BACKEND = 'backend/.env';
 export const TWO_FACTOR_ISSUER = 'No pong intended';
 export const TWO_FACTOR_ALGORITHM = 'SHA1';
 export const TOKEN_VALIDITY_2FA = '2m';
@@ -80,11 +79,6 @@ export const FIELD_HEIGTH = 1000;
 export const PADDLE_WIDTH = 100;
 
 export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
-export const EMPTY_PLAYER: Player = {
-	userId: EMPTY_UUID,
-	score: 0,
-	status: PlayerStatus.Pending,
-};
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
