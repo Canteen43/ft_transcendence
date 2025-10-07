@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"esModuleInterop": true,
+		"strict": true,
+		"composite": true,
+		"declaration": true,
+		"declarationMap": true,
+		"outDir": "../build/app/shared"
+	},
+	"include": ["."]
+}

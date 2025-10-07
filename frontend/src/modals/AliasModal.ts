@@ -17,6 +17,10 @@ export class AliasModal extends Modal {
 		{ label: 'Morgana', value: '*Morgana' },
 		{ label: 'Gandalf', value: '*Gandalf' },
 	];
+	private powerupCheckboxes: Record<
+		'split' | 'stretch' | 'shrink',
+		HTMLInputElement
+	> | null = null;
 
 	private documentClickHandlers: ((e: Event) => void)[] = [];
 	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
@@ -52,11 +56,66 @@ export class AliasModal extends Modal {
 			this.box.appendChild(row);
 		}
 
+		if (gameMode === 'local') {
+			this.powerupCheckboxes = this.createPowerupSection();
+		}
+
 		this.addKeyboardListeners();
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
 
 		new Button('Continue', () => this.handleAlias(), this.box);
+	}
+
+	private createPowerupSection(): Record<
+		'split' | 'stretch' | 'shrink',
+		HTMLInputElement
+	> {
+		const container = document.createElement('div');
+		container.className = 'w-full flex flex-col gap-2 mt-4';
+
+		const title = document.createElement('h2');
+		title.textContent = 'PowerUps';
+		title.className = 'text-2xl font-bold text-black';
+		container.appendChild(title);
+
+		const list = document.createElement('div');
+		list.className = 'flex flex-col gap-1 pb-4';
+		container.appendChild(list);
+
+		const checkboxMap: Record<
+			'split' | 'stretch' | 'shrink',
+			HTMLInputElement
+		> = {} as Record<'split' | 'stretch' | 'shrink', HTMLInputElement>;
+
+		const powerups: { key: 'split' | 'stretch' | 'shrink'; label: string }[] = [
+			{ key: 'split', label: 'Ball Split' },
+			{ key: 'stretch', label: 'Paddle Stretch' },
+			{ key: 'shrink', label: 'Paddle Shrink' },
+		];
+
+		powerups.forEach(({ key, label }) => {
+			const row = document.createElement('label');
+			row.className = 'flex items-center gap-3 text-base text-black';
+
+			const checkbox = document.createElement('input');
+			checkbox.type = 'checkbox';
+			checkbox.checked = sessionStorage.getItem(key) === '1';
+			checkbox.className = 'w-5 h-5 accent-[var(--color1)]';
+
+			const span = document.createElement('span');
+			span.textContent = label;
+			span.className = 'text-lg font-medium text-black';
+
+			row.appendChild(checkbox);
+			row.appendChild(span);
+			list.appendChild(row);
+
+			checkboxMap[key] = checkbox;
+		});
+
+		this.box.appendChild(container);
+		return checkboxMap;
 	}
 
 	private createPlayerRow(
@@ -96,7 +155,8 @@ export class AliasModal extends Modal {
 		input.id = id;
 		input.value = defaultValue;
 		input.title = hint;
-		input.className = 'border border-[var(--color3)] p-2 flex-1';
+		input.className =
+			'border border-[var(--color3)] p-2 flex-1 text-black text-lg';
 		return input;
 	}
 
@@ -226,6 +286,20 @@ export class AliasModal extends Modal {
 			const alias = field.value.trim() || `Player${index + 1}`;
 			sessionStorage.setItem(`alias${index + 1}`, alias);
 		});
+		if (this.powerupCheckboxes) {
+			sessionStorage.setItem(
+				'split',
+				this.powerupCheckboxes.split.checked ? '1' : '0'
+			);
+			sessionStorage.setItem(
+				'stretch',
+				this.powerupCheckboxes.stretch.checked ? '1' : '0'
+			);
+			sessionStorage.setItem(
+				'shrink',
+				this.powerupCheckboxes.shrink.checked ? '1' : '0'
+			);
+		}
 		location.hash = '#game';
 	}
 

@@ -77,7 +77,7 @@ export class StatsRepository {
 					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 				) AS percentage_wins
 			FROM matches
-			ORDER BY nr desc
+			ORDER BY nr DESC
 			LIMIT 100;`,
 			[userId, userId]
 		);

@@ -1,5 +1,4 @@
 import {
-	EMPTY_PLAYER,
 	EMPTY_UUID,
 	ERROR_MESSAGE_HANDLE,
 	ERROR_PLAYER_NOT_FOUND,
@@ -18,6 +17,7 @@ import {
 } from '../../shared/constants.js';
 import {
 	MatchStatus,
+	PlayerStatus,
 	QuitReason,
 	TournamentStatus,
 } from '../../shared/enums.js';
@@ -212,12 +212,6 @@ export class GameProtocol {
 		this.quitAll(connectionId, QuitReason.Quit);
 	}
 
-	private handlePause(connectionId: UUID, message: Message) {
-		logger.debug('websocket: pause message received.');
-		const match = this.getMatchObject(connectionId);
-		this.sendMatchMessage(message, match.players);
-	}
-
 	private handleReplay(connectionId: UUID, message: Message) {
 		logger.debug('websocket: replay message received.');
 		const matchId = message.d as UUID;
@@ -368,7 +362,11 @@ export class GameProtocol {
 		connectionId: UUID,
 		players: Player[]
 	): { current: Player; others: Player[] } {
-		var current: Player = EMPTY_PLAYER;
+		var current: Player = {
+			userId: EMPTY_UUID,
+			score: 0,
+			status: PlayerStatus.Pending,
+		};
 		const others: Player[] = [];
 
 		for (const p of players) {

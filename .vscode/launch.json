@@ -29,7 +29,7 @@
 			"name": "Backend",
 			"type": "node",
 			"request": "launch",
-			"cwd": "${workspaceFolder}/backend",
+			"cwd": "${workspaceFolder}",
 			"runtimeExecutable": "tsx",
 			"program": "${workspaceFolder}/backend/app.ts",
 			"console": "integratedTerminal",
