@@ -4,7 +4,6 @@ import {
 	MESSAGE_MOVE,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
-	WS_CLOSE_POLICY_VIOLATION,
 	WS_TOKEN_EXPIRED,
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
@@ -75,12 +74,6 @@ export class WebSocketWrapper {
 			console.warn('Already connected elsewhere');
 			this.handleAuthFailure(
 				'You are already logged in from another location.'
-			);
-			return;
-		} else if (event.code === WS_CLOSE_POLICY_VIOLATION) {
-			console.warn('Policy violation');
-			this.handleAuthFailure(
-				'Connection closed due to policy violation.'
 			);
 			return;
 		}
