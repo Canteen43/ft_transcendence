@@ -1,0 +1,138 @@
+import { z } from 'zod';
+import { UserSchema } from '../../../shared/schemas/user';
+import { isLoggedIn } from '../buttons/AuthButton';
+import { apiCall } from './apiCall';
+
+export class Banner {
+	private bannerContainer: HTMLElement;
+	private onlinePlayersContainer: HTMLElement;
+	private updateInterval: number | null = null;
+
+	constructor(parent: HTMLElement) {
+		// banner container
+		this.bannerContainer = document.createElement('div');
+		this.bannerContainer.className =
+			'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
+			'border-t-2 border-[var(--color5)] py-2 h-10 z-20 overflow-hidden';
+
+		// online players container
+		this.onlinePlayersContainer = document.createElement('div');
+		this.onlinePlayersContainer.className =
+			'flex items-center space-x-8 px-4';
+
+		// Add title to onlinePlayersContainer
+		const title = document.createElement('span');
+		title.textContent = 'ONLINE PLAYERS:';
+		title.className =
+			"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
+		this.onlinePlayersContainer.appendChild(title);
+
+		// scrollWrapper
+		const scrollWrapper = document.createElement('div');
+		scrollWrapper.className = 'flex animate-scroll whitespace-nowrap';
+
+		// add onlinePlayersContainer to scrollWrapper
+		scrollWrapper.appendChild(this.onlinePlayersContainer);
+		// add scrollWrapper to bannerContainer
+		this.bannerContainer.appendChild(scrollWrapper);
+		// Attach to parent
+		parent.appendChild(this.bannerContainer);
+
+		// Initial load
+		this.loadOnlinePlayers();
+
+		// updates every 30 seconds
+		this.updateInterval = window.setInterval(() => {
+			this.loadOnlinePlayers();
+		}, 30000);
+	}
+
+	private async loadOnlinePlayers(): Promise<void> {
+		if (!isLoggedIn()) {
+			this.updateDisplay([]);
+			return;
+		}
+
+		const UsersArraySchema = z.array(UserSchema);
+		const { data: userArray, error } = await apiCall(
+			'GET',
+			'/users/online',
+			UsersArraySchema
+		);
+		if (error) {
+			console.error('Error loading online players:', error);
+			this.updateDisplay([]);
+			return;
+		}
+		if (!userArray) {
+			console.error('Empty online players array');
+			this.updateDisplay([]);
+			return;
+		}
+
+		this.updateDisplay(userArray);
+	}
+
+	private updateDisplay(users: any[]): void {
+		const scrollWrapper = this.onlinePlayersContainer.parentElement;
+		if (!scrollWrapper) return;
+
+		scrollWrapper.replaceChildren();
+
+		// Recreate main container
+		const newContainer = document.createElement('div');
+		newContainer.className = 'flex items-center space-x-8 px-4';
+
+		const title = document.createElement('span');
+		title.textContent = 'ONLINE PLAYERS:';
+		title.className =
+			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
+		newContainer.appendChild(title);
+
+		if (users.length === 0) {
+			const noPlayers = document.createElement('span');
+			noPlayers.textContent = 'No players online';
+			noPlayers.className =
+				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base opacity-75";
+			newContainer.appendChild(noPlayers);
+		} else {
+			users.forEach((user: any) => {
+				const displayName = user.alias || user.login;
+				const playerElement = document.createElement('span');
+				playerElement.textContent = displayName;
+				playerElement.className =
+					"inline-flex items-center font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-1 py-0.5 mr-1";
+				newContainer.appendChild(playerElement);
+			});
+		}
+
+		scrollWrapper.appendChild(newContainer);
+
+		// Create clones for seamless scrolling
+		const screenWidth = window.innerWidth;
+		const containerWidth = newContainer.scrollWidth;
+		const copiesNeeded = Math.max(
+			3,
+			Math.ceil(screenWidth / containerWidth) + 1
+		);
+
+		for (let i = 0; i < copiesNeeded; i++) {
+			const clone = newContainer.cloneNode(true) as HTMLElement;
+			clone.className = 'flex items-center space-x-8 px-4';
+			clone.style.marginLeft = '400px';
+			scrollWrapper.appendChild(clone);
+		}
+
+		// Update reference
+		this.onlinePlayersContainer = newContainer;
+	}
+	public destroy(): void {
+		if (this.updateInterval !== null) {
+			clearInterval(this.updateInterval);
+			this.updateInterval = null;
+		}
+
+		// Remove from DOM
+		this.bannerContainer.remove();
+	}
+}

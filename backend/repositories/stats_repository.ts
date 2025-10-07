@@ -40,6 +40,7 @@ export class StatsRepository {
 				INNER JOIN tournament_participant participant
 					ON participant.id = match.participant_1_id
 				WHERE participant.user_id = ?
+				AND   match.status = '${MatchStatus.Finished}'
 
 				UNION ALL
 
@@ -55,6 +56,7 @@ export class StatsRepository {
 				INNER JOIN tournament_participant participant
 					ON participant.id = match.participant_2_id
 				WHERE participant.user_id = ?
+				AND   match.status = '${MatchStatus.Finished}'
 			)
 			SELECT 
 				ROW_NUMBER() OVER (ORDER BY timestamp) AS nr,
@@ -75,6 +77,7 @@ export class StatsRepository {
 					ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 				) AS percentage_wins
 			FROM matches
+			ORDER BY nr DESC
 			LIMIT 100;`,
 			[userId, userId]
 		);

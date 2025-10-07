@@ -16,7 +16,7 @@ hourglass.register();
 // Waiting for players, eventListener for game Ready
 export class ReplayModal extends Modal {
 	private remoteReplayHandler = () => this.handleRemoteReplay();
-	private timeoutId: number | null = null;
+	private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -46,7 +46,7 @@ export class ReplayModal extends Modal {
 	}
 
 	private startTimer() {
-		this.timeoutId = window.setTimeout(() => {
+		this.timeoutId = setTimeout(() => {
 			console.debug('Replay timer expired, returning to home');
 			console.debug('Clearing match data before home');
 			clearMatchData();
@@ -85,7 +85,7 @@ export class ReplayModal extends Modal {
 
 	private showLoader() {
 		// Clear the button content but keep button styling
-		this.box.innerHTML = '';
+		this.box.textContent = '';
 		this.box.classList.remove('hover:bg-whatever');
 		this.box.classList.add('cursor-not-allowed');
 		this.box.style.backgroundColor = 'white';

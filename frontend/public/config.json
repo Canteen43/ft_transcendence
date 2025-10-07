@@ -1,0 +1,6 @@
+{
+	"mode": "local",
+	"host": "localhost",
+	"port": 8080,
+	"tunnelURL": ""
+}
