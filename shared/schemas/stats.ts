@@ -14,7 +14,7 @@ export const RankingItemSchema = WinsLossesSchema.extend({
 	rank: z.number(),
 	user_id: zUUID,
 	login: z.string(),
-	alias: z.string(),
+	alias: z.string().nullable(),
 });
 
 export const RankingSchema = z.array(RankingItemSchema);

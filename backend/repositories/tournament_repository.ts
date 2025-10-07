@@ -27,7 +27,7 @@ export default class TournamentRepository {
 
 	static getTournament(id: UUID): Tournament | null {
 		const result = db.queryOne<Tournament>(
-			`SELECT id, size, settings_id, status
+			`SELECT id, created_at, size, settings_id, status
 		 FROM ${this.table}
 		 WHERE id = ?`,
 			[id]
@@ -37,21 +37,27 @@ export default class TournamentRepository {
 		return TournamentSchema.parse(result);
 	}
 
-	static getTournamentsForUser(
-		user_id: UUID,
-		status?: TournamentStatus
+	static getTournamentsWithFilter(
+		user_id?: UUID,
+		statuses?: TournamentStatus[]
 	): Tournament[] {
-		let query = `SELECT tournament.id, size, settings_id, status
+		let query = `SELECT tournament.id, created_at, size, settings_id, status
 			FROM ${this.table} tournament
 			INNER JOIN ${ParticipantRepository.table} participant
 				ON tournament.id = participant.tournament_id
-			WHERE participant.user_id = ?`;
+			WHERE 1 = 1`;
 
-		let params: any[] = [user_id];
+		let params: any[] = [];
 
-		if (status !== undefined) {
-			query += ` AND status = ?`;
-			params.push(status);
+		if (user_id !== undefined) {
+			query += ` AND participant.user_id = ?`;
+			params.push(user_id);
+		}
+
+		if (statuses !== undefined && statuses.length) {
+			const qs = '?,'.repeat(statuses.length).slice(0, -1);
+			query += ` AND status IN (${qs})`;
+			params.push(...statuses);
 		}
 
 		const result = db.queryAll<Tournament>(query, params);
@@ -62,7 +68,7 @@ export default class TournamentRepository {
 		const result = db.queryOne<Tournament>(
 			`INSERT INTO ${this.table} (size, settings_id, status)
 			VALUES (?, ?, ?)
-			RETURNING id, size, settings_id, status`,
+			RETURNING id, created_at, size, settings_id, status`,
 			[src.size, src.settings_id, src.status]
 		);
 
@@ -110,7 +116,7 @@ export default class TournamentRepository {
 			`UPDATE ${this.table}
 		 SET status = ?
 		 WHERE id = ?
-		 RETURNING id, size, settings_id, status`,
+		 RETURNING id, created_at, size, settings_id, status`,
 			[upd.status, tournament_id]
 		);
 

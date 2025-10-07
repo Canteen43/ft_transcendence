@@ -3,7 +3,6 @@ import * as BABYLON from '@babylonjs/core';
 export interface LandingCallbacks {
 	onLocalGameClick?: () => void;
 	onRemoteGameClick?: () => void;
-	onStatClick?: () => void;
 }
 
 //////////////////////
@@ -14,11 +13,11 @@ export class Landing {
 	private scene!: BABYLON.Scene;
 	private camera!: BABYLON.ArcRotateCamera;
 	private canvas!: HTMLCanvasElement;
+	private highlightLayer?: BABYLON.HighlightLayer;
 
 	// Clickable mesh references
 	private localGameMesh: BABYLON.AbstractMesh | null = null;
 	private remoteGameMesh: BABYLON.AbstractMesh | null = null;
-	private statMesh: BABYLON.AbstractMesh | null = null;
 
 	// Callbacks
 	private callbacks: LandingCallbacks;
@@ -61,8 +60,8 @@ export class Landing {
 	private setupCamera(): void {
 		this.camera = new BABYLON.ArcRotateCamera(
 			'camera',
-			-Math.PI / 3, //looking from the left
-			Math.PI / 2, // you’re looking down at an angle 60
+			-Math.PI / 2.5, //looking from the left
+			Math.PI / 2.1, // you’re looking down at an angle 60
 			3, // distance between the camera and the target
 			BABYLON.Vector3.Zero(), // pointed at the origin
 			this.scene
@@ -73,7 +72,7 @@ export class Landing {
 		this.camera.attachControl(this.canvas, true);
 
 		// Set limits
-		this.camera.lowerRadiusLimit = 5; //smallest allowed radius (closest to target)
+		this.camera.lowerRadiusLimit = 1; //smallest allowed radius (closest to target)
 		this.camera.upperRadiusLimit = 150; //largest allowed radius
 		this.camera.lowerBetaLimit = -5;
 		this.camera.upperBetaLimit = 5;
@@ -89,20 +88,20 @@ export class Landing {
 			new BABYLON.Vector3(0, 1, 0),
 			this.scene
 		);
-		ambientLight.intensity = 1.0;
+		ambientLight.intensity = 0.5;
 
 		// Directional light
 		const directionalLight = new BABYLON.DirectionalLight(
 			'directionalLight',
-			new BABYLON.Vector3(-1, -1, -1),
+			new BABYLON.Vector3(1, 1, 1),
 			this.scene
 		);
-		directionalLight.intensity = 1.5;
+		directionalLight.intensity = 3;
 
 		// Create skybox with your background image
 		const skybox = BABYLON.MeshBuilder.CreateSphere(
 			'skybox',
-			{ diameter: 100 },
+			{ diameter: 1000 },
 			this.scene
 		);
 		skybox.isPickable = false;
@@ -112,7 +111,7 @@ export class Landing {
 		);
 		skyboxMaterial.backFaceCulling = false;
 		skyboxMaterial.diffuseTexture = new BABYLON.Texture(
-			'/wasteland.hdr',
+			'/nebulae.hdr',
 			this.scene
 		);
 		skybox.material = skyboxMaterial;
@@ -156,31 +155,36 @@ export class Landing {
 
 		this.localGameMesh = findMesh('local');
 		this.remoteGameMesh = findMesh('remote');
-		this.statMesh = findMesh('stat');
 
-		[this.localGameMesh, this.remoteGameMesh, this.statMesh].forEach(
-			mesh => {
-				if (mesh) mesh.isPickable = true;
-			}
-		);
+		[this.localGameMesh, this.remoteGameMesh].forEach(mesh => {
+			if (mesh) mesh.isPickable = true;
+		});
+
+		console.group('🔍 Meshes loaded');
+		for (const m of meshes) {
+			console.log(m.name, '-> parent:', m.parent?.name || 'none');
+		}
+		console.groupEnd();
 
 		this.fitCameraToScene(meshes);
 	}
 
 	private handleMeshClick(mesh: BABYLON.AbstractMesh): void {
-		if (mesh === this.localGameMesh) {
-			console.debug('local selected');
+		console.debug(`🖱️ Clicked mesh: ${mesh.name}`);
+
+		const name = mesh.name.toLowerCase();
+
+		if (name.includes('local')) {
+			console.debug('Local Game selected');
 			this.callbacks.onLocalGameClick?.();
-		} else if (mesh === this.remoteGameMesh) {
-			console.debug('remote selected');
+		} else if (name.includes('remote')) {
+			console.debug('Remote Game selected');
 			this.callbacks.onRemoteGameClick?.();
-		} else if (mesh === this.statMesh) {
-			console.debug('statistics selected');
-			this.callbacks.onStatClick?.();
 		} else {
 			console.debug('Unknown mesh clicked');
 		}
 	}
+
 	private fitCameraToScene(meshes: BABYLON.AbstractMesh[]): void {
 		if (meshes.length === 0) return;
 

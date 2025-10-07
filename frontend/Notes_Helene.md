@@ -126,3 +126,11 @@ But then you’d need to keep track of the bound function if you want to removeE
 So the point of private renderHandler = () => this.render(); is:
 Keep this bound correctly.
 Store a single reference so you can removeEventListener later.
+
+
+<a href="https://www.flaticon.com/free-icons/leadership" title="leadership icons">Leadership icons created by Parzival’ 1997 - Flaticon</a>
+
+<a href="https://www.flaticon.com/free-icons/best" title="best icons">Best icons created by Freepik - Flaticon</a>
+
+
+you can't use await in a constructor
