@@ -19,31 +19,60 @@ export class RegisterModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
+		const form = document.createElement('form');
+		form.className = 'flex flex-col gap-4';
+		this.box.appendChild(form);
+
 		this.box.className +=
 			'flex flex-col items-center justify-center gap-2 p-4';
 
-		this.UsernameField = this.myCreateInput('text', 'username', 'username');
-		this.AliasField = this.myCreateInput('text', 'alias', 'game alias');
+		this.UsernameField = this.myCreateInput(
+			'text',
+			'username',
+			'username',
+			form,
+			'username'
+		);
+		this.AliasField = this.myCreateInput(
+			'text',
+			'alias',
+			'game alias',
+			form
+		);
 		this.FirstNameField = this.myCreateInput(
 			'text',
 			'first_name',
-			'first name'
+			'first name',
+			form,
+			'given-name'
 		);
 		this.LastNameField = this.myCreateInput(
 			'text',
 			'last_name',
-			'last name'
+			'last name',
+			form,
+			'family-name'
 		);
-		this.EmailField = this.myCreateInput('email', 'email', 'email');
+		this.EmailField = this.myCreateInput(
+			'email',
+			'email',
+			'email',
+			form,
+			'email'
+		);
 		this.PasswordField = this.myCreateInput(
 			'password',
 			'password',
-			'password'
+			'password',
+			form,
+			'new-password'
 		);
 		this.PasswordRepeatField = this.myCreateInput(
 			'password',
 			'passwordrepeat',
-			'password repeat'
+			'password repeat',
+			form,
+			'new-password'
 		);
 		new Button('Register', () => this.handleRegister(), this.box);
 		this.createLinks(parent);
@@ -174,14 +203,22 @@ export class RegisterModal extends Modal {
 	private myCreateInput(
 		type: string,
 		id: string,
-		placeholder: string
+		placeholder: string,
+		parent: HTMLElement,
+		autocomplete?:
+			| 'username'
+			| 'email'
+			| 'new-password'
+			| 'given-name'
+			| 'family-name'
 	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
+		if (autocomplete) input.autocomplete = autocomplete;
 		input.className = 'border border-[var(--color3)] p-2';
-		this.box.appendChild(input);
+		parent.appendChild(input);
 		return input;
 	}
 
@@ -195,7 +232,6 @@ export class RegisterModal extends Modal {
 	}
 
 	private handleGoBack(parent: HTMLElement) {
-		
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.AliasField.removeEventListener('keydown', this.handleEnter);
 		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
@@ -206,7 +242,7 @@ export class RegisterModal extends Modal {
 			'keydown',
 			this.handleEnter
 		);
-		
+
 		this.destroy();
 		new LoginModal(parent);
 	}

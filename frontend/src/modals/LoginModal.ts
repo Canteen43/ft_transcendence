@@ -19,15 +19,24 @@ export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
+		// Create form
+		const form = document.createElement('form');
+		form.className = 'flex flex-col gap-4';
+		this.box.appendChild(form);
+
 		this.UsernameField = this.myCreateInput(
 			'text',
 			'username',
-			'Enter your username'
+			'Enter your username',
+			form,
+			'username'
 		);
 		this.PasswordField = this.myCreateInput(
 			'password',
 			'password',
-			'Enter your password'
+			'Enter your password',
+			form,
+			'current-password'
 		);
 		new Button('Login', () => this.handleLogin(), this.box);
 		this.createLinks(parent);
@@ -46,12 +55,6 @@ export class LoginModal extends Modal {
 	}
 
 	private addEnterListener() {
-		const handleEnter = (e: KeyboardEvent) => {
-			if (e.key == 'Enter') {
-				e.preventDefault();
-				this.handleLogin();
-			}
-		};
 		this.UsernameField.addEventListener('keydown', this.handleEnter);
 		this.PasswordField.addEventListener('keydown', this.handleEnter);
 	}
@@ -119,14 +122,22 @@ export class LoginModal extends Modal {
 	private myCreateInput(
 		type: string,
 		id: string,
-		placeholder: string
+		placeholder: string,
+		parent: HTMLElement,
+		autocomplete?:
+			| 'username'
+			| 'current-password'
+			| 'new-password'
+			| 'off'
+			| 'on'
 	): HTMLInputElement {
 		const input = document.createElement('input');
 		input.type = type;
 		input.id = id;
 		input.placeholder = placeholder;
+		if (autocomplete) input.autocomplete = autocomplete;
 		input.className = 'border border-[var(--color3)] p-2';
-		this.box.appendChild(input);
+		parent.appendChild(input);
 		return input;
 	}
 
@@ -167,12 +178,6 @@ export class LoginModal extends Modal {
 		};
 	}
 
-	public destroy(): void {
-		this.UsernameField.removeEventListener('keydown', this.handleEnter);
-		this.PasswordField.removeEventListener('keydown', this.handleEnter);
-		super.destroy();
-	}
-
 	private showCodeInputView(authData: AuthResponse) {
 		while (this.box.firstChild) {
 			this.box.removeChild(this.box.firstChild);
@@ -181,7 +186,8 @@ export class LoginModal extends Modal {
 		const codeInput = this.myCreateInput(
 			'text',
 			'2fa-code',
-			'Enter 2FA code'
+			'Enter 2FA code',
+			this.box
 		);
 		codeInput.focus();
 		new Button(
@@ -223,5 +229,11 @@ export class LoginModal extends Modal {
 		sessionStorage.setItem('username', authDataNew.login);
 		this.login(authDataNew.token, authDataNew.user_id);
 		this.destroy();
+	}
+
+	public destroy(): void {
+		this.UsernameField.removeEventListener('keydown', this.handleEnter);
+		this.PasswordField.removeEventListener('keydown', this.handleEnter);
+		super.destroy();
 	}
 }
