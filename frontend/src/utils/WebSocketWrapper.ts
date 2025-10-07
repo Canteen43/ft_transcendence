@@ -11,10 +11,9 @@ import type { Message } from '../../../shared/schemas/message';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
+import { wsURL } from './endpoints';
 import { regListener } from './regListener';
 import { router } from './Router';
-
-const WS_ADDRESS = `ws://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}/websocket`;
 
 // INFO: A webSocket object opens automatically at creation.
 // That's why a wrapper class is used. It can be created without opening the connection.
@@ -157,9 +156,9 @@ export class WebSocketWrapper {
 		}
 
 		console.info('Opening WebSocket');
-		const wsUrl = `${WS_ADDRESS}?token=${token}`;
+		const wsUrlWithToken = `${wsURL}?token=${token}`;
 		this.targetState = 'open';
-		this.ws = new WebSocket(wsUrl);
+		this.ws = new WebSocket(wsUrlWithToken);
 
 		this.ws.addEventListener('open', () => this.onOpen());
 		this.ws.addEventListener('close', event =>
