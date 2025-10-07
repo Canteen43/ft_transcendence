@@ -47,6 +47,10 @@ export class BallManager {
     }
   }
 
+  getEntities(): readonly BallEntity[] {
+    return this.entities;
+  }
+
   recordHit(impostor: BABYLON.PhysicsImpostor | null | undefined, paddleIndex: number): void {
     const e = this.findByImpostor(impostor);
     if (e) e.recordHit(paddleIndex);

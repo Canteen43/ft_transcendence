@@ -44,6 +44,7 @@ import {
 import {
 	AI_DIFFICULTY_PRESETS,
 	type AIConfig,
+	type AIBallSnapshot,
 	type GameStateForAI,
 	getAIDifficultyFromName,
 	Pong3DAI,
@@ -4222,29 +4223,73 @@ export class Pong3D {
 			return this.gameState.paddlePositionsX[i] || 0;
 		});
 
+		const splitBallSnapshots: AIBallSnapshot[] = this.ballManager
+			.getEntities()
+			.map(entity => {
+				const pos = entity.mesh.position;
+				const vel = entity.getVelocity() ?? BABYLON.Vector3.Zero();
+				const snapshot: AIBallSnapshot = {
+					id: `split_${entity.mesh.uniqueId}`,
+					meshUniqueId: entity.mesh.uniqueId,
+					bodyId: entity.impostor.physicsBody?.id,
+					position: { x: pos.x, y: pos.y, z: pos.z },
+					velocity: { x: vel.x, y: vel.y, z: vel.z },
+				};
+				return snapshot;
+			});
+
+		const mainEntity = this.mainBallEntity;
+		const mainMesh = mainEntity?.mesh ?? this.ballMesh;
+		const mainImpostor = mainEntity?.impostor ?? this.ballMesh?.physicsImpostor ?? null;
+		const rawMainVelocity =
+			mainEntity?.getVelocity() ?? mainImpostor?.getLinearVelocity();
+
+		let mainBallSnapshot: AIBallSnapshot | null = null;
+		if (mainMesh) {
+			const velocityVec = rawMainVelocity
+				? new BABYLON.Vector3(
+						rawMainVelocity.x,
+						rawMainVelocity.y,
+						rawMainVelocity.z
+					)
+				: BABYLON.Vector3.Zero();
+			mainBallSnapshot = {
+				id: `main_${mainMesh.uniqueId}`,
+				meshUniqueId: mainMesh.uniqueId,
+				bodyId: mainImpostor?.physicsBody?.id,
+				position: {
+					x: mainMesh.position.x,
+					y: mainMesh.position.y,
+					z: mainMesh.position.z,
+				},
+				velocity: {
+					x: velocityVec.x,
+					y: velocityVec.y,
+					z: velocityVec.z,
+				},
+			};
+		}
+
+		const ballSnapshots: AIBallSnapshot[] = [];
+		if (mainBallSnapshot) {
+			ballSnapshots.push(mainBallSnapshot);
+		}
+		ballSnapshots.push(...splitBallSnapshots);
+		if (ballSnapshots.length === 0) {
+			ballSnapshots.push({
+				position: { x: 0, y: 0, z: 0 },
+				velocity: { x: 0, y: 0, z: 0 },
+			});
+		}
+		const primaryBall = ballSnapshots[0];
+		const otherBallSnapshots =
+			ballSnapshots.length > 1 ? ballSnapshots.slice(1) : undefined;
+
 		const gameStateForAI: GameStateForAI = {
-			ball: {
-				position: this.ballMesh
-					? {
-							x: this.ballMesh.position.x,
-							y: this.ballMesh.position.y,
-							z: this.ballMesh.position.z,
-						}
-					: { x: 0, y: 0, z: 0 },
-				velocity: this.ballMesh?.physicsImpostor
-					? (() => {
-							const vel =
-								this.ballMesh!.physicsImpostor!.getLinearVelocity();
-							return vel
-								? {
-										x: vel.x,
-										y: vel.y,
-										z: vel.z,
-									}
-								: { x: 0, y: 0, z: 0 };
-						})()
-					: { x: 0, y: 0, z: 0 },
-			},
+			balls: ballSnapshots,
+			primaryBallId: mainBallSnapshot?.id ?? primaryBall.id,
+			ball: primaryBall,
+			otherBalls: otherBallSnapshots,
 			paddlePositionsX: [...this.gameState.paddlePositionsX],
 			paddlePositionsAlongAxis,
 			paddleAxes,

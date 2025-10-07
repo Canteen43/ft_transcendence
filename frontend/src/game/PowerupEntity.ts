@@ -139,7 +139,7 @@ export class PowerupEntity {
         (target.object && (target.object as any).uniqueId) ??
         (target.object && (target.object as any).id) ??
         (target as any).id ??
-        target.hashCode ??
+        (target as any).hashCode ??
         null;
       if (uniqueId !== null && set.has(uniqueId)) {
         continue;
