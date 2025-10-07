@@ -11,6 +11,7 @@ COPY ./shared ./shared
 
 RUN npm install
 RUN npm run build:backend
+RUN rm -rf node_modules
 
 # ---- Stage 2: Runtime
 
@@ -19,10 +20,12 @@ WORKDIR /app
 
 COPY ./package.json ./
 COPY ./package-lock.json ./
+COPY ./build/database ./database
 COPY --from=builder /app/build/app/backend ./backend
 COPY --from=builder /app/build/app/shared ./shared
 
 RUN npm ci --omit=dev
+
 EXPOSE 8080
 
 CMD ["npm", "run", "start:backend"]

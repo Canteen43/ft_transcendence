@@ -1,12 +1,9 @@
 import 'fastify';
-import Token from '../../shared/enums.ts';
+import { AuthPayload } from './interfaces.ts';
 
 declare module 'fastify' {
 	interface FastifyRequest {
-		token?: {
-			userId: UUID;
-			type: Token;
-		};
+		token?: AuthPayload;
 	}
 	interface FastifyContextConfig {
 		secure?: boolean;

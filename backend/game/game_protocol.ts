@@ -1,5 +1,4 @@
 import {
-	EMPTY_PLAYER,
 	EMPTY_UUID,
 	ERROR_MESSAGE_HANDLE,
 	ERROR_PLAYER_NOT_FOUND,
@@ -19,6 +18,7 @@ import {
 } from '../../shared/constants.js';
 import {
 	MatchStatus,
+	PlayerStatus,
 	QuitReason,
 	TournamentStatus,
 } from '../../shared/enums.js';
@@ -370,7 +370,11 @@ export class GameProtocol {
 		connectionId: UUID,
 		players: Player[]
 	): { current: Player; others: Player[] } {
-		var current: Player = EMPTY_PLAYER;
+		var current: Player = {
+			userId: EMPTY_UUID,
+			score: 0,
+			status: PlayerStatus.Pending,
+		};
 		const others: Player[] = [];
 
 		for (const p of players) {
