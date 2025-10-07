@@ -340,7 +340,7 @@ export class StatModal extends Modal {
 
 		const concededBar = document.createElement('div');
 		concededBar.className =
-			'bg-[var(--color3bis)] flex items-center justify-center text-white text-sm font-bold';
+			'bg-[var(--color7)] flex items-center justify-center text-white text-sm font-bold';
 		concededBar.style.width = `${againstPercentage}%`;
 		concededBar.textContent =
 			againstPercentage > 15 ? `${againstPercentage.toFixed(0)}%` : '';

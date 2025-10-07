@@ -76,7 +76,7 @@ export class AliasModal extends Modal {
 
 		const title = document.createElement('h2');
 		title.textContent = 'PowerUps';
-		title.className = 'text-2xl font-bold text-black';
+		title.className = 'text-2xl font-bold text-[var--(color4)]';
 		container.appendChild(title);
 
 		const list = document.createElement('div');
@@ -96,16 +96,16 @@ export class AliasModal extends Modal {
 
 		powerups.forEach(({ key, label }) => {
 			const row = document.createElement('label');
-			row.className = 'flex items-center gap-3 text-base text-black';
+			row.className = 'flex items-center gap-3 text-base text-[var--(color4)]';
 
 			const checkbox = document.createElement('input');
 			checkbox.type = 'checkbox';
 			checkbox.checked = sessionStorage.getItem(key) === '1';
-			checkbox.className = 'w-5 h-5 accent-[var(--color1)]';
+			checkbox.className = 'w-5 h-5 accent-[var--(color4)]';
 
 			const span = document.createElement('span');
 			span.textContent = label;
-			span.className = 'text-lg font-medium text-black';
+			span.className = 'text-lg font-medium text-[var--(color4)]';
 
 			row.appendChild(checkbox);
 			row.appendChild(span);
