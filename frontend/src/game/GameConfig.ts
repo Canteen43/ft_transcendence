@@ -3,11 +3,69 @@
  * Provides centralized access to sessionStorage game settings
  */
 
+import { conditionalLog } from './Logger';
+
+type PhysicsSettingKey =
+	| 'ballRadius'
+	| 'outOfBoundsDistance'
+	| 'physicsTimeStep'
+	| 'physicsSolverIterations'
+	| 'ballAngleMultiplier'
+	| 'angularReturnLimit'
+	| 'serveAngleLimit'
+	| 'paddleMass'
+	| 'paddleForce'
+	| 'paddleRange'
+	| 'paddleMaxVelocity'
+	| 'paddleBrakingFactor'
+	| 'wallSpinFriction'
+	| 'wallFriction'
+	| 'wallNearParallelAngleThreshold'
+	| 'wallNearParallelAngleAdjustment'
+	| 'wallNearParallelMaxAngle'
+	| 'ballBaseSpeed'
+	| 'maxBallSpeed'
+	| 'rallySpeedIncrementPercent';
+
+const PHYSICS_SETTING_PREFIX = 'physics:';
+const VISUAL_SETTING_PREFIX = 'visual:';
+const GAMEPLAY_SETTING_PREFIX = 'gameplay:';
+
 export class GameConfig {
 	// Default values
 	private static readonly DEFAULT_PLAYER_COUNT = 2;
 	private static readonly DEFAULT_THIS_PLAYER = 1;
 	private static readonly DEFAULT_GAME_MODE = 'local'; // Team convention: string values
+
+	private static readonly DEFAULT_PHYSICS_SETTINGS: Record<PhysicsSettingKey, number> = {
+		ballRadius: 0.32,
+		outOfBoundsDistance: 20,
+		physicsTimeStep: 1 / 240,
+		physicsSolverIterations: 15,
+		ballAngleMultiplier: 1.0,
+		angularReturnLimit: Math.PI / 4,
+		serveAngleLimit: (10 * Math.PI) / 180,
+		paddleMass: 2.8,
+		paddleForce: 15,
+		paddleRange: 5,
+		paddleMaxVelocity: 13,
+		paddleBrakingFactor: 0.8,
+		wallSpinFriction: 0.6,
+		wallFriction: 0,
+		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
+		wallNearParallelAngleAdjustment: 0,
+		wallNearParallelMaxAngle: (75 * Math.PI) / 180,
+		ballBaseSpeed: 12,
+		maxBallSpeed: 25,
+		rallySpeedIncrementPercent: 11,
+	};
+
+	private static readonly DEFAULT_GLOW_BASE_INTENSITY = 3;
+
+	// Gameplay tuning defaults
+	private static readonly DEFAULT_COLLISION_DEBOUNCE_MS = 200;
+	private static readonly DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
+	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
 
 	// Debug/Logging controls
 	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
@@ -15,6 +73,52 @@ export class GameConfig {
 
 	// enable master to control all player paddles in remote games
 	private static readonly DEFAULT_MASTER_CONTROL = false;
+
+	private static getPhysicsSettingKey(key: PhysicsSettingKey): string {
+		return `${PHYSICS_SETTING_PREFIX}${key}`;
+	}
+
+	private static getPhysicsSetting(key: PhysicsSettingKey): number {
+		const storageKey = this.getPhysicsSettingKey(key);
+		const stored = sessionStorage.getItem(storageKey);
+		if (stored === null) return this.DEFAULT_PHYSICS_SETTINGS[key];
+		const parsed = Number(stored);
+		return Number.isFinite(parsed) ? parsed : this.DEFAULT_PHYSICS_SETTINGS[key];
+	}
+
+	private static setPhysicsSetting(
+		key: PhysicsSettingKey,
+		value: number
+	): void {
+		if (!Number.isFinite(value)) return;
+		sessionStorage.setItem(this.getPhysicsSettingKey(key), value.toString());
+	}
+
+	private static getVisualSetting(key: string, fallback: number): number {
+		const storageKey = `${VISUAL_SETTING_PREFIX}${key}`;
+		const stored = sessionStorage.getItem(storageKey);
+		if (stored === null) return fallback;
+		const parsed = Number(stored);
+		return Number.isFinite(parsed) ? parsed : fallback;
+	}
+
+	private static setVisualSetting(key: string, value: number): void {
+		if (!Number.isFinite(value)) return;
+		sessionStorage.setItem(`${VISUAL_SETTING_PREFIX}${key}`, value.toString());
+	}
+
+	private static getGameplaySetting(key: string, fallback: number): number {
+		const storageKey = `${GAMEPLAY_SETTING_PREFIX}${key}`;
+		const stored = sessionStorage.getItem(storageKey);
+		if (stored === null) return fallback;
+		const parsed = Number(stored);
+		return Number.isFinite(parsed) ? parsed : fallback;
+	}
+
+	private static setGameplaySetting(key: string, value: number): void {
+		if (!Number.isFinite(value)) return;
+		sessionStorage.setItem(`${GAMEPLAY_SETTING_PREFIX}${key}`, value.toString());
+	}
 
 	/**
 	 * Get the global player count from sessionStorage
@@ -32,7 +136,7 @@ export class GameConfig {
 	 */
 	static setPlayerCount(count: 1 | 2 | 3 | 4): void {
 		sessionStorage.setItem('playerCount', count.toString());
-		console.log(`🎮 Global player count set to: ${count}`);
+		conditionalLog(`🎮 Global player count set to: ${count}`);
 	}
 
 	/**
@@ -51,7 +155,7 @@ export class GameConfig {
 	 */
 	static setThisPlayer(player: 1 | 2 | 3 | 4): void {
 		sessionStorage.setItem('thisPlayer', player.toString());
-		console.log(`🎮 This player POV set to: ${player}`);
+		conditionalLog(`🎮 This player POV set to: ${player}`);
 	}
 
 	/**
@@ -67,7 +171,7 @@ export class GameConfig {
 	 */
 	static setGameMode(mode: 'local' | 'remote'): void {
 		sessionStorage.setItem('gameMode', mode);
-		console.log(`🎮 Game mode set to: ${mode}`);
+		conditionalLog(`🎮 Game mode set to: ${mode}`);
 	}
 
 	/**
@@ -127,7 +231,238 @@ export class GameConfig {
 			debugLogging: this.isDebugLoggingEnabled(),
 			gamestateLogging: this.isGamestateLoggingEnabled(),
 			masterControl: this.isMasterControlEnabled(),
+			collisionDebounceMs: this.getCollisionDebounceMs(),
+			minRallyIncrementIntervalMs: this.getMinRallyIncrementIntervalMs(),
+			minRallyIncrementDistance: this.getMinRallyIncrementDistance(),
 		};
+	}
+
+	// Physics / tuning controls
+	static getBallRadius(): number {
+		return this.getPhysicsSetting('ballRadius');
+	}
+
+	static setBallRadius(value: number): void {
+		this.setPhysicsSetting('ballRadius', Math.max(0.01, value));
+	}
+
+	static getOutOfBoundsDistance(): number {
+		return this.getPhysicsSetting('outOfBoundsDistance');
+	}
+
+	static setOutOfBoundsDistance(value: number): void {
+		this.setPhysicsSetting('outOfBoundsDistance', Math.max(1, value));
+	}
+
+	static getPhysicsTimeStep(): number {
+		return this.getPhysicsSetting('physicsTimeStep');
+	}
+
+	static setPhysicsTimeStep(value: number): void {
+		if (value > 0) {
+			this.setPhysicsSetting('physicsTimeStep', value);
+		}
+	}
+
+	static getPhysicsSolverIterations(): number {
+		return this.getPhysicsSetting('physicsSolverIterations');
+	}
+
+	static setPhysicsSolverIterations(value: number): void {
+		const clamped = Math.max(1, Math.min(200, Math.floor(value)));
+		this.setPhysicsSetting('physicsSolverIterations', clamped);
+	}
+
+	static getBallAngleMultiplier(): number {
+		return this.getPhysicsSetting('ballAngleMultiplier');
+	}
+
+	static setBallAngleMultiplier(value: number): void {
+		const clamped = Math.max(0, Math.min(2, value));
+		this.setPhysicsSetting('ballAngleMultiplier', clamped);
+	}
+
+	static getAngularReturnLimit(): number {
+		return this.getPhysicsSetting('angularReturnLimit');
+	}
+
+	static setAngularReturnLimit(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI, value));
+		this.setPhysicsSetting('angularReturnLimit', clamped);
+	}
+
+	static getServeAngleLimit(): number {
+		return this.getPhysicsSetting('serveAngleLimit');
+	}
+
+	static setServeAngleLimit(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('serveAngleLimit', clamped);
+	}
+
+	static getPaddleMass(): number {
+		return this.getPhysicsSetting('paddleMass');
+	}
+
+	static setPaddleMass(value: number): void {
+		this.setPhysicsSetting('paddleMass', Math.max(0.01, value));
+	}
+
+	static getPaddleForce(): number {
+		return this.getPhysicsSetting('paddleForce');
+	}
+
+	static setPaddleForce(value: number): void {
+		this.setPhysicsSetting('paddleForce', Math.max(0, value));
+	}
+
+	static getPaddleRange(): number {
+		return this.getPhysicsSetting('paddleRange');
+	}
+
+	static setPaddleRange(value: number): void {
+		this.setPhysicsSetting('paddleRange', Math.max(0, value));
+	}
+
+	static getPaddleMaxVelocity(): number {
+		return this.getPhysicsSetting('paddleMaxVelocity');
+	}
+
+	static setPaddleMaxVelocity(value: number): void {
+		this.setPhysicsSetting('paddleMaxVelocity', Math.max(0, value));
+	}
+
+	static getPaddleBrakingFactor(): number {
+		return this.getPhysicsSetting('paddleBrakingFactor');
+	}
+
+	static setPaddleBrakingFactor(value: number): void {
+		const clamped = Math.max(0, Math.min(1, value));
+		this.setPhysicsSetting('paddleBrakingFactor', clamped);
+	}
+
+	static getWallSpinFriction(): number {
+		return this.getPhysicsSetting('wallSpinFriction');
+	}
+
+	static setWallSpinFriction(value: number): void {
+		const clamped = Math.max(0, Math.min(1, value));
+		this.setPhysicsSetting('wallSpinFriction', clamped);
+	}
+
+	static getWallFriction(): number {
+		return this.getPhysicsSetting('wallFriction');
+	}
+
+	static setWallFriction(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setPhysicsSetting('wallFriction', clamped);
+	}
+
+	static getWallNearParallelAngleThreshold(): number {
+		return this.getPhysicsSetting('wallNearParallelAngleThreshold');
+	}
+
+	static setWallNearParallelAngleThreshold(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelAngleThreshold', clamped);
+	}
+
+	static getWallNearParallelAngleAdjustment(): number {
+		return this.getPhysicsSetting('wallNearParallelAngleAdjustment');
+	}
+
+	static setWallNearParallelAngleAdjustment(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelAngleAdjustment', clamped);
+	}
+
+	static getWallNearParallelMaxAngle(): number {
+		return this.getPhysicsSetting('wallNearParallelMaxAngle');
+	}
+
+	static setWallNearParallelMaxAngle(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelMaxAngle', clamped);
+	}
+
+	static getBallBaseSpeed(): number {
+		return this.getPhysicsSetting('ballBaseSpeed');
+	}
+
+	static setBallBaseSpeed(value: number): void {
+		const clamped = Math.max(0.1, value);
+		this.setPhysicsSetting('ballBaseSpeed', clamped);
+		if (this.getMaxBallSpeed() < clamped) {
+			this.setMaxBallSpeed(clamped);
+		}
+	}
+
+	static getMaxBallSpeed(): number {
+		return this.getPhysicsSetting('maxBallSpeed');
+	}
+
+	static setMaxBallSpeed(value: number): void {
+		const base = this.getBallBaseSpeed();
+		const clamped = Math.max(base, value);
+		this.setPhysicsSetting('maxBallSpeed', clamped);
+	}
+
+	static getRallySpeedIncrementPercent(): number {
+		return this.getPhysicsSetting('rallySpeedIncrementPercent');
+	}
+
+	static setRallySpeedIncrementPercent(value: number): void {
+		const clamped = Math.max(0, Math.min(100, value));
+		this.setPhysicsSetting('rallySpeedIncrementPercent', clamped);
+	}
+
+	static getGlowBaseIntensity(): number {
+		return this.getVisualSetting(
+			'glowBaseIntensity',
+			this.DEFAULT_GLOW_BASE_INTENSITY
+		);
+	}
+
+	static setGlowBaseIntensity(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setVisualSetting('glowBaseIntensity', clamped);
+	}
+
+	static getCollisionDebounceMs(): number {
+		return this.getGameplaySetting(
+			'collisionDebounceMs',
+			this.DEFAULT_COLLISION_DEBOUNCE_MS
+		);
+	}
+
+	static setCollisionDebounceMs(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setGameplaySetting('collisionDebounceMs', clamped);
+	}
+
+	static getMinRallyIncrementIntervalMs(): number {
+		return this.getGameplaySetting(
+			'minRallyIncrementIntervalMs',
+			this.DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS
+		);
+	}
+
+	static setMinRallyIncrementIntervalMs(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setGameplaySetting('minRallyIncrementIntervalMs', clamped);
+	}
+
+	static getMinRallyIncrementDistance(): number {
+		return this.getGameplaySetting(
+			'minRallyIncrementDistance',
+			this.DEFAULT_MIN_RALLY_INCREMENT_DISTANCE
+		);
+	}
+
+	static setMinRallyIncrementDistance(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setGameplaySetting('minRallyIncrementDistance', clamped);
 	}
 
 	/**
@@ -142,7 +477,7 @@ export class GameConfig {
 		sessionStorage.setItem('debugLogging', enabled.toString());
 		// Only log this change if we're enabling logging or if it was already enabled
 		if (enabled || this.isDebugLoggingEnabled()) {
-			console.log(`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
+			conditionalLog(`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
 		}
 	}
 
@@ -153,7 +488,7 @@ export class GameConfig {
 
 	static setGamestateLogging(enabled: boolean): void {
 		sessionStorage.setItem('gamestateLogging', enabled.toString());
-		console.log(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
+		conditionalLog(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
 	}
 
 	static isMasterControlEnabled(): boolean {
@@ -165,7 +500,7 @@ export class GameConfig {
 
 	static setMasterControlEnabled(enabled: boolean): void {
 		sessionStorage.setItem('masterControl', enabled.toString());
-		console.log(`🎮 Master control ${enabled ? 'enabled' : 'disabled'}`);
+		conditionalLog(`🎮 Master control ${enabled ? 'enabled' : 'disabled'}`);
 	}
 
 	/**
@@ -191,7 +526,7 @@ export class GameConfig {
 			this.setMasterControlEnabled(this.DEFAULT_MASTER_CONTROL);
 		}
 
-		console.log('🎮 GameConfig initialized:', this.getGameConfig());
+		conditionalLog('🎮 GameConfig initialized:', this.getGameConfig());
 	}
 
 	/**
@@ -215,7 +550,10 @@ export class GameConfig {
 		sessionStorage.removeItem('aiCentralLimit');
 		sessionStorage.removeItem('aiInputDurationBase');
 		sessionStorage.removeItem('aiInputDurationScale');
-		console.log('🎮 GameConfig cleared from sessionStorage');
+		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}collisionDebounceMs`);
+		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementIntervalMs`);
+		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementDistance`);
+		conditionalLog('🎮 GameConfig cleared from sessionStorage');
 	}
 
 	// ============================================================================
@@ -246,7 +584,7 @@ export class GameConfig {
 	static setAISampleRate(rate: number): void {
 		const clamped = Math.max(0.1, Math.min(10.0, rate));
 		sessionStorage.setItem('aiSampleRate', clamped.toString());
-		console.log(`🤖 AI sample rate set to: ${clamped} Hz`);
+		conditionalLog(`🤖 AI sample rate set to: ${clamped} Hz`);
 	}
 
 	/**
@@ -266,7 +604,7 @@ export class GameConfig {
 	static setAICentralLimit(limit: number): void {
 		const clamped = Math.max(0.1, Math.min(2.0, limit));
 		sessionStorage.setItem('aiCentralLimit', clamped.toString());
-		console.log(`🤖 AI central limit set to: ${clamped} units`);
+		conditionalLog(`🤖 AI central limit set to: ${clamped} units`);
 	}
 
 	/**
@@ -286,7 +624,7 @@ export class GameConfig {
 	static setAIInputDurationBase(duration: number): void {
 		const clamped = Math.max(50, Math.min(1000, duration));
 		sessionStorage.setItem('aiInputDurationBase', clamped.toString());
-		console.log(`🤖 AI input duration base set to: ${clamped} ms`);
+		conditionalLog(`🤖 AI input duration base set to: ${clamped} ms`);
 	}
 
 	/**
@@ -306,7 +644,7 @@ export class GameConfig {
 	static setAIInputDurationScale(scale: number): void {
 		const clamped = Math.max(0.5, Math.min(5.0, scale));
 		sessionStorage.setItem('aiInputDurationScale', clamped.toString());
-		console.log(`🤖 AI input duration scale set to: ${clamped}x`);
+		conditionalLog(`🤖 AI input duration scale set to: ${clamped}x`);
 	}
 
 	/**
@@ -326,7 +664,7 @@ export class GameConfig {
 	static setAIXLimit(limit: number): void {
 		const clamped = Math.max(1.0, Math.min(10.0, limit));
 		sessionStorage.setItem('aiXLimit', clamped.toString());
-		console.log(`🤖 AI X limit set to: ${clamped} units`);
+		conditionalLog(`🤖 AI X limit set to: ${clamped} units`);
 	}
 
 	/**
@@ -361,6 +699,6 @@ export class GameConfig {
 		if (config.inputDurationScale !== undefined)
 			this.setAIInputDurationScale(config.inputDurationScale);
 		if (config.xLimit !== undefined) this.setAIXLimit(config.xLimit);
-		console.log('🤖 AI configuration updated');
+		conditionalLog('🤖 AI configuration updated');
 	}
 }
