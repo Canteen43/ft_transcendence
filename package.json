@@ -30,7 +30,6 @@
 		"@types/bcrypt": "^6.0.0",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/node": "^24.2.0",
-		"babylonjs": "^8.25.0",
 		"bcrypt": "^6.0.0",
 		"better-sqlite3": "^12.2.0",
 		"cannon-es": "^0.20.0",
