@@ -180,14 +180,17 @@ export interface GameStateForAI {
 			// The paddle positioning system uses center reference, so we need to adjust target
 			if (predictedTarget !== null) {
 				const paddleOffset = 0.75; // Half paddle width
-				const originalTarget = predictedTarget;
-				// Offset direction depends on target sign to align paddle center with target
-				predictedTarget +=
-					predictedTarget > 0 ? -paddleOffset : paddleOffset;
-				if (GameConfig.isDebugLoggingEnabled()) {
-					conditionalLog(
-						`🤖 Player ${this.playerIndex + 1} offset: ${originalTarget.toFixed(3)} -> ${predictedTarget.toFixed(3)} (offset: ${(predictedTarget - originalTarget).toFixed(3)})`
-					);
+				const shouldOffset = Math.abs(predictedTarget) > paddleOffset * 0.5;
+				if (shouldOffset) {
+					const originalTarget = predictedTarget;
+					// Offset direction depends on target sign to align paddle center with target
+					predictedTarget +=
+						predictedTarget > 0 ? -paddleOffset : paddleOffset;
+					if (GameConfig.isDebugLoggingEnabled()) {
+						conditionalLog(
+							`🤖 Player ${this.playerIndex + 1} offset: ${originalTarget.toFixed(3)} -> ${predictedTarget.toFixed(3)} (offset: ${(predictedTarget - originalTarget).toFixed(3)})`
+						);
+					}
 				}
 			}
 

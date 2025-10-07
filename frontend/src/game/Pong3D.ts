@@ -2828,48 +2828,55 @@ export class Pong3D {
 					const threshold = GameConfig.getWallNearParallelAngleThreshold();
 					const adjustment = GameConfig.getWallNearParallelAngleAdjustment();
 					const maxAngle = GameConfig.getWallNearParallelMaxAngle();
+					const isObtuse = angle >= ninety;
 					const deltaFromParallel = Math.abs(ninety - angle);
 					if (deltaFromParallel <= threshold) {
-						let targetAngle = Math.max(0, angle - adjustment);
-						targetAngle = Math.min(targetAngle, maxAngle);
-						if (targetAngle < angle - 1e-4) {
-							const rawTangent = normalizedVelocity.subtract(normal.scale(dot));
-							let tangentDir = rawTangent;
+						const rawTangent = normalizedVelocity.subtract(normal.scale(dot));
+						let tangentDir = rawTangent;
+						if (tangentDir.lengthSquared() < 1e-6) {
+							// Head-on collision: derive a consistent tangent from velocity first, then fall back to axes
+							tangentDir = BABYLON.Vector3.Cross(normal, normalizedVelocity);
 							if (tangentDir.lengthSquared() < 1e-6) {
-								// Head-on collision: pick a stable tangent from axis cross product
 								tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.Y);
 								if (tangentDir.lengthSquared() < 1e-6) {
 									tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.X);
 								}
 							}
-							if (tangentDir.lengthSquared() >= 1e-6) {
-								const toCenter = BABYLON.Vector3.Zero().subtract(collisionMesh.position);
-								const projectedCenter = toCenter.subtract(normal.scale(BABYLON.Vector3.Dot(toCenter, normal)));
-								let tangentBasis = tangentDir;
-								if (projectedCenter.lengthSquared() >= 1e-6) {
-									tangentBasis = projectedCenter;
-								}
-								const tangentNormalized = tangentBasis.normalize();
-								let orientation = 1;
-								if (rawTangent.lengthSquared() >= 1e-6) {
-									orientation = Math.sign(BABYLON.Vector3.Dot(tangentNormalized, rawTangent));
-									if (orientation === 0) orientation = 1;
-								}
-								const adjustedDir = normal
-									.scale(Math.cos(targetAngle))
-									.add(tangentNormalized.scale(Math.sin(targetAngle) * orientation));
-								const adjusted = adjustedDir.normalize().scale(speed);
-								console.log(
-									`⬅️ Wall angle nudged: current=${(angle * 180 / Math.PI).toFixed(2)}°, target=${(targetAngle * 180 / Math.PI).toFixed(2)}°`
-								);
-								ballImpostor.setLinearVelocity(
-									new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
-								);
-							} else {
-								console.log(
-									`⛔ Wall angle adjustment skipped (no tangent basis). current=${(angle * 180 / Math.PI).toFixed(2)}°`
-								);
-							}
+						}
+						if (tangentDir.lengthSquared() >= 1e-6) {
+							const tangentNormalized = tangentDir.normalize();
+							let orientation = Math.sign(
+								BABYLON.Vector3.Dot(normalizedVelocity, tangentNormalized)
+							);
+							if (orientation === 0) orientation = 1;
+
+					const reducedDelta = Math.max(0, deltaFromParallel - adjustment);
+					const cappedAngle = Math.min(maxAngle, ninety - 1e-3);
+					const desiredDeviation = Math.max(
+						reducedDelta,
+						ninety - cappedAngle,
+						1e-3
+					);
+					const targetAngle = isObtuse
+						? ninety + desiredDeviation
+						: ninety - desiredDeviation;
+
+							const cosTarget = Math.cos(targetAngle);
+							const sinTarget = Math.sin(targetAngle);
+							const adjustedDir = normal
+								.scale(cosTarget)
+								.add(tangentNormalized.scale(sinTarget * orientation));
+							const adjusted = adjustedDir.normalize().scale(speed);
+							console.log(
+								`⬅️ Wall angle nudged: current=${(angle * 180 / Math.PI).toFixed(2)}°, target=${(targetAngle * 180 / Math.PI).toFixed(2)}°`
+							);
+							ballImpostor.setLinearVelocity(
+								new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
+							);
+						} else {
+							console.log(
+								`⛔ Wall angle adjustment skipped (no tangent basis). current=${(angle * 180 / Math.PI).toFixed(2)}°`
+							);
 						}
 					}
 				}
