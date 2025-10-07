@@ -37,6 +37,11 @@ import {
 } from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
 import {
+	conditionalLog as loggerConditionalLog,
+	conditionalWarn as loggerConditionalWarn,
+	conditionalError as loggerConditionalError,
+} from './Logger';
+import {
 	Pong3DPowerups,
 	POWERUP_SESSION_FLAGS,
 	type PowerupType,
@@ -117,33 +122,45 @@ interface GlowMeshState {
 }
 
 export class Pong3D {
+	private static babylonWarnFilterInstalled = false;
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
 
 	// Debug helper method - now uses GameConfig
 	private debugLog(...args: any[]): void {
-		if (GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(...args);
-		}
+		loggerConditionalLog(...args);
 	}
 
 	// Conditional console methods that respect GameConfig
 	private conditionalLog(...args: any[]): void {
-		if (GameConfig.isDebugLoggingEnabled()) {
-			console.log(...args);
-		}
+		loggerConditionalLog(...args);
 	}
 
 	private conditionalWarn(...args: any[]): void {
-		if (GameConfig.isDebugLoggingEnabled()) {
-			console.warn(...args);
-		}
+		loggerConditionalWarn(...args);
 	}
 
 	private conditionalError(...args: any[]): void {
-		if (GameConfig.isDebugLoggingEnabled()) {
-			console.error(...args);
-		}
+		loggerConditionalError(...args);
+	}
+
+	private static ensureBabylonWarningsFiltered(): void {
+		if (Pong3D.babylonWarnFilterInstalled) return;
+		const suppressFragment = 'MeshImpostor only collides against spheres';
+		const patchWarn = (target: any, key: string): void => {
+			if (!target || typeof target[key] !== 'function') return;
+			const original = target[key].bind(target);
+			target[key] = (...args: any[]) => {
+				const message = args[0];
+				if (typeof message === 'string' && message.includes(suppressFragment)) {
+					return;
+				}
+				original(...args);
+			};
+		};
+		patchWarn(BABYLON.Tools, 'Warn');
+		patchWarn(BABYLON.Logger, 'Warn');
+		Pong3D.babylonWarnFilterInstalled = true;
 	}
 
 	/** Called by game loop when a serve starts to reset per-ball visual/effect state */
@@ -287,17 +304,15 @@ export class Pong3D {
 	private mainBallEntity: BallEntity | null = null;
 	private paddleOriginalScaleX: Map<number, number> = new Map();
 	private paddleStretchTimeouts: Map<number, number> = new Map();
+	private paddleShrinkTimeouts: Map<number, number> = new Map();
 	private mainBallHandlersAttached = false;
 	private baseBallY = 0;
 	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
 	private lastCollisionTimeMs: number = 0;
 	private lastCollisionPaddleIndex: number = -1;
-	private readonly COLLISION_DEBOUNCE_MS = 200;
 	// Global rally increment throttle (prevents rapid alternating-hit speed spikes)
 	private lastRallyIncrementTimeGlobalMs: number = 0;
-	private readonly MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
 	private lastRallyIncrementPosXZ: BABYLON.Vector3 | null = null;
-	private readonly MIN_RALLY_INCREMENT_DISTANCE = 0.8;
 	private baseBallMaterial: BABYLON.Material | null = null;
 	private powerupManager: Pong3DPowerups | null = null;
 	private enabledPowerupTypes: PowerupType[] = [];
@@ -420,6 +435,9 @@ export class Pong3D {
 			case 'stretch':
 				this.applyStretchPowerup(paddleIndex, entity);
 				break;
+			case 'shrink':
+				this.applyShrinkPowerup(paddleIndex, entity);
+				break;
 			default:
 				break;
 		}
@@ -516,6 +534,86 @@ export class Pong3D {
 		}, stretchHoldDurationMs); // 20 seconds
 		this.paddleStretchTimeouts.set(paddleIndex, timeoutId);
 		this.activeStretchTimeout = timeoutId;
+	}
+
+	private applyShrinkPowerup(paddleIndex: number, entity?: any): void {
+		const shrinkHoldDurationMs = 20000;
+		const shrinkDownDurationMs = 1500;
+		const shrinkRestoreDurationMs = 1500;
+		const totalGlowDurationMs = shrinkHoldDurationMs + shrinkRestoreDurationMs;
+		const red = new BABYLON.Color3(1, 0, 0);
+
+		const opponents: { mesh: BABYLON.Mesh; index: number }[] = [];
+		for (let i = 0; i < this.paddles.length; i++) {
+			if (i === paddleIndex) continue;
+			const mesh = this.paddles[i];
+			if (!mesh) continue;
+			opponents.push({ mesh, index: i });
+		}
+
+		if (this.powerupManager) {
+			this.powerupManager.setTypeBlocked('shrink', true);
+		}
+
+		if (opponents.length === 0) {
+			if (this.powerupManager) {
+				this.powerupManager.setTypeBlocked('shrink', false);
+			}
+			return;
+		}
+
+		opponents.forEach(({ mesh, index }) => {
+			try {
+				this.flashMeshGlow(mesh, totalGlowDurationMs, red, {
+					key: `shrink-${mesh.uniqueId}`,
+					holdDurationMs: shrinkHoldDurationMs,
+					fadeDurationMs: shrinkRestoreDurationMs,
+				});
+			} catch (_) {}
+
+			if (!this.paddleOriginalScaleX.has(index)) {
+				this.paddleOriginalScaleX.set(index, mesh.scaling.x);
+			}
+			const original = this.paddleOriginalScaleX.get(index)!;
+			const target = original * 0.5;
+
+			const existing = this.paddleShrinkTimeouts.get(index);
+			if (existing) {
+				window.clearTimeout(existing);
+			}
+
+			this.animatePaddleScale(mesh, mesh.scaling.x, target, shrinkDownDurationMs, () => {
+				this.recreatePaddleImpostor(index);
+			});
+
+			const timeoutId = window.setTimeout(() => {
+				const paddle = this.paddles[index];
+				if (!paddle) {
+					this.paddleShrinkTimeouts.delete(index);
+					this.onShrinkEffectComplete();
+					return;
+				}
+				this.animatePaddleScale(
+					paddle,
+					paddle.scaling.x,
+					original,
+					shrinkRestoreDurationMs,
+					() => {
+						this.recreatePaddleImpostor(index);
+						this.paddleShrinkTimeouts.delete(index);
+						this.onShrinkEffectComplete();
+					}
+				);
+			}, shrinkHoldDurationMs);
+
+			this.paddleShrinkTimeouts.set(index, timeoutId);
+		});
+	}
+
+	private onShrinkEffectComplete(): void {
+		if (this.paddleShrinkTimeouts.size === 0 && this.powerupManager) {
+			this.powerupManager.setTypeBlocked('shrink', false);
+		}
 	}
 
 	/** Recreate a paddle's BoxImpostor with the current mesh scaling and reapply constraints */
@@ -1186,6 +1284,7 @@ export class Pong3D {
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
 		// Player count comes from GameConfig, set by frontend when players are ready
 		this.container = container;
+		Pong3D.ensureBabylonWarningsFiltered();
 		this.thisPlayer =
 			options?.thisPlayer ||
 			(GameConfig.getThisPlayer() as 1 | 2 | 3 | 4); // Set POV player (default from GameConfig)
@@ -1857,27 +1956,8 @@ export class Pong3D {
 		// this.lastCollisionTime = currentTime;
 		if (!this.ballMesh || !ballImpostor.physicsBody) return;
 
-		// Debounce detection (but do not early-return; still apply spin/reflection)
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
-		let paddleIndexForDebounce = -1;
-		for (let i = 0; i < this.playerCount; i++) {
-			if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
-				paddleIndexForDebounce = i;
-				break;
-			}
-		}
-		const isDebouncedCollision =
-			paddleIndexForDebounce !== -1 &&
-			this.lastCollisionPaddleIndex === paddleIndexForDebounce &&
-			now - this.lastCollisionTimeMs < this.COLLISION_DEBOUNCE_MS;
-		if (isDebouncedCollision && GameConfig.isDebugLoggingEnabled()) {
-			this.conditionalLog(
-				`🚫 Collision debounced for paddle ${paddleIndexForDebounce + 1} (Δt=${(now - this.lastCollisionTimeMs).toFixed(1)}ms)`
-			);
-		}
-
-		// Find which paddle was hit
 		let paddleIndex = -1;
 		for (let i = 0; i < this.playerCount; i++) {
 			if (this.paddles[i]?.physicsImpostor === paddleImpostor) {
@@ -1886,13 +1966,27 @@ export class Pong3D {
 			}
 		}
 
-		// Update debounce tracking on first valid contact
-		if (paddleIndex !== -1) {
-			this.lastCollisionPaddleIndex = paddleIndex;
+		if (paddleIndex === -1) return; // Unknown paddle
+
+		const collisionDebounceMs = GameConfig.getCollisionDebounceMs();
+		const timeSinceLastHit = now - this.lastCollisionTimeMs;
+		const isSamePaddleAsLastHit =
+			this.lastCollisionPaddleIndex === paddleIndex &&
+			timeSinceLastHit < collisionDebounceMs;
+		if (isSamePaddleAsLastHit) {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`🚫 Collision debounced for paddle ${paddleIndex + 1} (Δt=${timeSinceLastHit.toFixed(1)}ms < ${collisionDebounceMs}ms)`
+				);
+			}
+			// Refresh timestamp so the debounce window persists while the ball remains inside the paddle
 			this.lastCollisionTimeMs = now;
+			return;
 		}
 
-		if (paddleIndex === -1) return; // Unknown paddle
+		// Update debounce tracking on first valid contact for this paddle
+		this.lastCollisionPaddleIndex = paddleIndex;
+		this.lastCollisionTimeMs = now;
 
 		// Track which player last hit the ball
 		if (GameConfig.isDebugLoggingEnabled()) {
@@ -2510,9 +2604,11 @@ export class Pong3D {
 		);
 
 		// Increment rally speed - globally throttled by time and distance traveled
+		const rallyIntervalMs = GameConfig.getMinRallyIncrementIntervalMs();
+		const rallyDistance = GameConfig.getMinRallyIncrementDistance();
+
 		let allowIncrement =
-			now - this.lastRallyIncrementTimeGlobalMs >=
-			this.MIN_RALLY_INCREMENT_INTERVAL_MS;
+			now - this.lastRallyIncrementTimeGlobalMs >= rallyIntervalMs;
 
 		const currentBallPosXZ = new BABYLON.Vector3(
 			this.ballMesh.position.x,
@@ -2523,21 +2619,17 @@ export class Pong3D {
 			const dx = currentBallPosXZ.x - this.lastRallyIncrementPosXZ.x;
 			const dz = currentBallPosXZ.z - this.lastRallyIncrementPosXZ.z;
 			const dist = Math.hypot(dx, dz);
-			allowIncrement =
-				allowIncrement && dist >= this.MIN_RALLY_INCREMENT_DISTANCE;
+			allowIncrement = allowIncrement && dist >= rallyDistance;
 			if (GameConfig.isDebugLoggingEnabled()) {
 				this.conditionalLog(
 					`⏱️/📏 Increment gating: dt=${(
 						now - this.lastRallyIncrementTimeGlobalMs
 					).toFixed(
 						1
-					)}ms, dist=${dist.toFixed(2)} (min ${this.MIN_RALLY_INCREMENT_DISTANCE})`
+					)}ms, dist=${dist.toFixed(2)} (min ${rallyDistance})`
 				);
 			}
 		}
-
-		// Also skip increment on debounced contacts
-		if (isDebouncedCollision) allowIncrement = false;
 
 		if (allowIncrement) {
 			this.ballEffects.incrementRallyHit();
@@ -2551,12 +2643,9 @@ export class Pong3D {
 		} else {
 			// Skip increment but still clamp to current target speed via newVelocity below
 			if (GameConfig.isDebugLoggingEnabled()) {
+				const deltaMs = (now - this.lastRallyIncrementTimeGlobalMs).toFixed(1);
 				this.conditionalLog(
-					`⏱️/📏 Rally increment throttled (Δt=${(
-						now - this.lastRallyIncrementTimeGlobalMs
-					).toFixed(
-						1
-					)}ms < ${this.MIN_RALLY_INCREMENT_INTERVAL_MS}ms or moved < ${this.MIN_RALLY_INCREMENT_DISTANCE})`
+					`⏱️/📏 Rally increment throttled (Δt=${deltaMs}ms < ${rallyIntervalMs}ms or moved < ${rallyDistance})`
 				);
 			}
 		}
@@ -2867,14 +2956,14 @@ export class Pong3D {
 								.scale(cosTarget)
 								.add(tangentNormalized.scale(sinTarget * orientation));
 							const adjusted = adjustedDir.normalize().scale(speed);
-							console.log(
+							this.conditionalLog(
 								`⬅️ Wall angle nudged: current=${(angle * 180 / Math.PI).toFixed(2)}°, target=${(targetAngle * 180 / Math.PI).toFixed(2)}°`
 							);
 							ballImpostor.setLinearVelocity(
 								new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
 							);
 						} else {
-							console.log(
+							this.conditionalLog(
 								`⛔ Wall angle adjustment skipped (no tangent basis). current=${(angle * 180 / Math.PI).toFixed(2)}°`
 							);
 						}
@@ -3243,7 +3332,7 @@ export class Pong3D {
 					sessionStorage.getItem('gameMode') === 'remote' &&
 					sessionStorage.getItem('tournament') === '1'
 				) {
-					console.debug(
+					this.conditionalLog(
 						'remote game, tourn = 1 -> redirecting to tournament'
 					);
 					location.hash = '#tournament';
@@ -4163,7 +4252,7 @@ export class Pong3D {
 				// Set up AI controller for this player
 				this.inputHandler?.setAIController(i, aiConfig);
 
-				console.log(
+				this.conditionalLog(
 					`🤖 CONFIRMED: AI controller set up for playerIndex=${i} (Player ${i + 1})`
 				);
 
@@ -5945,10 +6034,10 @@ export class Pong3D {
 		// Update the score
 		this.playerScores[scoringPlayerIndex]++;
 		this.flashPaddleGlow(scoringPlayerIndex + 1);
-		console.log(
+		this.conditionalLog(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
-		console.warn(
+		this.conditionalWarn(
 			`Remote score update: Player ${scoringPlayerIndex + 1} scored (UID: ${scoringPlayerUID}), new score: ${this.playerScores[scoringPlayerIndex]}`
 		);
 
@@ -6001,7 +6090,7 @@ export class Pong3D {
 					sessionStorage.getItem('gameMode') === 'remote' &&
 					sessionStorage.getItem('tournament') === '1'
 				) {
-					console.debug(
+					this.conditionalLog(
 						'remote game, tourn = 1 -> redirect to tournament'
 					);
 					location.hash = '#tournament';

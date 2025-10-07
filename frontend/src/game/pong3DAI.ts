@@ -1033,7 +1033,7 @@ private traceWizardTrajectory(
 		// Check if ball is too far from origin (out of bounds)
 		const distanceFromOrigin = Math.sqrt(ballX * ballX + ballZ * ballZ);
 		if (distanceFromOrigin > BALL_OUT_DISTANCE) {
-			console.log(
+			conditionalLog(
 				`🤖 Player ${this.playerIndex + 1} ball out of bounds (${distanceFromOrigin.toFixed(1)}m > ${BALL_OUT_DISTANCE}m), targeting center`
 			);
 			return 0; // Target center of court in local coordinates

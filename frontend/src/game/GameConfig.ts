@@ -3,6 +3,8 @@
  * Provides centralized access to sessionStorage game settings
  */
 
+import { conditionalLog } from './Logger';
+
 type PhysicsSettingKey =
 	| 'ballRadius'
 	| 'outOfBoundsDistance'
@@ -27,6 +29,7 @@ type PhysicsSettingKey =
 
 const PHYSICS_SETTING_PREFIX = 'physics:';
 const VISUAL_SETTING_PREFIX = 'visual:';
+const GAMEPLAY_SETTING_PREFIX = 'gameplay:';
 
 export class GameConfig {
 	// Default values
@@ -58,6 +61,11 @@ export class GameConfig {
 	};
 
 	private static readonly DEFAULT_GLOW_BASE_INTENSITY = 3;
+
+	// Gameplay tuning defaults
+	private static readonly DEFAULT_COLLISION_DEBOUNCE_MS = 200;
+	private static readonly DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
+	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
 
 	// Debug/Logging controls
 	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
@@ -99,6 +107,19 @@ export class GameConfig {
 		sessionStorage.setItem(`${VISUAL_SETTING_PREFIX}${key}`, value.toString());
 	}
 
+	private static getGameplaySetting(key: string, fallback: number): number {
+		const storageKey = `${GAMEPLAY_SETTING_PREFIX}${key}`;
+		const stored = sessionStorage.getItem(storageKey);
+		if (stored === null) return fallback;
+		const parsed = Number(stored);
+		return Number.isFinite(parsed) ? parsed : fallback;
+	}
+
+	private static setGameplaySetting(key: string, value: number): void {
+		if (!Number.isFinite(value)) return;
+		sessionStorage.setItem(`${GAMEPLAY_SETTING_PREFIX}${key}`, value.toString());
+	}
+
 	/**
 	 * Get the global player count from sessionStorage
 	 */
@@ -115,7 +136,7 @@ export class GameConfig {
 	 */
 	static setPlayerCount(count: 1 | 2 | 3 | 4): void {
 		sessionStorage.setItem('playerCount', count.toString());
-		console.log(`🎮 Global player count set to: ${count}`);
+		conditionalLog(`🎮 Global player count set to: ${count}`);
 	}
 
 	/**
@@ -134,7 +155,7 @@ export class GameConfig {
 	 */
 	static setThisPlayer(player: 1 | 2 | 3 | 4): void {
 		sessionStorage.setItem('thisPlayer', player.toString());
-		console.log(`🎮 This player POV set to: ${player}`);
+		conditionalLog(`🎮 This player POV set to: ${player}`);
 	}
 
 	/**
@@ -150,7 +171,7 @@ export class GameConfig {
 	 */
 	static setGameMode(mode: 'local' | 'remote'): void {
 		sessionStorage.setItem('gameMode', mode);
-		console.log(`🎮 Game mode set to: ${mode}`);
+		conditionalLog(`🎮 Game mode set to: ${mode}`);
 	}
 
 	/**
@@ -210,6 +231,9 @@ export class GameConfig {
 			debugLogging: this.isDebugLoggingEnabled(),
 			gamestateLogging: this.isGamestateLoggingEnabled(),
 			masterControl: this.isMasterControlEnabled(),
+			collisionDebounceMs: this.getCollisionDebounceMs(),
+			minRallyIncrementIntervalMs: this.getMinRallyIncrementIntervalMs(),
+			minRallyIncrementDistance: this.getMinRallyIncrementDistance(),
 		};
 	}
 
@@ -405,6 +429,42 @@ export class GameConfig {
 		this.setVisualSetting('glowBaseIntensity', clamped);
 	}
 
+	static getCollisionDebounceMs(): number {
+		return this.getGameplaySetting(
+			'collisionDebounceMs',
+			this.DEFAULT_COLLISION_DEBOUNCE_MS
+		);
+	}
+
+	static setCollisionDebounceMs(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setGameplaySetting('collisionDebounceMs', clamped);
+	}
+
+	static getMinRallyIncrementIntervalMs(): number {
+		return this.getGameplaySetting(
+			'minRallyIncrementIntervalMs',
+			this.DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS
+		);
+	}
+
+	static setMinRallyIncrementIntervalMs(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setGameplaySetting('minRallyIncrementIntervalMs', clamped);
+	}
+
+	static getMinRallyIncrementDistance(): number {
+		return this.getGameplaySetting(
+			'minRallyIncrementDistance',
+			this.DEFAULT_MIN_RALLY_INCREMENT_DISTANCE
+		);
+	}
+
+	static setMinRallyIncrementDistance(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setGameplaySetting('minRallyIncrementDistance', clamped);
+	}
+
 	/**
 	 * Debug/Logging control methods
 	 */
@@ -417,7 +477,7 @@ export class GameConfig {
 		sessionStorage.setItem('debugLogging', enabled.toString());
 		// Only log this change if we're enabling logging or if it was already enabled
 		if (enabled || this.isDebugLoggingEnabled()) {
-			console.log(`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
+			conditionalLog(`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
 		}
 	}
 
@@ -428,7 +488,7 @@ export class GameConfig {
 
 	static setGamestateLogging(enabled: boolean): void {
 		sessionStorage.setItem('gamestateLogging', enabled.toString());
-		console.log(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
+		conditionalLog(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
 	}
 
 	static isMasterControlEnabled(): boolean {
@@ -440,7 +500,7 @@ export class GameConfig {
 
 	static setMasterControlEnabled(enabled: boolean): void {
 		sessionStorage.setItem('masterControl', enabled.toString());
-		console.log(`🎮 Master control ${enabled ? 'enabled' : 'disabled'}`);
+		conditionalLog(`🎮 Master control ${enabled ? 'enabled' : 'disabled'}`);
 	}
 
 	/**
@@ -466,7 +526,7 @@ export class GameConfig {
 			this.setMasterControlEnabled(this.DEFAULT_MASTER_CONTROL);
 		}
 
-		console.log('🎮 GameConfig initialized:', this.getGameConfig());
+		conditionalLog('🎮 GameConfig initialized:', this.getGameConfig());
 	}
 
 	/**
@@ -490,7 +550,10 @@ export class GameConfig {
 		sessionStorage.removeItem('aiCentralLimit');
 		sessionStorage.removeItem('aiInputDurationBase');
 		sessionStorage.removeItem('aiInputDurationScale');
-		console.log('🎮 GameConfig cleared from sessionStorage');
+		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}collisionDebounceMs`);
+		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementIntervalMs`);
+		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementDistance`);
+		conditionalLog('🎮 GameConfig cleared from sessionStorage');
 	}
 
 	// ============================================================================
@@ -521,7 +584,7 @@ export class GameConfig {
 	static setAISampleRate(rate: number): void {
 		const clamped = Math.max(0.1, Math.min(10.0, rate));
 		sessionStorage.setItem('aiSampleRate', clamped.toString());
-		console.log(`🤖 AI sample rate set to: ${clamped} Hz`);
+		conditionalLog(`🤖 AI sample rate set to: ${clamped} Hz`);
 	}
 
 	/**
@@ -541,7 +604,7 @@ export class GameConfig {
 	static setAICentralLimit(limit: number): void {
 		const clamped = Math.max(0.1, Math.min(2.0, limit));
 		sessionStorage.setItem('aiCentralLimit', clamped.toString());
-		console.log(`🤖 AI central limit set to: ${clamped} units`);
+		conditionalLog(`🤖 AI central limit set to: ${clamped} units`);
 	}
 
 	/**
@@ -561,7 +624,7 @@ export class GameConfig {
 	static setAIInputDurationBase(duration: number): void {
 		const clamped = Math.max(50, Math.min(1000, duration));
 		sessionStorage.setItem('aiInputDurationBase', clamped.toString());
-		console.log(`🤖 AI input duration base set to: ${clamped} ms`);
+		conditionalLog(`🤖 AI input duration base set to: ${clamped} ms`);
 	}
 
 	/**
@@ -581,7 +644,7 @@ export class GameConfig {
 	static setAIInputDurationScale(scale: number): void {
 		const clamped = Math.max(0.5, Math.min(5.0, scale));
 		sessionStorage.setItem('aiInputDurationScale', clamped.toString());
-		console.log(`🤖 AI input duration scale set to: ${clamped}x`);
+		conditionalLog(`🤖 AI input duration scale set to: ${clamped}x`);
 	}
 
 	/**
@@ -601,7 +664,7 @@ export class GameConfig {
 	static setAIXLimit(limit: number): void {
 		const clamped = Math.max(1.0, Math.min(10.0, limit));
 		sessionStorage.setItem('aiXLimit', clamped.toString());
-		console.log(`🤖 AI X limit set to: ${clamped} units`);
+		conditionalLog(`🤖 AI X limit set to: ${clamped} units`);
 	}
 
 	/**
@@ -636,6 +699,6 @@ export class GameConfig {
 		if (config.inputDurationScale !== undefined)
 			this.setAIInputDurationScale(config.inputDurationScale);
 		if (config.xLimit !== undefined) this.setAIXLimit(config.xLimit);
-		console.log('🤖 AI configuration updated');
+		conditionalLog('🤖 AI configuration updated');
 	}
 }
