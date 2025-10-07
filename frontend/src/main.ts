@@ -5,6 +5,7 @@ import { ChatBannerManager } from './utils/ChatBannerManager';
 import { router } from './utils/Router';
 import { state } from './utils/State';
 import { webSocket } from './utils/WebSocketWrapper';
+import { getEndpoints } from './utils/endpoints';
 
 // Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
 import '@babylonjs/loaders';
@@ -28,6 +29,7 @@ app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
 
+await getEndpoints();
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
