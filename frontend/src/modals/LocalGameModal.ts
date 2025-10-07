@@ -68,7 +68,7 @@ export class LocalGameModal extends Modal {
 		this.box.className +=
 			'bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
 			' relative flex flex-col items-center justify-center' +
-			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px]';
+			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
 		
 		this.btn2.element.focus();
 		this.btn2.element.tabIndex = 0;

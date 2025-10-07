@@ -47,7 +47,7 @@ export class RemoteGameModal extends Modal {
 		this.box.className +=
 			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
 			' relative flex flex-col items-center justify-center' +
-			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px]';
+			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
 
 		this.btn2plyr.element.focus();
 		this.btn2plyr.element.tabIndex = 0;

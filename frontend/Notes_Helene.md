@@ -105,7 +105,7 @@ z-index:
 - home button 'z-10'
 - alias AI toggle down background: 'z-10'
 - modal 'z-20'
-- banner 'z-30'
+- banner chat 'z-20'
 - textModal 'z-30'
 
 

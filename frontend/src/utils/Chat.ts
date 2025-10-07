@@ -16,7 +16,7 @@ export class Chat {
 		// main container - no background, just a positioning wrapper
 		this.container = document.createElement('div');
 		this.container.className =
-			'fixed right-0 bottom-[2.5rem] flex flex-col z-40';
+			'fixed right-0 bottom-[2.5rem] flex flex-col z-20';
 
 		// Messages container (hides when collapsed)
 		this.messagesContainer = document.createElement('div');

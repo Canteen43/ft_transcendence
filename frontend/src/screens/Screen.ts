@@ -17,11 +17,9 @@ export class Screen {
 		const app = document.getElementById('app') as HTMLDivElement;
 		app.appendChild(this.element);
 	}
+	
 	public destroy(): void {
-		if (this.element.parentNode) {
-			this.element.parentNode.removeChild(this.element);
-		}
-		// Clear reference for GC
+		this.element.parentNode?.removeChild(this.element);
 		(this.element as any) = null;
 	}
 }
