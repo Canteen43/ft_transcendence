@@ -43,7 +43,7 @@ export class Chat {
 		// Toggle button
 		this.toggleButton = document.createElement('button');
 		this.toggleButton.className =
-			'px-3 py-2 bg-[var(--color1)] text-[var(--color3)] rounded-sm ' +
+			'px-4 py-2 bg-[var(--color1)] text-[var(--color3)] rounded-sm ' +
 			'hover:bg-[var(--color5)] transition-colors focus:outline-none';
 		this.toggleButton.innerHTML = '▼'; // Down arrow when expanded
 		this.toggleButton.addEventListener('click', this.handleToggle);
@@ -80,12 +80,13 @@ export class Chat {
 
 		if (this.isExpanded) {
 			// Show messages
+			this.input.focus();
 			this.messagesContainer.style.display = 'block';
-			this.toggleButton.innerHTML = '▼'; // Down arrow
+			this.toggleButton.innerHTML = '▼'; 
 		} else {
 			// Hide messages
 			this.messagesContainer.style.display = 'none';
-			this.toggleButton.innerHTML = '▲'; // Up arrow
+			this.toggleButton.innerHTML = '▲'; 
 		}
 	};
 

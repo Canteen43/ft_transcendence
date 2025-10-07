@@ -5,6 +5,7 @@ import {
 	RankingItemSchema,
 	RankingSchema,
 } from '../../../shared/schemas/stats';
+import { isLoggedIn } from '../buttons/AuthButton';
 import { apiCall } from '../utils/apiCall';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
@@ -28,16 +29,20 @@ export class StatModal extends Modal {
 			'flex flex-col items-center justify-center p-4 sm:p-8';
 		this.box.appendChild(this.element);
 
-		this.initialize();
+		if (isLoggedIn()) this.initialize();
 	}
 
 	private async initialize() {
 		await this.getRankData();
 		await this.getHistData();
 		await this.getMatchData();
-		if (this.histData || this.rankData || this.matchData) {
-			this.createOutput();
+
+		if (!this.histData && !this.rankData && !this.matchData) {
+			console.debug('No stat, closing modal');
+			this.destroy();
+			return;
 		}
+		this.createOutput();
 	}
 
 	private showErrorModal(message: string) {
@@ -248,7 +253,7 @@ export class StatModal extends Modal {
 		// Match Stats Title
 		const matchTitle = document.createElement('h3');
 		matchTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4';
+			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
 		matchTitle.textContent = 'Match Statistics';
 		indivContainer.appendChild(matchTitle);
 
@@ -298,7 +303,7 @@ export class StatModal extends Modal {
 		// Goals Title
 		const goalsTitle = document.createElement('h3');
 		goalsTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center';
+			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
 		goalsTitle.textContent = 'Goals';
 		goalsContainer.appendChild(goalsTitle);
 
@@ -358,7 +363,7 @@ export class StatModal extends Modal {
 		// Graph Title
 		const graphTitle = document.createElement('h3');
 		graphTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mt-6';
+			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
 		graphTitle.textContent = '% Wins History';
 		graph.appendChild(graphTitle);
 

@@ -10,7 +10,7 @@ export class Button {
 		this.element = document.createElement('button');
 		this.element.className =
 			"font-outfit [font-variation-settings:'wght'_900] text-lg sm:text-2xl " +
-			'px-6 sm:px-12 py-3 sm:py-4  transition-colors ' +
+			'px-6 sm:px-12 py-3 sm:py-4  transition-colors rounded-sm ' +
 			'bg-[var(--color3)] text-[var(--color1)] border-3 border-[var(--color3)] ' +
 			'hover:bg-[var(--color1)] hover:text-[var(--color3)] hover:border-[var(--color3)] ';
 		if (typeof content === 'string') {

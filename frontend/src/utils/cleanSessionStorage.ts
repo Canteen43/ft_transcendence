@@ -30,3 +30,14 @@ export function clearOtherGameData() {
 	sessionStorage.removeItem('playerCount');
 	sessionStorage.setItem('tournament', '0');
 }
+
+export function clearLocalGameData() {
+	sessionStorage.removeItem('physics:ballBaseSpeed');
+	sessionStorage.removeItem('physics:maxBallSpeed');
+	sessionStorage.removeItem('physics:rallySpeedIncrementPercent');
+	sessionStorage.removeItem('playerCount');
+	sessionStorage.removeItem('shrink');
+	sessionStorage.removeItem('split');
+	sessionStorage.removeItem('stretch');
+	sessionStorage.removeItem('shrink');
+}

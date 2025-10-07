@@ -1,4 +1,8 @@
 import { Button } from '../buttons/Button';
+import {
+	clearLocalGameData,
+	clearOtherGameData,
+} from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
@@ -60,7 +64,6 @@ export class LocalGameModal extends Modal {
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
-		
 		// modal box background
 		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
@@ -69,7 +72,7 @@ export class LocalGameModal extends Modal {
 			'bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
 			' relative flex flex-col items-center justify-center' +
 			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
-		
+
 		this.btn2.element.focus();
 		this.btn2.element.tabIndex = 0;
 		this.btn3.element.tabIndex = 0;
@@ -114,6 +117,8 @@ export class LocalGameModal extends Modal {
 	}
 
 	private setupLocalGame(n: number, tourn: boolean) {
+		clearLocalGameData();
+		clearOtherGameData();
 		state.gameMode = 'local';
 		sessionStorage.setItem('gameMode', 'local');
 		state.playerCount = n;

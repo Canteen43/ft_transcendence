@@ -1,15 +1,12 @@
 import { Button } from '../buttons/Button';
-import { apiCall } from '../utils/apiCall';
 import {
 	clearMatchData,
 	clearOtherGameData,
 	clearTournData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
-import { leaveTournament } from '../utils/tournamentJoin';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
-import { TextModal } from './TextModal';
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;

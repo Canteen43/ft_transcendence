@@ -32,7 +32,9 @@ export class WebSocketWrapper {
 	public targetState: 'open' | 'closed' | null = null;
 	private reconnectModal?: TextModal | null;
 	private reconnectAttempt: number = 0;
+	private readonly MAX_RECONNECT = 15;
 	private readonly MAX_RECONNECT_DELAY = 30000; // 30 secs
+	private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	constructor() {
 		if (isLoggedIn()) {
@@ -44,6 +46,7 @@ export class WebSocketWrapper {
 	private onOpen(): void {
 		console.info('WebSocket opened');
 
+		this.reconnectAttempt = 0;
 		if (this.reconnectModal) {
 			this.reconnectModal.destroy();
 			this.reconnectModal = null;
@@ -81,12 +84,22 @@ export class WebSocketWrapper {
 		// For other errors, trying to reopen after 3*i seconds if target state is 'open'
 		if (this.targetState === 'open') {
 			this.reconnectAttempt++;
+
+			if (this.reconnectAttempt > this.MAX_RECONNECT) {
+				this.targetState = 'closed';
+				console.debug('Dispatching LOGIN FAILED');
+				document.dispatchEvent(new CustomEvent('login-failed'));
+				return;
+			}
 			const delay = Math.min(
 				3000 * this.reconnectAttempt,
 				this.MAX_RECONNECT_DELAY
 			);
 			console.log(`Reconnecting in ${delay} few seconds...`);
-			setTimeout(() => this.open(), delay);
+			this.reconnectTimeoutId = setTimeout(() => {
+				this.reconnectTimeoutId = null;
+				this.open();
+			}, delay);
 
 			if (!this.reconnectModal) {
 				const message = event.reason || 'Connection lost.';
@@ -106,7 +119,7 @@ export class WebSocketWrapper {
 	private handleAuthFailure(message: string): void {
 		sessionStorage.removeItem('token');
 		sessionStorage.removeItem('userID');
-		console.debug('Dispatching LOGIN FAIL');
+		console.debug('Dispatching LOGIN FAILED');
 		document.dispatchEvent(new CustomEvent('login-failed'));
 		void new TextModal(router.currentScreen!.element, message);
 	}
@@ -164,6 +177,13 @@ export class WebSocketWrapper {
 	public close(): void {
 		console.log('Manually closing WebSocket');
 		this.targetState = 'closed';
+		this.reconnectAttempt = 0;
+		if (this.reconnectTimeoutId) {
+			clearTimeout(this.reconnectTimeoutId);
+			this.reconnectTimeoutId = null;
+		}
+		this.reconnectModal?.destroy();
+		this.reconnectModal = null;
 		this.ws?.close(1000, 'Manual close');
 	}
 
@@ -174,14 +194,6 @@ export class WebSocketWrapper {
 		}
 		console.debug('Sending:', message);
 		this.ws.send(JSON.stringify(message));
-	}
-
-	public simulateMessage(msg: Message) {
-		console.log('Simulating WebSocket message:', msg);
-		const event = new MessageEvent('message', {
-			data: JSON.stringify(msg),
-		});
-		this.onMessage(event);
 	}
 }
 
