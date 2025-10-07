@@ -337,30 +337,30 @@ export class GameConfig {
 
 	static getWallNearParallelAngleThreshold(): number {
 		return this.getPhysicsSetting('wallNearParallelAngleThreshold');
-}
+	}
 
 	static setWallNearParallelAngleThreshold(value: number): void {
 		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
 		this.setPhysicsSetting('wallNearParallelAngleThreshold', clamped);
-}
+	}
 
-static getWallNearParallelAngleAdjustment(): number {
-	return this.getPhysicsSetting('wallNearParallelAngleAdjustment');
-}
+	static getWallNearParallelAngleAdjustment(): number {
+		return this.getPhysicsSetting('wallNearParallelAngleAdjustment');
+	}
 
-static setWallNearParallelAngleAdjustment(value: number): void {
-	const clamped = Math.max(0, Math.min(Math.PI / 2, value));
-	this.setPhysicsSetting('wallNearParallelAngleAdjustment', clamped);
-}
+	static setWallNearParallelAngleAdjustment(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelAngleAdjustment', clamped);
+	}
 
-static getWallNearParallelMaxAngle(): number {
-	return this.getPhysicsSetting('wallNearParallelMaxAngle');
-}
+	static getWallNearParallelMaxAngle(): number {
+		return this.getPhysicsSetting('wallNearParallelMaxAngle');
+	}
 
-static setWallNearParallelMaxAngle(value: number): void {
-	const clamped = Math.max(0, Math.min(Math.PI / 2, value));
-	this.setPhysicsSetting('wallNearParallelMaxAngle', clamped);
-}
+	static setWallNearParallelMaxAngle(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelMaxAngle', clamped);
+	}
 
 	static getBallBaseSpeed(): number {
 		return this.getPhysicsSetting('ballBaseSpeed');
