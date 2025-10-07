@@ -25,7 +25,6 @@ COPY --from=builder /app/build/app/backend ./backend
 COPY --from=builder /app/build/app/shared ./shared
 
 RUN npm ci --omit=dev
-
 EXPOSE 8080
 
 CMD ["npm", "run", "start:backend"]
