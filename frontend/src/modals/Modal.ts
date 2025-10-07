@@ -12,11 +12,12 @@ export class Modal {
 
 		this.overlay = document.createElement('div');
 		this.overlay.className =
-			'fixed inset-0 flex items-center justify-center bg-black/50 z-20';
+			'fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-20';
 
 		this.box = document.createElement('div');
 		this.box.className =
-			'bg-white shadow-lg p-10 relative flex flex-col items-center justify-center gap-4';
+			'bg-white/70 shadow-lg p-10 relative flex flex-col items-center justify-center gap-4';
+
 
 		if (showCloseButton) {
 			this.closeButton = document.createElement('button');
@@ -50,7 +51,7 @@ export class Modal {
 		this.destroy();
 	}
 
-	public destroy() {
+	public destroy(): void {
 		document.removeEventListener('keydown', this.escHandler);
 		this.overlay.removeEventListener('click', this.clickOutside);
 		this.overlay.remove();

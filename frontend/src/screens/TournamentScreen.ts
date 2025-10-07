@@ -324,9 +324,9 @@ export class TournamentScreen extends Screen {
             .player-slot.winner { 
                 background: var(--color1); 
                 color: var(--color3); 
-                box-shadow: 0 0 30px rgba(247, 0, 255, 0.8), 0 0 60px rgba(225, 0, 255, 0.4); 
+                box-shadow: 0 0 30px rgba(41, 100, 189, 0.8), 0 0 60px rgba(3, 39, 94, 0.8); 
                 transform: scale(1.05); 
-                border: 3px solid #ea00ffff; 
+                border: 3px solid #2f5792ff; 
                 font-weight: bold; 
                 animation: winnerPulse 2s infinite; 
             }
@@ -337,17 +337,17 @@ export class TournamentScreen extends Screen {
             }
             @keyframes winnerPulse { 
                 0%, 100% { 
-                    box-shadow: 0 0 30px rgba(234, 0, 255, 0.8), 0 0 60px rgba(255, 0, 255, 0.4);
+                    box-shadow: 0 0 30px rgba(41, 100, 189, 0.8), 0 0 60px rgba(41, 100, 189, 0.8);
                 } 
                 50% { 
-                    box-shadow: 0 0 40px rgba(212, 0, 255, 1), 0 0 80px rgba(234, 0, 255, 0.6);
+                    box-shadow: 0 0 40px rgba(41, 100, 189, 0.8), 0 0 80px rgba(41, 100, 189, 0.8);
                 } 
             }
         `;
 		document.head.appendChild(style);
 	}
 
-	public destroy() {
+	public destroy(): void {
 		console.log('Destroying TournamentScreen...');
 		if (this.trophyInstance) {
 			this.trophyInstance.dispose();

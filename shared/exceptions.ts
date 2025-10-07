@@ -65,14 +65,14 @@ export class ProtocolError extends Error {
 export class AuthenticationError extends Error {
 	constructor(message: string) {
 		super(message);
-		this.name = 'DatabaseError';
+		this.name = 'AuthenticationError';
 	}
 }
 
 export class AuthenticationFailedError extends Error {
 	constructor(message: string) {
 		super(message);
-		this.name = 'DatabaseError';
+		this.name = 'AuthenticationFailedError';
 	}
 }
 
@@ -114,5 +114,6 @@ export class TwoFactorAlreadyEnabledError extends Error {
 export class TwoFactorVerificationError extends Error {
 	constructor(message: string) {
 		super(message);
+		this.name = 'TwoFactorVerificationError';
 	}
 }

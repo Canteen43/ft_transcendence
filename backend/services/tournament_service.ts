@@ -22,10 +22,11 @@ import {
 	FullTournament,
 	FullTournamentSchema,
 	Tournament,
+	UpdateTournament,
 	UpdateTournamentSchema,
 } from '../../shared/schemas/tournament.js';
 import type { UUID } from '../../shared/types.js';
-import { randomInt } from '../../shared/utils.js';
+import { arrayMax, randomInt } from '../../shared/utils.js';
 import { GameProtocol } from '../game/game_protocol.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
@@ -105,11 +106,35 @@ export default class TournamentService {
 		return FullTournamentSchema.parse(fullTournament);
 	}
 
-	static createTournament(creator: UUID, users: UUID[]): Tournament {
+	static createTournamentFromQueue(creator: UUID, users: UUID[]): Tournament {
 		const tournamentUsers = this.validateAndRemoveFromQueue(
 			users.length,
 			users
 		);
+		return this.createTournament(creator, users, tournamentUsers);
+	}
+
+	static createTournamentForReplay(creator: UUID, users: UUID[]): Tournament {
+		for (const u of users)
+			if (this.findInQueue(this.tournamentQueues.get(0), u))
+				throw new UserAlreadyQueuedError(u);
+		const queuedUsers = this.createQueuedUsersForReplay(users);
+		return this.createTournament(creator, users, queuedUsers);
+	}
+
+	static cleanTournaments() {
+		let tournaments = TournamentRepository.getTournamentsWithFilter(
+			undefined,
+			[TournamentStatus.Pending, TournamentStatus.InProgress]
+		);
+		for (const t of tournaments) this.cancelTournament(t.id);
+	}
+
+	private static createTournament(
+		creator: UUID,
+		users: UUID[],
+		tournamentUsers: QueuedUser[]
+	): Tournament {
 		const createSettings: CreateSettings = { max_score: DEFAULT_MAX_SCORE };
 
 		const createTournament: CreateTournament = {
@@ -197,6 +222,25 @@ export default class TournamentService {
 		return tournamentUsers;
 	}
 
+	private static createQueuedUsersForReplay(users: UUID[]): QueuedUser[] {
+		if (!users.length)
+			throw new TournamentNotFoundError('non existing user', '');
+		const tournaments = TournamentRepository.getTournamentsWithFilter(
+			users[0]
+		);
+		if (!tournaments.length)
+			throw new TournamentNotFoundError('user id', users[0]);
+		const tournament = arrayMax(tournaments, t => t.created_at.getTime());
+		const participants = ParticipantRepository.getTournamentParticipants(
+			tournament.id
+		);
+		const queuedUsers: QueuedUser[] = users.map(u => ({
+			userId: u,
+			alias: participants.find(p => p.user_id == u)?.alias ?? null,
+		}));
+		return queuedUsers;
+	}
+
 	private static createParticipants(
 		users: QueuedUser[]
 	): CreateParticipant[] {
@@ -244,9 +288,10 @@ export default class TournamentService {
 	}
 
 	private static findInQueue(
-		queue: Set<QueuedUser>,
+		queue: Set<QueuedUser> | undefined,
 		userId: UUID
 	): QueuedUser | undefined {
+		if (!queue) return undefined;
 		return Array.from(queue).find(user => user.userId === userId);
 	}
 }

@@ -3,10 +3,10 @@ import './init.js';
 import type { FastifyInstance } from 'fastify';
 import Fastify from 'fastify';
 import { FastifyZodOpenApiTypeProvider } from 'fastify-zod-openapi';
-import fs from 'fs';
 import { FASTIFY_LOG_LEVEL } from '../shared/constants.js';
 import { logger } from '../shared/logger.js';
 import fastifyInit from './fastify.js';
+import TournamentService from './services/tournament_service.js';
 
 const fastify: FastifyInstance = Fastify({
 	logger: { level: FASTIFY_LOG_LEVEL },
@@ -33,6 +33,7 @@ async function start(): Promise<void> {
 }
 
 try {
+	TournamentService.cleanTournaments();
 	start();
 } catch (error) {
 	logger.error('Failed to launch application:');

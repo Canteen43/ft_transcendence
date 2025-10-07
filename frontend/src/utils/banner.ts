@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { UserSchema } from '../../../shared/schemas/user';
 import { apiCall } from '../utils/apiCall';
+import { isLoggedIn } from '../buttons/AuthButton';
 
 export interface OnlinePlayersBanner {
 	bannerElement: HTMLElement;
@@ -13,7 +14,7 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 	const bannerContainer = document.createElement('div');
 	bannerContainer.className =
 		'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
-		'border-t-2 border-[var(--color2)] py-2 z-50 overflow-hidden';
+		'border-t-2 border-[var(--color5)] py-2 h-10 z-20 overflow-hidden';
 
 	const scrollWrapper = document.createElement('div');
 	scrollWrapper.className = 'flex animate-scroll whitespace-nowrap';
@@ -31,7 +32,6 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 	// ASSEMBLE THE DOM STRUCTURE
 	scrollWrapper.appendChild(onlinePlayersContainer);
 	bannerContainer.appendChild(scrollWrapper);
-
 
 	// Add scrolling animation styles with slower speed and better spacing
 	const styleElement = document.createElement('style');
@@ -59,8 +59,7 @@ export function createOnlinePlayersBanner(): OnlinePlayersBanner {
 export async function loadOnlinePlayers(banner: OnlinePlayersBanner) {
 	if (!banner.onlinePlayersContainer) return;
 
-	const token = sessionStorage.getItem('token');
-	if (!token) {
+	if (!isLoggedIn()) {
 		updateOnlinePlayersDisplay(banner, []);
 		return;
 	}
@@ -113,7 +112,7 @@ function updateOnlinePlayersDisplay(banner: OnlinePlayersBanner, users: any[]) {
 			const playerElement = document.createElement('span');
 			playerElement.textContent = displayName;
 			playerElement.className =
-				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-3 py-1";
+				"inline-flex items-center font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-1 py-0.5 mr-1";
 			newContainer.appendChild(playerElement);
 		});
 	}
