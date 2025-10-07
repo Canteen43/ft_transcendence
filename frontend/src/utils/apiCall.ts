@@ -1,4 +1,5 @@
 import { ZodType, z } from 'zod';
+import { apiBase } from './endpoints';
 
 // property/method	type			meaning
 // res.ok			boolean			true if the status is in the range 200–299 (success). false otherwise.
@@ -10,8 +11,6 @@ import { ZodType, z } from 'zod';
 // res.type			`basic			cors
 // res.body			ReadableStream	Low-level stream of the body.
 // res.clone()		returns a new Response	Lets you read the body twice.
-
-const API_BASE = `http://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}`;
 
 type ApiError = {
 	status: number;
@@ -38,7 +37,7 @@ export async function apiCall<T>(
 			body: body ? JSON.stringify(body) : undefined,
 		};
 
-		const res = await fetch(`${API_BASE}${route}`, options);
+		const res = await fetch(`${apiBase}${route}`, options);
 
 		if (!res.ok) {
 			// alert(`TEMP ALERT: ${res.status} ${res.statusText}` )

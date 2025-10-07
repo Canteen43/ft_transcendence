@@ -13,19 +13,19 @@ export class LocalGameModal extends Modal {
 		super(parent);
 
 		const img2 = document.createElement('img');
-		img2.src = '../../public/2_players.png';
+		img2.src = '2_players.png';
 		img2.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		const img3 = document.createElement('img');
-		img3.src = '../../public/3_players.png';
+		img3.src = '3_players.png';
 		img3.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		const img4 = document.createElement('img');
-		img4.src = '../../public/4_players.png';
+		img4.src = '4_players.png';
 		img4.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		const imgt = document.createElement('img');
-		imgt.src = '../../public/trophy.png';
+		imgt.src = 'trophy.png';
 		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		// create buttons with images inside

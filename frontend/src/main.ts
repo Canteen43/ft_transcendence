@@ -1,17 +1,17 @@
-// import { createParticlesBackground, initParticles } from './visual/Particles';
-// import { Video } from './misc/Video';
 import { AuthComponent } from './buttons/AuthButton';
 import { HomeButton } from './buttons/HomeButton';
 import { TwoFactAuthButton } from './buttons/TwoFactAuthButton';
-
-import './style.css';
+import { ChatBannerManager } from './utils/ChatBannerManager';
 import { router } from './utils/Router';
-// Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
-import '@babylonjs/loaders';
-
-// Global exposure for debugging
 import { state } from './utils/State';
 import { webSocket } from './utils/WebSocketWrapper';
+import { getEndpoints } from './utils/endpoints';
+
+// Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
+import '@babylonjs/loaders';
+import './style.css';
+
+// Global exposure for debugging
 (window as any).state = state;
 (window as any).webSocket = webSocket;
 
@@ -29,7 +29,9 @@ app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
 
+await getEndpoints();
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
 new TwoFactAuthButton(app);
+new ChatBannerManager(app);

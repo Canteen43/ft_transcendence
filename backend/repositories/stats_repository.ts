@@ -57,7 +57,7 @@ export class StatsRepository {
 					ON participant.id = match.participant_2_id
 				WHERE participant.user_id = ?
 				AND   match.status = '${MatchStatus.Finished}'
-			),
+			)
 			SELECT 
 				ROW_NUMBER() OVER (ORDER BY timestamp) AS nr,
 				MAX(timestamp) OVER (
