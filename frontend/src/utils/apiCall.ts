@@ -1,4 +1,5 @@
 import { ZodType, z } from 'zod';
+import { apiBase } from './endpoints';
 
 // property/method	type			meaning
 // res.ok			boolean			true if the status is in the range 200–299 (success). false otherwise.
@@ -11,18 +12,11 @@ import { ZodType, z } from 'zod';
 // res.body			ReadableStream	Low-level stream of the body.
 // res.clone()		returns a new Response	Lets you read the body twice.
 
-const API_BASE = `http://${import.meta.env.VITE_API_HOST}:${import.meta.env.VITE_API_PORT}`;
-let apiBase: string | null = null;
-
 type ApiError = {
 	status: number;
 	statusText: string;
 	message: string;
 };
-
-async function getApiBase() {
-	apiBase = API_BASE;
-}
 
 export async function apiCall<T>(
 	method: string,
@@ -31,10 +25,6 @@ export async function apiCall<T>(
 	body?: unknown
 ): Promise<{ data: T | null; error?: ApiError }> {
 	try {
-		if (!apiBase) {
-			await getApiBase();
-		}
-
 		const token = sessionStorage.getItem('token');
 
 		const headers: Record<string, string> = {};
