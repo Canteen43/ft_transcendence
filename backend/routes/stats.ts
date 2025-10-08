@@ -9,6 +9,8 @@ import {
 	RankingItem,
 	RankingItemSchema,
 	RankingSchema,
+	TournamentStats,
+	TournamentStatsSchema,
 } from '../../shared/schemas/stats.js';
 import { UUID, zUUID } from '../../shared/types.js';
 import { StatsRepository } from '../repositories/stats_repository.js';
@@ -33,6 +35,25 @@ async function getUserRankingItem(
 	var result: RankingItem | null;
 	try {
 		result = StatsRepository.getUserRankingItem(request.params.user_id);
+	} catch (error) {
+		logger.error(error);
+		throw request.server.httpErrors.internalServerError(
+			constants.ERROR_REQUEST_FAILED
+		);
+	}
+	if (!result)
+		throw request.server.httpErrors.notFound(
+			constants.ERROR_USER_NOT_FOUND
+		);
+	return result;
+}
+
+async function getTournamenStats(
+	request: FastifyRequest<{ Params: { user_id: UUID } }>
+): Promise<TournamentStats> {
+	var result: TournamentStats | null;
+	try {
+		result = StatsRepository.getTournamentStats(request.params.user_id);
 	} catch (error) {
 		logger.error(error);
 		throw request.server.httpErrors.internalServerError(
@@ -78,6 +99,14 @@ export default async function statsRoutes(fastify: FastifyInstance) {
 			response: RankingItemSchema,
 		}),
 		getUserRankingItem
+	);
+	fastify.get(
+		'/tournament/:user_id',
+		routeConfig({
+			params: z.object({ user_id: zUUID }),
+			response: TournamentStatsSchema,
+		}),
+		getTournamenStats
 	);
 	fastify.get(
 		'/wins_history/:user_id',
