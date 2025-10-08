@@ -42,7 +42,7 @@ export class GameConfig {
 		outOfBoundsDistance: 20,
 		physicsTimeStep: 1 / 240,
 		physicsSolverIterations: 15,
-		ballAngleMultiplier: 1.0,
+		ballAngleMultiplier: 0.8,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (10 * Math.PI) / 180,
 		paddleMass: 2.8,
@@ -54,10 +54,10 @@ export class GameConfig {
 		wallFriction: 0,
 		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
 		wallNearParallelAngleAdjustment: 0,
-		wallNearParallelMaxAngle: (75 * Math.PI) / 180,
-		ballBaseSpeed: 12,
-		maxBallSpeed: 25,
-		rallySpeedIncrementPercent: 11,
+		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
+		ballBaseSpeed: 5,
+		maxBallSpeed: 24,
+		rallySpeedIncrementPercent: 5,
 	};
 
 	private static readonly DEFAULT_GLOW_BASE_INTENSITY = 3;
