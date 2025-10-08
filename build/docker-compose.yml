@@ -1,0 +1,43 @@
+# docker-compose.yml
+
+version: '3.9'
+
+networks:
+    my_network:
+
+volumes:
+    db_volume:
+        driver: local
+        driver_opts:
+            type: none
+            device: ./database
+            o: bind
+
+services:
+    frontend:
+        container_name: frontend
+        build:
+            context: ..
+            dockerfile: build/frontend/Dockerfile
+        restart: unless-stopped
+        command: nginx -g 'daemon off;'
+        env_file: ./frontend/prod.env
+        ports:
+            - 8000:80
+        networks:
+            - my_network
+
+    backend:
+        container_name: backend
+        build:
+            context: ..
+            dockerfile: build/backend/Dockerfile
+        restart: unless-stopped
+        command: npm run start:backend
+        env_file: ./backend/prod.env
+        volumes:
+            - db_volume:/app/database
+        ports:
+            - 8080:8080
+        networks:
+            - my_network
