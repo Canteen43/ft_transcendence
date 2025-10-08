@@ -5,6 +5,29 @@ import { conditionalLog, conditionalWarn, conditionalError } from './Logger';
 
 export type PowerupType = 'split' | 'boost' | 'stretch' | 'shrink';
 
+export const POWERUP_TYPE_TO_ID: Record<PowerupType, number> = {
+	split: 0,
+	boost: 1,
+	stretch: 2,
+	shrink: 3,
+};
+
+export const POWERUP_ID_TO_TYPE: Record<number, PowerupType> = {
+	0: 'split',
+	1: 'boost',
+	2: 'stretch',
+	3: 'shrink',
+};
+
+export interface PowerupNetworkSnapshot {
+	id: string;
+	type: PowerupType;
+	x: number;
+	z: number;
+	state: 0 | 1 | 2;
+	paddleIndex: number;
+}
+
 export const POWERUP_SESSION_FLAGS: Record<PowerupType, string> = {
 	split: 'split',
 	boost: 'boost',
@@ -44,6 +67,7 @@ export class Pong3DPowerups {
 	private options: Required<PowerupManagerOptions>;
 	private baseMeshes: Map<PowerupType, BasePowerupPrototype> = new Map();
     private activePowerups: Map<string, PowerupEntity> = new Map();
+	private pendingNetworkEvent: PowerupNetworkSnapshot | null = null;
 	private nextSpawnInSeconds: number = Number.POSITIVE_INFINITY;
 	private elapsedSinceSpawn: number = 0;
 	private enabledTypes: Set<PowerupType> = new Set();
@@ -159,6 +183,51 @@ export class Pong3DPowerups {
         });
     }
 
+	public getActiveNetworkSnapshot(): PowerupNetworkSnapshot | null {
+		if (this.activePowerups.size === 0) {
+			return null;
+		}
+		const iterator = this.activePowerups.values().next();
+		if (iterator.done || !iterator.value) {
+			return null;
+		}
+		const entity = iterator.value;
+		const position = entity.getPositionXZ();
+		const collecting = entity.isCollecting();
+		return {
+			id: entity.id,
+			type: entity.type,
+			x: position.x,
+			z: position.z,
+			state: collecting ? 1 : 0,
+			paddleIndex: collecting ? entity.getCollectingPaddleIndex() : -1,
+		};
+	}
+
+	public consumePendingNetworkEvent(): PowerupNetworkSnapshot | null {
+		const event = this.pendingNetworkEvent;
+		this.pendingNetworkEvent = null;
+		return event;
+	}
+
+	public clonePrototypeForNetwork(
+		type: PowerupType
+	): BABYLON.TransformNode | null {
+		const base = this.baseMeshes.get(type);
+		if (!base || !base.root || base.root.isDisposed()) {
+			return null;
+		}
+		const clone = base.root.clone(
+			`powerup.${type}.remote.${performance.now()}`,
+			null
+		);
+		if (!clone) {
+			return null;
+		}
+		clone.setEnabled(true);
+		return clone;
+	}
+
 	/** Advance timers, spawn new power-ups if needed, and update active discs. */
     public update(
         deltaSeconds: number,
@@ -183,23 +252,41 @@ export class Pong3DPowerups {
 		this.activePowerups.forEach(entity => {
 			entity.update(deltaSeconds);
 			// Remove after collect animation finishes
-			if ((entity as any).isCollectDone && (entity as any).isCollectDone()) {
+			if (entity.isCollectDone()) {
+				const pos = entity.getPositionXZ();
+				this.pendingNetworkEvent = {
+					id: entity.id,
+					type: entity.type,
+					x: pos.x,
+					z: pos.z,
+					state: 2,
+					paddleIndex: entity.getCollectingPaddleIndex(),
+				};
 				disposals.push(entity.id);
 				return;
 			}
 			// Out of bounds removal when not collecting
-			if (!(entity as any).collecting && this.isOutOfBounds(entity.root.position as BABYLON.Vector3)) {
+			if (!entity.isCollecting() && this.isOutOfBounds(entity.root.position as BABYLON.Vector3)) {
+				const pos = entity.getPositionXZ();
+				this.pendingNetworkEvent = {
+					id: entity.id,
+					type: entity.type,
+					x: pos.x,
+					z: pos.z,
+					state: 2,
+					paddleIndex: -1,
+				};
 				terminateWhenOutOfBounds(entity.type);
 				disposals.push(entity.id);
 				return;
 			}
 			// Pickup trigger when not already collecting
-			if (!(entity as any).collecting) {
+			if (!entity.isCollecting()) {
 				const collector = this.findCollectingPaddle(entity.collisionMesh, paddles);
 				if (collector !== -1) {
                 onPickup(entity.type, collector, entity);
                 // Begin shrink-into-paddle animation
-                entity.beginCollect(paddles[collector]!);
+                entity.beginCollect(paddles[collector]!, collector);
 				}
 			}
 		});
@@ -212,6 +299,7 @@ export class Pong3DPowerups {
 			entity.dispose();
 		});
 		this.activePowerups.clear();
+		this.pendingNetworkEvent = null;
 		this.scheduleNextSpawn();
 		this.hidePrototypeMeshes();
 	}

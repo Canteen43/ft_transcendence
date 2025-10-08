@@ -6,6 +6,8 @@ import { GameConfig } from './GameConfig';
 import { conditionalLog, conditionalWarn } from './Logger';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import type { NetworkGameState } from './Pong3DGameLoopBase';
+import type { NetworkPowerupState } from './Pong3DGameLoopBase';
+import { POWERUP_TYPE_TO_ID } from './Pong3Dpowerups';
 
 /**
  * Master game loop - IDENTICAL to local mode but adds network transmission
@@ -119,10 +121,31 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 
 		conditionalLog('📡 Master sending pd:', paddlePositions);
 
-		return {
+		const networkState: NetworkGameState = {
 			b: ballPosition,
 			pd: paddlePositions,
 		};
+		const splitBall = this.pong3DInstance?.getSplitBallNetworkPosition?.();
+		if (splitBall) {
+			networkState.sb = [
+				networkNumber(splitBall.x),
+				networkNumber(splitBall.z),
+			];
+		}
+		const powerupSnapshot =
+			this.pong3DInstance?.getPowerupNetworkSnapshot?.();
+		if (powerupSnapshot) {
+			const powerupState: NetworkPowerupState = {
+				t: POWERUP_TYPE_TO_ID[powerupSnapshot.type],
+				x: networkNumber(powerupSnapshot.x),
+				z: networkNumber(powerupSnapshot.z),
+				s: powerupSnapshot.state,
+				p: powerupSnapshot.paddleIndex ?? -1,
+			};
+			networkState.pu = powerupState;
+		}
+
+		return networkState;
 	}
 	private startNetworkUpdates(): void {
 		if (this.networkUpdateInterval) {

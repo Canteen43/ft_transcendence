@@ -44,8 +44,11 @@ import {
 import {
 	Pong3DPowerups,
 	POWERUP_SESSION_FLAGS,
+	POWERUP_ID_TO_TYPE,
+	type PowerupNetworkSnapshot,
 	type PowerupType,
 } from './Pong3Dpowerups';
+import type { NetworkPowerupState } from './Pong3DGameLoopBase';
 import {
 	AI_DIFFICULTY_PRESETS,
 	type AIConfig,
@@ -307,6 +310,7 @@ export class Pong3D {
 	private paddleShrinkTimeouts: Map<number, number> = new Map();
 	private mainBallHandlersAttached = false;
 	private baseBallY = 0;
+	private readonly REMOTE_POWERUP_SPIN_SPEED = 0.5;
 	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
 	private lastCollisionTimeMs: number = 0;
 	private lastCollisionPaddleIndex: number = -1;
@@ -317,13 +321,24 @@ export class Pong3D {
 	private powerupManager: Pong3DPowerups | null = null;
 	private enabledPowerupTypes: PowerupType[] = [];
 	private lastPowerupUpdateTimeMs = 0;
+	private remotePowerupNode: BABYLON.TransformNode | null = null;
+	private remotePowerupType: PowerupType | null = null;
+	private lastRemotePowerupState: NetworkPowerupState | null = null;
+	private pendingRemotePowerupState: NetworkPowerupState | null = null;
 
 	private refreshPowerupConfiguration(): void {
 		if (!this.powerupManager) return;
-		if (this.gameMode !== 'local') {
-			this.enabledPowerupTypes = [];
-			this.powerupManager.setEnabledTypes([]);
+		if (this.gameMode === 'client') {
+			const allTypes: PowerupType[] = ['split', 'boost', 'stretch', 'shrink'];
+			this.enabledPowerupTypes = allTypes;
+			this.powerupManager.setEnabledTypes(allTypes);
+			this.powerupManager.setSpawningPaused(true);
 			this.powerupManager.clearActivePowerups();
+			this.powerupManager
+				.loadAssets()
+				.catch(error => {
+					this.conditionalWarn('Power-up assets failed to load (client)', error);
+				});
 			return;
 		}
 
@@ -356,15 +371,9 @@ export class Pong3D {
 	}
 
 	private updatePowerups(): void {
-		if (!this.powerupManager || this.enabledPowerupTypes.length === 0) {
+		if (!this.powerupManager) {
 			return;
 		}
-
-		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
-		// and we are waiting for the ball to reach boundary (dead-ball state).
-		const pauseSpawning =
-			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
-		this.powerupManager.setSpawningPaused(pauseSpawning);
 
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -380,6 +389,21 @@ export class Pong3D {
 		}
 		deltaSeconds = Math.min(deltaSeconds, 0.25); // Clamp to avoid huge teleporting steps
 
+		if (this.gameMode === 'client') {
+			this.updateRemotePowerupVisual(deltaSeconds);
+			return;
+		}
+
+		if (this.enabledPowerupTypes.length === 0) {
+			return;
+		}
+
+		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
+		// and we are waiting for the ball to reach boundary (dead-ball state).
+		const pauseSpawning =
+			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
+		this.powerupManager.setSpawningPaused(pauseSpawning);
+
 		this.powerupManager.update(
 			deltaSeconds,
 			this.paddles,
@@ -387,6 +411,26 @@ export class Pong3D {
 				this.handlePowerupPickup(type, paddleIndex, entity as any),
 			type => this.handlePowerupOutOfBounds(type)
 		);
+	}
+
+	private updateRemotePowerupVisual(deltaSeconds: number): void {
+		if (this.pendingRemotePowerupState) {
+			const pending = this.pendingRemotePowerupState;
+			this.pendingRemotePowerupState = null;
+			this.handleRemotePowerupState(pending);
+		}
+		if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
+			return;
+		}
+		const spin = this.REMOTE_POWERUP_SPIN_SPEED * deltaSeconds;
+		const increment = BABYLON.Quaternion.RotationAxis(
+			BABYLON.Vector3.Up(),
+			spin
+		);
+		const current =
+			this.remotePowerupNode.rotationQuaternion ??
+			BABYLON.Quaternion.Identity();
+		this.remotePowerupNode.rotationQuaternion = current.multiply(increment);
 	}
 
 	private handlePowerupPickup(
@@ -430,7 +474,9 @@ export class Pong3D {
 
 		switch (type) {
 			case 'split':
-				this.activateSplitBallPowerup();
+				if (this.gameMode !== 'client') {
+					this.activateSplitBallPowerup();
+				}
 				break;
 			case 'stretch':
 				this.applyStretchPowerup(paddleIndex, entity);
@@ -494,6 +540,7 @@ export class Pong3D {
 			window.clearTimeout(this.activeStretchTimeout);
 			this.activeStretchTimeout = null;
 		}
+		this.disposeRemotePowerupVisual();
 		if (this.powerupManager) {
 			this.powerupManager.setTypeBlocked('stretch', true);
 		}
@@ -1010,6 +1057,144 @@ export class Pong3D {
 	): boolean {
 		if (!impostor) return false;
 		return this.splitBalls.some(ball => ball.impostor === impostor);
+	}
+
+	public getSplitBallNetworkPosition():
+		| { x: number; z: number }
+		| null {
+		if (this.splitBalls.length === 0) {
+			return null;
+		}
+		const ball = this.splitBalls[0];
+		if (!ball || !ball.mesh || ball.mesh.isDisposed()) {
+			return null;
+		}
+		return {
+			x: ball.mesh.position.x,
+			z: ball.mesh.position.z,
+		};
+	}
+
+	public getPowerupNetworkSnapshot(): PowerupNetworkSnapshot | null {
+		if (!this.powerupManager) {
+			return null;
+		}
+		const active = this.powerupManager.getActiveNetworkSnapshot();
+		if (active) {
+			return active;
+		}
+		return this.powerupManager.consumePendingNetworkEvent();
+	}
+
+	public handleRemotePowerupState(
+		state: NetworkPowerupState | null
+	): void {
+		if (this.gameMode !== 'client') {
+			return;
+		}
+		if (!this.powerupManager) {
+			this.pendingRemotePowerupState = state;
+			return;
+		}
+		void this.powerupManager.loadAssets().catch(error => {
+			this.conditionalWarn(
+				'Power-up assets failed to load during remote state handling',
+				error
+			);
+		});
+
+		const previous = this.lastRemotePowerupState;
+		this.lastRemotePowerupState = state ? { ...state } : null;
+
+		if (!state) {
+			this.disposeRemotePowerupVisual();
+			this.pendingRemotePowerupState = null;
+			return;
+		}
+
+		const type = POWERUP_ID_TO_TYPE[state.t];
+		if (!type) {
+			this.conditionalWarn(
+				`Unknown remote power-up type id ${state.t}`
+			);
+			return;
+		}
+
+		const visual = this.ensureRemotePowerupVisual(type);
+		if (!visual) {
+			this.pendingRemotePowerupState = state;
+			return;
+		}
+		this.pendingRemotePowerupState = null;
+
+		const worldX = -state.x;
+		const worldZ = state.z;
+		visual.position.x = worldX;
+		visual.position.z = worldZ;
+
+		const previousStateValue = previous?.s ?? -1;
+
+		if (state.s === 0) {
+			if (visual.scaling.x === 0) {
+				visual.scaling.setAll(1);
+			}
+			visual.setEnabled(true);
+		} else if (state.s === 1) {
+			if (state.p >= 0 && previousStateValue !== 1) {
+				this.handlePowerupPickup(type, state.p);
+			}
+			this.disposeRemotePowerupVisual();
+		} else if (state.s === 2) {
+			if (
+				state.p >= 0 &&
+				previousStateValue !== 1 &&
+				previousStateValue !== 2
+			) {
+				this.handlePowerupPickup(type, state.p);
+			}
+			this.disposeRemotePowerupVisual();
+		}
+	}
+
+	private ensureRemotePowerupVisual(
+		type: PowerupType
+	): BABYLON.TransformNode | null {
+		if (!this.powerupManager) {
+			return null;
+		}
+		if (
+			this.remotePowerupNode &&
+			!this.remotePowerupNode.isDisposed() &&
+			this.remotePowerupType === type
+		) {
+			return this.remotePowerupNode;
+		}
+		this.disposeRemotePowerupVisual();
+		const clone = this.powerupManager.clonePrototypeForNetwork(type);
+		if (!clone) {
+			return null;
+		}
+		clone.position.y = this.baseBallY;
+		clone.rotationQuaternion = BABYLON.Quaternion.Identity();
+		clone.rotation = BABYLON.Vector3.Zero();
+		clone.scaling.setAll(1);
+		const meshes = clone.getChildMeshes(false);
+		meshes.forEach(mesh => {
+			mesh.isPickable = false;
+		});
+		this.remotePowerupNode = clone;
+		this.remotePowerupType = type;
+		return clone;
+	}
+
+	private disposeRemotePowerupVisual(): void {
+		if (this.remotePowerupNode && !this.remotePowerupNode.isDisposed()) {
+			try {
+				this.remotePowerupNode.dispose(true, true);
+			} catch (_) {}
+		}
+		this.remotePowerupNode = null;
+		this.remotePowerupType = null;
 	}
 
 	private getActiveBallImpostors(): BABYLON.PhysicsImpostor[] {
