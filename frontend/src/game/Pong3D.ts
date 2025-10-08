@@ -2244,7 +2244,10 @@ export class Pong3D {
 			// Ball deflects IN THE SAME DIRECTION as paddle movement
 			// Moving left at max velocity → ball deflects left at max angle
 			// Moving right at max velocity → ball deflects right at max angle
-			let velocityBasedAngle = -velocityRatio * this.ANGULAR_RETURN_LIMIT; // NEGATED to correct direction
+			let velocityBasedAngle =
+				-velocityRatio *
+				this.ANGULAR_RETURN_LIMIT *
+				this.BALL_ANGLE_MULTIPLIER; // Scale correlation by configurable multiplier (0 = no influence)
 
 			// 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
 			velocityBasedAngle = Math.max(
@@ -2263,6 +2266,9 @@ export class Pong3D {
 				}
 				this.conditionalLog(
 					`  - Paddle velocity: ${paddleVelAlong.toFixed(2)} (${velocityRatio.toFixed(3)} of max)`
+				);
+				this.conditionalLog(
+					`  - Angle multiplier: ${this.BALL_ANGLE_MULTIPLIER.toFixed(2)}`
 				);
 			}
 			if (GameConfig.isDebugLoggingEnabled()) {
