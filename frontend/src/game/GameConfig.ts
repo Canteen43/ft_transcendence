@@ -42,7 +42,7 @@ export class GameConfig {
 		outOfBoundsDistance: 20,
 		physicsTimeStep: 1 / 240,
 		physicsSolverIterations: 15,
-		ballAngleMultiplier: 0.8,
+		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (10 * Math.PI) / 180,
 		paddleMass: 2.8,
@@ -66,6 +66,8 @@ export class GameConfig {
 	private static readonly DEFAULT_COLLISION_DEBOUNCE_MS = 200;
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
+	private static readonly DEFAULT_SPIN_DELAY_MS = 350;
+	private static spinDelayMs = GameConfig.DEFAULT_SPIN_DELAY_MS;
 
 	// Debug/Logging controls
 	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
@@ -172,6 +174,15 @@ export class GameConfig {
 	static setGameMode(mode: 'local' | 'remote'): void {
 		sessionStorage.setItem('gameMode', mode);
 		conditionalLog(`🎮 Game mode set to: ${mode}`);
+	}
+
+	static getSpinDelayMs(): number {
+		return this.spinDelayMs;
+	}
+
+	static setSpinDelayMs(value: number): void {
+		const clamped = Math.max(0, Math.min(10000, Math.floor(value)));
+		this.spinDelayMs = clamped;
 	}
 
 	/**

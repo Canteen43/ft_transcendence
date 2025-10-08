@@ -15,7 +15,7 @@ Pong 3D uses **2D physics in 3D space** - all ball movement and collisions occur
 
 #### Stationary Paddle (velocity < 0.1)
 - **Perfect reflection** with angle limiting
-- **2D rotation clamping**: If reflection angle > 60°, rotate toward normal by excess amount
+- **2D rotation clamping**: If reflection angle > angular limit, clamp at angular limit
 - **Y-forced to 0**: Maintains X-Z plane movement
 
 #### Moving Paddle (velocity ≥ 0.1)
@@ -44,9 +44,10 @@ reflection = ballVelocity - 2 × (ballVelocity · normal) × normal
 ## Moving Paddle Physics
 
 ### Angle Effect
-- Return angle = (paddleVelocity / maxVelocity) × 60°
+- Return angle = (paddleVelocity / maxVelocity) × angular_return_limit
 - Ball deflects **in same direction** as paddle movement
 - Example: Paddle moving right → ball deflects right
+- it does not alter the reflected angle, it overrides it
 
 ### Spin Effect
 - Ball spin = paddleVelocity × spinFactor

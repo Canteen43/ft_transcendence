@@ -11,7 +11,7 @@ export class Pong3DBallEffects {
 	public SPIN_TRANSFER_FACTOR = 1.0; // How much paddle velocity becomes spin
 	public MAGNUS_COEFFICIENT = 0.14; // Strength of Magnus force effect
 	public SPIN_DECAY_FACTOR = 0.98; // Spin decay per frame (0.99 = slow decay)
-	public SPIN_DELAY = 200; // Delay in milliseconds before spin effect activates
+	public SPIN_DELAY = GameConfig.getSpinDelayMs(); // Delay before Magnus effect activates
 
 	// Rally speed system
 	public RALLY_SPEED_INCREMENT_PERCENT =
@@ -305,7 +305,7 @@ export class Pong3DBallEffects {
 	}
 
 	public setSpinDelay(delayMs: number): void {
-		this.SPIN_DELAY = Math.max(0, Math.min(1000, delayMs)); // Clamp between 0 and 1000ms
+		this.SPIN_DELAY = Math.max(0, Math.min(10000, delayMs)); // Clamp between 0 and 10000ms
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(`⏱️ Spin delay set to ${this.SPIN_DELAY}ms`);
 		}
