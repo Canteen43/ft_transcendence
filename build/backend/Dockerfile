@@ -20,7 +20,6 @@ WORKDIR /app
 
 COPY ./package.json ./
 COPY ./package-lock.json ./
-COPY ./build/database ./database
 COPY --from=builder /app/build/app/backend ./backend
 COPY --from=builder /app/build/app/shared ./shared
 
