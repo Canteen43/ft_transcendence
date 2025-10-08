@@ -66,7 +66,7 @@ export class GameConfig {
 	private static readonly DEFAULT_COLLISION_DEBOUNCE_MS = 200;
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
-	private static readonly DEFAULT_SPIN_DELAY_MS = 350;
+	private static readonly DEFAULT_SPIN_DELAY_MS = 350; // a bit long?
 	private static spinDelayMs = GameConfig.DEFAULT_SPIN_DELAY_MS;
 
 	// Debug/Logging controls
