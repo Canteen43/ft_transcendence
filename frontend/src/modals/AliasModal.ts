@@ -156,7 +156,7 @@ export class AliasModal extends Modal {
 		input.value = defaultValue;
 		input.title = hint;
 		input.className =
-			'border border-[var(--color3)] p-2 flex-1 text-black text-lg';
+			'border border-[var(--color3)] p-2 flex-1 text-grey text-lg';
 		return input;
 	}
 

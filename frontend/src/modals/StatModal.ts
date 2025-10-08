@@ -19,6 +19,7 @@ export class StatModal extends Modal {
 	private rankData: RankingData | null = null;
 	private histData: HistoryData | null = null;
 	private matchData: MatchData | null = null;
+	private chartInstance: Chart | null = null;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -403,11 +404,11 @@ export class StatModal extends Modal {
 			const ctx = canvas.getContext('2d');
 			if (!ctx) return;
 
-			if (chartInstance) {
-				chartInstance.destroy();
+			if (this.chartInstance) {
+				this.chartInstance.destroy();
 			}
 
-			chartInstance = new Chart(ctx, {
+			this.chartInstance = new Chart(ctx, {
 				type: 'line',
 				data: {
 					labels: labels,
@@ -487,5 +488,13 @@ export class StatModal extends Modal {
 			createChart(currentLimit);
 		}
 		return graph;
+	}
+
+	public destroy(): void {
+		if (this.chartInstance) {
+			this.chartInstance.destroy();
+			this.chartInstance = null;
+		}
+		super.destroy();
 	}
 }

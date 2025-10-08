@@ -23,8 +23,8 @@ window.addEventListener('unhandledrejection', event => {
 });
 
 const app = document.getElementById('app') as HTMLDivElement;
-app.className = 'w-screen h-screen flex flex-col';
-app.style.backgroundColor = 'black';
+app.className = 'w-screen h-screen flex flex-col bg-blue-200';
+// app.style.backgroundColor = 'blue';
 app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';

@@ -1,58 +1,16 @@
-/* ==============================
-	1. Google Fonts
-============================== */
-/* @import url('https://fonts.googleapis.com/css2?family=Rubik+Microbe&display=swap'); */
-/* @import url('https://fonts.googleapis.com/css2?family=Sigmar&display=swap'); */
-/* @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:ital,wght@0,100..900;1,100..900'); */
-/* @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@1,100..900'); */
-
-@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:ital,wght@0,100..900;1,100..900&family=Outfit:wght@100..900&family=Press+Start+2P&family=Rubik+Microbe&family=Sigmar&display=swap');
-
-/* @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); */
-
-/* ==============================
-	2. Tailwind import
-============================== */
+@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:ital,wght@0,100..900;1,100..900&family=Nabla&family=Outfit:wght@100..900&family=Press+Start+2P&family=Rubik+Microbe&family=Sigmar&display=swap" rel="stylesheet');
 @import 'tailwindcss';
 
-/* ==============================
-	3. Custom fonts
-============================== */
-/* @font-face {
-  font-family: 'Ignazio';
-  src: url('../fonts/ignazio/Ignazio_Outline.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
 
-@font-face {
-  font-family: 'JustSans';
-  src: url('../fonts/just-sans-outline/JUST Sans Outline ExBold.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JustSans';
-  src: url('../fonts/just-sans-outline/JUST Sans Outline Regular.otf') format('opentype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-} */
-
-/* ==============================
-	4. CSS Variables (Fonts + Colors)
-============================== */
 @theme {
 	--font-ps2p: 'Press Start 2P', monospace;
 	--font-ignazio: 'Ignazio', sans-serif;
 	--font-justsans: 'JustSans', sans-serif;
 	--font-rubik: 'Rubik Microbe', sans-serif;
 	--font-sigmar: 'Sigmar', sans-serif;
-	--font-outfit: 'Azeret Mono', sans-serif;
+	--font-azeret: 'Azeret Mono', sans-serif;
 	--font-outfit: 'Outfit', sans-serif;
+	--font-nabla: 'Nabla', sans-serif;
 }
 
 :root {

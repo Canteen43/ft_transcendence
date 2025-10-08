@@ -51,9 +51,9 @@ export class ReplayModal extends Modal {
 	private startTimer() {
 		this.timeoutId = setTimeout(() => {
 			console.debug('Replay timer expired, returning to home');
-			console.debug('Clearing match data before home');
 			clearMatchData();
 			location.hash = '#home';
+			this.destroy();
 			setTimeout(() => {
 				new TextModal(
 					router.currentScreen!.element,
@@ -61,7 +61,6 @@ export class ReplayModal extends Modal {
 					'Replay timer expired'
 				);
 			}, 100);
-			this.destroy();
 		}, 10000);
 	}
 

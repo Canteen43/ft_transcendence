@@ -2,6 +2,7 @@ import { isLoggedIn } from '../buttons/AuthButton';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
+import { StatModal } from '../modals/StatModal';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
@@ -25,9 +26,10 @@ export class HomeScreen extends Screen {
 		threeDContainer.className = 'w-full h-full';
 		this.element.appendChild(threeDContainer);
 
-		this.landing = new Landing(threeDContainer, '/landingpage.glb', {
+		this.landing = new Landing(threeDContainer, '/landingpageTEST.glb', {
 			onLocalGameClick: () => this.localLogic(),
 			onRemoteGameClick: () => this.remoteLogic(),
+			onStatsClick: () => this.statLogic(),
 		});
 	}
 
@@ -41,6 +43,14 @@ export class HomeScreen extends Screen {
 
 	private localLogic() {
 		new LocalGameModal(this.element);
+	}
+
+	private statLogic() {
+		if (!isLoggedIn()) {
+			new LoginModal(router.currentScreen!.element);
+			return;
+		}
+		new StatModal(this.element);
 	}
 
 	public destroy(): void {
