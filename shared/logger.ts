@@ -1,5 +1,4 @@
 import pino from 'pino';
-import pretty from 'pino-pretty';
 
 import { APP_LOG_LEVEL } from './constants.js';
 

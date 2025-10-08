@@ -19,17 +19,14 @@ export const RankingItemSchema = WinsLossesSchema.extend({
 
 export const RankingSchema = z.array(RankingItemSchema);
 
-export const RoundStatsSchema = z.object({
-	round: z.number(),
-	played: z.number(),
-	wins: z.number(),
-	losses: z.number(),
-});
-
 export const TournamentStatsSchema = z.object({
+	user_id: zUUID,
+	login: z.string(),
 	played: z.number(),
+	final: z.number(),
 	wins: z.number(),
-	round_stats: z.array(RoundStatsSchema),
+	percentage_final: z.number(),
+	percentage_wins: z.number(),
 });
 
 export const PercentageWinsSchema = z.object({
