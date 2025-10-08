@@ -1,11 +1,14 @@
+COMPOSE_DIR=./build
+
 all: up
 
-up: build-backend run-backend
+up:
+	docker compose -f $(COMPOSE_DIR)/docker-compose.yml up -d
 
-run-backend:
-	docker run --env-file build/backend/prod.env -p 8080:8080 backend-image
+down:
+	docker compose -f $(COMPOSE_DIR)/docker-compose.yml down
 
-build-backend:
-	docker build -f build/backend/Dockerfile -t backend-image .
+build:
+	docker compose -f $(COMPOSE_DIR)/docker-compose.yml build
 
-.PHONY: all up run-backend build-backend
+.PHONY: all up down build
