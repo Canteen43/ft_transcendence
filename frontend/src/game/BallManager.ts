@@ -7,7 +7,7 @@ export class BallManager {
   private config: BallEntityConfig;
 
   constructor(config: BallEntityConfig = {}) {
-    this.config = config;
+    this.config = { ...config };
   }
 
   addSplitBall(
@@ -62,6 +62,13 @@ export class BallManager {
 
   resetEffectsAll(): void {
     for (const e of this.entities) e.resetEffects();
+  }
+
+  setSpinDelayMs(delayMs: number): void {
+    this.config.spinDelayMs = delayMs;
+    for (const entity of this.entities) {
+      entity.setSpinDelay(delayMs);
+    }
   }
 
   clear(): void {
