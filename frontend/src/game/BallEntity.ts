@@ -1,4 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
+import { GameConfig } from './GameConfig';
 
 export interface BallEntityConfig {
   magnusCoefficient?: number; // default 0.14
@@ -39,7 +40,7 @@ export class BallEntity {
     // Use tuned defaults from earlier implementation
     this.magnusCoefficient = config.magnusCoefficient ?? 0.14;
     this.spinDecayFactor = config.spinDecayFactor ?? 0.98;
-    this.spinDelayMs = config.spinDelayMs ?? 200;
+    this.spinDelayMs = config.spinDelayMs ?? GameConfig.getSpinDelayMs();
     this.spinTransferFactor = config.spinTransferFactor ?? 1.0;
     this.impulseScale = config.impulseScale ?? 0.016;
   }
@@ -89,6 +90,14 @@ export class BallEntity {
     // Small impulse based on configured scale (~frame time)
     const impulse = magnus.scale(this.impulseScale);
     body.applyImpulse(impulse, this.mesh.position);
+  }
+
+  setSpinDelay(delayMs: number): void {
+    const clamped = Math.max(0, delayMs);
+    this.spinDelayMs = clamped;
+    if (this.spinDelayActive && performance.now() - this.spinActivatedAt >= this.spinDelayMs) {
+      this.spinDelayActive = false;
+    }
   }
 
   /** Decay spin over time */
