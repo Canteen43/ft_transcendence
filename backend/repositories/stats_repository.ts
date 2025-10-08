@@ -5,6 +5,8 @@ import {
 	Ranking,
 	RankingItem,
 	RankingSchema,
+	TournamentStats,
+	TournamentStatsSchema,
 } from '../../shared/schemas/stats.js';
 import { UUID } from '../../shared/types.js';
 import * as db from '../utils/db.js';
@@ -178,5 +180,54 @@ export class StatsRepository {
 
 		const rows = db.queryAll(query + query_filter + query_order, params);
 		return RankingSchema.parse(rows);
+	}
+
+	static getTournamentStats(userId: UUID): TournamentStats | null {
+		const rows = db.queryAll(
+			`
+			WITH final AS (
+				SELECT MAX(tournament_round) AS round
+				FROM tournament_match
+			),
+			pre_calc AS (
+				SELECT  participant.user_id,
+						1 AS played,
+						CASE
+							WHEN match.participant_1_id = participant.id OR match.participant_2_id = participant.id
+							THEN 1
+							ELSE 0
+						END AS final,
+						CASE
+							WHEN (match.participant_1_id = participant.id AND participant_1_score > participant_2_score)
+								OR (match.participant_2_id = participant.id AND participant_2_score > participant_1_score)
+							THEN 1
+							ELSE 0
+						END AS won
+				FROM tournament_participant participant
+				INNER JOIN tournament tournament
+					ON  tournament.id = participant.tournament_id 
+					AND participant.user_id = ?
+				LEFT JOIN tournament_match match
+					ON  tournament.id = match.tournament_id
+					AND match.tournament_round = (SELECT round FROM final LIMIT 1)
+				WHERE tournament.status = 'finished'
+			)
+			SELECT  user_id,
+					login,
+					SUM(played)									AS played,
+					SUM(final)									AS final,
+					SUM(won)									AS wins,
+					1.0 * SUM(won) / NULLIF(SUM(played), 0)		AS percentage_final,
+					1.0 * SUM(final) / NULLIF(SUM(played), 0)	AS percentage_wins
+			FROM pre_calc
+			INNER JOIN user
+				ON pre_calc.user_id = user.id
+			GROUP BY user_id,
+					login;`,
+			[userId]
+		);
+
+		if (!rows.length) return null;
+		return TournamentStatsSchema.parse(rows[0]);
 	}
 }
