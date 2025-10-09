@@ -6463,6 +6463,15 @@ export class Pong3D {
 				const lastVal = sessionStorage.getItem(lastKey);
 				if (lastVal !== null) sessionStorage.setItem(elimKey, lastVal);
 				if (elimVal !== null) sessionStorage.setItem(lastKey, elimVal);
+
+				const elimControlKey = `alias${eliminatedIndex + 1}controls`;
+				const lastControlKey = `alias${lastActiveIndex + 1}controls`;
+				const elimControlVal = sessionStorage.getItem(elimControlKey);
+				const lastControlVal = sessionStorage.getItem(lastControlKey);
+				if (lastControlVal !== null)
+					sessionStorage.setItem(elimControlKey, lastControlVal);
+				if (elimControlVal !== null)
+					sessionStorage.setItem(lastControlKey, elimControlVal);
 			}
 
 			// Reduce player count for next round
