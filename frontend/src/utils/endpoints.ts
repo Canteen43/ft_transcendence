@@ -12,7 +12,7 @@
 // 	"wsURL": "ws://c3a6c2.42berlin.de:8080/websocket"
 // }
 
-// This will be set in production for the tunnel
+// This will be set at run-time when using a tunnel in production
 // {
 // 	"apiBase": "https://123.ngrok.io/api",
 // 	"wsURL": "wss://123.ngrok.io/websocket"
