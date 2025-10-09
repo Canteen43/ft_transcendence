@@ -20,9 +20,9 @@
 			"label": "backend_run",
 			"type": "shell",
 			"command": "npx",
-			"args": ["tsx", "app.ts"],
+			"args": ["tsx", "backend/app.ts"],
 			"options": {
-				"cwd": "${workspaceFolder}/backend"
+				"cwd": "${workspaceFolder}"
 			},
 			"problemMatcher": []
 		},
