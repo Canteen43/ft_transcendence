@@ -1,3 +1,4 @@
+import { TournamentType } from '../../../shared/enums';
 import { Button } from '../buttons/Button';
 import {
 	clearMatchData,
@@ -36,22 +37,22 @@ export class RemoteGameModal extends Modal {
 
 		this.btn2plyr = new Button(
 			img2,
-			() => this.logicRemote(2, false),
+			() => this.logicRemote(2, TournamentType.Regular),
 			this.box
 		);
 		this.btn2plyrPwr = new Button(
 			img2_pu,
-			() => this.logicRemote(2, true),
+			() => this.logicRemote(2, TournamentType.Powerup),
 			this.box
 		);
 		this.btnTourn = new Button(
 			imgt,
-			() => this.logicRemote(4, false),
+			() => this.logicRemote(4, TournamentType.Regular),
 			this.box
 		);
 		this.btnTournPwr = new Button(
 			imgt_pu,
-			() => this.logicRemote(4, true),
+			() => this.logicRemote(4, TournamentType.Powerup),
 			this.box
 		);
 
@@ -88,10 +89,10 @@ export class RemoteGameModal extends Modal {
 
 	private addEnterListener() {
 		const buttonConfigs = [
-			{ button: this.btn2plyr, player: 2, powerUp: false },
-			{ button: this.btn2plyrPwr, player: 2, powerUp: true },
-			{ button: this.btnTourn, player: 4, powerUp: false },
-			{ button: this.btnTournPwr, player: 4, powerUp: true },
+			{ button: this.btn2plyr, player: 2, powerUp: TournamentType.Regular },
+			{ button: this.btn2plyrPwr, player: 2, powerUp: TournamentType.Powerup },
+			{ button: this.btnTourn, player: 4,powerUp: TournamentType.Regular },
+			{ button: this.btnTournPwr, player: 4, powerUp: TournamentType.Powerup },
 		];
 
 		buttonConfigs.forEach(({ button, player, powerUp }) => {
@@ -132,7 +133,7 @@ export class RemoteGameModal extends Modal {
 		});
 	}
 
-	private async logicRemote(tournamentSize: number, powerUp: boolean) {
+	private async logicRemote(tournamentSize: number, type: TournamentType) {
 		// leaveTournament();
 		// const { error } = await apiCall('POST', `/tournaments/leave`);
 		// if (error) {
@@ -155,11 +156,11 @@ export class RemoteGameModal extends Modal {
 		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
 
-		sessionStorage.setItem('split', powerUp == false ? '0' : '1');
-		sessionStorage.setItem('stretch', powerUp == false ? '0' : '1');
-		sessionStorage.setItem('shrink', powerUp == false ? '0' : '1');
+		sessionStorage.setItem('split', type == TournamentType.Regular ? '0' : '1');
+		sessionStorage.setItem('stretch', type == TournamentType.Regular ? '0' : '1');
+		sessionStorage.setItem('shrink', type == TournamentType.Regular ? '0' : '1');
 
 		this.destroy();
-		new AliasModal(this.parent, 1);
+		new AliasModal(this.parent, 1, type);
 	}
 }

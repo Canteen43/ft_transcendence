@@ -83,11 +83,14 @@ export default class TournamentService {
 		}
 	}
 
-	static async getQueueWithLock(size: number): Promise<Set<QueuedUser>> {
+	static async getQueueWithLock(
+		size: number,
+		type: TournamentType
+	): Promise<Set<QueuedUser>> {
 		const result = await LockService.withLock(LockType.Queue, async () =>
-			this.tournamentQueues.get(size)
+			this.getQueue(size, type)
 		);
-		return this.tournamentQueues.get(size) || new Set();
+		return result;
 	}
 
 	static getFullTournament(id: UUID): FullTournament | null {
@@ -222,7 +225,7 @@ export default class TournamentService {
 		type: TournamentType,
 		users: UUID[]
 	): QueuedUser[] {
-		const queue = this.getQueue(type, size);
+		const queue = this.getQueue(size, type);
 		const tournamentUsers = new Array<QueuedUser>();
 		for (const user of users) {
 			const toRemove = this.findInQueue(queue, user);

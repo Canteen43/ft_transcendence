@@ -6,16 +6,18 @@ import {
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
 import { apiCall } from './apiCall';
+import { TournamentType } from '../../../shared/enums.js';
 
 type TournamentJoinResult =
 	| { success: true; waiting?: boolean; tournament?: any }
 	| { success: false; error: string; zodError?: z.ZodError };
 
 export async function joinTournament(
-	targetSize: number
+	targetSize: number, type: TournamentType
 ): Promise<TournamentJoinResult> {
 	const joinData = {
 		size: targetSize,
+		type: type,
 		alias: sessionStorage.getItem('alias'),
 	};
 
@@ -60,7 +62,7 @@ export async function joinTournament(
 	sessionStorage.setItem('gameMode', 'remote');
 
 	if (isTournamentReady) {
-		return await createTournament(playerQueue);
+		return await createTournament(type, playerQueue);
 	}
 
 	return {
@@ -70,9 +72,10 @@ export async function joinTournament(
 }
 
 export async function createTournament(
-	playerQueue: any
+	type: TournamentType, playerQueue: any
 ): Promise<TournamentJoinResult> {
 	const body = {
+		type: type,
 		creator: sessionStorage.getItem('userID') || '',
 		participants: playerQueue.queue,
 	};
