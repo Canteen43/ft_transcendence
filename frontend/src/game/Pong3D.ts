@@ -1380,7 +1380,8 @@ export class Pong3D {
 				sessionStorage.getItem('tournament') === '1';
 			if (
 				isLocalTournament &&
-				(this.playerCount === 3 || this.playerCount === 4)
+				this.playerCount >= 2 &&
+				this.playerCount <= 4
 			) {
 				for (let i = 0; i < this.playerCount; i++) {
 					this.playerScores[i] = this.WINNING_SCORE;
@@ -3019,7 +3020,8 @@ export class Pong3D {
 		const isLocalTournamentSpecial =
 			sessionStorage.getItem('gameMode') === 'local' &&
 			sessionStorage.getItem('tournament') === '1' &&
-			(this.playerCount === 3 || this.playerCount === 4);
+			this.playerCount >= 2 &&
+			this.playerCount <= 4;
 
 		if (isLocalTournamentSpecial) {
 			// Penalize conceding player
@@ -3083,6 +3085,36 @@ export class Pong3D {
 			// Update UI and handle tournament elimination flow
 			this.updatePlayerInfoDisplay();
 			const eliminationResult = this.handleLocalTournamentElimination();
+			if (
+				eliminationResult?.tournamentFinished &&
+				this.playerCount === 2
+			) {
+				let winningIndex = -1;
+				for (let i = 0; i < this.playerCount; i++) {
+					if (i === goalPlayer) continue;
+					if (
+						winningIndex === -1 ||
+						this.playerScores[i] >
+							this.playerScores[winningIndex]
+					) {
+						winningIndex = i;
+					}
+				}
+				if (
+					winningIndex === -1 &&
+					scoringPlayer !== goalPlayer &&
+					scoringPlayer < this.playerCount
+				) {
+					winningIndex = scoringPlayer;
+				}
+				if (winningIndex !== -1) {
+					this.handleLocalTournamentVictory(winningIndex);
+				} else {
+					this.conditionalWarn(
+						'Unable to determine tournament winner after elimination'
+					);
+				}
+			}
 			const isLocalTournament =
 				sessionStorage.getItem('gameMode') === 'local' &&
 				sessionStorage.getItem('tournament') === '1';
