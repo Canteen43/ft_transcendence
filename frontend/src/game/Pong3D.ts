@@ -125,6 +125,10 @@ interface GlowMeshState {
 }
 
 export class Pong3D {
+	private static readonly SOUND_PADDLE = 0;
+	private static readonly SOUND_WALL = 1;
+	private static readonly SOUND_POWERUP_BALL = 2;
+	private static readonly SOUND_POWERUP_WALL = 3;
 	private static babylonWarnFilterInstalled = false;
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
@@ -313,6 +317,13 @@ export class Pong3D {
 	private mainBallHandlersAttached = false;
 	private baseBallY = 0;
 	private readonly REMOTE_POWERUP_SPIN_SPEED = 0.5;
+	private readonly REMOTE_POWERUP_SPAWN_DURATION = 0.25;
+	private readonly REMOTE_POWERUP_COLLECT_DURATION = 0.25;
+	private remotePowerupBaseScale: BABYLON.Vector3 = BABYLON.Vector3.One();
+	private remotePowerupChildBaseScales: WeakMap<
+		BABYLON.AbstractMesh,
+		BABYLON.Vector3
+	> = new WeakMap();
 	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
 	private lastCollisionTimeMs: number = 0;
 	private lastCollisionPaddleIndex: number = -1;
@@ -327,6 +338,49 @@ export class Pong3D {
 	private remotePowerupType: PowerupType | null = null;
 	private lastRemotePowerupState: NetworkPowerupState | null = null;
 	private pendingRemotePowerupState: NetworkPowerupState | null = null;
+	private remotePowerupAnimation:
+		| {
+				type: 'spawn' | 'collect';
+				elapsed: number;
+				duration: number;
+				startPos: BABYLON.Vector3;
+				targetPos: BABYLON.Vector3;
+		  }
+		| null = null;
+	private cleanupStaleRemotePowerups(
+		except?: BABYLON.TransformNode | null
+	): void {
+		if (!this.scene) {
+			return;
+		}
+		const keep = except ?? null;
+		for (const node of this.scene.transformNodes) {
+			if (!node || node === keep || !node.name) {
+				continue;
+			}
+			if (node.isDisposed()) {
+				continue;
+			}
+			if (node.name.includes('.remote.')) {
+				try {
+					node.dispose(false, false);
+				} catch (_) {}
+			}
+		}
+		for (const mesh of this.scene.meshes) {
+			if (!mesh || mesh.isDisposed() || !mesh.name) {
+				continue;
+			}
+			if (keep && mesh.parent === keep) {
+				continue;
+			}
+			if (mesh.name.includes('.remote.')) {
+				try {
+					mesh.dispose(false, false);
+				} catch (_) {}
+			}
+		}
+	}
 
 	private refreshPowerupConfiguration(): void {
 		if (!this.powerupManager) return;
@@ -423,6 +477,36 @@ export class Pong3D {
 		}
 		if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
 			return;
+		}
+		if (this.remotePowerupAnimation) {
+			const anim = this.remotePowerupAnimation;
+			anim.elapsed = Math.min(anim.elapsed + deltaSeconds, anim.duration);
+			const t =
+				anim.duration > 0 ? anim.elapsed / anim.duration : 1;
+			if (anim.type === 'spawn') {
+				const scale = Math.min(1, t);
+				this.setRemotePowerupScale(scale);
+			} else if (anim.type === 'collect') {
+				const smooth = t * t * (3 - 2 * t);
+				const newPos = BABYLON.Vector3.Lerp(
+					anim.startPos,
+					anim.targetPos,
+					smooth
+				);
+				newPos.y = this.baseBallY;
+				this.remotePowerupNode.position.copyFrom(newPos);
+				const scale = Math.max(0, 1 - smooth);
+				this.setRemotePowerupScale(scale);
+			}
+			if (anim.elapsed >= anim.duration) {
+				if (anim.type === 'collect') {
+					this.disposeRemotePowerupVisual();
+				} else {
+					this.setRemotePowerupScale(1);
+				}
+				this.remotePowerupAnimation = null;
+				return;
+			}
 		}
 		const spin = this.REMOTE_POWERUP_SPIN_SPEED * deltaSeconds;
 		const increment = BABYLON.Quaternion.RotationAxis(
@@ -1107,10 +1191,19 @@ export class Pong3D {
 			);
 		});
 
-		const previous = this.lastRemotePowerupState;
+		const previous = this.lastRemotePowerupState
+			? { ...this.lastRemotePowerupState }
+			: null;
 		this.lastRemotePowerupState = state ? { ...state } : null;
 
 		if (!state) {
+			if (
+				this.remotePowerupAnimation &&
+				this.remotePowerupAnimation.type === 'collect'
+			) {
+				this.pendingRemotePowerupState = null;
+				return;
+			}
 			this.disposeRemotePowerupVisual();
 			this.pendingRemotePowerupState = null;
 			return;
@@ -1136,28 +1229,88 @@ export class Pong3D {
 		visual.position.x = worldX;
 		visual.position.z = worldZ;
 
-		const previousStateValue = previous?.s ?? -1;
+	const previousStateValue = previous?.s ?? -1;
+	const glowMesh = this.getRemotePowerupGlowMesh();
+	const glowEntity = glowMesh
+		? ({ collisionMesh: glowMesh } as any)
+		: undefined;
 
 		if (state.s === 0) {
-			if (visual.scaling.x === 0) {
-				visual.scaling.setAll(1);
-			}
 			visual.setEnabled(true);
-		} else if (state.s === 1) {
-			if (state.p >= 0 && previousStateValue !== 1) {
-				this.handlePowerupPickup(type, state.p);
+			if (!previous || previousStateValue !== 0) {
+				this.setRemotePowerupScale(0);
+				this.remotePowerupAnimation = {
+					type: 'spawn',
+					elapsed: 0,
+					duration: this.REMOTE_POWERUP_SPAWN_DURATION,
+					startPos: visual.position.clone(),
+					targetPos: visual.position.clone(),
+				};
 			}
-			this.disposeRemotePowerupVisual();
-		} else if (state.s === 2) {
-			if (
-				state.p >= 0 &&
-				previousStateValue !== 1 &&
-				previousStateValue !== 2
-			) {
-				this.handlePowerupPickup(type, state.p);
-			}
-			this.disposeRemotePowerupVisual();
+			return;
 		}
+
+		const isActivePickup = state.s === 1;
+		const isInactivePickup = state.s === 2;
+
+	if (
+		isActivePickup &&
+		typeof state.p === 'number' &&
+		state.p >= 0 &&
+		previousStateValue !== 1
+	) {
+		this.handlePowerupPickup(type, state.p, glowEntity);
+	} else if (
+		isInactivePickup &&
+		typeof state.p === 'number' &&
+		state.p >= 0 &&
+		previousStateValue !== 1 &&
+		previousStateValue !== 2
+	) {
+		this.handlePowerupPickup(type, state.p, glowEntity);
+	}
+
+		if (
+			previousStateValue === 0 &&
+			this.remotePowerupNode &&
+			!this.remotePowerupNode.isDisposed()
+		) {
+			const startPos = this.remotePowerupNode.position.clone();
+			let targetPos = startPos.clone();
+			if (
+				isActivePickup &&
+				typeof state.p === 'number' &&
+				state.p >= 0 &&
+				state.p < this.paddles.length
+			) {
+				const paddle = this.paddles[state.p];
+				if (paddle) {
+					const absolute = paddle.getAbsolutePosition();
+					targetPos = new BABYLON.Vector3(
+						absolute.x,
+						this.baseBallY,
+						absolute.z
+					);
+				}
+			}
+			this.remotePowerupAnimation = {
+				type: 'collect',
+				elapsed: 0,
+				duration: this.REMOTE_POWERUP_COLLECT_DURATION,
+				startPos,
+				targetPos,
+			};
+			return;
+		}
+
+		if (
+			this.remotePowerupAnimation &&
+			this.remotePowerupAnimation.type === 'collect'
+		) {
+			return;
+		}
+
+		this.disposeRemotePowerupVisual();
 	}
 
 	private ensureRemotePowerupVisual(
@@ -1182,23 +1335,71 @@ export class Pong3D {
 		clone.rotationQuaternion = BABYLON.Quaternion.Identity();
 		clone.rotation = BABYLON.Vector3.Zero();
 		clone.scaling.setAll(1);
+		this.remotePowerupBaseScale = clone.scaling.clone();
+		this.remotePowerupChildBaseScales = new WeakMap();
 		const meshes = clone.getChildMeshes(false);
 		meshes.forEach(mesh => {
 			mesh.isPickable = false;
+			this.remotePowerupChildBaseScales.set(
+				mesh,
+				mesh.scaling.clone()
+			);
 		});
 		this.remotePowerupNode = clone;
 		this.remotePowerupType = type;
+		this.cleanupStaleRemotePowerups(clone);
 		return clone;
 	}
 
 	private disposeRemotePowerupVisual(): void {
 		if (this.remotePowerupNode && !this.remotePowerupNode.isDisposed()) {
 			try {
-				this.remotePowerupNode.dispose(true, true);
+				this.remotePowerupNode.dispose(false, false);
 			} catch (_) {}
 		}
 		this.remotePowerupNode = null;
-		this.remotePowerupType = null;
+	this.remotePowerupType = null;
+	this.remotePowerupAnimation = null;
+	this.remotePowerupBaseScale = BABYLON.Vector3.One();
+	this.remotePowerupChildBaseScales = new WeakMap();
+	this.cleanupStaleRemotePowerups(null);
+}
+
+private getRemotePowerupGlowMesh(): BABYLON.Mesh | null {
+	if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
+		return null;
+	}
+	const meshes = this.remotePowerupNode.getChildMeshes(false);
+	const mesh = meshes.find(child => child instanceof BABYLON.Mesh) as
+		| BABYLON.Mesh
+		| undefined;
+	return mesh ?? null;
+}
+
+	private setRemotePowerupScale(scale: number): void {
+		if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
+			return;
+		}
+		const clamped = Math.max(0, Math.min(1, scale));
+		const base = this.remotePowerupBaseScale;
+		this.remotePowerupNode.scaling.copyFromFloats(
+			base.x * clamped,
+			base.y * clamped,
+			base.z * clamped
+		);
+		const meshes = this.remotePowerupNode.getChildMeshes(false);
+		meshes.forEach(mesh => {
+			let baseScale = this.remotePowerupChildBaseScales.get(mesh);
+			if (!baseScale) {
+				baseScale = mesh.scaling.clone();
+				this.remotePowerupChildBaseScales.set(mesh, baseScale.clone());
+			}
+			mesh.scaling.copyFromFloats(
+				baseScale.x * clamped,
+				baseScale.y * clamped,
+				baseScale.z * clamped
+			);
+		});
 	}
 
 	private getActiveBallImpostors(): BABYLON.PhysicsImpostor[] {
@@ -1529,12 +1730,22 @@ export class Pong3D {
 					'dong',
 					'powerupHigh'
 				);
+				if (this.gameMode === 'master') {
+					this.sendSoundEffectToClients(
+						Pong3D.SOUND_POWERUP_BALL
+					);
+				}
 			},
 			onWallCollision: () => {
 				void this.audioSystem.playSoundEffectWithHarmonic(
 					'dong',
 					'powerupLow'
 				);
+				if (this.gameMode === 'master') {
+					this.sendSoundEffectToClients(
+						Pong3D.SOUND_POWERUP_WALL
+					);
+				}
 			},
 		});
 		this.lastPowerupUpdateTimeMs =
@@ -2204,7 +2415,7 @@ export class Pong3D {
 
 		// Send sound effect to clients (master mode only)
 		if (this.gameMode === 'master') {
-			this.sendSoundEffectToClients(0); // 0 = paddle ping
+			this.sendSoundEffectToClients(Pong3D.SOUND_PADDLE);
 		}
 
 		const paddle = this.paddles[paddleIndex]!;
@@ -2902,7 +3113,7 @@ export class Pong3D {
 		this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
 
 		// Send sound effect to clients (Master mode only)
-		this.sendSoundEffectToClients(1); // 1 = wall ping
+		this.sendSoundEffectToClients(Pong3D.SOUND_WALL);
 
 		// Corner handling: if near a convex corner (near X and Z bounds),
 		// reflect velocity about the corner bisector to avoid unstable normals.
@@ -6034,7 +6245,7 @@ export class Pong3D {
 
 		try {
 			// Send via WebSocket using game's message format
-			const soundData = { s: soundType }; // s = sound, 0 = paddle ping, 1 = wall ping
+			const soundData = { s: soundType }; // s = sound id (see SOUND_* constants)
 			const payloadString = JSON.stringify(soundData);
 			const message: Message = {
 				t: MESSAGE_GAME_STATE,
@@ -6062,12 +6273,22 @@ export class Pong3D {
 		this.conditionalLog(`🔊 Remote sound effect received: ${soundType}`);
 
 		// Play the appropriate sound effect based on type
-		if (soundType === 0) {
+		if (soundType === Pong3D.SOUND_PADDLE) {
 			// Paddle ping
 			this.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
-		} else if (soundType === 1) {
+		} else if (soundType === Pong3D.SOUND_WALL) {
 			// Wall ping
 			this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
+		} else if (soundType === Pong3D.SOUND_POWERUP_BALL) {
+			this.audioSystem.playSoundEffectWithHarmonic(
+				'dong',
+				'powerupHigh'
+			);
+		} else if (soundType === Pong3D.SOUND_POWERUP_WALL) {
+			this.audioSystem.playSoundEffectWithHarmonic(
+				'dong',
+				'powerupLow'
+			);
 		} else {
 			this.conditionalWarn(`Unknown sound effect type: ${soundType}`);
 		}

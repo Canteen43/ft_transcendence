@@ -137,7 +137,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		if (powerupSnapshot) {
 			const powerupState: NetworkPowerupState = {
 				t: POWERUP_TYPE_TO_ID[powerupSnapshot.type],
-				x: networkNumber(powerupSnapshot.x),
+				x: networkNumber(powerupSnapshot.x * -1),
 				z: networkNumber(powerupSnapshot.z),
 				s: powerupSnapshot.state,
 				p: powerupSnapshot.paddleIndex ?? -1,
