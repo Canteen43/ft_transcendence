@@ -181,6 +181,7 @@ export class Pong3D {
 		this.ballManager.resetEffectsAll();
 		// Reset shared effects (spin/rally) for safety
 		this.ballEffects.resetAllEffects();
+		this.clearRecentHitters();
 	}
 
 	private engine!: BABYLON.Engine;
@@ -1170,6 +1171,8 @@ export class Pong3D {
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
 	private secondLastPlayerToHitBall: number = -1; // Track which player hit the ball before the last hitter (0-based index)
+	private recentHitterHistory: number[] = [];
+	private static readonly RECENT_HITTER_HISTORY_LIMIT = 10;
 	private currentServer: number = -1; // Track which player should serve next (the one who conceded last)
 	private onGoalCallback:
 		| ((scoringPlayer: number, goalPlayer: number) => void)
@@ -2011,6 +2014,7 @@ export class Pong3D {
 		} else if (this.mainBallEntity) {
 			this.mainBallEntity.recordHit(paddleIndex);
 		}
+		this.recordRecentHitter(paddleIndex);
 		this.conditionalLog(
 			`Last player to hit ball updated to: ${this.lastPlayerToHitBall}, Second last: ${this.secondLastPlayerToHitBall}`
 		);
@@ -2881,6 +2885,34 @@ export class Pong3D {
 		}
 	}
 
+	private clearRecentHitters(): void {
+		this.recentHitterHistory.length = 0;
+	}
+
+	private recordRecentHitter(paddleIndex: number): void {
+		if (paddleIndex < 0) return;
+		const lastEntry =
+			this.recentHitterHistory[this.recentHitterHistory.length - 1];
+		if (lastEntry === paddleIndex) return;
+		this.recentHitterHistory.push(paddleIndex);
+		const overflow =
+			this.recentHitterHistory.length -
+			Pong3D.RECENT_HITTER_HISTORY_LIMIT;
+		if (overflow > 0) {
+			this.recentHitterHistory.splice(0, overflow);
+		}
+	}
+
+	private findRecentNonGoalHitter(goalPlayer: number): number | null {
+		for (let i = this.recentHitterHistory.length - 1; i >= 0; i--) {
+			const candidate = this.recentHitterHistory[i];
+			if (candidate !== goalPlayer && candidate !== -1) {
+				return candidate;
+			}
+		}
+		return null;
+	}
+
 	private handleGoalCollision(
 		goalIndex: number,
 		triggeringBall?: BABYLON.PhysicsImpostor | null
@@ -2958,13 +2990,34 @@ export class Pong3D {
 				`🏴 OWN GOAL: Random server selected from ${validServers.length} valid paddles - Player ${this.currentServer + 1} will serve next`
 			);
 
+			const fallbackScorer = this.findRecentNonGoalHitter(goalPlayer);
+
 			// Check if this is a direct serve into own goal (no other players hit the ball)
 			if (ballSecondLast === -1) {
-				wasDirectServeOwnGoal = true;
-				// Direct serve own goal - no points awarded, but ball still travels to boundary
-				this.conditionalLog(
-					`🏴 DIRECT SERVE OWN GOAL! Player ${goalPlayer + 1} served directly into their own goal - no point awarded, ball will travel to boundary`
-				);
+				if (fallbackScorer !== null) {
+					scoringPlayer = fallbackScorer;
+					this.conditionalLog(
+						`🏴 OWN GOAL! Player ${goalPlayer + 1} scored in their own goal. Awarding point to Player ${scoringPlayer + 1} (recent opponent fallback)`
+					);
+				} else {
+					wasDirectServeOwnGoal = true;
+					// Direct serve own goal - no points awarded, but ball still travels to boundary
+					this.conditionalLog(
+						`🏴 DIRECT SERVE OWN GOAL! Player ${goalPlayer + 1} served directly into their own goal - no point awarded, ball will travel to boundary`
+					);
+				}
+			} else if (ballSecondLast === goalPlayer) {
+				if (fallbackScorer !== null) {
+					scoringPlayer = fallbackScorer;
+					this.conditionalLog(
+						`🏴 OWN GOAL! Player ${goalPlayer + 1} scored in their own goal. Awarding point to Player ${scoringPlayer + 1} (fallback recent hitter)`
+					);
+				} else {
+					wasDirectServeOwnGoal = true;
+					this.conditionalLog(
+						`🏴 OWN GOAL! Player ${goalPlayer + 1} scored in their own goal but no eligible opponent was recorded - no point awarded`
+					);
+				}
 			} else {
 				// Normal own goal after rally - award to second last player of triggering ball
 				scoringPlayer = ballSecondLast;
@@ -2976,6 +3029,8 @@ export class Pong3D {
 
 		// Skip scoring only for direct-serve own goals (server never lost possession)
 		if (
+			wasOwnGoal &&
+			wasDirectServeOwnGoal &&
 			this.currentServer === goalPlayer &&
 			ballLast === this.currentServer &&
 			ballSecondLast === -1
@@ -2985,6 +3040,7 @@ export class Pong3D {
 			);
 			this.currentServer = goalPlayer;
 			this.secondLastPlayerToHitBall = -1;
+			this.clearRecentHitters();
 			this.lastGoalTime = performance.now();
 		}
 
@@ -3000,6 +3056,7 @@ export class Pong3D {
 			// Skip awarding the point and just reset for next rally
 			this.currentServer = goalPlayer; // Conceding player serves next
 			this.secondLastPlayerToHitBall = -1;
+			this.clearRecentHitters();
 			this.lastGoalTime = performance.now();
 			this.handleSplitBallAfterGoal(triggeringBall);
 			return; // Exit without awarding points
@@ -3056,7 +3113,7 @@ export class Pong3D {
 				this.sendScoreUpdateToClients(scoringPlayer);
 			} else {
 				this.conditionalLog(
-					`🏴 DIRECT SERVE OWN GOAL: Skipping point award for invalid serve`
+					`🏴 OWN GOAL: Skipping point award (no eligible opponent to credit)`
 				);
 			}
 		}
@@ -3158,6 +3215,7 @@ export class Pong3D {
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
 			this.secondLastPlayerToHitBall = -1;
+			this.clearRecentHitters();
 			this.lastGoalTime = performance.now();
 			return;
 		}
@@ -3273,6 +3331,7 @@ export class Pong3D {
 			// Reset cooldown and last player tracker - game is over
 			this.lastPlayerToHitBall = -1;
 			this.secondLastPlayerToHitBall = -1;
+			this.clearRecentHitters();
 			this.lastGoalTime = performance.now();
 
 			// Let the ball continue its natural trajectory and exit bounds
@@ -3347,6 +3406,7 @@ export class Pong3D {
 			this.ballEffects.resetRallySpeed();
 			this.lastPlayerToHitBall = -1;
 			this.secondLastPlayerToHitBall = -1;
+			this.clearRecentHitters();
 			this.lastGoalTime = performance.now();
 			return;
 		}
@@ -3386,6 +3446,7 @@ export class Pong3D {
 			);
 		}
 		this.secondLastPlayerToHitBall = -1;
+		this.clearRecentHitters();
 		this.lastGoalTime = performance.now();
 	}
 
@@ -4508,6 +4569,7 @@ export class Pong3D {
 		// Reset last player to hit ball - new rally starts
 		this.lastPlayerToHitBall = -1;
 		this.secondLastPlayerToHitBall = -1;
+		this.clearRecentHitters();
 
 		// Reset global increment gating reference position to current ball pos
 		if (this.ballMesh) {
@@ -5390,6 +5452,7 @@ export class Pong3D {
 		// Reset hit tracking for new game
 		this.lastPlayerToHitBall = -1;
 		this.secondLastPlayerToHitBall = -1;
+		this.clearRecentHitters();
 
 		this.conditionalLog(
 			`🎮 Game started: First server is Player ${this.currentServer + 1} (index ${this.currentServer})`
