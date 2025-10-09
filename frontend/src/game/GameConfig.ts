@@ -27,7 +27,6 @@ type PhysicsSettingKey =
 	| 'maxBallSpeed'
 	| 'rallySpeedIncrementPercent';
 
-const PHYSICS_SETTING_PREFIX = 'physics:';
 const VISUAL_SETTING_PREFIX = 'visual:';
 const GAMEPLAY_SETTING_PREFIX = 'gameplay:';
 
@@ -37,7 +36,10 @@ export class GameConfig {
 	private static readonly DEFAULT_THIS_PLAYER = 1;
 	private static readonly DEFAULT_GAME_MODE = 'local'; // Team convention: string values
 
-	private static readonly DEFAULT_PHYSICS_SETTINGS: Record<PhysicsSettingKey, number> = {
+	private static readonly DEFAULT_PHYSICS_SETTINGS: Record<
+		PhysicsSettingKey,
+		number
+	> = {
 		ballRadius: 0.32,
 		outOfBoundsDistance: 20,
 		physicsTimeStep: 1 / 240,
@@ -55,10 +57,13 @@ export class GameConfig {
 		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
 		wallNearParallelAngleAdjustment: 0,
 		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
-		ballBaseSpeed: 5,
+		ballBaseSpeed: 9,
 		maxBallSpeed: 24,
-		rallySpeedIncrementPercent: 5,
+		rallySpeedIncrementPercent: 7,
 	};
+	private static physicsOverrides: Partial<
+		Record<PhysicsSettingKey, number>
+	> = {};
 
 	private static readonly DEFAULT_GLOW_BASE_INTENSITY = 3;
 
@@ -66,7 +71,7 @@ export class GameConfig {
 	private static readonly DEFAULT_COLLISION_DEBOUNCE_MS = 200;
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_INTERVAL_MS = 150;
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
-	private static readonly DEFAULT_SPIN_DELAY_MS = 350; // a bit long?
+	private static readonly DEFAULT_SPIN_DELAY_MS = 250; // a bit long?
 	private static spinDelayMs = GameConfig.DEFAULT_SPIN_DELAY_MS;
 
 	// Debug/Logging controls
@@ -76,16 +81,12 @@ export class GameConfig {
 	// enable master to control all player paddles in remote games
 	private static readonly DEFAULT_MASTER_CONTROL = false;
 
-	private static getPhysicsSettingKey(key: PhysicsSettingKey): string {
-		return `${PHYSICS_SETTING_PREFIX}${key}`;
-	}
-
 	private static getPhysicsSetting(key: PhysicsSettingKey): number {
-		const storageKey = this.getPhysicsSettingKey(key);
-		const stored = sessionStorage.getItem(storageKey);
-		if (stored === null) return this.DEFAULT_PHYSICS_SETTINGS[key];
-		const parsed = Number(stored);
-		return Number.isFinite(parsed) ? parsed : this.DEFAULT_PHYSICS_SETTINGS[key];
+		const override = this.physicsOverrides[key];
+		if (override === undefined) {
+			return this.DEFAULT_PHYSICS_SETTINGS[key];
+		}
+		return override;
 	}
 
 	private static setPhysicsSetting(
@@ -93,7 +94,7 @@ export class GameConfig {
 		value: number
 	): void {
 		if (!Number.isFinite(value)) return;
-		sessionStorage.setItem(this.getPhysicsSettingKey(key), value.toString());
+		this.physicsOverrides[key] = value;
 	}
 
 	private static getVisualSetting(key: string, fallback: number): number {
@@ -106,7 +107,10 @@ export class GameConfig {
 
 	private static setVisualSetting(key: string, value: number): void {
 		if (!Number.isFinite(value)) return;
-		sessionStorage.setItem(`${VISUAL_SETTING_PREFIX}${key}`, value.toString());
+		sessionStorage.setItem(
+			`${VISUAL_SETTING_PREFIX}${key}`,
+			value.toString()
+		);
 	}
 
 	private static getGameplaySetting(key: string, fallback: number): number {
@@ -119,7 +123,10 @@ export class GameConfig {
 
 	private static setGameplaySetting(key: string, value: number): void {
 		if (!Number.isFinite(value)) return;
-		sessionStorage.setItem(`${GAMEPLAY_SETTING_PREFIX}${key}`, value.toString());
+		sessionStorage.setItem(
+			`${GAMEPLAY_SETTING_PREFIX}${key}`,
+			value.toString()
+		);
 	}
 
 	/**
@@ -488,7 +495,9 @@ export class GameConfig {
 		sessionStorage.setItem('debugLogging', enabled.toString());
 		// Only log this change if we're enabling logging or if it was already enabled
 		if (enabled || this.isDebugLoggingEnabled()) {
-			conditionalLog(`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
+			conditionalLog(
+				`🎮 Debug logging ${enabled ? 'enabled' : 'disabled'}`
+			);
 		}
 	}
 
@@ -499,7 +508,9 @@ export class GameConfig {
 
 	static setGamestateLogging(enabled: boolean): void {
 		sessionStorage.setItem('gamestateLogging', enabled.toString());
-		conditionalLog(`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`);
+		conditionalLog(
+			`🎮 Gamestate logging ${enabled ? 'enabled' : 'disabled'}`
+		);
 	}
 
 	static isMasterControlEnabled(): boolean {
@@ -561,9 +572,16 @@ export class GameConfig {
 		sessionStorage.removeItem('aiCentralLimit');
 		sessionStorage.removeItem('aiInputDurationBase');
 		sessionStorage.removeItem('aiInputDurationScale');
-		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}collisionDebounceMs`);
-		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementIntervalMs`);
-		sessionStorage.removeItem(`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementDistance`);
+		sessionStorage.removeItem(
+			`${GAMEPLAY_SETTING_PREFIX}collisionDebounceMs`
+		);
+		sessionStorage.removeItem(
+			`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementIntervalMs`
+		);
+		sessionStorage.removeItem(
+			`${GAMEPLAY_SETTING_PREFIX}minRallyIncrementDistance`
+		);
+		this.physicsOverrides = {};
 		conditionalLog('🎮 GameConfig cleared from sessionStorage');
 	}
 
