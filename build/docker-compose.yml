@@ -19,7 +19,6 @@ services:
             dockerfile: build/frontend/Dockerfile
         restart: unless-stopped
         command: nginx -g 'daemon off;'
-        env_file: ./frontend/prod.env
         ports:
             - 8000:80
         networks:
