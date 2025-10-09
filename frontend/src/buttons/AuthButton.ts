@@ -143,26 +143,11 @@ export class AuthComponent {
 				);
 			}
 		}, 150);
-		this.closeTimeout = setTimeout(() => {
-			if (this.dropdown) {
-				this.dropdown.classList.remove(
-					'opacity-100',
-					'pointer-events-auto',
-					'scale-100'
-				);
-				this.dropdown.classList.add(
-					'opacity-0',
-					'pointer-events-none',
-					'scale-95'
-				);
-			}
-		}, 150);
 	};
 
 	private logout() {
 		sessionStorage.clear();
 		webSocket.close();
-		console.debug('Dispatching LOGOUT SUCCESS');
 		console.debug('Dispatching LOGOUT SUCCESS');
 		document.dispatchEvent(new CustomEvent('logout-success'));
 		console.info('Logout successful');

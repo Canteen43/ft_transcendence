@@ -34,4 +34,4 @@ await getEndpoints();
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
-new ChatBannerManager(app);
+// new ChatBannerManager(app);

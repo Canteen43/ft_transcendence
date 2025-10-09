@@ -23,7 +23,7 @@ export function updateTournData(tournData: any): void {
 	console.debug('tournData =', tournData);
 
 	console.debug('Clearing match data before updating tournament');
-	clearMatchData();
+	// clearMatchData();
 	clearTournData();
 
 	// Helper function to get alias from user_id
