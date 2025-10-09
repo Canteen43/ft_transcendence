@@ -38,7 +38,7 @@ export class Landing {
 	) {
 		this.callbacks = callbacks;
 		this.canvas = document.createElement('canvas');
-		this.canvas.className = 'w-full h-full absolute top-0 left-0 z-0';
+		this.canvas.className = 'w-full h-full absolute top-0 left-0 z-0  block';
 		container.appendChild(this.canvas);
 		this.init(modelPath);
 	}
@@ -120,27 +120,6 @@ export class Landing {
 	}
 
 	private setupHDR(): void {
-		// Create skybox with your background image
-		// const skybox = BABYLON.MeshBuilder.CreateSphere(
-		// 	'skybox',
-		// 	{ diameter: 1000 },
-		// 	this.scene
-		// );
-		// skybox.isPickable = false;
-		// const skyboxMaterial = new BABYLON.PBRMaterial('skybox', this.scene);
-		// skyboxMaterial.backFaceCulling = false;
-		// skyboxMaterial.unlit = true;
-		// skyboxMaterial.metallic = 0;
-		// skyboxMaterial.roughness = 1;
-		// const skyboxTexture = new BABYLON.Texture(
-		// 	'/psychedelic.hdr',
-		// 	this.scene
-		// );
-		// skyboxTexture.level = 0.4;
-		// skyboxMaterial.albedoTexture = skyboxTexture;
-		// skybox.material = skyboxMaterial;
-		// skybox.infiniteDistance = true;
-		//short code for hdr
 		const envTexture = new BABYLON.HDRCubeTexture('/psychedelic.hdr', this.scene, 512, false, true, false, true);
 		this.scene.environmentTexture = envTexture;
 		this.scene.createDefaultSkybox(envTexture, true);
@@ -252,7 +231,7 @@ export class Landing {
 		// Keep the same alpha and beta angles
 		// Only adjust the target and radius
 		this.camera.setTarget(center);
-		this.camera.radius = maxSize * 0.3; // Closer multiplier (was 1)
+		this.camera.radius = maxSize * 0.2; // Closer multiplier (was 1)
 
 		console.debug(
 			'📹 Camera fitted to scene at',

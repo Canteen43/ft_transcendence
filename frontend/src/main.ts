@@ -1,6 +1,5 @@
 import { AuthComponent } from './buttons/AuthButton';
 import { HomeButton } from './buttons/HomeButton';
-import { TwoFactAuthButton } from './buttons/TwoFactAuthButton';
 import { ChatBannerManager } from './utils/ChatBannerManager';
 import { router } from './utils/Router';
 import { state } from './utils/State';
@@ -23,8 +22,7 @@ window.addEventListener('unhandledrejection', event => {
 });
 
 const app = document.getElementById('app') as HTMLDivElement;
-app.className = 'w-screen h-screen flex flex-col bg-blue-200';
-// app.style.backgroundColor = 'blue';
+app.className = 'w-screen h-screen flex flex-col bg-white bg-center';
 app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
@@ -33,5 +31,4 @@ await getEndpoints();
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
-new TwoFactAuthButton(app);
 new ChatBannerManager(app);
