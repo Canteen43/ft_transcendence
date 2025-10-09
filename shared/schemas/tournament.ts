@@ -3,7 +3,7 @@ import {
 	ALLOWED_TOURNAMENT_SIZES,
 	ERROR_INVALID_TOURNAMENT_SIZE,
 } from '../constants.js';
-import { TournamentStatus } from '../enums.js';
+import { TournamentStatus, TournamentType } from '../enums.js';
 import { zUUID } from '../types.js';
 import { MatchSchemaWithUserId } from './match.js';
 import { ParticipantSchema } from './participant.js';
@@ -27,6 +27,7 @@ export const CreateTournamentSchema = TournamentSchema.omit({
 });
 
 export const CreateTournamentApiSchema = z.object({
+	type: z.enum(TournamentType),
 	creator: zUUID,
 	participants: z.array(zUUID).refine(
 		// Check if tournament size is valid
@@ -41,6 +42,7 @@ export const UpdateTournamentSchema = TournamentSchema.pick({
 
 export const JoinTournamentSchema = z.object({
 	size: z.number().int(),
+	type: z.enum(TournamentType),
 	alias: z
 		.string()
 		.min(3, 'Alias must be at least 3 characters')

@@ -28,6 +28,7 @@ async function createTournament(
 	logger.debug('Create tournament request received');
 	try {
 		const tournament = TournamentService.createTournamentFromQueue(
+			request.body.type,
 			request.body.creator,
 			request.body.participants
 		);
@@ -86,6 +87,7 @@ async function joinTournament(
 	try {
 		await TournamentService.joinQueue(
 			request.body.size,
+			request.body.type,
 			authRequest.token.userId,
 			request.body.alias
 		);
@@ -96,7 +98,7 @@ async function joinTournament(
 		throw error;
 	}
 
-	const queue = await TournamentService.getQueue(request.body.size);
+	const queue = await TournamentService.getQueueWithLock(request.body.size);
 	return { queue: Array.from(queue).map(user => user.userId) };
 }
 

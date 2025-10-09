@@ -29,3 +29,8 @@ export enum QuitReason {
 	Disconnect = 1,
 	Error = 2,
 }
+
+export enum TournamentType {
+	Regular = 0,
+	Powerup = 1,
+}
