@@ -5,6 +5,8 @@
 
 import { conditionalLog } from './Logger';
 
+export type ControlScheme = 'arrows' | 'wasd' | 'ijkl' | '8456';
+
 type PhysicsSettingKey =
 	| 'ballRadius'
 	| 'outOfBoundsDistance'
@@ -13,6 +15,7 @@ type PhysicsSettingKey =
 	| 'ballAngleMultiplier'
 	| 'angularReturnLimit'
 	| 'serveAngleLimit'
+	| 'serveOffset'
 	| 'paddleMass'
 	| 'paddleForce'
 	| 'paddleRange'
@@ -46,7 +49,8 @@ export class GameConfig {
 		physicsSolverIterations: 15,
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
-		serveAngleLimit: (10 * Math.PI) / 180,
+		serveAngleLimit: (30 * Math.PI) / 180,
+		serveOffset: 0.5,
 		paddleMass: 2.8,
 		paddleForce: 15,
 		paddleRange: 5,
@@ -57,9 +61,9 @@ export class GameConfig {
 		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
 		wallNearParallelAngleAdjustment: 0,
 		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
-		ballBaseSpeed: 9,
-		maxBallSpeed: 24,
-		rallySpeedIncrementPercent: 7,
+		ballBaseSpeed: 12,
+		maxBallSpeed: 30,
+		rallySpeedIncrementPercent: 8,
 	};
 	private static physicsOverrides: Partial<
 		Record<PhysicsSettingKey, number>
@@ -80,6 +84,13 @@ export class GameConfig {
 
 	// enable master to control all player paddles in remote games
 	private static readonly DEFAULT_MASTER_CONTROL = false;
+
+	private static readonly DEFAULT_CONTROL_SCHEMES: ControlScheme[] = [
+		'arrows',
+		'wasd',
+		'ijkl',
+		'8456',
+	];
 
 	private static getPhysicsSetting(key: PhysicsSettingKey): number {
 		const override = this.physicsOverrides[key];
@@ -206,6 +217,13 @@ export class GameConfig {
 		return this.getGameMode() === 'remote';
 	}
 
+	static isLocalTournament(): boolean {
+		return (
+			this.isLocalMode() &&
+			sessionStorage.getItem('tournament') === '1'
+		);
+	}
+
 	/**
 	 * Get player name from sessionStorage
 	 * Default names: Player 1 = "cat", Player 2 = "dog", Player 3 = "monkey", Player 4 = "goat"
@@ -316,6 +334,99 @@ export class GameConfig {
 	static setServeAngleLimit(value: number): void {
 		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
 		this.setPhysicsSetting('serveAngleLimit', clamped);
+	}
+
+	static getServeOffset(): number {
+		return this.getPhysicsSetting('serveOffset');
+	}
+
+	static setServeOffset(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setPhysicsSetting('serveOffset', clamped);
+	}
+
+	private static normalizeControlScheme(
+		value: string | null
+	): ControlScheme | null {
+		if (!value) return null;
+		const normalized = value.toLowerCase();
+		switch (normalized) {
+			case 'arrows':
+			case 'arrow':
+			case 'arrowkeys':
+				return 'arrows';
+			case 'wasd':
+				return 'wasd';
+			case 'ijkl':
+				return 'ijkl';
+			case '8456':
+			case 'num8456':
+			case 'numpad':
+			case 'numpad8456':
+				return '8456';
+			default:
+				return null;
+		}
+	}
+
+	static getDefaultControlScheme(
+		playerIndex: 1 | 2 | 3 | 4
+	): ControlScheme {
+		return (
+			this.DEFAULT_CONTROL_SCHEMES[playerIndex - 1] ?? this.DEFAULT_CONTROL_SCHEMES[0]
+		);
+	}
+
+	static getPlayerControlScheme(
+		playerIndex: 1 | 2 | 3 | 4
+	): ControlScheme {
+		const key = `alias${playerIndex}controls`;
+		const stored = sessionStorage.getItem(key);
+		const normalized = this.normalizeControlScheme(stored);
+		if (normalized) return normalized;
+		return this.getDefaultControlScheme(playerIndex);
+	}
+
+	static setPlayerControlScheme(
+		playerIndex: 1 | 2 | 3 | 4,
+		scheme: string
+	): void {
+		if (!this.isLocalTournament()) {
+			return;
+		}
+		const normalized =
+			this.normalizeControlScheme(scheme) ??
+			this.getDefaultControlScheme(playerIndex);
+		sessionStorage.setItem(`alias${playerIndex}controls`, normalized);
+	}
+
+	static setTournamentSeedAlias(
+		playerIndex: 1 | 2 | 3 | 4,
+		alias: string
+	): void {
+		sessionStorage.setItem(
+			`tournamentSeedAlias${playerIndex}`,
+			alias
+		);
+	}
+
+	static getTournamentSeedAlias(
+		playerIndex: 1 | 2 | 3 | 4
+	): string | null {
+		return sessionStorage.getItem(`tournamentSeedAlias${playerIndex}`);
+	}
+
+	static clearTournamentSeedAliases(): void {
+		for (let i = 1; i <= 4; i++) {
+			sessionStorage.removeItem(`tournamentSeedAlias${i}`);
+		}
+	}
+
+	static isCurrentAliasSeed(playerIndex: 1 | 2 | 3 | 4): boolean {
+		const current = sessionStorage.getItem(`alias${playerIndex}`);
+		const seed = this.getTournamentSeedAlias(playerIndex);
+		if (seed === null || current === null) return true;
+		return current === seed;
 	}
 
 	static getPaddleMass(): number {
@@ -547,6 +658,28 @@ export class GameConfig {
 		if (!sessionStorage.getItem('masterControl')) {
 			this.setMasterControlEnabled(this.DEFAULT_MASTER_CONTROL);
 		}
+		if (this.isLocalTournament()) {
+			for (let i = 1; i <= 4; i++) {
+				const index = i as 1 | 2 | 3 | 4;
+				const key = `alias${index}controls`;
+				const stored = sessionStorage.getItem(key);
+				if (!this.normalizeControlScheme(stored)) {
+					this.setPlayerControlScheme(
+						index,
+						this.getDefaultControlScheme(index)
+					);
+				}
+				const alias = sessionStorage.getItem(`alias${index}`);
+				if (alias !== null) {
+					this.setTournamentSeedAlias(index, alias);
+				}
+			}
+		} else {
+			for (let i = 1; i <= 4; i++) {
+				sessionStorage.removeItem(`alias${i}controls`);
+			}
+			this.clearTournamentSeedAliases();
+		}
 
 		conditionalLog('🎮 GameConfig initialized:', this.getGameConfig());
 	}
@@ -562,6 +695,11 @@ export class GameConfig {
 		sessionStorage.removeItem('alias2');
 		sessionStorage.removeItem('alias3');
 		sessionStorage.removeItem('alias4');
+		sessionStorage.removeItem('alias1controls');
+		sessionStorage.removeItem('alias2controls');
+		sessionStorage.removeItem('alias3controls');
+		sessionStorage.removeItem('alias4controls');
+		this.clearTournamentSeedAliases();
 		sessionStorage.removeItem('player1');
 		sessionStorage.removeItem('player2');
 		sessionStorage.removeItem('player3');
