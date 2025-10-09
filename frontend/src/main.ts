@@ -6,13 +6,9 @@ import { state } from './utils/State';
 import { webSocket } from './utils/WebSocketWrapper';
 import { getEndpoints } from './utils/endpoints';
 
-import { state } from './utils/State';
-import { webSocket } from './utils/WebSocketWrapper';
-import { getEndpoints } from './utils/endpoints';
 
 // Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
 import '@babylonjs/loaders';
-import './style.css';
 import './style.css';
 
 // Global exposure for debugging
@@ -26,12 +22,7 @@ window.addEventListener('unhandledrejection', event => {
 	console.error('Unhandled promise rejection', event.reason);
 });
 
-window.addEventListener('error', event => {
-	console.error('Unhandled error', event.error);
-});
-window.addEventListener('unhandledrejection', event => {
-	console.error('Unhandled promise rejection', event.reason);
-});
+
 
 const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col bg-white bg-center';
