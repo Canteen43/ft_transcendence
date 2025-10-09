@@ -57,7 +57,7 @@ export class GameConfig {
 		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
 		wallNearParallelAngleAdjustment: 0,
 		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
-		ballBaseSpeed: 9,
+		ballBaseSpeed: 11,
 		maxBallSpeed: 24,
 		rallySpeedIncrementPercent: 7,
 	};
