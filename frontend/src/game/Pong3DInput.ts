@@ -15,7 +15,7 @@
  * - Double-click canvas: Toggle fullscreen
  */
 import { conditionalLog, conditionalWarn } from './Logger';
-import { GameConfig } from './GameConfig';
+import { ControlScheme, GameConfig } from './GameConfig';
 import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3DAI';
 
 export interface KeyState {
@@ -36,15 +36,11 @@ export interface InputHandlers {
 }
 
 export class Pong3DInput {
-	private keyState: KeyState = {
-		p1Left: false,
-		p1Right: false,
-		p2Left: false,
-		p2Right: false,
-		p3Left: false,
-		p3Right: false,
-		p4Left: false,
-		p4Right: false,
+	private controlState: Record<ControlScheme, { left: boolean; right: boolean }> = {
+		arrows: { left: false, right: false },
+		wasd: { left: false, right: false },
+		ijkl: { left: false, right: false },
+		'8456': { left: false, right: false },
 	};
 
 	private canvas: HTMLCanvasElement;
@@ -66,60 +62,131 @@ export class Pong3DInput {
 		this.canvas.addEventListener('dblclick', this.toggleFullscreen);
 	}
 
+	private isLocalTournament(): boolean {
+		return GameConfig.isLocalTournament();
+	}
+
+	private shouldFlipP1Controls(): boolean {
+		return (
+			this.isLocalTournament() &&
+			GameConfig.getPlayerCount() === 3 &&
+			!GameConfig.isCurrentAliasSeed(1)
+		);
+	}
+
+	private updateControlState(
+		scheme: ControlScheme,
+		side: 'left' | 'right',
+		value: boolean,
+		requiresFullControl: boolean,
+		allowAll: boolean
+	): void {
+		if (requiresFullControl && !allowAll) return;
+		const state = this.controlState[scheme];
+		if (!state) return;
+		if (state[side] === value) return;
+		state[side] = value;
+	}
+
+	private processKeyInput(
+		key: string,
+		value: boolean,
+		allowAll: boolean
+	): void {
+		const normalized = key.length === 1 ? key.toLowerCase() : key;
+
+		if (key === 'ArrowRight' || key === 'ArrowUp') {
+			this.updateControlState('arrows', 'right', value, false, allowAll);
+		}
+		if (key === 'ArrowLeft' || key === 'ArrowDown') {
+			this.updateControlState('arrows', 'left', value, false, allowAll);
+		}
+
+		if (normalized === 'a' || normalized === 'w') {
+			this.updateControlState('wasd', 'left', value, true, allowAll);
+		}
+		if (normalized === 'd' || normalized === 's') {
+			this.updateControlState('wasd', 'right', value, true, allowAll);
+		}
+
+		if (normalized === 'j' || normalized === 'i') {
+			this.updateControlState('ijkl', 'left', value, true, allowAll);
+		}
+		if (normalized === 'l' || normalized === 'k') {
+			this.updateControlState('ijkl', 'right', value, true, allowAll);
+		}
+
+		if (normalized === '4' || normalized === '8') {
+			this.updateControlState('8456', 'left', value, true, allowAll);
+		}
+		if (normalized === '6' || normalized === '5') {
+			this.updateControlState('8456', 'right', value, true, allowAll);
+		}
+	}
+
+	private getControlAssignments(): ControlScheme[] {
+		if (!this.isLocalTournament()) {
+			return [
+				GameConfig.getDefaultControlScheme(1),
+				GameConfig.getDefaultControlScheme(2),
+				GameConfig.getDefaultControlScheme(3),
+				GameConfig.getDefaultControlScheme(4),
+			];
+		}
+		return [
+			GameConfig.getPlayerControlScheme(1),
+			GameConfig.getPlayerControlScheme(2),
+			GameConfig.getPlayerControlScheme(3),
+			GameConfig.getPlayerControlScheme(4),
+		];
+	}
+
+	private composeKeyState(): KeyState {
+		const assignments = this.getControlAssignments();
+		const flipP1 = this.shouldFlipP1Controls();
+		const fallback = (index: number): ControlScheme =>
+			assignments[index] ??
+			GameConfig.getDefaultControlScheme((index + 1) as 1 | 2 | 3 | 4);
+
+		const resolve = (index: number, side: 'left' | 'right'): boolean => {
+			const scheme = fallback(index);
+			const state = this.controlState[scheme];
+			if (!state) return false;
+			if (index === 0 && flipP1) {
+				// Paddle 1 controls are mirrored so left/right swap regardless of scheme
+				return state[side === 'left' ? 'right' : 'left'];
+			}
+			return state[side];
+		};
+
+		return {
+			p1Left: resolve(0, 'left'),
+			p1Right: resolve(0, 'right'),
+			p2Left: resolve(1, 'left'),
+			p2Right: resolve(1, 'right'),
+			p3Left: resolve(2, 'left'),
+			p3Right: resolve(2, 'right'),
+			p4Left: resolve(3, 'left'),
+			p4Right: resolve(3, 'right'),
+		};
+	}
+
 	private handleKeyDown(e: KeyboardEvent): void {
-		const k = e.key;
-		if (k === '\\' && !e.repeat) {
+		const key = e.key;
+		if (key === '\\' && !e.repeat) {
 			const enabled = Pong3DAI.toggleWizardVisualization();
 			conditionalLog(`✨ Wizard traces ${enabled ? 'enabled' : 'disabled'}`);
 			return;
 		}
 
 		const allowAll = this.shouldAllowFullMasterControl();
-		// Player 1: Arrow keys (left/right swapped)
-		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = true;
-		if (k === 'ArrowLeft' || k === 'ArrowDown')
-			this.keyState.p1Right = true;
-
-		// Player 2: WASD
-		if (allowAll && (k === 'a' || k === 'A' || k === 'w' || k === 'W'))
-			this.keyState.p2Left = true;
-		if (allowAll && (k === 'd' || k === 'D' || k === 's' || k === 'S'))
-			this.keyState.p2Right = true;
-
-		// Player 3: IJKL keys
-		if (allowAll && (k === 'j' || k === 'J' || k === 'i' || k === 'I'))
-			this.keyState.p3Left = true;
-		if (allowAll && (k === 'l' || k === 'L' || k === 'k' || k === 'K'))
-			this.keyState.p3Right = true;
-
-		// Player 4: Number pad 8456
-		if (allowAll && (k === '4' || k === '8')) this.keyState.p4Left = true;
-		if (allowAll && (k === '6' || k === '5')) this.keyState.p4Right = true;
+		this.processKeyInput(key, true, allowAll);
 	}
 
 	private handleKeyUp(e: KeyboardEvent): void {
-		const k = e.key;
+		const key = e.key;
 		const allowAll = this.shouldAllowFullMasterControl();
-		// Player 1: Arrow keys (left/right swapped)
-		if (k === 'ArrowRight' || k === 'ArrowUp') this.keyState.p1Left = false;
-		if (k === 'ArrowLeft' || k === 'ArrowDown')
-			this.keyState.p1Right = false;
-
-		// Player 2: WASD
-		if (allowAll && (k === 'a' || k === 'A' || k === 'w' || k === 'W'))
-			this.keyState.p2Left = false;
-		if (allowAll && (k === 'd' || k === 'D' || k === 's' || k === 'S'))
-			this.keyState.p2Right = false;
-
-		// Player 3: IJKL keys
-		if (allowAll && (k === 'j' || k === 'J' || k === 'i' || k === 'I'))
-			this.keyState.p3Left = false;
-		if (allowAll && (k === 'l' || k === 'L' || k === 'k' || k === 'K'))
-			this.keyState.p3Right = false;
-
-		// Player 4: Number pad 8456
-		if (allowAll && (k === '4' || k === '8')) this.keyState.p4Left = false;
-		if (allowAll && (k === '6' || k === '5')) this.keyState.p4Right = false;
+		this.processKeyInput(key, false, allowAll);
 	}
 
 	private shouldAllowFullMasterControl(): boolean {
@@ -144,27 +211,14 @@ export class Pong3DInput {
 	}
 
 	public getKeyState(): KeyState {
-		// Start with keyboard state
-		let currentState = { ...this.keyState };
-
-		// Override with AI input where AI controllers exist
-		for (let i = 0; i < 4; i++) {
-			if (this.aiControllers[i]) {
-				// AI controller exists - we need game state to get AI input
-				// For now, return keyboard state; AI will be integrated in getKeyStateWithGameState
-				continue;
-			}
-		}
-
-		return currentState;
+		return this.composeKeyState();
 	}
 
 	/**
 	 * Get key state with AI integration - requires game state for AI decision making
 	 */
 	public getKeyStateWithGameState(gameState: GameStateForAI): KeyState {
-		// Start with keyboard state
-		let currentState = { ...this.keyState };
+		const currentState = this.composeKeyState();
 
 		// Override with AI input where AI controllers exist
 		const playerKeys = [
@@ -197,25 +251,19 @@ export class Pong3DInput {
 		left: boolean,
 		right: boolean
 	): void {
-		// Set network-controlled key state for a specific player
-		// This allows remote clients to control paddles through the same input system
-		switch (playerIndex) {
-			case 0: // Player 1
-				this.keyState.p1Left = left;
-				this.keyState.p1Right = right;
-				break;
-			case 1: // Player 2
-				this.keyState.p2Left = left;
-				this.keyState.p2Right = right;
-				break;
-			case 2: // Player 3
-				this.keyState.p3Left = left;
-				this.keyState.p3Right = right;
-				break;
-			case 3: // Player 4
-				this.keyState.p4Left = left;
-				this.keyState.p4Right = right;
-				break;
+		const assignments = this.getControlAssignments();
+		const index = Math.max(0, Math.min(3, playerIndex));
+		const scheme =
+			assignments[index] ??
+			GameConfig.getDefaultControlScheme((index + 1) as 1 | 2 | 3 | 4);
+		const state = this.controlState[scheme];
+		if (!state) return;
+		if (index === 0 && this.shouldFlipP1Controls()) {
+			state.left = right;
+			state.right = left;
+		} else {
+			state.left = left;
+			state.right = right;
 		}
 	}
 
@@ -279,5 +327,9 @@ export class Pong3DInput {
 
 		// Clean up AI controllers
 		this.aiControllers = [null, null, null, null];
+		Object.values(this.controlState).forEach(state => {
+			state.left = false;
+			state.right = false;
+		});
 	}
 }
