@@ -1,5 +1,6 @@
 import {
 	MESSAGE_CHAT,
+	MESSAGE_CHAT,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	WS_ALREADY_CONNECTED,
@@ -8,8 +9,10 @@ import {
 } from '../../../shared/constants';
 import type { Message } from '../../../shared/schemas/message';
 import { isLoggedIn } from '../buttons/AuthButton';
+import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
+import { wsURL } from './endpoints';
 import { wsURL } from './endpoints';
 import { regListener } from './regListener';
 import { router } from './Router';
@@ -37,6 +40,7 @@ export class WebSocketWrapper {
 	private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	constructor() {
+		if (isLoggedIn()) {
 		if (isLoggedIn()) {
 			this.open();
 		}
@@ -73,6 +77,7 @@ export class WebSocketWrapper {
 				'Your session has expired. Please log in again.'
 			);
 			return;
+		} else if (event.code === WS_ALREADY_CONNECTED) {
 		} else if (event.code === WS_ALREADY_CONNECTED) {
 			console.warn('Already connected elsewhere');
 			this.handleAuthFailure(
@@ -163,7 +168,9 @@ export class WebSocketWrapper {
 
 		console.info('Opening WebSocket');
 		const wsUrlWithToken = `${wsURL}?token=${token}`;
+		const wsUrlWithToken = `${wsURL}?token=${token}`;
 		this.targetState = 'open';
+		this.ws = new WebSocket(wsUrlWithToken);
 		this.ws = new WebSocket(wsUrlWithToken);
 
 		this.ws.addEventListener('open', () => this.onOpen());
@@ -192,6 +199,7 @@ export class WebSocketWrapper {
 			console.warn('Websocket not opened, message not sent.');
 			return;
 		}
+		console.debug('Sending:', message);
 		console.debug('Sending:', message);
 		this.ws.send(JSON.stringify(message));
 	}

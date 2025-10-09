@@ -105,9 +105,9 @@ export function getCameraPosition(
 					// Network 2-player mode: Opposite side (rotated 180°)
 					return {
 						alpha: (3 * Math.PI) / 2,
-						beta: defaultBeta,
-						radius: defaultRadius,
-						target: createTarget(),
+						beta: Math.PI / 4.5,
+						radius: defaultRadius + 7,
+						target: createTarget(defaultTargetY - 1.5),
 					};
 				}
 			} else if (activePlayerCount === 3) {

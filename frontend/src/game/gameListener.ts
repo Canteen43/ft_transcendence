@@ -7,6 +7,7 @@ import {
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_REPLAY,
+	MESSAGE_REPLAY,
 	MESSAGE_START,
 	MESSAGE_START_TOURNAMENT,
 } from '../../../shared/constants';
@@ -14,7 +15,11 @@ import type { Message } from '../../../shared/schemas/message';
 import { MessageSchema } from '../../../shared/schemas/message';
 
 import { FullTournamentSchema } from '../../../shared/schemas/tournament';
+
+import { FullTournamentSchema } from '../../../shared/schemas/tournament';
 import { TextModal } from '../modals/TextModal';
+import { GameScreen } from '../screens/GameScreen';
+import { apiCall } from '../utils/apiCall';
 import { GameScreen } from '../screens/GameScreen';
 import { apiCall } from '../utils/apiCall';
 import {
@@ -24,6 +29,8 @@ import {
 } from '../utils/cleanSessionStorage';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
+import { updateTournData } from '../utils/updateTurnMatchData';
+import { webSocket } from '../utils/WebSocketWrapper';
 import { updateTournData } from '../utils/updateTurnMatchData';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { conditionalError, conditionalLog, conditionalWarn } from './Logger';
@@ -108,13 +115,21 @@ export async function gameListener(event: MessageEvent) {
 				location.hash = '#game';
 				conditionalLog('reloading pong.ts');
 				(router.currentScreen as GameScreen)?.reloadPong();
+				conditionalLog('Received start message:', msg);
+				state.gameOngoing = true;
+				state.gameMode = 'remote';
+				location.hash = '#game';
+				conditionalLog('reloading pong.ts');
+				(router.currentScreen as GameScreen)?.reloadPong();
 				break;
 
 			case MESSAGE_QUIT:
 				conditionalLog('Clearing game data');
+				conditionalLog('Clearing game data');
 				clearMatchData();
 				clearTournData();
 				clearOtherGameData();
+				location.hash = '#home';
 				location.hash = '#home';
 				setTimeout(() => {
 					void new TextModal(

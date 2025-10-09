@@ -6,13 +6,25 @@ import { state } from './utils/State';
 import { webSocket } from './utils/WebSocketWrapper';
 import { getEndpoints } from './utils/endpoints';
 
+import { state } from './utils/State';
+import { webSocket } from './utils/WebSocketWrapper';
+import { getEndpoints } from './utils/endpoints';
+
 // Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
 import '@babylonjs/loaders';
+import './style.css';
 import './style.css';
 
 // Global exposure for debugging
 (window as any).state = state;
 (window as any).webSocket = webSocket;
+
+window.addEventListener('error', event => {
+	console.error('Unhandled error', event.error);
+});
+window.addEventListener('unhandledrejection', event => {
+	console.error('Unhandled promise rejection', event.reason);
+});
 
 window.addEventListener('error', event => {
 	console.error('Unhandled error', event.error);

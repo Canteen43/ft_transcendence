@@ -64,6 +64,7 @@ export class LocalGameModal extends Modal {
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
+		
 		// modal box background
 		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';

@@ -208,6 +208,7 @@ export class Landing {
 				planeMesh.receiveShadows = true;
 			}
 		}
+		console.groupEnd();
 
 		console.group('🔍 Meshes loaded');
 		for (const m of meshes) {

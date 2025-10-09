@@ -34,6 +34,7 @@ export class PowerupEntity {
   private collectElapsed = 0;
   private collectStartPos: BABYLON.Vector3 | null = null;
   private collecting = false;
+  private collectingPaddleIndex: number = -1;
   private readonly registeredBallTargetIds = new Set<number>();
   private readonly registeredWallTargetIds = new Set<number>();
 
@@ -156,9 +157,10 @@ export class PowerupEntity {
   }
 
   /** Begin collection animation: stop physics and animate toward paddle center */
-  beginCollect(paddle: BABYLON.Mesh): void {
+  beginCollect(paddle: BABYLON.Mesh, paddleIndex: number): void {
     this.collectTarget = paddle;
     this.collecting = true;
+    this.collectingPaddleIndex = paddleIndex;
     this.collectElapsed = 0;
     this.collectStartPos = this.root.position.clone();
     if (this.impostor) {
@@ -170,6 +172,19 @@ export class PowerupEntity {
   /** Has the collect animation finished? */
   isCollectDone(): boolean {
     return this.collecting && this.collectElapsed >= this.collectDuration;
+  }
+
+  isCollecting(): boolean {
+    return this.collecting;
+  }
+
+  getCollectingPaddleIndex(): number {
+    return this.collectingPaddleIndex;
+  }
+
+  getPositionXZ(): { x: number; z: number } {
+    const pos = this.root.position;
+    return { x: pos.x, z: pos.z };
   }
 
   isOutOfBounds(limit: number): boolean {
@@ -190,6 +205,8 @@ export class PowerupEntity {
       this.impostor.dispose();
       this.impostor = null;
     }
+    this.collecting = false;
+    this.collectingPaddleIndex = -1;
     try {
       if (!this.visualRoot.isDisposed()) this.visualRoot.setEnabled(false);
     } catch (_) {}
