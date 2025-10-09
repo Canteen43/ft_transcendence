@@ -300,15 +300,16 @@ export class Pong3D {
 	private activeStretchTimeout: number | null = null;
 	private splitBalls: SplitBall[] = [];
 	private shadowGenerators: BABYLON.ShadowGenerator[] = [];
-  private ballManager: BallManager = new BallManager({
-    spinDelayMs: GameConfig.getSpinDelayMs(),
-  });
+	private ballManager: BallManager = new BallManager({
+		spinDelayMs: GameConfig.getSpinDelayMs(),
+	});
 	private mainBallEntity: BallEntity | null = null;
 	private paddleOriginalScaleX: Map<number, number> = new Map();
 	private paddleStretchTimeouts: Map<number, number> = new Map();
 	private paddleShrinkTimeouts: Map<number, number> = new Map();
 	private mainBallHandlersAttached = false;
 	private baseBallY = 0;
+	private ballPositionHistory = new Map<number, BABYLON.Vector3>();
 	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
 	private lastCollisionTimeMs: number = 0;
 	private lastCollisionPaddleIndex: number = -1;
@@ -2568,9 +2569,17 @@ export class Pong3D {
 		const paddleToBall = ballPosition.subtract(paddlePosition);
 
 		// Project onto paddle normal to get distance from paddle face
-		const ballRadius = 0.1; // Approximate ball radius (adjust based on your ball size)
-		const paddleThickness = 0.2; // Approximate paddle thickness
-		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.05; // Smaller buffer for stability
+		const ballRadius = Pong3D.BALL_RADIUS;
+		let paddleThickness = 0.2;
+		const paddleBoundingInfo = paddle.getBoundingInfo();
+		if (paddleBoundingInfo) {
+			const extents = paddleBoundingInfo.boundingBox.extendSizeWorld;
+			const minHalfExtent = Math.min(extents.x, extents.y, extents.z);
+			if (isFinite(minHalfExtent) && minHalfExtent > 0) {
+				paddleThickness = Math.max(minHalfExtent * 2, 0.05);
+			}
+		}
+		const minSeparation = ballRadius + paddleThickness * 0.5 + 0.02;
 
 		// Gentle position correction - only if ball is too close
 		const currentDistance = Math.abs(
@@ -2665,6 +2674,227 @@ export class Pong3D {
 				`  - New velocity: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`
 			);
 		}
+	}
+
+	private detectMissedPaddleContacts(): void {
+		if (this.gameMode !== 'local' && this.gameMode !== 'master') {
+			return;
+		}
+
+		const ballImpostors = this.getActiveBallImpostors();
+		if (ballImpostors.length === 0) {
+			this.ballPositionHistory.clear();
+			return;
+		}
+
+		const activeKeys = new Set<number>();
+		for (const ballImpostor of ballImpostors) {
+			const ballMesh = this.getMeshForBallImpostor(ballImpostor);
+			if (!ballMesh) continue;
+			const currentPosition = ballMesh.getAbsolutePosition();
+			const key = this.getBallImpostorKey(ballImpostor);
+			if (key === null) continue;
+
+			activeKeys.add(key);
+
+			const previous = this.ballPositionHistory.get(key);
+			if (previous) {
+				const handled = this.checkSegmentAgainstPaddles(
+					previous,
+					currentPosition,
+					ballImpostor
+				);
+				const updatedMesh = this.getMeshForBallImpostor(ballImpostor);
+				const finalPosition =
+					handled && updatedMesh
+						? updatedMesh.getAbsolutePosition()
+						: currentPosition;
+				this.ballPositionHistory.set(key, finalPosition.clone());
+			} else {
+				this.ballPositionHistory.set(key, currentPosition.clone());
+			}
+		}
+
+		for (const key of Array.from(this.ballPositionHistory.keys())) {
+			if (!activeKeys.has(key)) {
+				this.ballPositionHistory.delete(key);
+			}
+		}
+	}
+
+	private getBallImpostorKey(
+		impostor: BABYLON.PhysicsImpostor
+	): number | null {
+		const body: any = impostor.physicsBody;
+		if (body && typeof body.id === 'number') {
+			return body.id as number;
+		}
+		const obj = impostor.object as BABYLON.AbstractMesh | undefined;
+		if (obj) {
+			return obj.uniqueId;
+		}
+		return null;
+	}
+
+	private getMeshForBallImpostor(
+		impostor: BABYLON.PhysicsImpostor
+	): BABYLON.Mesh | null {
+		const obj = impostor.object;
+		if (obj instanceof BABYLON.Mesh) {
+			return obj;
+		}
+		if (this.ballMesh?.physicsImpostor === impostor) {
+			return this.ballMesh;
+		}
+		const split = this.splitBalls.find(ball => ball.impostor === impostor);
+		return split?.mesh ?? null;
+	}
+
+	private checkSegmentAgainstPaddles(
+		previous: BABYLON.Vector3,
+		current: BABYLON.Vector3,
+		ballImpostor: BABYLON.PhysicsImpostor
+	): boolean {
+		if (this.goalScored || this.gameEnded) {
+			return false;
+		}
+
+		const radius = Pong3D.BALL_RADIUS;
+		const segment = current.subtract(previous);
+		if (segment.lengthSquared() < 1e-6) {
+			return false;
+		}
+
+		for (let i = 0; i < this.playerCount; i++) {
+			const paddle = this.paddles[i];
+			const paddleImpostor = paddle?.physicsImpostor;
+			if (!paddle || !paddleImpostor) continue;
+
+			const normal = this.getPaddleNormal(paddle, i);
+			if (!normal) continue;
+
+			const plane = BABYLON.Plane.FromPositionAndNormal(
+				paddle.getAbsolutePosition(),
+				normal
+			);
+			const previousDistance = plane.signedDistanceTo(previous);
+			const currentDistance = plane.signedDistanceTo(current);
+
+			if (!(previousDistance > radius && currentDistance < -radius)) {
+				continue;
+			}
+
+			const denom = currentDistance - previousDistance;
+			if (Math.abs(denom) < 1e-6) continue;
+
+			const targetDistance =
+				Math.sign(previousDistance || 1) * radius;
+			const t =
+				(previousDistance - targetDistance) /
+				(previousDistance - currentDistance);
+			if (!isFinite(t) || t < 0 || t > 1) {
+				continue;
+			}
+
+			const contactPoint = BABYLON.Vector3.Lerp(previous, current, t);
+			if (
+				!this.pointWithinPaddleBounds(
+					contactPoint,
+					paddle,
+					radius
+				)
+			) {
+				continue;
+			}
+
+			const directionSign = Math.sign(previousDistance || 1);
+			this.resolveMissedPaddleHit(
+				ballImpostor,
+				paddleImpostor,
+				paddle,
+				contactPoint,
+				normal,
+				directionSign
+			);
+			return true;
+		}
+
+		return false;
+	}
+
+	private pointWithinPaddleBounds(
+		point: BABYLON.Vector3,
+		paddle: BABYLON.Mesh,
+		margin: number
+	): boolean {
+		try {
+			const inverse = paddle.getWorldMatrix().clone();
+			inverse.invert();
+			const localPoint = BABYLON.Vector3.TransformCoordinates(
+				point,
+				inverse
+			);
+			const bounds = paddle.getBoundingInfo();
+			const min = bounds.minimum;
+			const max = bounds.maximum;
+			const tolerance = margin + 0.01;
+			return (
+				localPoint.x >= min.x - tolerance &&
+				localPoint.x <= max.x + tolerance &&
+				localPoint.y >= min.y - tolerance &&
+				localPoint.y <= max.y + tolerance &&
+				localPoint.z >= min.z - tolerance &&
+				localPoint.z <= max.z + tolerance
+			);
+		} catch (error) {
+			if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalWarn(
+					'Failed to evaluate paddle bounds for missed collision check',
+					error
+				);
+			}
+			return true;
+		}
+	}
+
+	private resolveMissedPaddleHit(
+		ballImpostor: BABYLON.PhysicsImpostor,
+		paddleImpostor: BABYLON.PhysicsImpostor,
+		paddle: BABYLON.Mesh,
+		contactPoint: BABYLON.Vector3,
+		normal: BABYLON.Vector3,
+		directionSign: number
+	): void {
+		const safeOffset = normal
+			.scale(directionSign * (Pong3D.BALL_RADIUS + 0.01));
+		const correctedPosition = contactPoint.add(safeOffset);
+
+		if (!isFinite(correctedPosition.y)) {
+			correctedPosition.y = this.baseBallY;
+		}
+		if (Math.abs(correctedPosition.y - this.baseBallY) > 0.001) {
+			correctedPosition.y = this.baseBallY;
+		}
+
+		const ballMesh = this.getMeshForBallImpostor(ballImpostor);
+		if (ballMesh) {
+			ballMesh.position.copyFrom(correctedPosition);
+		}
+		if (ballImpostor.physicsBody) {
+			ballImpostor.physicsBody.position.set(
+				correctedPosition.x,
+				correctedPosition.y,
+				correctedPosition.z
+			);
+		}
+
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`⚠️ Missed paddle collision corrected for ${paddle.name} (ball repositioned to ${correctedPosition.x.toFixed(3)}, ${correctedPosition.y.toFixed(3)}, ${correctedPosition.z.toFixed(3)})`
+			);
+		}
+
+		this.handleBallPaddleCollision(ballImpostor, paddleImpostor);
 	}
 
 	private computeWallNormal(position: BABYLON.Vector3): BABYLON.Vector3 | null {
@@ -4601,12 +4831,16 @@ export class Pong3D {
 
 	private updatePaddles(): void {
 		if (this.gameEnded) {
+			this.ballPositionHistory.clear();
 			return;
 		}
 		const loopRunning = this.gameLoop?.getGameState().isRunning ?? true;
 		if (!loopRunning) {
 			return;
 		}
+
+		this.detectMissedPaddleContacts();
+
 		// Maintain main ball via per-ball entity if available, otherwise fallback
 		const targetSpeedForMain = this.ballEffects.getCurrentBallSpeed();
 		if (this.mainBallEntity) {

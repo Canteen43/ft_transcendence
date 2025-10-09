@@ -58,8 +58,8 @@ export class GameConfig {
 		wallNearParallelAngleAdjustment: 0,
 		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
 		ballBaseSpeed: 11,
-		maxBallSpeed: 24,
-		rallySpeedIncrementPercent: 7,
+		maxBallSpeed: 30,
+		rallySpeedIncrementPercent: 17,
 	};
 	private static physicsOverrides: Partial<
 		Record<PhysicsSettingKey, number>
