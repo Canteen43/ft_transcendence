@@ -13,6 +13,7 @@ type PhysicsSettingKey =
 	| 'ballAngleMultiplier'
 	| 'angularReturnLimit'
 	| 'serveAngleLimit'
+	| 'serveOffset'
 	| 'paddleMass'
 	| 'paddleForce'
 	| 'paddleRange'
@@ -46,7 +47,8 @@ export class GameConfig {
 		physicsSolverIterations: 15,
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
-		serveAngleLimit: (10 * Math.PI) / 180,
+		serveAngleLimit: (30 * Math.PI) / 180,
+		serveOffset: 0.5,
 		paddleMass: 2.8,
 		paddleForce: 15,
 		paddleRange: 5,
@@ -316,6 +318,15 @@ export class GameConfig {
 	static setServeAngleLimit(value: number): void {
 		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
 		this.setPhysicsSetting('serveAngleLimit', clamped);
+	}
+
+	static getServeOffset(): number {
+		return this.getPhysicsSetting('serveOffset');
+	}
+
+	static setServeOffset(value: number): void {
+		const clamped = Math.max(0, value);
+		this.setPhysicsSetting('serveOffset', clamped);
 	}
 
 	static getPaddleMass(): number {

@@ -1101,6 +1101,7 @@ export class Pong3D {
 	// Max angle between outgoing ball vector and paddle normal (radians)
 	private ANGULAR_RETURN_LIMIT = GameConfig.getAngularReturnLimit();
 	public SERVE_ANGLE_LIMIT = GameConfig.getServeAngleLimit(); // ±10° serve spread (20° total)
+	public SERVE_OFFSET = GameConfig.getServeOffset();
 
 	// Paddle physics settings
 	private PADDLE_MASS = GameConfig.getPaddleMass(); // Paddle mass for collision response

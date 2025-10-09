@@ -128,55 +128,140 @@ export class Pong3DGameLoop {
 				// Update hit tracking - the server "hit" the ball
 				this.pong3D.setLastPlayerToHitBall(servingPlayerIndex);
 
-				// Position ball slightly in front of paddle toward origin to avoid spawning inside paddle
+				// Position ball in front of paddle toward origin to avoid spawning inside paddle
 				let baseDirection = new BABYLON.Vector3(0, 0, 0);
-				if (this.pong3D && typeof this.pong3D.getServeDirectionForPaddle === 'function') {
-					baseDirection = this.pong3D.getServeDirectionForPaddle(servingPlayerIndex);
+				if (
+					this.pong3D &&
+					typeof this.pong3D.getServeDirectionForPaddle === 'function'
+				) {
+					baseDirection =
+						this.pong3D.getServeDirectionForPaddle(
+							servingPlayerIndex
+						);
 				}
 				if (baseDirection.lengthSquared() < 1e-6) {
 					const courtCenter = BABYLON.Vector3.Zero();
 					baseDirection = courtCenter.subtract(paddle.position);
-					baseDirection.y = 0;
-					baseDirection = baseDirection.normalize();
 				}
-				const spawnOffset = 0.25; // meters toward origin
-				servePosition = paddle.position.add(baseDirection.scale(spawnOffset));
-				// Preserve original ball Y plane
+				baseDirection.y = 0;
+				if (baseDirection.lengthSquared() < 1e-6) {
+					baseDirection = new BABYLON.Vector3(0, 0, -1);
+				} else {
+					baseDirection.normalize();
+				}
+
+				const serveOffset =
+					this.pong3D?.SERVE_OFFSET ?? GameConfig.getServeOffset();
+				const ballRadius = GameConfig.getBallRadius();
+
+				servePosition = paddle.position.clone();
 				servePosition.y = this.originalBallPosition.y;
+
+				const absX = Math.abs(baseDirection.x);
+				const absZ = Math.abs(baseDirection.z);
+				if (absX >= absZ) {
+					const axisPos = paddle.position.x;
+					let sign = axisPos > 0 ? -1 : axisPos < 0 ? 1 : 0;
+					if (sign === 0) {
+						sign =
+							baseDirection.x > 0
+								? 1
+								: baseDirection.x < 0
+								? -1
+								: -1;
+					}
+					const maxApproach = Math.max(
+						Math.abs(axisPos) - ballRadius,
+						0
+					);
+					const appliedOffset =
+						sign === 0
+							? 0
+							: Math.min(serveOffset, maxApproach);
+					servePosition.x = axisPos + sign * appliedOffset;
+					servePosition.z = paddle.position.z;
+				} else {
+					const axisPos = paddle.position.z;
+					let sign = axisPos > 0 ? -1 : axisPos < 0 ? 1 : 0;
+					if (sign === 0) {
+						sign =
+							baseDirection.z > 0
+								? 1
+								: baseDirection.z < 0
+								? -1
+								: -1;
+					}
+					const maxApproach = Math.max(
+						Math.abs(axisPos) - ballRadius,
+						0
+					);
+					const appliedOffset =
+						sign === 0
+							? 0
+							: Math.min(serveOffset, maxApproach);
+					servePosition.z = axisPos + sign * appliedOffset;
+					servePosition.x = paddle.position.x;
+				}
 
 				// Recompute baseDirection from new servePosition toward origin to ensure correctness
 				{
 					const courtCenter = BABYLON.Vector3.Zero();
 					baseDirection = courtCenter.subtract(servePosition);
 					baseDirection.y = 0;
-					baseDirection = baseDirection.normalize();
+					if (baseDirection.lengthSquared() < 1e-6) {
+						baseDirection = new BABYLON.Vector3(0, 0, -1);
+					} else {
+						baseDirection = baseDirection.normalize();
+					}
 				}
 
 				const serveNormal = baseDirection.clone();
 
-				// Add 20-degree random spread around the base direction
-				const spreadAngle = (Math.random() - 0.5) * ((20 * Math.PI) / 180);
-				const rotationMatrix = BABYLON.Matrix.RotationAxis(BABYLON.Vector3.Up(), spreadAngle);
-				let spreadDirection = BABYLON.Vector3.TransformCoordinates(baseDirection, rotationMatrix).normalize();
+				// Add serve spread within configured limit
+				const angleLimit =
+					this.pong3D?.SERVE_ANGLE_LIMIT ??
+					GameConfig.getServeAngleLimit();
+				const spreadAngle =
+					(Math.random() - 0.5) * 2 * angleLimit;
+				const rotationMatrix =
+					BABYLON.Matrix.RotationAxis(
+						BABYLON.Vector3.Up(),
+						spreadAngle
+					);
+				let spreadDirection =
+					BABYLON.Vector3.TransformCoordinates(
+						baseDirection,
+						rotationMatrix
+					).normalize();
 
 				// Safety: if the spread accidentally points away from origin, flip it
-				const toOrigin = BABYLON.Vector3.Zero().subtract(servePosition).normalize();
+				const toOrigin = BABYLON.Vector3.Zero()
+					.subtract(servePosition)
+					.normalize();
 				if (BABYLON.Vector3.Dot(spreadDirection, toOrigin) < 0) {
 					spreadDirection = spreadDirection.scale(-1);
 				}
 
-				if (this.pong3D && typeof this.pong3D.enforceAngularLimitForDirection === 'function') {
-					spreadDirection = this.pong3D.enforceAngularLimitForDirection(
-						serveNormal,
-						spreadDirection,
-						this.pong3D.SERVE_ANGLE_LIMIT
-					);
+				if (
+					this.pong3D &&
+					typeof this.pong3D.enforceAngularLimitForDirection ===
+						'function'
+				) {
+					spreadDirection =
+						this.pong3D.enforceAngularLimitForDirection(
+							serveNormal,
+							spreadDirection,
+							angleLimit
+						);
 				}
 
 				// Set serve speed to base rally speed for immediate consistency
 				let serveSpeed = 5;
 				try {
-					if (this.pong3D && typeof this.pong3D.getRallyInfo === 'function') {
+					if (
+						this.pong3D &&
+						typeof this.pong3D.getRallyInfo === 'function'
+					) {
 						const info = this.pong3D.getRallyInfo();
 						if (info && typeof info.baseSpeed === 'number') {
 							serveSpeed = info.baseSpeed;
@@ -191,13 +276,24 @@ export class Pong3DGameLoop {
 						`🎾 SERVE: Player ${servingPlayerIndex + 1} serving from paddle position toward center`
 					);
 					conditionalLog(
-						`🎾 Serve position: (${servePosition.x.toFixed(2)}, ${servePosition.y.toFixed(2)}, ${servePosition.z.toFixed(2)})`
+						`🎾 Serve position: (${servePosition.x.toFixed(
+							2
+						)}, ${servePosition.y.toFixed(
+							2
+						)}, ${servePosition.z.toFixed(2)})`
 					);
 					conditionalLog(
-						`🎾 Serve direction: (${spreadDirection.x.toFixed(2)}, ${spreadDirection.y.toFixed(2)}, ${spreadDirection.z.toFixed(2)})`
+						`🎾 Serve direction: (${spreadDirection.x.toFixed(
+							2
+						)}, ${spreadDirection.y.toFixed(
+							2
+						)}, ${spreadDirection.z.toFixed(2)})`
 					);
 					conditionalLog(
-						`🎾 Spread angle: ${((spreadAngle * 180) / Math.PI).toFixed(1)}°`
+						`🎾 Spread angle: ${(
+							(spreadAngle * 180) /
+							Math.PI
+						).toFixed(1)}°`
 					);
 				}
 			} else {
