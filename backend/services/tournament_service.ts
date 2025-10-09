@@ -1,5 +1,9 @@
 import { DEFAULT_MAX_SCORE, EMPTY_UUID } from '../../shared/constants.js';
-import { MatchStatus, TournamentStatus } from '../../shared/enums.js';
+import {
+	MatchStatus,
+	TournamentStatus,
+	TournamentType,
+} from '../../shared/enums.js';
 import {
 	DatabaseError,
 	TournamentNotFoundError,
@@ -35,28 +39,29 @@ import { QueuedUser } from '../types/interfaces.js';
 import { LockService, LockType } from './lock_service.js';
 
 export default class TournamentService {
-	private static tournamentQueues: Map<number, Set<QueuedUser>> = new Map();
+	private static tournamentQueues: Map<
+		TournamentType,
+		Map<number, Set<QueuedUser>>
+	> = new Map();
 
 	static async joinQueue(
 		size: number,
+		type: TournamentType,
 		userId: UUID,
 		alias: string
 	): Promise<void> {
 		return await LockService.withLock(LockType.Queue, async () =>
-			this.joinQueueWithLock(size, userId, alias)
+			this.joinQueueWithLock(size, type, userId, alias)
 		);
 	}
 
 	private static joinQueueWithLock(
 		size: number,
+		type: TournamentType,
 		userId: UUID,
 		alias: string
 	) {
-		let queue = this.tournamentQueues.get(size);
-		if (!queue) {
-			queue = new Set<QueuedUser>();
-			this.tournamentQueues.set(size, queue);
-		}
+		const queue = this.getQueue(size, type);
 		if (this.findInQueue(queue, userId))
 			throw new UserAlreadyQueuedError(userId);
 		queue.add({ userId, alias });
@@ -70,13 +75,15 @@ export default class TournamentService {
 	}
 
 	private static leaveQueueWithLock(userId: UUID) {
-		for (const [size, queue] of this.tournamentQueues) {
-			const userToRemove = this.findInQueue(queue, userId);
-			if (userToRemove) queue.delete(userToRemove);
+		for (const [tournamentType, typeQueueMap] of this.tournamentQueues) {
+			for (const [size, queue] of typeQueueMap) {
+				const userToRemove = this.findInQueue(queue, userId);
+				if (userToRemove) queue.delete(userToRemove);
+			}
 		}
 	}
 
-	static async getQueue(size: number): Promise<Set<QueuedUser>> {
+	static async getQueueWithLock(size: number): Promise<Set<QueuedUser>> {
 		const result = await LockService.withLock(LockType.Queue, async () =>
 			this.tournamentQueues.get(size)
 		);
@@ -106,18 +113,25 @@ export default class TournamentService {
 		return FullTournamentSchema.parse(fullTournament);
 	}
 
-	static createTournamentFromQueue(creator: UUID, users: UUID[]): Tournament {
+	static createTournamentFromQueue(
+		type: TournamentType,
+		creator: UUID,
+		users: UUID[]
+	): Tournament {
 		const tournamentUsers = this.validateAndRemoveFromQueue(
 			users.length,
+			type,
 			users
 		);
 		return this.createTournament(creator, users, tournamentUsers);
 	}
 
 	static createTournamentForReplay(creator: UUID, users: UUID[]): Tournament {
-		for (const u of users)
-			if (this.findInQueue(this.tournamentQueues.get(0), u))
+		for (const u of users) {
+			const queues = this.tournamentQueues.values();
+			if (Array.from(queues).some(m => this.findInQueue(m.get(0), u)))
 				throw new UserAlreadyQueuedError(u);
+		}
 		const queuedUsers = this.createQueuedUsersForReplay(users);
 		return this.createTournament(creator, users, queuedUsers);
 	}
@@ -205,11 +219,10 @@ export default class TournamentService {
 
 	private static validateAndRemoveFromQueue(
 		size: number,
+		type: TournamentType,
 		users: UUID[]
 	): QueuedUser[] {
-		const queue = this.tournamentQueues.get(size);
-		if (!queue) throw new UserNotQueuedError(users[0]);
-
+		const queue = this.getQueue(type, size);
 		const tournamentUsers = new Array<QueuedUser>();
 		for (const user of users) {
 			const toRemove = this.findInQueue(queue, user);
@@ -287,6 +300,19 @@ export default class TournamentService {
 		return result;
 	}
 
+	private static getQueue(size: number, type: TournamentType) {
+		let typeQueueMap = this.tournamentQueues.get(type);
+		if (!typeQueueMap) {
+			typeQueueMap = new Map<number, Set<QueuedUser>>();
+			this.tournamentQueues.set(type, typeQueueMap);
+		}
+		let queue = typeQueueMap.get(size);
+		if (!queue) {
+			queue = new Set<QueuedUser>();
+			typeQueueMap.set(size, queue);
+		}
+		return queue;
+	}
 	private static findInQueue(
 		queue: Set<QueuedUser> | undefined,
 		userId: UUID
