@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { TournamentType } from '../../../shared/enums.js';
 import { Button } from '../buttons/Button';
-import { GameConfig } from '../game/GameConfig';
 import { state } from '../utils/State';
 import { joinTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
@@ -10,6 +9,7 @@ import { WaitingModal } from './WaitingModal';
 
 export class RemoteSetupModal extends Modal {
 	private aliasField: HTMLInputElement;
+	private isSubmitting = false;
 
 	constructor(parent: HTMLElement, type: TournamentType) {
 		super(parent);
@@ -45,10 +45,11 @@ export class RemoteSetupModal extends Modal {
 	}
 
 	private async submit(type: TournamentType): Promise<void> {
+		if (this.isSubmitting) return;
+		this.isSubmitting = true;
+		
 		const alias = this.aliasField.value.trim() || 'Player1';
 		sessionStorage.setItem('alias', alias);
-
-		this.clearSessionData();
 
 		const result = await joinTournament(state.tournamentSize, type);
 
@@ -65,18 +66,5 @@ export class RemoteSetupModal extends Modal {
 
 		this.destroy();
 		new WaitingModal(this.parent);
-	}
-
-	private clearSessionData(): void {
-		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key =>
-			sessionStorage.removeItem(key)
-		);
-		[
-			'alias1controls',
-			'alias2controls',
-			'alias3controls',
-			'alias4controls',
-		].forEach(key => sessionStorage.removeItem(key));
-		GameConfig.clearTournamentSeedAliases();
 	}
 }

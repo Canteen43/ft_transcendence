@@ -126,6 +126,10 @@ interface GlowMeshState {
 }
 
 export class Pong3D {
+	private static readonly SOUND_PADDLE = 0;
+	private static readonly SOUND_WALL = 1;
+	private static readonly SOUND_POWERUP_BALL = 2;
+	private static readonly SOUND_POWERUP_WALL = 3;
 	private static babylonWarnFilterInstalled = false;
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;

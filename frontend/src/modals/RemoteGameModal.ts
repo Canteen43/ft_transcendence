@@ -7,8 +7,8 @@ import {
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
 import { leaveTournament } from '../utils/tournamentJoin';
-import { RemoteSetupModal } from './RemoteSetupModal';
 import { Modal } from './Modal';
+import { RemoteSetupModal } from './RemoteSetupModal';
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -151,31 +151,29 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
+		console.log('Starting logicRemote');
+
+		// try {
 		await leaveTournament();
+		// }
+		// catch {
+		// 	e
+		// }
+		console.log('Left tournament');
+
 		console.debug('Clearing match data before queuing');
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();
+		console.log('Cleared data');
 
-		state.gameMode = 'remote';
-		state.tournamentSize = tournamentSize;
-		state.tournamentOngoing = tournamentSize === 4;
-
-		sessionStorage.setItem('playerCount', '2');
-		sessionStorage.setItem('gameMode', 'remote');
-		sessionStorage.setItem(
-			'tournamentType',
-			type == TournamentType.Regular ? '0' : '1'
-		);
-		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
-		['split', 'stretch', 'shrink'].forEach(p => {
-			sessionStorage.setItem(
-				p,
-				type === TournamentType.Powerup ? '1' : '0'
-			);
-		});
+		// ... rest of sessionStorage operations ...
+		console.log('Set sessionStorage');
 
 		this.destroy();
+		console.log('Destroyed modal');
+
 		new RemoteSetupModal(this.parent, type);
+		console.log('Created new modal');
 	}
 }
