@@ -1183,7 +1183,7 @@ export const AI_DIFFICULTY_PRESETS = {
 
 	CIRCE: {
 		sampleRate: 1.0,
-		impulseFrequency: 30,
+		impulseFrequency: 20,
 		impulseDuration: 20,
 		centralLimit: 0.35,
 		xLimit: 3.5,
@@ -1203,7 +1203,7 @@ export const AI_DIFFICULTY_PRESETS = {
 
 	MORGANA: {
 		sampleRate: 1.9,
-		impulseFrequency: 30,
+		impulseFrequency: 25,
 		impulseDuration: 7,
 		centralLimit: 0.3,
 		xLimit: 3.5,
@@ -1213,7 +1213,7 @@ export const AI_DIFFICULTY_PRESETS = {
 
 	GANDALF: {
 		sampleRate: 2.5,
-		impulseFrequency: 35,
+		impulseFrequency: 30,
 		impulseDuration: 7,
 		centralLimit: 0.2,
 		xLimit: 3.5,
