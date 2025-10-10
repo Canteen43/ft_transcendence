@@ -67,14 +67,14 @@ export class Pong3DInput {
 	}
 
 	private shouldFlipP1Controls(): boolean {
-		if (GameConfig.isRemoteMode()) {
-			return GameConfig.getThisPlayer() === 1;
+		if (!this.isLocalTournament()) {
+			return false;
 		}
-		return (
-			this.isLocalTournament() &&
-			GameConfig.getPlayerCount() === 3 &&
-			!GameConfig.isCurrentAliasSeed(1)
-		);
+
+		const isThreePlayerRound = GameConfig.getPlayerCount() === 3;
+		const aliasChanged = !GameConfig.isCurrentAliasSeed(1);
+
+		return isThreePlayerRound && aliasChanged;
 	}
 
 	private updateControlState(

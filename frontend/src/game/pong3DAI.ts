@@ -339,6 +339,16 @@ export interface GameStateForAI {
 		);
 	}
 
+	private isDefenceMesh(mesh?: BABYLON.AbstractMesh | null): boolean {
+		if (!mesh) return false;
+		const meta = mesh.metadata as { aiDefence?: boolean } | undefined;
+		if (meta?.aiDefence) {
+			return true;
+		}
+		const name = mesh.name?.toLowerCase() ?? '';
+		return name.includes('defence') || name.includes('defense');
+	}
+
 	private getBallPositionAlongAxis(gameState: GameStateForAI): number {
 		const paddleAxis = this.getPlayerAxis(gameState);
 		const paddleOrigin = this.getPlayerOrigin(gameState);
@@ -410,7 +420,7 @@ export interface GameStateForAI {
 			if (mesh.physicsImpostor.type !== BABYLON.PhysicsImpostor.MeshImpostor)
 				return false;
 			const name = mesh.name?.toLowerCase() || '';
-			if (this.isOwnDefenceMesh(mesh)) {
+			if (this.isDefenceMesh(mesh)) {
 				return true;
 			}
 			return /wall/.test(name);
@@ -704,7 +714,8 @@ private traceWizardTrajectory(
 		const color = this.getWizardLineColorForBall(ballIndex);
 		const segments: Array<{ start: BABYLON.Vector3; end: BABYLON.Vector3 }> = [];
 		const bouncePoints: BABYLON.Vector3[] = [];
-		let goalPoint: BABYLON.Vector3 | null = null;
+		let visualGoalPoint: BABYLON.Vector3 | null = null;
+		let targetGoalPoint: BABYLON.Vector3 | null = null;
 		let intersectsOwnGoal = false;
 		let totalDistance = 0;
 
@@ -778,28 +789,35 @@ private traceWizardTrajectory(
 						);
 						const normalizedNormal =
 							normalVec.lengthSquared() > 1e-6 ? normalVec.normalize() : null;
-						const distanceAlongRay = BABYLON.Vector3.Dot(
-							point.subtract(currentOrigin),
-							currentDirection
-						);
+						const toPoint = point.subtract(currentOrigin);
+						const distanceAlongRay = BABYLON.Vector3.Dot(toPoint, currentDirection);
+						const distanceMagnitude = toPoint.length();
 						if (distanceAlongRay > 1e-3) {
+							const candidateMesh = this.findMeshForPhysicsBody(
+								scene,
+								result.body
+							);
 							const normalOpposesRay =
 								normalizedNormal
 									? BABYLON.Vector3.Dot(normalizedNormal, currentDirection) <= -1e-3
 									: false;
-							if (normalOpposesRay) {
+							const treatAsHit =
+								normalOpposesRay ||
+								distanceMagnitude <= 0.01 ||
+								this.isDefenceMesh(candidateMesh);
+							if (treatAsHit) {
 								if (distanceAlongRay < bestDistance) {
 									bestDistance = distanceAlongRay;
 									bestPoint = point.clone();
 									bestNormal = normalizedNormal;
-									bestMesh = this.findMeshForPhysicsBody(scene, result.body);
+									bestMesh = candidateMesh;
 									bestBodyId = result.body?.id;
 								}
 							} else if (distanceAlongRay < fallbackDistance) {
 								fallbackDistance = distanceAlongRay;
 								fallbackPoint = point.clone();
 								fallbackNormal = normalizedNormal;
-								fallbackMesh = this.findMeshForPhysicsBody(scene, result.body);
+								fallbackMesh = candidateMesh;
 								fallbackBodyId = result.body?.id;
 							}
 						}
@@ -828,7 +846,9 @@ private traceWizardTrajectory(
 						normalizedNormal
 							? BABYLON.Vector3.Dot(normalizedNormal, currentDirection) <= -1e-3
 							: false;
-					if (normalOpposesRay) {
+					const treatAsHit =
+						normalOpposesRay || this.isDefenceMesh(pick.pickedMesh);
+					if (treatAsHit) {
 						if (distanceFromPick < bestDistance) {
 							bestDistance = distanceFromPick;
 							bestPoint = point;
@@ -907,9 +927,10 @@ private traceWizardTrajectory(
 			previousPoint3D = hitPoint3D.clone();
 
 			const meshName = hitMesh?.name?.toLowerCase() || '';
-			const isGoalHit = this.doesMeshBelongToPlayerGoal(hitMesh);
+			const isOwnGoalHit = this.doesMeshBelongToPlayerGoal(hitMesh);
+			const isAnyDefence = this.isDefenceMesh(hitMesh);
 			const isWallHit = /wall/.test(meshName);
-			if (!isGoalHit && !isWallHit) {
+			if (!isAnyDefence && !isWallHit) {
 				const skipDistance = meshName.includes('ball') ? 0.8 : 0.2;
 				const safePoint = hitPoint3D.add(currentDirection.scale(skipDistance));
 				currentOrigin = safePoint;
@@ -926,9 +947,10 @@ private traceWizardTrajectory(
 				hitNormal = hitNormal.negate();
 			}
 
-			if (isGoalHit) {
-				if (this.doesMeshBelongToPlayerGoal(hitMesh)) {
-					goalPoint = flattenedHit.clone();
+			if (isAnyDefence) {
+				visualGoalPoint = flattenedHit.clone();
+				if (isOwnGoalHit) {
+					targetGoalPoint = visualGoalPoint.clone();
 					intersectsOwnGoal = true;
 				}
 				break;
@@ -949,34 +971,26 @@ private traceWizardTrajectory(
 		}
 
 		if (Pong3DAI.isWizardVisualizationEnabled()) {
-			if (goalPoint) {
-				this.updateWizardVisual(
-					id,
-					segments,
-					bouncePoints,
-					goalPoint,
-					scene,
-					planeY,
-					color
-				);
-			} else {
-				this.updateWizardVisual(
-					id,
-					[],
-					[],
-					null,
-					scene,
-					planeY,
-					color
-				);
-			}
+			this.updateWizardVisual(
+				id,
+				segments,
+				bouncePoints,
+				visualGoalPoint,
+				scene,
+				planeY,
+				color
+			);
 		}
 
 		let localTarget: number | null = null;
-		if (intersectsOwnGoal && goalPoint) {
+		if (intersectsOwnGoal && targetGoalPoint) {
 			const paddleAxis = this.getPlayerAxis(gameState);
 			const paddleOrigin = this.getPlayerOrigin(gameState);
-			const flattenedTarget = new BABYLON.Vector3(goalPoint.x, 0, goalPoint.z);
+			const flattenedTarget = new BABYLON.Vector3(
+				targetGoalPoint.x,
+				0,
+				targetGoalPoint.z
+			);
 			localTarget = this.projectOntoAxis(flattenedTarget, paddleOrigin, paddleAxis);
 		}
 
