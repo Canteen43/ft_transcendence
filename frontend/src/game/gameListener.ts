@@ -40,8 +40,8 @@ export async function gameListener(event: MessageEvent) {
 			case MESSAGE_START_TOURNAMENT:
 				conditionalLog('Received "st":', msg);
 				conditionalLog('Clearing match data before GET tournament');
-				clearMatchData();
-				clearTournData();
+				// clearMatchData();
+				// clearTournData();
 				sessionStorage.setItem('tournamentID', `${msg.d}`);
 
 				const { data: tournData, error } = await apiCall(

@@ -8,6 +8,8 @@ import {
 import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
+import {leaveTournament} from '../utils/tournamentJoin';
+
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -134,15 +136,8 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
-		// leaveTournament();
-		// const { error } = await apiCall('POST', `/tournaments/leave`);
-		// if (error) {
-		// 	console.error('Error leaving tournament:', error);
-		// 	new TextModal(
-		// 		this.parent,
-		// 		`Failed to leave tournament: ${error.message}`
-		// 	);
-		// }
+		leaveTournament();
+
 		console.debug('Clearing match data before queuing');
 		clearMatchData();
 		clearTournData();

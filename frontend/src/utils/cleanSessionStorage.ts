@@ -39,9 +39,6 @@ export function clearOtherGameData() {
 }
 
 export function clearLocalGameData() {
-	sessionStorage.removeItem('physics:ballBaseSpeed');
-	sessionStorage.removeItem('physics:maxBallSpeed');
-	sessionStorage.removeItem('physics:rallySpeedIncrementPercent');
 	sessionStorage.removeItem('playerCount');
 	sessionStorage.removeItem('split');
 	sessionStorage.removeItem('stretch');
