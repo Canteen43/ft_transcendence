@@ -13,7 +13,6 @@ export class HomeScreen extends Screen {
 	constructor() {
 		super();
 		this.element.className = 'flex flex-row min-h-screen bg-transparent';
-
 		try {
 			this.initThreeD();
 		} catch (err) {

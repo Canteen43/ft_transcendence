@@ -28,6 +28,7 @@ export class Router {
 		const hash = location.hash;
 
 		if (this.currentScreen) {
+			console.info('this.currentScreen.destroy() : ', this.currentScreen);
 			this.currentScreen.destroy();
 			this.currentScreen = null;
 		}

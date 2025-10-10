@@ -1,8 +1,5 @@
 import { Button } from '../buttons/Button';
-import {
-	clearLocalGameData,
-	clearOtherGameData,
-} from '../utils/cleanSessionStorage';
+import { clearAllGameData } from '../utils/clearSessionStorage';
 import { state } from '../utils/State';
 import { LocalSetupModal } from './LocalSetupModal';
 import { Modal } from './Modal';
@@ -117,8 +114,7 @@ export class LocalGameModal extends Modal {
 	}
 
 	private setupLocalGame(n: number, tourn: boolean) {
-		clearLocalGameData();
-		clearOtherGameData();
+		clearAllGameData();
 		state.gameMode = 'local';
 		sessionStorage.setItem('gameMode', 'local');
 		state.playerCount = n;

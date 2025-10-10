@@ -1,7 +1,7 @@
 import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
 import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
-import { clearMatchData, clearTournData } from './cleanSessionStorage';
+import { clearMatchData, clearTournData } from './clearSessionStorage';
 
 export function updateTournData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');

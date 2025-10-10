@@ -2,7 +2,7 @@ import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
 import { TextModal } from '../modals/TextModal';
 import { apiCall } from '../utils/apiCall';
-import { clearMatchData, clearTournData } from '../utils/cleanSessionStorage';
+import { clearMatchData, clearTournData } from '../utils/clearSessionStorage';
 import { updateTournData } from '../utils/updateTurnMatchData.js';
 import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
@@ -14,8 +14,8 @@ export class TournamentScreen extends Screen {
 
 	constructor() {
 		super();
-		// clearMatchData();
-		// clearTournData();
+		clearMatchData();
+		clearTournData();
 		this.addStyles();
 		document.addEventListener(
 			'tournament-updated',

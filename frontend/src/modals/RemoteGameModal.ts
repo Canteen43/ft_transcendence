@@ -1,13 +1,9 @@
 import { TournamentType } from '../../../shared/enums';
 import { Button } from '../buttons/Button';
-import {
-	clearMatchData,
-	clearOtherGameData,
-	clearTournData,
-} from '../utils/cleanSessionStorage';
+import { clearAllGameData } from '../utils/clearSessionStorage';
 import { state } from '../utils/State';
+import { leaveTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
-import {leaveTournament} from '../utils/tournamentJoin';
 
 import { RemoteSetupModal } from './RemoteSetupModal';
 
@@ -155,9 +151,7 @@ export class RemoteGameModal extends Modal {
 		leaveTournament();
 
 		console.debug('Clearing match data before queuing');
-		clearMatchData();
-		clearTournData();
-		clearOtherGameData();
+		clearAllGameData();
 		console.debug('Cleared data');
 
 		console.debug('Set sessionStorage');

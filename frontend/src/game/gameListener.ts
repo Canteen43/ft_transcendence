@@ -18,10 +18,10 @@ import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { apiCall } from '../utils/apiCall';
 import {
-	clearMatchData,
+	clearRemoteData,
 	clearOtherGameData,
 	clearTournData,
-} from '../utils/cleanSessionStorage';
+} from '../utils/clearSessionStorage';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
 import { updateTournData } from '../utils/updateTurnMatchData';
@@ -39,9 +39,6 @@ export async function gameListener(event: MessageEvent) {
 		switch (msg.t) {
 			case MESSAGE_START_TOURNAMENT:
 				conditionalLog('Received "st":', msg);
-				conditionalLog('Clearing match data before GET tournament');
-				// clearMatchData();
-				// clearTournData();
 				sessionStorage.setItem('tournamentID', `${msg.d}`);
 
 				const { data: tournData, error } = await apiCall(
@@ -119,9 +116,9 @@ export async function gameListener(event: MessageEvent) {
 			case MESSAGE_QUIT:
 				conditionalLog('Clearing game data');
 				conditionalLog('Clearing game data');
-				clearMatchData();
-				clearTournData();
-				clearOtherGameData();
+				// clearMatchData();
+				// clearTournData();
+				// clearOtherGameData();
 				location.hash = '#home';
 				location.hash = '#home';
 				setTimeout(() => {
