@@ -6,10 +6,9 @@ import {
 	clearTournData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
+import { leaveTournament } from '../utils/tournamentJoin';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
-import { leaveTournament } from '../utils/tournamentJoin';
-
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -169,6 +168,11 @@ export class RemoteGameModal extends Modal {
 		);
 		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
+
+		sessionStorage.setItem(
+			'tournamentType',
+			type == TournamentType.Regular ? '0' : '1'
+		);
 
 		sessionStorage.setItem(
 			'split',

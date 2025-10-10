@@ -134,7 +134,7 @@ export class LocalGameModal extends Modal {
 			// Explicitly set to non-tournament for clarity
 			sessionStorage.setItem('tournament', '0');
 		}
-		new AliasModal(this.parent, n);
+		new AliasModal(this.parent, n, 0);
 		this.destroy();
 	}
 }

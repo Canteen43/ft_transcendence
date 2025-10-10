@@ -117,7 +117,6 @@ export class ReplayModal extends Modal {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
 		}
-		clearMatchData();
 		document.removeEventListener('RemoteReplay', this.remoteReplayHandler);
 		super.destroy();
 		// location.hash = '#home';
