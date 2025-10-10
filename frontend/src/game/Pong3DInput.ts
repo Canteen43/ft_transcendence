@@ -68,7 +68,7 @@ export class Pong3DInput {
 
 	private shouldFlipP1Controls(): boolean {
 		if (GameConfig.isRemoteMode()) {
-			return false;
+			return GameConfig.getThisPlayer() === 1;
 		}
 		return (
 			this.isLocalTournament() &&
