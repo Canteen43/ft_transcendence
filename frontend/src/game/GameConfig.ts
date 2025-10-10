@@ -45,8 +45,8 @@ export class GameConfig {
 	> = {
 		ballRadius: 0.32,
 		outOfBoundsDistance: 20,
-		physicsTimeStep: 1 / 240,
-		physicsSolverIterations: 15,
+		physicsTimeStep: 1 / 120,
+		physicsSolverIterations: 10,
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (30 * Math.PI) / 180,
@@ -62,7 +62,7 @@ export class GameConfig {
 		wallNearParallelAngleAdjustment: 0,
 		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
 		ballBaseSpeed: 12,
-		maxBallSpeed: 30,
+		maxBallSpeed: 28,
 		rallySpeedIncrementPercent: 8,
 	};
 	private static physicsOverrides: Partial<

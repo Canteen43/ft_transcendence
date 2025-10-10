@@ -2483,7 +2483,7 @@ export class Pong3D {
 		this.conditionalLog(
 			`🎯 Final angle from normal (enforced): ${((angleFromNormal * 180) / Math.PI).toFixed(1)}° (limit ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°)`
 		);
-		console.log(
+		this.conditionalLog(
 			'[AngularLimit]',
 			{
 				requestedAngleDeg: (requestedAngle * 180) / Math.PI,
