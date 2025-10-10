@@ -2,7 +2,7 @@ import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
 import { TextModal } from '../modals/TextModal';
 import { apiCall } from '../utils/apiCall';
-import { clearMatchData, clearTournData } from '../utils/clearSessionStorage';
+import { clearRemoteData, clearTournData } from '../utils/clearSessionStorage';
 import { updateTournData } from '../utils/updateTurnMatchData.js';
 import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
@@ -13,8 +13,8 @@ export class TournamentScreen extends Screen {
 	private tournamentUpdateHandler = () => void this.tournamentUpdate();
 
 	constructor() {
-		super();
-		clearMatchData();
+		super(true);
+		clearRemoteData();
 		clearTournData();
 		this.addStyles();
 		document.addEventListener(

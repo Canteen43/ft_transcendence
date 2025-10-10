@@ -2,6 +2,54 @@ import { MESSAGE_CHAT } from '../../../shared/constants.js';
 import { state } from './State.js';
 import { webSocket } from './WebSocketWrapper.js';
 
+import { isLoggedIn } from '../buttons/AuthButton';
+
+
+export class ChatManager {
+	private chat: Chat | null = null;
+	private parent: HTMLElement;
+	private bndInitChat = () => this.initChat();
+	private bndDestroyChat = () => this.destroyChat();
+
+	constructor(parent: HTMLElement) {
+		this.parent = parent;
+
+		// Listen for login state changes
+		document.addEventListener('login-success', this.bndInitChat);
+		document.addEventListener('login-failed', this.bndDestroyChat);
+		document.addEventListener('logout-success', this.bndDestroyChat);
+
+		// Initialize on load if already logged in
+		if (isLoggedIn()) {
+			this.initChat();
+		}
+	}
+
+	private initChat() {
+		if (!isLoggedIn() || !this.parent) return;
+		console.debug('Initializing chat and banner');
+
+		if (!this.chat) {
+			this.chat = new Chat(this.parent);
+		}
+	}
+
+	private destroyChat() {
+		console.debug('Destroy Chat banner called');
+		if (this.chat) {
+			this.chat.destroy();
+			this.chat = null;
+		}
+	}
+
+	destroy() {
+		this.destroyChat();
+		document.removeEventListener('login-success', this.bndInitChat);
+		document.removeEventListener('login-fail', this.bndDestroyChat);
+		document.removeEventListener('logout-success', this.bndDestroyChat);
+	}
+}
+
 export class Chat {
 	private container: HTMLElement;
 	private messagesContainer: HTMLElement;
@@ -82,11 +130,11 @@ export class Chat {
 			// Show messages
 			this.input.focus();
 			this.messagesContainer.style.display = 'block';
-			this.toggleButton.innerHTML = '▼'; 
+			this.toggleButton.innerHTML = '▼';
 		} else {
 			// Hide messages
 			this.messagesContainer.style.display = 'none';
-			this.toggleButton.innerHTML = '▲'; 
+			this.toggleButton.innerHTML = '▲';
 		}
 	};
 

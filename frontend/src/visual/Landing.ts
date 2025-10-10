@@ -6,17 +6,16 @@ export interface LandingCallbacks {
 	onStatsClick?: () => void;
 }
 
-//////////////////////
-// 3D landing page
-//
 export class Landing {
 	private engine!: BABYLON.Engine;
 	private scene!: BABYLON.Scene;
 	private camera!: BABYLON.ArcRotateCamera;
 	private canvas!: HTMLCanvasElement;
 	private highlightLayer?: BABYLON.HighlightLayer;
-	private renderLoopId?: number;
 	private resizeHandler?: () => void;
+	private shadowGenerator?: BABYLON.ShadowGenerator;
+	private envTexture?: BABYLON.HDRCubeTexture;
+	private renderLoopCallback?: () => void;
 
 	// Clickable mesh references (groups of meshes)
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
@@ -40,8 +39,7 @@ export class Landing {
 	) {
 		this.callbacks = callbacks;
 		this.canvas = document.createElement('canvas');
-		this.canvas.className =
-			'w-full h-full absolute top-0 left-0 z-0 block';
+		this.canvas.className = 'w-full h-full absolute top-0 left-0 z-0 block';
 		container.appendChild(this.canvas);
 		this.init(modelPath);
 	}
@@ -51,6 +49,7 @@ export class Landing {
 			this.engine = new BABYLON.Engine(this.canvas, true, {
 				preserveDrawingBuffer: true,
 				stencil: true,
+				antialias: true, // Better quality
 			});
 
 			this.scene = new BABYLON.Scene(this.engine);
@@ -66,13 +65,22 @@ export class Landing {
 			this.setupControls();
 			await this.loadModel(modelPath);
 
+			// Store render loop callback reference
+			this.renderLoopCallback = () => {
+				if (this.scene && !this.scene.isDisposed) {
+					this.scene.render();
+				}
+			};
+
 			// Start render loop
-			this.engine.runRenderLoop(() => {
-				this.scene.render();
-			});
+			this.engine.runRenderLoop(this.renderLoopCallback);
 
 			// Setup resize handler
-			this.resizeHandler = () => this.engine.resize();
+			this.resizeHandler = () => {
+				if (this.engine && !this.engine.isDisposed) {
+					this.engine.resize();
+				}
+			};
 			window.addEventListener('resize', this.resizeHandler);
 		} catch (err) {
 			console.error('Error initializing scene:', err);
@@ -82,32 +90,27 @@ export class Landing {
 	private setupCamera(): void {
 		this.camera = new BABYLON.ArcRotateCamera(
 			'camera',
-			-Math.PI / 1.2, // Looking from the left
-			Math.PI / 2.8, // Looking down at an angle
-			1, // Initial distance - will be adjusted by fitCameraToScene
-			BABYLON.Vector3.Zero(), // Pointed at the origin
+			-Math.PI / 1.2,
+			Math.PI / 2.8,
+			1,
+			BABYLON.Vector3.Zero(),
 			this.scene
 		);
 
-		// Enable mouse controls
 		this.camera.attachControl(this.canvas, true);
 
-		// Set limits
-		this.camera.lowerRadiusLimit = 5; // Minimum zoom distance
-		this.camera.upperRadiusLimit = 50; // Maximum zoom distance
-		this.camera.lowerBetaLimit = -1; // Prevent going below horizon
-		this.camera.upperBetaLimit = Math.PI / 2 - 0.1; // Prevent going above
+		this.camera.lowerRadiusLimit = 5;
+		this.camera.upperRadiusLimit = 50;
+		this.camera.lowerBetaLimit = -1;
+		this.camera.upperBetaLimit = Math.PI / 2 - 0.1;
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100;
-
-		// Enable zoom with mouse wheel
-		this.camera.wheelPrecision = 50; // Lower = faster zoom
+		this.camera.wheelPrecision = 50;
 
 		console.debug('Camera setup complete');
 	}
 
 	private setupLighting(): void {
-		// Bright ambient light
 		const ambientLight = new BABYLON.HemisphericLight(
 			'ambientLight',
 			new BABYLON.Vector3(0, 1, 0),
@@ -115,10 +118,9 @@ export class Landing {
 		);
 		ambientLight.intensity = 0.5;
 
-		// Directional light (adjusted direction for proper shadows)
 		const directionalLight = new BABYLON.DirectionalLight(
 			'directionalLight',
-			new BABYLON.Vector3(0, -2, 1), // Light coming from above and slightly to the side
+			new BABYLON.Vector3(0, -2, 1),
 			this.scene
 		);
 		directionalLight.intensity = 3;
@@ -128,24 +130,22 @@ export class Landing {
 	}
 
 	private setupHDR(): void {
-		const envTexture = new BABYLON.HDRCubeTexture(
+		this.envTexture = new BABYLON.HDRCubeTexture(
 			'/psychedelic.hdr',
 			this.scene,
-			512,
+			128,
 			false,
 			true,
 			false,
 			true
 		);
-		this.scene.environmentTexture = envTexture;
-		this.scene.createDefaultSkybox(envTexture, true);
+		this.scene.environmentTexture = this.envTexture;
+		// this.scene.createDefaultSkybox(this.envTexture, true);
 	}
 
 	private setupControls(): void {
 		this.scene.onPointerObservable.add(info => {
-			if (info.type === BABYLON.PointerEventTypes.POINTERMOVE) {
-				this.handleHover(info.pickInfo);
-			} else if (
+			if (
 				info.type === BABYLON.PointerEventTypes.POINTERDOWN &&
 				info.pickInfo?.hit &&
 				info.pickInfo.pickedMesh
@@ -154,10 +154,27 @@ export class Landing {
 			}
 		});
 
-		// Disable camera rotation on right click to avoid conflicts
 		this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 	}
 
+	// private async loadModel(modelPath: string): Promise<void> {
+	// 	return new Promise((resolve, reject) => {
+	// 		BABYLON.SceneLoader.ImportMesh(
+	// 			'',
+	// 			'',
+	// 			modelPath,
+	// 			this.scene,
+	// 			meshes => {
+	// 				this.onModelLoaded(meshes);
+	// 				resolve();
+	// 			},
+	// 			null,
+	// 			(_, message) => reject(new Error(message))
+	// 		);
+	// 	});
+	// }
+
+	// In Landing.ts, add loading progress
 	private async loadModel(modelPath: string): Promise<void> {
 		return new Promise((resolve, reject) => {
 			BABYLON.SceneLoader.ImportMesh(
@@ -169,7 +186,13 @@ export class Landing {
 					this.onModelLoaded(meshes);
 					resolve();
 				},
-				null,
+				// Progress callback
+				event => {
+					if (event.lengthComputable) {
+						const progress = (event.loaded / event.total) * 100;
+						console.log(`Loading: ${progress.toFixed(0)}%`);
+					}
+				},
 				(_, message) => reject(new Error(message))
 			);
 		});
@@ -184,7 +207,6 @@ export class Landing {
 		this.statsMeshes = findMeshes('stats');
 		const titleMeshes = findMeshes('title');
 
-		// Make all interactive meshes pickable and store original positions
 		[
 			...this.localGameMeshes,
 			...this.remoteGameMeshes,
@@ -194,7 +216,6 @@ export class Landing {
 			this.animationTargets.set(mesh, { originalY: mesh.position.y });
 		});
 
-		// Add shadows for objects on the Plane
 		const planeMesh = meshes.find(m => m.name.toLowerCase() === 'plane');
 		if (planeMesh) {
 			const directionalLight = this.scene.lights.find(
@@ -202,14 +223,14 @@ export class Landing {
 			) as BABYLON.DirectionalLight;
 
 			if (directionalLight) {
-				const shadowGenerator = new BABYLON.ShadowGenerator(
+				// Store shadow generator for proper disposal
+				this.shadowGenerator = new BABYLON.ShadowGenerator(
 					1024,
 					directionalLight
 				);
-				shadowGenerator.useBlurExponentialShadowMap = true;
-				shadowGenerator.blurScale = 2;
+				this.shadowGenerator.useBlurExponentialShadowMap = true;
+				this.shadowGenerator.blurScale = 2;
 
-				// Add all interactive meshes as shadow casters (cast to Mesh type)
 				[
 					...this.localGameMeshes,
 					...this.remoteGameMeshes,
@@ -217,7 +238,7 @@ export class Landing {
 					...titleMeshes,
 				].forEach(mesh => {
 					if (mesh instanceof BABYLON.Mesh) {
-						shadowGenerator.addShadowCaster(mesh);
+						this.shadowGenerator!.addShadowCaster(mesh);
 					}
 				});
 
@@ -237,17 +258,14 @@ export class Landing {
 	private fitCameraToScene(meshes: BABYLON.AbstractMesh[]): void {
 		if (meshes.length === 0) return;
 
-		// If meshes share a parent, use its bounding vectors
 		const rootNode = meshes[0].parent || meshes[0];
 		const { min, max } = rootNode.getHierarchyBoundingVectors();
 
 		const center = min.add(max).scale(0.5);
 		const maxSize = max.subtract(min).length();
 
-		// Keep the same alpha and beta angles
-		// Only adjust the target and radius
 		this.camera.setTarget(center);
-		this.camera.radius = maxSize * 0.2; // Closer multiplier
+		this.camera.radius = maxSize * 0.2;
 
 		console.debug(
 			'📹 Camera fitted to scene at',
@@ -276,207 +294,79 @@ export class Landing {
 		}
 	}
 
-	private handleHover(pickInfo: BABYLON.PickingInfo | null): void {
-		const pickedMesh = pickInfo?.hit ? pickInfo.pickedMesh : null;
-
-		// Determine which group the hovered mesh belongs to
-		let newHoveredGroup: BABYLON.AbstractMesh[] | null = null;
-
-		if (pickedMesh) {
-			const name = pickedMesh.name.toLowerCase();
-			if (name.includes('local')) {
-				newHoveredGroup = this.localGameMeshes;
-			} else if (name.includes('remote')) {
-				newHoveredGroup = this.remoteGameMeshes;
-			} else if (name.includes('stats')) {
-				newHoveredGroup = this.statsMeshes;
-			}
-		}
-
-		// If hovering over a different group (or none), update
-		if (newHoveredGroup !== this.hoveredMeshGroup) {
-			// Remove effects from previous group
-			if (this.hoveredMeshGroup) {
-				this.removeHoverEffect(this.hoveredMeshGroup);
-			}
-
-			// Apply effects to new group
-			if (newHoveredGroup) {
-				this.applyHoverEffect(newHoveredGroup);
-				this.canvas.style.cursor = 'pointer';
-			} else {
-				this.canvas.style.cursor = 'default';
-			}
-
-			this.hoveredMeshGroup = newHoveredGroup;
-		}
-	}
-
-	private applyHoverEffect(meshes: BABYLON.AbstractMesh[]): void {
-		meshes.forEach(mesh => {
-			console.debug(`✨ Applying hover to: ${mesh.name}`);
-
-			// Add highlight glow
-			if (this.highlightLayer && mesh instanceof BABYLON.Mesh) {
-				this.highlightLayer.addMesh(
-					mesh,
-					BABYLON.Color3.FromHexString('#4A90E2')
-				);
-			}
-
-			// Scale animation instead of position (works better with parented meshes)
-			const target = this.animationTargets.get(mesh);
-			if (target) {
-				this.scene.stopAnimation(mesh);
-
-				// Scale animation
-				const scaleAnimation = new BABYLON.Animation(
-					`hoverScale_${mesh.name}`,
-					'scaling',
-					30,
-					BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
-					BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-				);
-
-				const originalScale = mesh.scaling.clone();
-				const targetScale = originalScale.scale(1.15); // 15% larger
-
-				scaleAnimation.setKeys([
-					{ frame: 0, value: originalScale },
-					{ frame: 15, value: targetScale },
-				]);
-
-				// Position animation
-				const posAnimation = new BABYLON.Animation(
-					`hoverPos_${mesh.name}`,
-					'position.y',
-					30,
-					BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-					BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-				);
-
-				posAnimation.setKeys([
-					{ frame: 0, value: mesh.position.y },
-					{ frame: 15, value: mesh.position.y + 0.3 },
-				]);
-
-				mesh.animations = [scaleAnimation, posAnimation];
-				this.scene.beginAnimation(mesh, 0, 15, false);
-
-				console.debug(`🎬 Animation started for ${mesh.name}`);
-			}
-		});
-	}
-
-	private removeHoverEffect(meshes: BABYLON.AbstractMesh[]): void {
-		meshes.forEach(mesh => {
-			console.debug(`🔻 Removing hover from: ${mesh.name}`);
-
-			// Remove highlight glow
-			if (this.highlightLayer && mesh instanceof BABYLON.Mesh) {
-				this.highlightLayer.removeMesh(mesh);
-			}
-
-			const target = this.animationTargets.get(mesh);
-			if (target) {
-				this.scene.stopAnimation(mesh);
-
-				// Scale back
-				const scaleAnimation = new BABYLON.Animation(
-					`hoverScaleReturn_${mesh.name}`,
-					'scaling',
-					30,
-					BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
-					BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-				);
-
-				const currentScale = mesh.scaling.clone();
-				const originalScale = new BABYLON.Vector3(1, 1, 1);
-
-				scaleAnimation.setKeys([
-					{ frame: 0, value: currentScale },
-					{ frame: 15, value: originalScale },
-				]);
-
-				// Position back
-				const posAnimation = new BABYLON.Animation(
-					`hoverPosReturn_${mesh.name}`,
-					'position.y',
-					30,
-					BABYLON.Animation.ANIMATIONTYPE_FLOAT,
-					BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-				);
-
-				posAnimation.setKeys([
-					{ frame: 0, value: mesh.position.y },
-					{ frame: 15, value: target.originalY },
-				]);
-
-				mesh.animations = [scaleAnimation, posAnimation];
-				this.scene.beginAnimation(mesh, 0, 15, false);
-
-				console.debug(`🎬 Return animation started for ${mesh.name}`);
-			}
-		});
-	}
-
 	public dispose(): void {
 		console.log('🧹 Disposing Landing scene');
 
-		// Stop all animations
-		this.scene?.stopAllAnimations();
+		try {
+			// Stop render loop FIRST
+			if (this.engine && !this.engine.isDisposed) {
+				this.engine.stopRenderLoop();
+			}
 
-		// Clear hover state
-		if (this.hoveredMeshGroup) {
-			this.removeHoverEffect(this.hoveredMeshGroup);
+			// Stop all animations
+			if (this.scene && !this.scene.isDisposed) {
+				this.scene.stopAllAnimations();
+			}
+
+			// Clear animation targets map
+			this.animationTargets.clear();
 			this.hoveredMeshGroup = null;
+
+			// Clear mesh arrays
+			this.localGameMeshes = [];
+			this.remoteGameMeshes = [];
+			this.statsMeshes = [];
+
+			// Dispose shadow generator
+			if (this.shadowGenerator) {
+				this.shadowGenerator.dispose();
+				this.shadowGenerator = undefined;
+			}
+
+			// Dispose highlight layer
+			if (this.highlightLayer) {
+				this.highlightLayer.dispose();
+				this.highlightLayer = undefined;
+			}
+
+			// Dispose HDR texture explicitly
+			if (this.envTexture) {
+				this.envTexture.dispose();
+				this.envTexture = undefined;
+			}
+
+			// Remove event listener
+			if (this.resizeHandler) {
+				window.removeEventListener('resize', this.resizeHandler);
+				this.resizeHandler = undefined;
+			}
+
+			// Detach camera controls
+			if (this.camera) {
+				this.camera.detachControl();
+			}
+
+			// Dispose scene (this disposes all scene objects)
+			if (this.scene && !this.scene.isDisposed) {
+				this.scene.dispose();
+			}
+
+			// Dispose engine
+			if (this.engine && !this.engine.isDisposed) {
+				this.engine.dispose();
+			}
+
+			// Remove canvas from DOM
+			if (this.canvas && this.canvas.parentNode) {
+				this.canvas.parentNode.removeChild(this.canvas);
+			}
+
+			// Clear callback reference
+			this.renderLoopCallback = undefined;
+
+			console.log('✅ Landing scene fully disposed');
+		} catch (err) {
+			console.error('Error during disposal:', err);
 		}
-
-		// Clear animation targets
-		this.animationTargets.clear();
-
-		// Clear mesh arrays
-		this.localGameMeshes = [];
-		this.remoteGameMeshes = [];
-		this.statsMeshes = [];
-
-		// Dispose highlight layer
-		if (this.highlightLayer) {
-			this.highlightLayer.dispose();
-			this.highlightLayer = undefined;
-		}
-
-		// Remove event listener
-		if (this.resizeHandler) {
-			window.removeEventListener('resize', this.resizeHandler);
-			this.resizeHandler = undefined;
-		}
-
-		// Detach camera controls
-		if (this.camera) {
-			this.camera.detachControl();
-		}
-
-		// Stop render loop
-		if (this.engine) {
-			this.engine.stopRenderLoop();
-		}
-
-		// Dispose scene (this also disposes all scene objects)
-		if (this.scene) {
-			this.scene.dispose();
-		}
-
-		// Dispose engine
-		if (this.engine) {
-			this.engine.dispose();
-		}
-
-		// Remove canvas from DOM
-		if (this.canvas && this.canvas.parentNode) {
-			this.canvas.parentNode.removeChild(this.canvas);
-		}
-
-		console.log('✅ Landing scene fully disposed');
 	}
 }

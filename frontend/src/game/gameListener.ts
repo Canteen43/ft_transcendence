@@ -116,7 +116,7 @@ export async function gameListener(event: MessageEvent) {
 			case MESSAGE_QUIT:
 				conditionalLog('Clearing game data');
 				conditionalLog('Clearing game data');
-				// clearMatchData();
+				// clearRemoteData();
 				// clearTournData();
 				// clearOtherGameData();
 				location.hash = '#home';

@@ -9,7 +9,7 @@ export class GameScreen extends Screen {
 	private pong3DInstance?: Pong3D;
 
 	constructor() {
-		super();
+		super(true);
 
 		// Game screen, remote game, no match ID -> redirect to home
 		const matchID = sessionStorage.getItem('matchID');
