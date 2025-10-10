@@ -135,6 +135,12 @@ export function createPong3DUI(
 			containerPaddingBottom?: string;
 			lineSpacing?: string;
 			normalizeBaseline?: boolean;
+			underline?: {
+				color?: string;
+				thickness?: number;
+				width?: string;
+				offset?: string;
+			};
 		}
 	): MeshTextBinding | null => {
 		if (!mesh) return null;
@@ -227,6 +233,22 @@ export function createPong3DUI(
 			textBlock.onAfterDrawObservable.add(normalize);
 		}
 		container.addControl(textBlock);
+
+		if (options?.underline) {
+			const underline = new GUI.Rectangle(`${controlName}-underline`);
+			underline.height = `${options.underline.thickness ?? 24}px`;
+			underline.width = options.underline.width ?? '15%';
+			const underlineColor = options.underline.color ?? 'white';
+			underline.background = underlineColor;
+			underline.color = underlineColor;
+			underline.thickness = 0;
+			underline.verticalAlignment =
+				GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+			underline.horizontalAlignment =
+				GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+			underline.top = options.underline.offset ?? '-40px';
+			container.addControl(underline);
+		}
 
 		return {
 			texture,
@@ -330,6 +352,12 @@ export function createPong3DUI(
 					textVerticalAlignment:
 						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
 					normalizeBaseline: true,
+					underline: {
+						color: 'white',
+						thickness: 70,
+						width: '15%',
+						offset: '-60px',
+					},
 				}
 			);
 			meshBindings.score = primary;

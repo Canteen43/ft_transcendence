@@ -69,8 +69,8 @@ export function getCameraPosition(
 					return {
 						alpha: Math.PI / 2,
 						beta: Math.PI / 4.5,
-						radius: defaultRadius+7,
-						target: createTarget(defaultTargetY-1.5),
+						radius: defaultRadius + 7,
+						target: createTarget(defaultTargetY - 1.5),
 					};
 				}
 			} else if (activePlayerCount === 3) {
@@ -84,9 +84,9 @@ export function getCameraPosition(
 				// 4-player
 				return {
 					alpha: Math.PI / 2,
-					beta: defaultBeta -0.6 ,
-					radius: defaultRadius +10.4,
-					target: createTarget(defaultTargetY -1.3),
+					beta: defaultBeta - 0.6,
+					radius: defaultRadius + 10.4,
+					target: createTarget(defaultTargetY - 1.3),
 				};
 			}
 
@@ -105,9 +105,9 @@ export function getCameraPosition(
 					// Network 2-player mode: Opposite side (rotated 180°)
 					return {
 						alpha: (3 * Math.PI) / 2,
-						beta: defaultBeta,
-						radius: defaultRadius,
-						target: createTarget(),
+						beta: Math.PI / 4.5,
+						radius: defaultRadius + 7,
+						target: createTarget(defaultTargetY - 1.5),
 					};
 				}
 			} else if (activePlayerCount === 3) {

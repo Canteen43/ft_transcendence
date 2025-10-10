@@ -19,7 +19,6 @@ services:
             dockerfile: build/frontend/Dockerfile
         restart: unless-stopped
         command: nginx -g 'daemon off;'
-        env_file: ./frontend/prod.env
         ports:
             - 8000:80
         networks:
@@ -39,3 +38,11 @@ services:
             - 8080:8080
         networks:
             - my_network
+
+    # tunnel:
+    #     container_name: tunnel
+    #     image: ngrok/ngrok:latest
+    #     restart: unless-stopped
+    #     command: ['http', 'frontend:80', '--log=stdout', '--authtoken=${NGROK_AUTHTOKEN}']
+    #     networks:
+    #         - my_network

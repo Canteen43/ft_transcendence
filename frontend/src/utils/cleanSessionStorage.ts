@@ -5,6 +5,10 @@ export function clearMatchData() {
 	sessionStorage.removeItem('player2');
 	sessionStorage.removeItem('alias1');
 	sessionStorage.removeItem('alias2');
+	sessionStorage.removeItem('alias1controls');
+	sessionStorage.removeItem('alias2controls');
+	sessionStorage.removeItem('tournamentSeedAlias1');
+	sessionStorage.removeItem('tournamentSeedAlias2');
 }
 
 export function clearTournData() {
@@ -40,4 +44,12 @@ export function clearLocalGameData() {
 	sessionStorage.removeItem('split');
 	sessionStorage.removeItem('stretch');
 	sessionStorage.removeItem('shrink');
+	sessionStorage.removeItem('alias1controls');
+	sessionStorage.removeItem('alias2controls');
+	sessionStorage.removeItem('alias3controls');
+	sessionStorage.removeItem('alias4controls');
+	sessionStorage.removeItem('tournamentSeedAlias1');
+	sessionStorage.removeItem('tournamentSeedAlias2');
+	sessionStorage.removeItem('tournamentSeedAlias3');
+	sessionStorage.removeItem('tournamentSeedAlias4');
 }

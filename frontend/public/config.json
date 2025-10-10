@@ -1,6 +1,4 @@
 {
-	"mode": "local",
-	"host": "localhost",
-	"port": 8080,
-	"tunnelURL": ""
+	"apiBase": "http://localhost:8080",
+	"wsURL": "ws://localhost:8080/websocket"
 }
