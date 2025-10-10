@@ -23,9 +23,6 @@ export class GameScreen extends Screen {
 					location.hash = '#home';
 				}
 			);
-			modal.onClose = () => {
-					location.hash = '#home';
-				}
 			return;
 		}
 

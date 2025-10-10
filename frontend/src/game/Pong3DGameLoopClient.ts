@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
 import { conditionalLog, conditionalWarn } from './Logger';
 import { Pong3DGameLoopBase } from './Pong3DGameLoopBase';
+import type { NetworkPowerupState } from './Pong3DGameLoopBase';
 
 /**
  * Client Game Loop - Receives updates from master and renders directly
@@ -17,6 +18,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	private keyboardObserver: BABYLON.Nullable<
 		BABYLON.Observer<BABYLON.KeyboardInfo>
 	> = null;
+	private splitBallMesh: BABYLON.Mesh | null = null;
 
 	// Track current input state to only send changes
 	private currentInputState = 0; // 0=none, 1=left/up, 2=right/down
@@ -153,6 +155,13 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			this.handleRemoteGameState
 		);
 
+		if (this.splitBallMesh && !this.splitBallMesh.isDisposed()) {
+			try {
+				this.splitBallMesh.dispose(true, true);
+			} catch (_) {}
+		}
+		this.splitBallMesh = null;
+
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(`🎮 Client stopped for Player ${this.thisPlayerId}`);
 		}
@@ -165,6 +174,8 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	receiveGameState(gameStateMessage?: {
 		b: [number, number];
 		pd: [number, number][];
+		sb?: [number, number] | null;
+		pu?: NetworkPowerupState | null;
 	}): void {
 		if (
 			!gameStateMessage ||
@@ -257,6 +268,9 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 				);
 			}
 		}
+
+		this.updateSplitBall(gameStateMessage.sb);
+		this.handlePowerupState(gameStateMessage.pu);
 	}
 
 	/**
@@ -292,6 +306,84 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			conditionalLog(
 				`🎮 Client ignoring setBallVelocity - physics controlled by master`
 			);
+		}
+	}
+
+	private ensureSplitBallMesh(): BABYLON.Mesh | null {
+		if (this.splitBallMesh && !this.splitBallMesh.isDisposed()) {
+			return this.splitBallMesh;
+		}
+		if (!this.ballMesh) {
+			return null;
+		}
+		const clone = this.ballMesh.clone(
+			`remoteSplitBall.${performance.now()}`,
+			null
+		);
+		if (!clone) {
+			return null;
+		}
+		try {
+			clone.physicsImpostor?.dispose();
+		} catch (_) {}
+		clone.physicsImpostor = null as any;
+		clone.isPickable = false;
+		clone.checkCollisions = false;
+		clone.position = this.ballMesh.position.clone();
+		clone.rotationQuaternion =
+			this.ballMesh.rotationQuaternion?.clone() ??
+			BABYLON.Quaternion.Identity();
+		try {
+			const ballColour = new BABYLON.Color3(0, 1, 1);
+			if (
+				clone.material &&
+				'albedoColor' in (clone.material as any) &&
+				typeof (clone.material as any).clone === 'function'
+			) {
+				const pbr = (clone.material as any).clone(
+					`remoteSplitBall.material.${performance.now()}`
+				);
+				(pbr as any).albedoColor = ballColour;
+				clone.material = pbr as any;
+			} else {
+				const mat = new BABYLON.StandardMaterial(
+					`remoteSplitBall.standardMat.${performance.now()}`,
+					this.scene
+				);
+				mat.diffuseColor = ballColour;
+				mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+				clone.material = mat;
+			}
+		} catch (_) {}
+		this.splitBallMesh = clone;
+		return clone;
+	}
+
+	private updateSplitBall(
+		position: [number, number] | null | undefined
+	): void {
+		if (!position || position.length < 2) {
+			this.clearSplitBallMesh();
+			return;
+		}
+		const mesh = this.ensureSplitBallMesh();
+		if (!mesh) {
+			return;
+		}
+		const ballY = mesh.position.y || this.ballMesh?.position.y || 0;
+		mesh.position.set(position[0] * -1, ballY, position[1]);
+		mesh.setEnabled(true);
+	}
+
+	private clearSplitBallMesh(): void {
+		if (this.splitBallMesh && !this.splitBallMesh.isDisposed()) {
+			this.splitBallMesh.setEnabled(false);
+		}
+	}
+
+	private handlePowerupState(state?: NetworkPowerupState | null): void {
+		if (this.pong3DInstance?.handleRemotePowerupState) {
+			this.pong3DInstance.handleRemotePowerupState(state ?? null);
 		}
 	}
 }

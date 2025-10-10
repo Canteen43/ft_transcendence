@@ -10,9 +10,25 @@ export interface GameState {
 	isRunning: boolean;
 }
 
+/**
+ * Compact power-up payload broadcast in MESSAGE_GAME_STATE:
+ * - `t`: type id (`0 split`, `1 boost`, `2 stretch`, `3 shrink`)
+ * - `s`: state (`0 drifting`, `1 active pickup`, `2 inactive pickup/expiry`)
+ * - `p`: paddle index involved, or `-1` when not applicable
+ */
+export interface NetworkPowerupState {
+	t: number; // power-up type id
+	x: number; // X position
+	z: number; // Z position
+	s: number; // state flag (0=floating,1=active absorb,2=inactive absorb/despawn)
+	p: number; // paddle index (0-based) or -1 when not applicable
+}
+
 export interface NetworkGameState {
 	b: [number, number];
 	pd: [number, number][];
+	sb?: [number, number] | null;
+	pu?: NetworkPowerupState | null;
 }
 
 /**

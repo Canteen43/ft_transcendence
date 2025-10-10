@@ -1,6 +1,6 @@
 import { FastifyRequest, RouteGenericInterface } from 'fastify';
 import { JwtPayload } from 'jsonwebtoken';
-import { PlayerStatus, Token } from '../../shared/enums.js';
+import { PlayerStatus, Token, TournamentType } from '../../shared/enums.js';
 import { UUID } from '../../shared/types.js';
 
 export interface UserAuth {

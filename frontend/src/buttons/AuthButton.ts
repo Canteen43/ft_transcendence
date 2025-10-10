@@ -4,7 +4,6 @@ import { webSocket } from '../utils/WebSocketWrapper';
 import { Button } from './Button';
 import { TwoFactorAuthModal } from '../modals/TwoFactorAuthModal';
 
-
 export function isLoggedIn(): boolean {
 	const token = sessionStorage.getItem('token');
 	return token != null && token != '';
@@ -59,9 +58,14 @@ export class AuthComponent {
 
 		wrapper.addEventListener('mouseenter', this.onEnter);
 		wrapper.addEventListener('mouseleave', this.onLeave);
+
 	}
 
 	private showLoginModal() {
+		if (this.loginModal) {
+			this.loginModal.destroy();
+		}
+		this.loginModal = new LoginModal(this.parent);
 		if (this.loginModal) {
 			this.loginModal.destroy();
 		}

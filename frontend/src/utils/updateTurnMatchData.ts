@@ -23,7 +23,7 @@ export function updateTournData(tournData: any): void {
 	console.debug('tournData =', tournData);
 
 	console.debug('Clearing match data before updating tournament');
-	clearMatchData();
+	// clearMatchData();
 	clearTournData();
 
 	// Helper function to get alias from user_id
@@ -50,6 +50,12 @@ export function updateTournData(tournData: any): void {
 		sessionStorage.setItem('player2', player2);
 		sessionStorage.setItem('alias1', player1Alias || player1);
 		sessionStorage.setItem('alias2', player2Alias || player2);
+
+		// Store scores for display
+		const p1Score = tournData.matches[0].participant_1_score || 0;
+		const p2Score = tournData.matches[0].participant_2_score || 0;
+		sessionStorage.setItem('p1Score', p1Score.toString());
+		sessionStorage.setItem('p2Score', p2Score.toString());
 
 		console.debug('DEBUG: Two player game - matchID set to:', matchID);
 	}

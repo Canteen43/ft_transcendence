@@ -1,3 +1,4 @@
+import { TournamentType } from '../../../shared/enums';
 import { Button } from '../buttons/Button';
 import {
 	clearMatchData,
@@ -10,7 +11,9 @@ import { Modal } from './Modal';
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
+	private btn2plyrPwr: Button;
 	private btnTourn: Button;
+	private btnTournPwr: Button;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -20,15 +23,46 @@ export class RemoteGameModal extends Modal {
 		img2.src = '2_players.png';
 		img2.className = 'h-16 sm:h-20 md:h-[100px]';
 
+		const img2_pu = document.createElement('img');
+		img2_pu.src = '2_players_powerups.png';
+		img2_pu.className = 'h-16 sm:h-20 md:h-[100px]';
+
 		const imgt = document.createElement('img');
 		imgt.src = 'trophy.png';
 		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
 
-		this.btn2plyr = new Button(img2, () => this.logicRemote(2), this.box);
-		this.btnTourn = new Button(imgt, () => this.logicRemote(4), this.box);
+		const imgt_pu = document.createElement('img');
+		imgt_pu.src = 'trophy_powerups.png';
+		imgt_pu.className = 'h-16 sm:h-20 md:h-[100px]';
+
+		this.btn2plyr = new Button(
+			img2,
+			() => this.logicRemote(2, TournamentType.Regular),
+			this.box
+		);
+		this.btn2plyrPwr = new Button(
+			img2_pu,
+			() => this.logicRemote(2, TournamentType.Powerup),
+			this.box
+		);
+		this.btnTourn = new Button(
+			imgt,
+			() => this.logicRemote(4, TournamentType.Regular),
+			this.box
+		);
+		this.btnTournPwr = new Button(
+			imgt_pu,
+			() => this.logicRemote(4, TournamentType.Powerup),
+			this.box
+		);
 
 		// fixed button size
-		[this.btn2plyr, this.btnTourn].forEach(btn => {
+		[
+			this.btn2plyr,
+			this.btn2plyrPwr,
+			this.btnTourn,
+			this.btnTournPwr,
+		].forEach(btn => {
 			btn.element.className +=
 				' w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
 				' h-[100px] sm:h-[120px] md:h-[140px]' +
@@ -48,26 +82,35 @@ export class RemoteGameModal extends Modal {
 
 		this.btn2plyr.element.focus();
 		this.btn2plyr.element.tabIndex = 0;
+		this.btn2plyrPwr.element.tabIndex = 0;
 		this.btnTourn.element.tabIndex = 0;
+		this.btnTournPwr.element.tabIndex = 0;
 	}
 
 	private addEnterListener() {
 		const buttonConfigs = [
-			{ button: this.btn2plyr, player: 2 },
-			{ button: this.btnTourn, player: 4 },
+			{ button: this.btn2plyr, player: 2, powerUp: TournamentType.Regular },
+			{ button: this.btn2plyrPwr, player: 2, powerUp: TournamentType.Powerup },
+			{ button: this.btnTourn, player: 4,powerUp: TournamentType.Regular },
+			{ button: this.btnTournPwr, player: 4, powerUp: TournamentType.Powerup },
 		];
 
-		buttonConfigs.forEach(({ button, player }) => {
+		buttonConfigs.forEach(({ button, player, powerUp }) => {
 			button.element.addEventListener('keydown', (e: KeyboardEvent) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
-					this.logicRemote(player);
+					this.logicRemote(player, powerUp);
 				}
 
 				// Arrow key navigation
 				if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
 					e.preventDefault();
-					const buttons = [this.btn2plyr, this.btnTourn];
+					const buttons = [
+						this.btn2plyr,
+						this.btn2plyrPwr,
+						this.btnTourn,
+						this.btnTournPwr,
+					];
 					const currentIndex = buttons.indexOf(button);
 					const nextIndex = (currentIndex + 1) % buttons.length;
 					buttons[nextIndex].element.focus();
@@ -75,7 +118,12 @@ export class RemoteGameModal extends Modal {
 
 				if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
 					e.preventDefault();
-					const buttons = [this.btn2plyr, this.btnTourn];
+					const buttons = [
+						this.btn2plyr,
+						this.btn2plyrPwr,
+						this.btnTourn,
+						this.btnTournPwr,
+					];
 					const currentIndex = buttons.indexOf(button);
 					const prevIndex =
 						(currentIndex - 1 + buttons.length) % buttons.length;
@@ -85,7 +133,7 @@ export class RemoteGameModal extends Modal {
 		});
 	}
 
-	private async logicRemote(tournamentSize: number) {
+	private async logicRemote(tournamentSize: number, type: TournamentType) {
 		// leaveTournament();
 		// const { error } = await apiCall('POST', `/tournaments/leave`);
 		// if (error) {
@@ -108,7 +156,11 @@ export class RemoteGameModal extends Modal {
 		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
 
+		sessionStorage.setItem('split', type == TournamentType.Regular ? '0' : '1');
+		sessionStorage.setItem('stretch', type == TournamentType.Regular ? '0' : '1');
+		sessionStorage.setItem('shrink', type == TournamentType.Regular ? '0' : '1');
+
 		this.destroy();
-		new AliasModal(this.parent, 1);
+		new AliasModal(this.parent, 1, type);
 	}
 }

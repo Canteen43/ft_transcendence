@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { TournamentType } from '../../../shared/enums.js';
 import { Button } from '../buttons/Button';
 import { state } from '../utils/State';
+import { joinTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
 import { WaitingModal } from './WaitingModal';
@@ -27,7 +29,7 @@ export class AliasModal extends Modal {
 	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
 		new Map();
 
-	constructor(parent: HTMLElement, n: number) {
+	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
 		this.box.classList.add('alias-modal');
 
@@ -61,11 +63,11 @@ export class AliasModal extends Modal {
 			this.powerupCheckboxes = this.createPowerupSection();
 		}
 
-		this.addKeyboardListeners();
+		this.addKeyboardListeners(type);
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
 
-		new Button('Continue', () => this.handleAlias(), this.box);
+		new Button('Continue', () => this.handleAlias(type), this.box);
 	}
 
 	private createPowerupSection(): Record<
@@ -89,7 +91,10 @@ export class AliasModal extends Modal {
 			HTMLInputElement
 		> = {} as Record<'split' | 'stretch' | 'shrink', HTMLInputElement>;
 
-		const powerups: { key: 'split' | 'stretch' | 'shrink'; label: string }[] = [
+		const powerups: {
+			key: 'split' | 'stretch' | 'shrink';
+			label: string;
+		}[] = [
 			{ key: 'split', label: 'Ball Split' },
 			{ key: 'stretch', label: 'Paddle Stretch' },
 			{ key: 'shrink', label: 'Paddle Shrink' },
@@ -97,7 +102,8 @@ export class AliasModal extends Modal {
 
 		powerups.forEach(({ key, label }) => {
 			const row = document.createElement('label');
-			row.className = 'flex items-center gap-3 text-base text-[var--(color4)]';
+			row.className =
+				'flex items-center gap-3 text-base text-[var--(color4)]';
 
 			const checkbox = document.createElement('input');
 			checkbox.type = 'checkbox';
@@ -229,12 +235,12 @@ export class AliasModal extends Modal {
 		return { button, dropdown };
 	}
 
-	private addKeyboardListeners(): void {
+	private addKeyboardListeners(type : TournamentType): void {
 		this.aliasFields.forEach(field => {
 			const handler = (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
-					this.handleAlias();
+					this.handleAlias(type);
 				}
 				if (e.key === 'Escape') {
 					this.closeAllDropdowns();
@@ -273,11 +279,11 @@ export class AliasModal extends Modal {
 		this.openDropdownIndex = null;
 	}
 
-	private async handleAlias() {
+	private async handleAlias(type: TournamentType) {
 		if (state.gameMode === 'local') {
 			this.handleLocalGame();
 		} else {
-			await this.handleRemoteGame();
+			await this.handleRemoteGame(type);
 		}
 		this.destroy();
 	}
@@ -324,7 +330,7 @@ export class AliasModal extends Modal {
 		location.hash = '#game';
 	}
 
-	private async handleRemoteGame(): Promise<void> {
+	private async handleRemoteGame(type: TournamentType): Promise<void> {
 		const alias = this.aliasFields[0].value.trim() || 'Player1';
 		sessionStorage.setItem('alias', alias);
 
@@ -337,14 +343,13 @@ export class AliasModal extends Modal {
 		);
 		GameConfig.clearTournamentSeedAliases();
 
-		const result = await joinTournament(state.tournamentSize);
+		const result = await joinTournament(state.tournamentSize, type);
 		if (!result.success) {
 			this.showError(result.error, result.zodError);
 			return;
 		}
 		new WaitingModal(this.parent);
 	}
-
 
 	private showError(message: string, zodError?: z.ZodError): void {
 		new TextModal(this.parent, message);

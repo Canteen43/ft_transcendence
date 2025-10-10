@@ -6,6 +6,7 @@ import { state } from './utils/State';
 import { webSocket } from './utils/WebSocketWrapper';
 import { getEndpoints } from './utils/endpoints';
 
+
 // Register Babylon glTF loaders (side-effect import). Ensure '@babylonjs/loaders' is installed.
 import '@babylonjs/loaders';
 import './style.css';
@@ -21,6 +22,8 @@ window.addEventListener('unhandledrejection', event => {
 	console.error('Unhandled promise rejection', event.reason);
 });
 
+
+
 const app = document.getElementById('app') as HTMLDivElement;
 app.className = 'w-screen h-screen flex flex-col bg-white bg-center';
 app.style.backgroundSize = 'cover';
@@ -31,4 +34,4 @@ await getEndpoints();
 router.init();
 new AuthComponent(app);
 new HomeButton(app);
-//new ChatBannerManager(app);
+// new ChatBannerManager(app);
