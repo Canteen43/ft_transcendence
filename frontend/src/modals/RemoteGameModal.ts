@@ -153,22 +153,39 @@ export class RemoteGameModal extends Modal {
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
 		console.log('Starting logicRemote');
 
-		// try {
 		await leaveTournament();
-		// }
-		// catch {
-		// 	e
-		// }
 		console.log('Left tournament');
 
-		console.debug('Clearing match data before queuing');
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();
-		console.log('Cleared data');
+		console.debug('Cleared data');
 
-		// ... rest of sessionStorage operations ...
-		console.log('Set sessionStorage');
+		console.debug('Set sessionStorage');
+
+		state.gameMode = 'remote';
+		state.tournamentSize = tournamentSize;
+		state.tournamentOngoing = tournamentSize === 4;
+
+		sessionStorage.setItem('gameMode', 'remote');
+		sessionStorage.setItem('playerCount', '2');
+		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
+		sessionStorage.setItem(
+			'tournamentType',
+			type == TournamentType.Regular ? '0' : '1'
+		);
+		sessionStorage.setItem(
+			'split',
+			type == TournamentType.Regular ? '0' : '1'
+		);
+		sessionStorage.setItem(
+			'stretch',
+			type == TournamentType.Regular ? '0' : '1'
+		);
+		sessionStorage.setItem(
+			'shrink',
+			type == TournamentType.Regular ? '0' : '1'
+		);
 
 		this.destroy();
 		console.log('Destroyed modal');

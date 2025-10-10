@@ -5,10 +5,6 @@ export function clearMatchData() {
 	sessionStorage.removeItem('player2');
 	sessionStorage.removeItem('alias1');
 	sessionStorage.removeItem('alias2');
-	sessionStorage.removeItem('alias1controls');
-	sessionStorage.removeItem('alias2controls');
-	sessionStorage.removeItem('tournamentSeedAlias1');
-	sessionStorage.removeItem('tournamentSeedAlias2');
 	sessionStorage.removeItem('split');
 	sessionStorage.removeItem('stretch');
 	sessionStorage.removeItem('shrink');
@@ -39,9 +35,6 @@ export function clearOtherGameData() {
 }
 
 export function clearLocalGameData() {
-	sessionStorage.removeItem('physics:ballBaseSpeed');
-	sessionStorage.removeItem('physics:maxBallSpeed');
-	sessionStorage.removeItem('physics:rallySpeedIncrementPercent');
 	sessionStorage.removeItem('playerCount');
 	sessionStorage.removeItem('split');
 	sessionStorage.removeItem('stretch');

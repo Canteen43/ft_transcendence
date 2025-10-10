@@ -64,6 +64,8 @@ export async function joinTournament(
 	sessionStorage.setItem('gameMode', 'remote');
 
 	if (isTournamentReady) {
+			console.debug('Tournament (game) actual players:', playerQueue.queue);
+
 		return await createTournament(type, playerQueue);
 	}
 
