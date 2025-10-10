@@ -6,6 +6,9 @@ import { joinTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
 import { WaitingModal } from './WaitingModal';
+import { joinTournament } from '../utils/tournamentJoin';
+import { GameConfig } from '../game/GameConfig';
+
 
 export class AliasModal extends Modal {
 	private aliasFields: HTMLInputElement[] = [];
@@ -286,10 +289,30 @@ export class AliasModal extends Modal {
 	}
 
 	private handleLocalGame(): void {
+		const isTournament = sessionStorage.getItem('tournament') === '1';
 		this.aliasFields.forEach((field, index) => {
 			const alias = field.value.trim() || `Player${index + 1}`;
 			sessionStorage.setItem(`alias${index + 1}`, alias);
+			if (isTournament) {
+				const controlScheme = GameConfig.getDefaultControlScheme(
+					(index + 1) as 1 | 2 | 3 | 4
+				);
+				GameConfig.setPlayerControlScheme(
+					(index + 1) as 1 | 2 | 3 | 4,
+					controlScheme
+				);
+				GameConfig.setTournamentSeedAlias(
+					(index + 1) as 1 | 2 | 3 | 4,
+					alias
+				);
+			}
 		});
+		if (!isTournament) {
+			for (let i = 1; i <= 4; i++) {
+				sessionStorage.removeItem(`alias${i}controls`);
+			}
+			GameConfig.clearTournamentSeedAliases();
+		}
 		if (this.powerupCheckboxes) {
 			sessionStorage.setItem(
 				'split',
@@ -315,6 +338,10 @@ export class AliasModal extends Modal {
 		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key =>
 			sessionStorage.removeItem(key)
 		);
+		['alias1controls', 'alias2controls', 'alias3controls', 'alias4controls'].forEach(
+			key => sessionStorage.removeItem(key)
+		);
+		GameConfig.clearTournamentSeedAliases();
 
 		const result = await joinTournament(state.tournamentSize, type);
 		if (!result.success) {

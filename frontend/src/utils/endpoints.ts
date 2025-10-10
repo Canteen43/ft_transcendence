@@ -1,25 +1,25 @@
+// Examples for config.json:
+
+// Use this for normal local development
+// {
+// 	"apiBase": "http://localhost:8080",
+// 	"wsURL": "ws://localhost:8080/websocket"
+// }
+
+// Use this for testing multiplayer in development
+// {
+// 	"apiBase": "http://c3a6c2.42berlin.de:8080",
+// 	"wsURL": "ws://c3a6c2.42berlin.de:8080/websocket"
+// }
+
+// This will be set at run-time when using a tunnel in production
+// {
+// 	"apiBase": "https://123.ngrok.io/api",
+// 	"wsURL": "wss://123.ngrok.io/websocket"
+// }
+
 export let apiBase: string | null = null;
 export let wsURL: string | null = null;
-
-// Example config.json files:
-// {
-// 	"mode": "local",
-// 	"host": "localhost",
-// 	"port": 8080,
-// 	"tunnelURL": ""
-// }
-// {
-// 	"mode": "local",
-// 	"host": "c3a6c2.42berlin.de",
-// 	"port": 8080,
-// 	"tunnelURL": ""
-// }
-// {
-// 	"mode": "tunnel",
-// 	"host": "",
-// 	"port": 0,
-// 	"tunnelURL": "123.ngrok.io"
-// }
 
 export async function getEndpoints() {
 	const res = await fetch('/config.json');
@@ -32,14 +32,6 @@ export async function getEndpoints() {
 		);
 	}
 	const data = await res.json();
-	if (data.mode === 'local') {
-		apiBase = `http://${data.host}:${data.port}`;
-		wsURL = `ws://${data.host}:${data.port}/websocket`;
-	} else if (data.mode === 'tunnel') {
-		apiBase = `https://${data.tunnelURL}/api`;
-		wsURL = `wss://${data.tunnelURL}/websocket`;
-	} else {
-		console.error(`Unknown mode in config.json: ${data.mode}`);
-		throw new Error(`Unknown mode in config.json: ${data.mode}`);
-	}
+	apiBase = data.apiBase;
+	wsURL = data.wsURL;
 }
