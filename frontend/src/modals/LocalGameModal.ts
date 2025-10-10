@@ -4,7 +4,7 @@ import {
 	clearOtherGameData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
-import { AliasModal } from './AliasModal';
+import { LocalSetupModal } from './LocalSetupModal';
 import { Modal } from './Modal';
 
 export class LocalGameModal extends Modal {
@@ -64,7 +64,6 @@ export class LocalGameModal extends Modal {
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
-		
 		// modal box background
 		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
@@ -134,7 +133,7 @@ export class LocalGameModal extends Modal {
 			// Explicitly set to non-tournament for clarity
 			sessionStorage.setItem('tournament', '0');
 		}
-		new AliasModal(this.parent, n, 0);
+		new LocalSetupModal(this.parent, n, 0);
 		this.destroy();
 	}
 }

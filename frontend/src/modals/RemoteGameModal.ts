@@ -7,7 +7,7 @@ import {
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
 import { leaveTournament } from '../utils/tournamentJoin';
-import { AliasModal } from './AliasModal';
+import { RemoteSetupModal } from './RemoteSetupModal';
 import { Modal } from './Modal';
 
 export class RemoteGameModal extends Modal {
@@ -161,33 +161,21 @@ export class RemoteGameModal extends Modal {
 		state.tournamentSize = tournamentSize;
 		state.tournamentOngoing = tournamentSize === 4;
 
+		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('gameMode', 'remote');
 		sessionStorage.setItem(
 			'tournamentType',
-			TournamentType.Regular ? '0' : '1'
+			type == TournamentType.Regular ? '0' : '1'
 		);
-		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
-
-		sessionStorage.setItem(
-			'tournamentType',
-			type == TournamentType.Regular ? '0' : '1'
-		);
-
-		sessionStorage.setItem(
-			'split',
-			type == TournamentType.Regular ? '0' : '1'
-		);
-		sessionStorage.setItem(
-			'stretch',
-			type == TournamentType.Regular ? '0' : '1'
-		);
-		sessionStorage.setItem(
-			'shrink',
-			type == TournamentType.Regular ? '0' : '1'
-		);
+		['split', 'stretch', 'shrink'].forEach(p => {
+			sessionStorage.setItem(
+				p,
+				type === TournamentType.Powerup ? '1' : '0'
+			);
+		});
 
 		this.destroy();
-		new AliasModal(this.parent, 1, type);
+		new RemoteSetupModal(this.parent, type);
 	}
 }

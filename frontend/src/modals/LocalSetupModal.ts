@@ -1,15 +1,9 @@
-import { z } from 'zod';
 import { TournamentType } from '../../../shared/enums.js';
 import { Button } from '../buttons/Button';
-import { state } from '../utils/State';
-import { joinTournament } from '../utils/tournamentJoin';
-import { Modal } from './Modal';
-import { TextModal } from './TextModal';
-import { WaitingModal } from './WaitingModal';
 import { GameConfig } from '../game/GameConfig';
+import { Modal } from './Modal';
 
-
-export class AliasModal extends Modal {
+export class LocalSetupModal extends Modal {
 	private aliasFields: HTMLInputElement[] = [];
 	private dropdownContainers: HTMLDivElement[] = [];
 	private openDropdownIndex: number | null = null;
@@ -41,7 +35,6 @@ export class AliasModal extends Modal {
 			sessionStorage.getItem('alias4') ?? '',
 		];
 		const aliasHints = ['↑←↓→', 'wasd', 'ijkl', '8456'];
-		const gameMode = sessionStorage.getItem('gameMode');
 
 		for (let i = 0; i < n; i++) {
 			const defaultValue =
@@ -49,18 +42,11 @@ export class AliasModal extends Modal {
 					? alias || username || `player${i + 1}`
 					: aliases[i] || `player${i + 1}`;
 
-			const row = this.createPlayerRow(
-				i,
-				defaultValue,
-				aliasHints[i],
-				gameMode === 'local'
-			);
+			const row = this.createPlayerRow(i, defaultValue, aliasHints[i]);
 			this.box.appendChild(row);
 		}
 
-		if (gameMode === 'local') {
-			this.powerupCheckboxes = this.createPowerupSection();
-		}
+		this.powerupCheckboxes = this.createPowerupSection();
 
 		this.addKeyboardListeners(type);
 		this.aliasFields[0].focus();
@@ -78,7 +64,7 @@ export class AliasModal extends Modal {
 
 		const title = document.createElement('h2');
 		title.textContent = 'PowerUps';
-		title.className = 'text-2xl font-bold text-[var--(color4)]';
+		title.className = 'text-2xl font-bold text-[var(--color4)]';
 		container.appendChild(title);
 
 		const list = document.createElement('div');
@@ -102,7 +88,7 @@ export class AliasModal extends Modal {
 		powerups.forEach(({ key, label }) => {
 			const row = document.createElement('label');
 			row.className =
-				'flex items-center gap-3 text-base text-[var--(color4)]';
+				'flex items-center gap-3 text-base text-[var(--color4)]';
 
 			const checkbox = document.createElement('input');
 			checkbox.type = 'checkbox';
@@ -111,7 +97,7 @@ export class AliasModal extends Modal {
 
 			const span = document.createElement('span');
 			span.textContent = label;
-			span.className = 'text-lg font-medium text-[var--(color4)]';
+			span.className = 'text-lg font-medium text-[var(--color4)]';
 
 			row.appendChild(checkbox);
 			row.appendChild(span);
@@ -127,8 +113,7 @@ export class AliasModal extends Modal {
 	private createPlayerRow(
 		index: number,
 		defaultValue: string,
-		hint: string,
-		showAIButton: boolean
+		hint: string
 	): HTMLDivElement {
 		const row = document.createElement('div');
 		row.className = 'flex items-center gap-2 w-full relative';
@@ -141,12 +126,10 @@ export class AliasModal extends Modal {
 		row.appendChild(input);
 		this.aliasFields.push(input);
 
-		if (showAIButton) {
-			const { button, dropdown } = this.createAISelector(index, input);
-			row.appendChild(button);
-			row.appendChild(dropdown);
-			this.dropdownContainers.push(dropdown);
-		}
+		const { button, dropdown } = this.createAISelector(index, input);
+		row.appendChild(button);
+		row.appendChild(dropdown);
+		this.dropdownContainers.push(dropdown);
 
 		return row;
 	}
@@ -234,7 +217,7 @@ export class AliasModal extends Modal {
 		return { button, dropdown };
 	}
 
-	private addKeyboardListeners(type : TournamentType): void {
+	private addKeyboardListeners(type: TournamentType): void {
 		this.aliasFields.forEach(field => {
 			const handler = (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
@@ -278,12 +261,8 @@ export class AliasModal extends Modal {
 		this.openDropdownIndex = null;
 	}
 
-	private async handleAlias(type: TournamentType) {
-		if (state.gameMode === 'local') {
-			this.handleLocalGame();
-		} else {
-			await this.handleRemoteGame(type);
-		}
+	private handleAlias(type: TournamentType) {
+		this.handleLocalGame();
 		this.destroy();
 	}
 
@@ -327,35 +306,6 @@ export class AliasModal extends Modal {
 			);
 		}
 		location.hash = '#game';
-	}
-
-	private async handleRemoteGame(type: TournamentType): Promise<void> {
-		const alias = this.aliasFields[0].value.trim() || 'Player1';
-		sessionStorage.setItem('alias', alias);
-
-		// Clean up old aliases
-		['alias1', 'alias2', 'alias3', 'alias4'].forEach(key =>
-			sessionStorage.removeItem(key)
-		);
-		['alias1controls', 'alias2controls', 'alias3controls', 'alias4controls'].forEach(
-			key => sessionStorage.removeItem(key)
-		);
-		GameConfig.clearTournamentSeedAliases();
-
-		const result = await joinTournament(state.tournamentSize, type);
-		if (!result.success) {
-			this.showError(result.error, result.zodError);
-			return;
-		}
-		new WaitingModal(this.parent);
-	}
-
-	private showError(message: string, zodError?: z.ZodError): void {
-		new TextModal(this.parent, message);
-		if (zodError) {
-			console.error('Validation failed:', z.treeifyError(zodError));
-		}
-		console.error(message);
 	}
 
 	public destroy(): void {
