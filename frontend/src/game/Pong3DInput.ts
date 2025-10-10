@@ -66,19 +66,24 @@ export class Pong3DInput {
 		return GameConfig.isLocalTournament();
 	}
 
-	private shouldFlipP1Controls(): boolean {
+	private shouldFlipControls(playerIndex: number): boolean {
 		if (GameConfig.isRemoteMode()) {
-			return GameConfig.getThisPlayer() === 1;
+			return GameConfig.getThisPlayer() === playerIndex + 1;
 		}
 
-		if (!this.isLocalTournament()) {
-			return false;
+		if (playerIndex === 0) {
+			return true;
 		}
 
-		const isThreePlayerRound = GameConfig.getPlayerCount() === 3;
-		const aliasChanged = !GameConfig.isCurrentAliasSeed(1);
+		if (GameConfig.getPlayerCount() === 4 && playerIndex === 1) {
+			return true;
+		}
 
-		return isThreePlayerRound && aliasChanged;
+		if (GameConfig.getPlayerCount() === 3 && playerIndex === 2) {
+			return true;
+		}
+
+		return false;
 	}
 
 	private updateControlState(
@@ -150,7 +155,6 @@ export class Pong3DInput {
 
 	private composeKeyState(): KeyState {
 		const assignments = this.getControlAssignments();
-		const flipP1 = this.shouldFlipP1Controls();
 		const fallback = (index: number): ControlScheme =>
 			assignments[index] ??
 			GameConfig.getDefaultControlScheme((index + 1) as 1 | 2 | 3 | 4);
@@ -159,7 +163,7 @@ export class Pong3DInput {
 			const scheme = fallback(index);
 			const state = this.controlState[scheme];
 			if (!state) return false;
-			if (index === 0 && flipP1) {
+			if (this.shouldFlipControls(index)) {
 				// Paddle 1 controls are mirrored so left/right swap regardless of scheme
 				return state[side === 'left' ? 'right' : 'left'];
 			}
@@ -265,7 +269,7 @@ export class Pong3DInput {
 			GameConfig.getDefaultControlScheme((index + 1) as 1 | 2 | 3 | 4);
 		const state = this.controlState[scheme];
 		if (!state) return;
-		if (index === 0 && this.shouldFlipP1Controls()) {
+		if (this.shouldFlipControls(index)) {
 			state.left = right;
 			state.right = left;
 		} else {
