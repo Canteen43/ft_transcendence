@@ -6,7 +6,6 @@ import { joinTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
 import { WaitingModal } from './WaitingModal';
-import { joinTournament } from '../utils/tournamentJoin';
 import { GameConfig } from '../game/GameConfig';
 
 

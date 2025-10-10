@@ -1,4 +1,6 @@
+import { types } from 'util';
 import { z } from 'zod';
+import { TournamentType } from '../../../shared/enums.js';
 import {
 	CreateTournamentApiSchema,
 	JoinTournamentSchema,
@@ -6,14 +8,14 @@ import {
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
 import { apiCall } from './apiCall';
-import { TournamentType } from '../../../shared/enums.js';
 
 type TournamentJoinResult =
 	| { success: true; waiting?: boolean; tournament?: any }
 	| { success: false; error: string; zodError?: z.ZodError };
 
 export async function joinTournament(
-	targetSize: number, type: TournamentType
+	targetSize: number,
+	type: TournamentType
 ): Promise<TournamentJoinResult> {
 	const joinData = {
 		size: targetSize,
@@ -72,7 +74,8 @@ export async function joinTournament(
 }
 
 export async function createTournament(
-	type: TournamentType, playerQueue: any
+	type: TournamentType,
+	playerQueue: any
 ): Promise<TournamentJoinResult> {
 	const body = {
 		type: type,
@@ -121,7 +124,6 @@ export async function createTournament(
 	};
 }
 
-
 export async function leaveTournament(): Promise<void> {
 	console.debug('POST /tournaments/leave');
 	const { error } = await apiCall('POST', '/tournaments/leave');
@@ -130,12 +132,22 @@ export async function leaveTournament(): Promise<void> {
 	}
 }
 
-
-
 export async function replayTournament(
 	playerQueue: any
 ): Promise<TournamentJoinResult> {
+	const typeString = sessionStorage.getItem('tournamentType');
+	if (!typeString) {
+		return {
+			success: false,
+			error: 'Tournament type missing',
+		};
+	}
+	let typeTourn: TournamentType;
+	typeString == '0'
+		? (typeTourn = TournamentType.Regular)
+		: (typeTourn = TournamentType.Powerup);
 	const body = {
+		type: typeTourn,
 		creator: sessionStorage.getItem('userID') || '',
 		participants: playerQueue.queue,
 	};
@@ -174,4 +186,3 @@ export async function replayTournament(
 		error: 'Failed to create tournament',
 	};
 }
-

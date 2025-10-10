@@ -17,9 +17,10 @@ export class Screen {
 		const app = document.getElementById('app') as HTMLDivElement;
 		app.appendChild(this.element);
 	}
-	
+
 	public destroy(): void {
 		this.element.parentNode?.removeChild(this.element);
-		(this.element as any) = null;
+		this.element.replaceChildren();
+		this.element = null as any;
 	}
 }

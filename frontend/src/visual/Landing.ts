@@ -6,6 +6,8 @@ export interface LandingCallbacks {
 	onStatsClick?: () => void;
 }
 
+// let sharedEngine: BABYLON.Engine | null = null;
+
 //////////////////////
 // 3D landing page
 //
@@ -38,12 +40,13 @@ export class Landing {
 	) {
 		this.callbacks = callbacks;
 		this.canvas = document.createElement('canvas');
-		this.canvas.className = 'w-full h-full absolute top-0 left-0 z-0  block';
+		this.canvas.className =
+			'w-full h-full absolute top-0 left-0 z-0  block';
 		container.appendChild(this.canvas);
 		this.init(modelPath);
 	}
 
-	async init(modelPath: string) {
+	private async init(modelPath: string): Promise<void> {
 		try {
 			this.engine = new BABYLON.Engine(this.canvas, true, {
 				preserveDrawingBuffer: true,
@@ -120,7 +123,15 @@ export class Landing {
 	}
 
 	private setupHDR(): void {
-		const envTexture = new BABYLON.HDRCubeTexture('/psychedelic.hdr', this.scene, 512, false, true, false, true);
+		const envTexture = new BABYLON.HDRCubeTexture(
+			'/psychedelic.hdr',
+			this.scene,
+			512,
+			false,
+			true,
+			false,
+			true
+		);
 		this.scene.environmentTexture = envTexture;
 		this.scene.createDefaultSkybox(envTexture, true);
 	}
@@ -405,6 +416,11 @@ export class Landing {
 	}
 
 	public dispose(): void {
+		console.log(
+			'Disposing Landing. Active contexts:',
+			BABYLON.Engine.Instances?.length
+		);
+
 		if (this.engine) this.engine.stopRenderLoop();
 		if (this.scene) this.scene.dispose();
 		if (this.engine) this.engine.dispose();

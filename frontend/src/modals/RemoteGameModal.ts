@@ -8,6 +8,8 @@ import {
 import { state } from '../utils/State';
 import { AliasModal } from './AliasModal';
 import { Modal } from './Modal';
+import { leaveTournament } from '../utils/tournamentJoin';
+
 
 export class RemoteGameModal extends Modal {
 	private btn2plyr: Button;
@@ -89,10 +91,26 @@ export class RemoteGameModal extends Modal {
 
 	private addEnterListener() {
 		const buttonConfigs = [
-			{ button: this.btn2plyr, player: 2, powerUp: TournamentType.Regular },
-			{ button: this.btn2plyrPwr, player: 2, powerUp: TournamentType.Powerup },
-			{ button: this.btnTourn, player: 4,powerUp: TournamentType.Regular },
-			{ button: this.btnTournPwr, player: 4, powerUp: TournamentType.Powerup },
+			{
+				button: this.btn2plyr,
+				player: 2,
+				powerUp: TournamentType.Regular,
+			},
+			{
+				button: this.btn2plyrPwr,
+				player: 2,
+				powerUp: TournamentType.Powerup,
+			},
+			{
+				button: this.btnTourn,
+				player: 4,
+				powerUp: TournamentType.Regular,
+			},
+			{
+				button: this.btnTournPwr,
+				player: 4,
+				powerUp: TournamentType.Powerup,
+			},
 		];
 
 		buttonConfigs.forEach(({ button, player, powerUp }) => {
@@ -134,15 +152,7 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
-		// leaveTournament();
-		// const { error } = await apiCall('POST', `/tournaments/leave`);
-		// if (error) {
-		// 	console.error('Error leaving tournament:', error);
-		// 	new TextModal(
-		// 		this.parent,
-		// 		`Failed to leave tournament: ${error.message}`
-		// 	);
-		// }
+		await leaveTournament();
 		console.debug('Clearing match data before queuing');
 		clearMatchData();
 		clearTournData();
@@ -153,12 +163,25 @@ export class RemoteGameModal extends Modal {
 		state.tournamentOngoing = tournamentSize === 4;
 
 		sessionStorage.setItem('gameMode', 'remote');
+		sessionStorage.setItem(
+			'tournamentType',
+			TournamentType.Regular ? '0' : '1'
+		);
 		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
 
-		sessionStorage.setItem('split', type == TournamentType.Regular ? '0' : '1');
-		sessionStorage.setItem('stretch', type == TournamentType.Regular ? '0' : '1');
-		sessionStorage.setItem('shrink', type == TournamentType.Regular ? '0' : '1');
+		sessionStorage.setItem(
+			'split',
+			type == TournamentType.Regular ? '0' : '1'
+		);
+		sessionStorage.setItem(
+			'stretch',
+			type == TournamentType.Regular ? '0' : '1'
+		);
+		sessionStorage.setItem(
+			'shrink',
+			type == TournamentType.Regular ? '0' : '1'
+		);
 
 		this.destroy();
 		new AliasModal(this.parent, 1, type);

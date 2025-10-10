@@ -40,12 +40,13 @@ export class GameScreen extends Screen {
 		if (this.pong3DInstance) {
 			this.pong3DInstance.dispose();
 		}
+		this.pong3DInstance = undefined;
 		if (state.gameOngoing && state.gameMode === 'remote') {
 			webSocket.send({ t: MESSAGE_QUIT });
 		}
 		state.gameOngoing = false;
 		state.gameMode = null;
-		// Call parent destroy to remove DOM element
+
 		super.destroy();
 	}
 }

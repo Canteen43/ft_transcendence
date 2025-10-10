@@ -12,6 +12,7 @@ import { TextModal } from '../modals/TextModal';
 import { wsURL } from './endpoints';
 import { regListener } from './regListener';
 import { router } from './Router';
+import { leaveTournament } from '../utils/tournamentJoin';
 
 // INFO: A webSocket object opens automatically at creation.
 // That's why a wrapper class is used. It can be created without opening the connection.
@@ -44,6 +45,7 @@ export class WebSocketWrapper {
 	}
 
 	private onClose(event: CloseEvent): void {
+		leaveTournament();
 		console.info('WebSocket closed', {
 			code: event.code,
 			reason: event.reason,
