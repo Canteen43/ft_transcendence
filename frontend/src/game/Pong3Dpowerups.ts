@@ -334,7 +334,7 @@ export class Pong3DPowerups {
 		if (!name) return null;
 		const normalized = name.toLowerCase();
 		if (normalized.includes('powerup.split')) return 'split';
-		// if (normalized.includes('powerup.boost')) return 'boost';
+		if (normalized.includes('powerup.boost')) return 'boost';
 		if (normalized.includes('powerup.stretch')) return 'stretch';
 		if (normalized.includes('powerup.shrink')) return 'shrink';
 		return null;

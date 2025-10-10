@@ -19,7 +19,6 @@ import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
-import { EngineManager } from '../utils/babylonEngineManager';
 import { Trophy } from '../visual/Trophy';
 import { BallEntity } from './BallEntity';
 import { BallManager } from './BallManager';
@@ -438,15 +437,9 @@ export class Pong3D {
 	}
 
 	private updatePowerups(): void {
-		if (!this.powerupManager || this.enabledPowerupTypes.length === 0) {
+		if (!this.powerupManager) {
 			return;
 		}
-
-		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
-		// and we are waiting for the ball to reach boundary (dead-ball state).
-		const pauseSpawning =
-			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
-		this.powerupManager.setSpawningPaused(pauseSpawning);
 
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -461,6 +454,21 @@ export class Pong3D {
 			return;
 		}
 		deltaSeconds = Math.min(deltaSeconds, 0.25); // Clamp to avoid huge teleporting steps
+
+		if (this.gameMode === 'client') {
+			this.updateRemotePowerupVisual(deltaSeconds);
+			return;
+		}
+
+		if (this.enabledPowerupTypes.length === 0) {
+			return;
+		}
+
+		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
+		// and we are waiting for the ball to reach boundary (dead-ball state).
+		const pauseSpawning =
+			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
+		this.powerupManager.setSpawningPaused(pauseSpawning);
 
 		this.powerupManager.update(
 			deltaSeconds,
@@ -561,7 +569,9 @@ export class Pong3D {
 
 		switch (type) {
 			case 'split':
-				this.activateSplitBallPowerup();
+				if (this.gameMode !== 'client') {
+					this.activateSplitBallPowerup();
+				}
 				break;
 			case 'stretch':
 				this.applyStretchPowerup(paddleIndex, entity);
@@ -626,6 +636,7 @@ export class Pong3D {
 			window.clearTimeout(this.activeStretchTimeout);
 			this.activeStretchTimeout = null;
 		}
+		this.disposeRemotePowerupVisual();
 		if (this.powerupManager) {
 			this.powerupManager.setTypeBlocked('stretch', true);
 		}
@@ -1718,7 +1729,12 @@ export class Pong3D {
 		container.appendChild(this.canvas);
 
 		// Initialize Babylon.js engine with alpha support
-		this.engine = EngineManager.getEngine(this.canvas);
+		this.engine = new BABYLON.Engine(this.canvas, true, {
+			preserveDrawingBuffer: true,
+			stencil: true,
+			alpha: true,
+		});
+
 		this.scene = new BABYLON.Scene(this.engine);
 		// Expose scene/game for devtools debugging (removed by bundler in prod)
 		if (typeof window !== 'undefined') {
@@ -2450,7 +2466,7 @@ export class Pong3D {
 
 		// Send sound effect to clients (master mode only)
 		if (this.gameMode === 'master') {
-			this.sendSoundEffectToClients(0); // 0 = paddle ping
+			this.sendSoundEffectToClients(Pong3D.SOUND_PADDLE);
 		}
 
 		const paddle = this.paddles[paddleIndex]!;
@@ -3395,7 +3411,7 @@ export class Pong3D {
 		this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
 
 		// Send sound effect to clients (Master mode only)
-		this.sendSoundEffectToClients(1); // 1 = wall ping
+		this.sendSoundEffectToClients(Pong3D.SOUND_WALL);
 
 		// Corner handling: if near a convex corner (near X and Z bounds),
 		// reflect velocity about the corner bisector to avoid unstable normals.
@@ -3899,8 +3915,7 @@ export class Pong3D {
 							this.container,
 							undefined,
 							'Play again',
-							() => this.gameScreen!.reloadPong(),
-							true
+							() => this.gameScreen!.reloadPong()
 						);
 					}
 				} else {
@@ -3912,7 +3927,7 @@ export class Pong3D {
 
 			setTimeout(() => {
 				state.gameOngoing = false;
-			}, 1000);
+			}, 2000);
 
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
@@ -3983,12 +3998,11 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						const playAgain = new TextModal(
+						new TextModal(
 							this.container,
 							undefined,
 							'Play again',
-							() => this.gameScreen!.reloadPong(),
-							true
+							() => this.gameScreen!.reloadPong()
 						);
 					}
 				} else {
@@ -4004,8 +4018,6 @@ export class Pong3D {
 				new ReplayModal(this.container);
 				// location.hash = '#home';
 			}
-
-			state.gameOngoing = false;
 			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
 				state.gameOngoing = false;
@@ -4834,9 +4846,7 @@ export class Pong3D {
 
 			this.updatePowerups();
 
-			// this.scene.render();
-			EngineManager.startRenderLoop(this.scene);
-
+			this.scene.render();
 			this.maybeLogPaddles();
 		});
 	}
@@ -6604,13 +6614,11 @@ export class Pong3D {
 		this.teardownGlowEffects();
 		this.clearLocalTournamentTrophy();
 
-		EngineManager.stopRenderLoop();
-
 		// Stop the render loop first
-		// if (this.engine) {
-		// 	this.engine.stopRenderLoop();
-		// 	this.conditionalLog('✅ Stopped render loop');
-		// }
+		if (this.engine) {
+			this.engine.stopRenderLoop();
+			this.conditionalLog('✅ Stopped render loop');
+		}
 
 		// Clean up game loop
 		if (this.gameLoop) {
@@ -6650,6 +6658,12 @@ export class Pong3D {
 		if (this.scene) {
 			this.scene.dispose();
 			this.conditionalLog('✅ Disposed Babylon scene');
+		}
+
+		// Dispose of Babylon engine
+		if (this.engine) {
+			this.engine.dispose();
+			this.conditionalLog('✅ Disposed Babylon engine');
 		}
 
 		// Remove canvas from DOM
@@ -6710,7 +6724,7 @@ export class Pong3D {
 
 		try {
 			// Send via WebSocket using game's message format
-			const soundData = { s: soundType }; // s = sound, 0 = paddle ping, 1 = wall ping
+			const soundData = { s: soundType }; // s = sound id (see SOUND_* constants)
 			const payloadString = JSON.stringify(soundData);
 			const message: Message = {
 				t: MESSAGE_GAME_STATE,
@@ -6738,10 +6752,10 @@ export class Pong3D {
 		this.conditionalLog(`🔊 Remote sound effect received: ${soundType}`);
 
 		// Play the appropriate sound effect based on type
-		if (soundType === 0) {
+		if (soundType === Pong3D.SOUND_PADDLE) {
 			// Paddle ping
 			this.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
-		} else if (soundType === 1) {
+		} else if (soundType === Pong3D.SOUND_WALL) {
 			// Wall ping
 			this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
 		} else if (soundType === Pong3D.SOUND_POWERUP_BALL) {
@@ -6899,8 +6913,8 @@ export class Pong3D {
 			}
 
 			// Wait 2 seconds for victory handling before redirecting when acting as master
-			state.gameOngoing = false;
 			setTimeout(() => {
+				state.gameOngoing = false;
 				this.conditionalLog(
 					'🏆 Victory handler delay finished, gameOngoing set to false'
 				);
