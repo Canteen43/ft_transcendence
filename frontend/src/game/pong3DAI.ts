@@ -178,22 +178,7 @@ export interface GameStateForAI {
 
 			// Apply paddle center offset correction (paddle width = 1.5m, so half = 0.75m)
 			// The paddle positioning system uses center reference, so we need to adjust target
-			if (predictedTarget !== null) {
-				const paddleOffset = 0.75; // Half paddle width
-				const shouldOffset = Math.abs(predictedTarget) > paddleOffset * 0.5;
-				if (shouldOffset) {
-					const originalTarget = predictedTarget;
-					// Offset direction depends on target sign to align paddle center with target
-					predictedTarget +=
-						predictedTarget > 0 ? -paddleOffset : paddleOffset;
-					if (GameConfig.isDebugLoggingEnabled()) {
-						conditionalLog(
-							`🤖 Player ${this.playerIndex + 1} offset: ${originalTarget.toFixed(3)} -> ${predictedTarget.toFixed(3)} (offset: ${(predictedTarget - originalTarget).toFixed(3)})`
-						);
-					}
-				}
-			}
-
+			// Defence planes align to paddle face, so use the raw intercept as-is.
 			this.currentTargetX = predictedTarget;
 			// Update visual target indicator
 			//this.updateTargetDot(gameState);
@@ -335,10 +320,23 @@ export interface GameStateForAI {
 	}
 
 	private doesMeshBelongToPlayerGoal(mesh?: BABYLON.AbstractMesh | null): boolean {
+		return this.isOwnDefenceMesh(mesh);
+	}
+
+	private isOwnDefenceMesh(mesh?: BABYLON.AbstractMesh | null): boolean {
 		if (!mesh) return false;
+		const meta = mesh.metadata as
+			| { aiDefence?: boolean; aiPlayerIndex?: number }
+			| undefined;
+		if (meta?.aiDefence && meta.aiPlayerIndex === this.playerIndex) {
+			return true;
+		}
 		const name = mesh.name?.toLowerCase() ?? '';
-		const expected = `goal${this.playerIndex + 1}`;
-		return name.includes(expected);
+		const defenceIndex = this.playerIndex + 1;
+		return (
+			name.includes(`defence${defenceIndex}`) ||
+			name.includes(`defense${defenceIndex}`)
+		);
 	}
 
 	private getBallPositionAlongAxis(gameState: GameStateForAI): number {
@@ -412,7 +410,10 @@ export interface GameStateForAI {
 			if (mesh.physicsImpostor.type !== BABYLON.PhysicsImpostor.MeshImpostor)
 				return false;
 			const name = mesh.name?.toLowerCase() || '';
-			return /wall/.test(name) || /goal/.test(name);
+			if (this.isOwnDefenceMesh(mesh)) {
+				return true;
+			}
+			return /wall/.test(name);
 		};
 		const results: TrajectoryResult[] = [];
 		ballStates.forEach((state, idx) => {
@@ -906,7 +907,7 @@ private traceWizardTrajectory(
 			previousPoint3D = hitPoint3D.clone();
 
 			const meshName = hitMesh?.name?.toLowerCase() || '';
-			const isGoalHit = /goal/.test(meshName);
+			const isGoalHit = this.doesMeshBelongToPlayerGoal(hitMesh);
 			const isWallHit = /wall/.test(meshName);
 			if (!isGoalHit && !isWallHit) {
 				const skipDistance = meshName.includes('ball') ? 0.8 : 0.2;
@@ -948,15 +949,27 @@ private traceWizardTrajectory(
 		}
 
 		if (Pong3DAI.isWizardVisualizationEnabled()) {
-			this.updateWizardVisual(
-				id,
-				segments,
-				bouncePoints,
-				goalPoint,
-				scene,
-				planeY,
-				color
-			);
+			if (goalPoint) {
+				this.updateWizardVisual(
+					id,
+					segments,
+					bouncePoints,
+					goalPoint,
+					scene,
+					planeY,
+					color
+				);
+			} else {
+				this.updateWizardVisual(
+					id,
+					[],
+					[],
+					null,
+					scene,
+					planeY,
+					color
+				);
+			}
 		}
 
 		let localTarget: number | null = null;

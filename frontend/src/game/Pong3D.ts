@@ -1564,6 +1564,7 @@ export class Pong3D {
 
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
+	private defenceMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // AI defence planes aligned with paddle fronts
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
 	private secondLastPlayerToHitBall: number = -1; // Track which player hit the ball before the last hitter (0-based index)
 	private recentHitterHistory: number[] = [];
@@ -1889,6 +1890,7 @@ export class Pong3D {
 
 		this.findPaddles(scene);
 		this.findGoals(scene);
+		this.findDefencePlanes(scene);
 		this.findBall(scene);
 		this.setupPhysicsImpostors(scene); // Create physics impostors for meshes
 
@@ -2003,6 +2005,34 @@ export class Pong3D {
 				} catch (error) {
 					this.conditionalWarn(
 						`❌ Failed to create physics impostor for goal ${index + 1}:`,
+						error
+					);
+				}
+			}
+		});
+
+		this.defenceMeshes.forEach((defence, index) => {
+			if (defence && !defence.physicsImpostor) {
+				try {
+					defence.physicsImpostor = new BABYLON.PhysicsImpostor(
+						defence,
+						BABYLON.PhysicsImpostor.MeshImpostor,
+						{ mass: 0, restitution: 0.0, friction: 0.0 },
+						this.scene
+					);
+
+					if (defence.physicsImpostor.physicsBody) {
+						defence.physicsImpostor.physicsBody.collisionResponse = false;
+					}
+
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`🛡️ Defence ${index + 1} (${defence.name}): Created sensor MeshImpostor`
+						);
+					}
+				} catch (error) {
+					this.conditionalWarn(
+						`❌ Failed to create physics impostor for defence ${index + 1}:`,
 						error
 					);
 				}
@@ -4684,7 +4714,64 @@ export class Pong3D {
 					`❌ Goal ${index + 1}: Goal mesh is null or undefined`
 				);
 			}
-		});
+			});
+	}
+
+	private findDefencePlanes(scene: BABYLON.Scene): void {
+		const meshes = scene.meshes;
+		const defenceCandidates = meshes.filter(
+			m => m && m.name && /defen[cs]e/i.test(m.name)
+		);
+
+		for (let i = 0; i < this.playerCount; i++) {
+			const defenceNumber = i + 1;
+			let defence = defenceCandidates.find(m =>
+				m?.name
+					? new RegExp(`defen[cs]e${defenceNumber}`, 'i').test(m.name)
+					: false
+			) as BABYLON.Mesh | undefined;
+
+			if (!defence && i < defenceCandidates.length) {
+				defence = defenceCandidates[i] as BABYLON.Mesh;
+			}
+
+			if (defence) {
+				if (defence.parent) {
+					const worldMatrix = defence.getWorldMatrix();
+					const position = new BABYLON.Vector3();
+					const rotationQuaternion = new BABYLON.Quaternion();
+					const scaling = new BABYLON.Vector3();
+					worldMatrix.decompose(scaling, rotationQuaternion, position);
+					defence.parent = null;
+					defence.position = position;
+					defence.rotationQuaternion = rotationQuaternion;
+					defence.scaling = scaling;
+				}
+				defence.isVisible = false;
+				defence.checkCollisions = false;
+				defence.isPickable = false;
+				defence.metadata = {
+					...(typeof defence.metadata === 'object' && defence.metadata !== null
+						? defence.metadata
+						: {}),
+					aiDefence: true,
+					aiPlayerIndex: i,
+				};
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🛡️ Defence ${defenceNumber}: ${defence.name} prepared for AI sensor`
+					);
+				}
+			} else if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(`⚠️ Defence ${defenceNumber}: Not found in scene`);
+			}
+
+			this.defenceMeshes[i] = defence || null;
+		}
+
+		for (let i = this.playerCount; i < 4; i++) {
+			this.defenceMeshes[i] = null;
+		}
 	}
 
 	private hideDuplicatePaddles(meshes: BABYLON.AbstractMesh[]): void {
@@ -6576,6 +6663,7 @@ export class Pong3D {
 		this.ballMesh = null;
 		this.paddles = [null, null, null, null];
 		this.goalMeshes = [null, null, null, null];
+		this.defenceMeshes = [null, null, null, null];
 		this.scene = null as any;
 		this.engine = null as any;
 		this.canvas = null as any;
