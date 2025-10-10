@@ -156,6 +156,9 @@ export class RemoteGameModal extends Modal {
 		sessionStorage.setItem('playerCount', '2');
 		sessionStorage.setItem('tournament', tournamentSize == 2 ? '0' : '1');
 
+		sessionStorage.setItem('tournamentType', type == TournamentType.Regular ? '0' : '1');
+		
+
 		sessionStorage.setItem('split', type == TournamentType.Regular ? '0' : '1');
 		sessionStorage.setItem('stretch', type == TournamentType.Regular ? '0' : '1');
 		sessionStorage.setItem('shrink', type == TournamentType.Regular ? '0' : '1');

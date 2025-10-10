@@ -135,7 +135,19 @@ export async function leaveTournament(): Promise<void> {
 export async function replayTournament(
 	playerQueue: any
 ): Promise<TournamentJoinResult> {
+	const typeString = sessionStorage.getItem('tournamentType');
+	if (!typeString) {
+		return {
+			success: false,
+			error: 'Tournament type missing',
+		};
+	}
+	let typeTourn: TournamentType;
+	typeString == '0'
+		? (typeTourn = TournamentType.Regular)
+		: (typeTourn = TournamentType.Powerup);
 	const body = {
+		type: typeTourn,
 		creator: sessionStorage.getItem('userID') || '',
 		participants: playerQueue.queue,
 	};
@@ -174,4 +186,3 @@ export async function replayTournament(
 		error: 'Failed to create tournament',
 	};
 }
-
