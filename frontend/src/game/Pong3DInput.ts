@@ -70,11 +70,15 @@ export class Pong3DInput {
 		if (GameConfig.isRemoteMode()) {
 			return GameConfig.getThisPlayer() === 1;
 		}
-		return (
-			this.isLocalTournament() &&
-			GameConfig.getPlayerCount() === 3 &&
-			!GameConfig.isCurrentAliasSeed(1)
-		);
+
+		if (!this.isLocalTournament()) {
+			return false;
+		}
+
+		const isThreePlayerRound = GameConfig.getPlayerCount() === 3;
+		const aliasChanged = !GameConfig.isCurrentAliasSeed(1);
+
+		return isThreePlayerRound && aliasChanged;
 	}
 
 	private updateControlState(

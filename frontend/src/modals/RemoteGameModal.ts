@@ -6,8 +6,9 @@ import {
 	clearTournData,
 } from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
-import { leaveTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
+import {leaveTournament} from '../utils/tournamentJoin';
+
 import { RemoteSetupModal } from './RemoteSetupModal';
 
 export class RemoteGameModal extends Modal {
@@ -151,11 +152,9 @@ export class RemoteGameModal extends Modal {
 	}
 
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
-		console.log('Starting logicRemote');
+		leaveTournament();
 
-		await leaveTournament();
-		console.log('Left tournament');
-
+		console.debug('Clearing match data before queuing');
 		clearMatchData();
 		clearTournData();
 		clearOtherGameData();

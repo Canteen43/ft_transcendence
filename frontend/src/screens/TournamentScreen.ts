@@ -14,8 +14,8 @@ export class TournamentScreen extends Screen {
 
 	constructor() {
 		super();
-		clearMatchData();
-		clearTournData();
+		// clearMatchData();
+		// clearTournData();
 		this.addStyles();
 		document.addEventListener(
 			'tournament-updated',
