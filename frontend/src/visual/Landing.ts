@@ -1,12 +1,11 @@
 import * as BABYLON from '@babylonjs/core';
+import { EngineManager } from '../utils/babylonEngineManager';
 
 export interface LandingCallbacks {
 	onLocalGameClick?: () => void;
 	onRemoteGameClick?: () => void;
 	onStatsClick?: () => void;
 }
-
-// let sharedEngine: BABYLON.Engine | null = null;
 
 //////////////////////
 // 3D landing page
@@ -48,12 +47,7 @@ export class Landing {
 
 	private async init(modelPath: string): Promise<void> {
 		try {
-			this.engine = new BABYLON.Engine(this.canvas, true, {
-				preserveDrawingBuffer: true,
-				stencil: true,
-				alpha: true,
-			});
-
+			this.engine = EngineManager.getEngine(this.canvas);
 			this.scene = new BABYLON.Scene(this.engine);
 			this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
 
@@ -67,7 +61,10 @@ export class Landing {
 			this.setupControls();
 			await this.loadModel(modelPath);
 
-			this.engine.runRenderLoop(() => this.scene.render());
+			// Use the manager's render loop
+			EngineManager.startRenderLoop(this.scene);
+			// this.engine.runRenderLoop(() => this.scene.render());
+
 			window.addEventListener('resize', () => this.engine.resize());
 		} catch (err) {
 			console.error('Error initializing scene:', err);
@@ -416,15 +413,14 @@ export class Landing {
 	}
 
 	public dispose(): void {
-		console.log(
-			'Disposing Landing. Active contexts:',
-			BABYLON.Engine.Instances?.length
-		);
+		console.log('🧹 Disposing Landing scene');
 
-		if (this.engine) this.engine.stopRenderLoop();
-		if (this.scene) this.scene.dispose();
-		if (this.engine) this.engine.dispose();
-		if (this.canvas && this.canvas.parentNode)
+		// Stop render loop
+		EngineManager.stopRenderLoop();
+		this.scene?.dispose();
+		// this.engine?.stopRenderLoop(); // stops render for this scene only
+		if (this.canvas.parentNode)
 			this.canvas.parentNode.removeChild(this.canvas);
+		console.log('Landing scene disposed');
 	}
 }

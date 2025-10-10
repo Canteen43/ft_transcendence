@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { TournamentType } from '../../../shared/enums.js';
-import { Button } from '../buttons/Button';
-import { state } from '../utils/State';
-import { joinTournament } from '../utils/tournamentJoin';
-import { Modal } from './Modal';
-import { TextModal } from './TextModal';
-import { WaitingModal } from './WaitingModal';
-import { GameConfig } from '../game/GameConfig';
+import { Button } from '../buttons/Button.js';
+import { state } from '../utils/State.js';
+import { joinTournament } from '../utils/tournamentJoin.js';
+import { Modal } from './Modal.js';
+import { TextModal } from './TextModal.js';
+import { WaitingModal } from './WaitingModal.js';
+import { GameConfig } from '../game/GameConfig.js';
 
 
 export class AliasModal extends Modal {

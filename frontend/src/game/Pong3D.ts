@@ -19,10 +19,16 @@ import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
+import { EngineManager } from '../utils/babylonEngineManager';
 import { Trophy } from '../visual/Trophy';
 import { BallEntity } from './BallEntity';
 import { BallManager } from './BallManager';
 import { GameConfig } from './GameConfig';
+import {
+	conditionalError as loggerConditionalError,
+	conditionalLog as loggerConditionalLog,
+	conditionalWarn as loggerConditionalWarn,
+} from './Logger';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
@@ -37,19 +43,14 @@ import {
 } from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
 import {
-	conditionalLog as loggerConditionalLog,
-	conditionalWarn as loggerConditionalWarn,
-	conditionalError as loggerConditionalError,
-} from './Logger';
-import {
 	Pong3DPowerups,
 	POWERUP_SESSION_FLAGS,
 	type PowerupType,
 } from './Pong3Dpowerups';
 import {
 	AI_DIFFICULTY_PRESETS,
-	type AIConfig,
 	type AIBallSnapshot,
+	type AIConfig,
 	type GameStateForAI,
 	getAIDifficultyFromName,
 	Pong3DAI,
@@ -152,7 +153,10 @@ export class Pong3D {
 			const original = target[key].bind(target);
 			target[key] = (...args: any[]) => {
 				const message = args[0];
-				if (typeof message === 'string' && message.includes(suppressFragment)) {
+				if (
+					typeof message === 'string' &&
+					message.includes(suppressFragment)
+				) {
 					return;
 				}
 				original(...args);
@@ -493,7 +497,8 @@ export class Pong3D {
 		const stretchHoldDurationMs = 20000;
 		const stretchGrowDurationMs = 1500;
 		const stretchShrinkDurationMs = 1500;
-		const totalGlowDurationMs = stretchHoldDurationMs + stretchShrinkDurationMs;
+		const totalGlowDurationMs =
+			stretchHoldDurationMs + stretchShrinkDurationMs;
 		if (this.activeStretchTimeout !== null) {
 			window.clearTimeout(this.activeStretchTimeout);
 			this.activeStretchTimeout = null;
@@ -516,9 +521,15 @@ export class Pong3D {
 		const original = this.paddleOriginalScaleX.get(paddleIndex)!;
 		const target = original * 1.5; // 3 -> 4.5
 
-		this.animatePaddleScale(paddle, original, target, stretchGrowDurationMs, () => {
-			this.recreatePaddleImpostor(paddleIndex);
-		});
+		this.animatePaddleScale(
+			paddle,
+			original,
+			target,
+			stretchGrowDurationMs,
+			() => {
+				this.recreatePaddleImpostor(paddleIndex);
+			}
+		);
 
 		// Clear any existing timeout
 		const existing = this.paddleStretchTimeouts.get(paddleIndex);
@@ -527,14 +538,20 @@ export class Pong3D {
 		const timeoutId = window.setTimeout(() => {
 			const p = this.paddles[paddleIndex];
 			if (!p) return;
-			this.animatePaddleScale(p, p.scaling.x, original, stretchShrinkDurationMs, () => {
-				this.recreatePaddleImpostor(paddleIndex);
-				this.paddleStretchTimeouts.delete(paddleIndex);
-				if (this.powerupManager) {
-					this.powerupManager.setTypeBlocked('stretch', false);
+			this.animatePaddleScale(
+				p,
+				p.scaling.x,
+				original,
+				stretchShrinkDurationMs,
+				() => {
+					this.recreatePaddleImpostor(paddleIndex);
+					this.paddleStretchTimeouts.delete(paddleIndex);
+					if (this.powerupManager) {
+						this.powerupManager.setTypeBlocked('stretch', false);
+					}
+					this.activeStretchTimeout = null;
 				}
-				this.activeStretchTimeout = null;
-			});
+			);
 		}, stretchHoldDurationMs); // 20 seconds
 		this.paddleStretchTimeouts.set(paddleIndex, timeoutId);
 		this.activeStretchTimeout = timeoutId;
@@ -544,7 +561,8 @@ export class Pong3D {
 		const shrinkHoldDurationMs = 20000;
 		const shrinkDownDurationMs = 1500;
 		const shrinkRestoreDurationMs = 1500;
-		const totalGlowDurationMs = shrinkHoldDurationMs + shrinkRestoreDurationMs;
+		const totalGlowDurationMs =
+			shrinkHoldDurationMs + shrinkRestoreDurationMs;
 		const red = new BABYLON.Color3(1, 0, 0);
 
 		const opponents: { mesh: BABYLON.Mesh; index: number }[] = [];
@@ -586,9 +604,15 @@ export class Pong3D {
 				window.clearTimeout(existing);
 			}
 
-			this.animatePaddleScale(mesh, mesh.scaling.x, target, shrinkDownDurationMs, () => {
-				this.recreatePaddleImpostor(index);
-			});
+			this.animatePaddleScale(
+				mesh,
+				mesh.scaling.x,
+				target,
+				shrinkDownDurationMs,
+				() => {
+					this.recreatePaddleImpostor(index);
+				}
+			);
 
 			const timeoutId = window.setTimeout(() => {
 				const paddle = this.paddles[index];
@@ -959,17 +983,17 @@ export class Pong3D {
 			splitBall.impostor
 		);
 		this.ballManager.removeByImpostor(splitBall.impostor);
-	if (existingEntity) {
-		existingEntity.setSpinDelay(GameConfig.getSpinDelayMs());
-		this.mainBallEntity = existingEntity;
-	} else {
-		this.mainBallEntity = new BallEntity(
-			splitBall.mesh,
-			splitBall.impostor,
-			this.baseBallY,
-			{ spinDelayMs: GameConfig.getSpinDelayMs() }
-		);
-	}
+		if (existingEntity) {
+			existingEntity.setSpinDelay(GameConfig.getSpinDelayMs());
+			this.mainBallEntity = existingEntity;
+		} else {
+			this.mainBallEntity = new BallEntity(
+				splitBall.mesh,
+				splitBall.impostor,
+				this.baseBallY,
+				{ spinDelayMs: GameConfig.getSpinDelayMs() }
+			);
+		}
 	}
 
 	private removeSplitBallByImpostor(
@@ -1324,12 +1348,7 @@ export class Pong3D {
 		container.appendChild(this.canvas);
 
 		// Initialize Babylon.js engine with alpha support
-		this.engine = new BABYLON.Engine(this.canvas, true, {
-			preserveDrawingBuffer: true,
-			stencil: true,
-			alpha: true,
-		});
-
+		this.engine = EngineManager.getEngine(this.canvas);
 		this.scene = new BABYLON.Scene(this.engine);
 		// Expose scene/game for devtools debugging (removed by bundler in prod)
 		if (typeof window !== 'undefined') {
@@ -1664,15 +1683,15 @@ export class Pong3D {
 			}
 
 			// Initialize main ball entity for per-ball updates
-		if (this.ballMesh.physicsImpostor) {
-			const baseY = this.ballMesh.position.y;
-			this.mainBallEntity = new BallEntity(
-				this.ballMesh,
-				this.ballMesh.physicsImpostor,
-				baseY,
-				{ spinDelayMs: GameConfig.getSpinDelayMs() }
-			);
-		}
+			if (this.ballMesh.physicsImpostor) {
+				const baseY = this.ballMesh.position.y;
+				this.mainBallEntity = new BallEntity(
+					this.ballMesh,
+					this.ballMesh.physicsImpostor,
+					baseY,
+					{ spinDelayMs: GameConfig.getSpinDelayMs() }
+				);
+			}
 		} else if (this.ballMesh) {
 			this.conditionalLog(
 				`🏐 Skipped physics impostor for ball in ${this.gameMode} mode - using custom physics`
@@ -2260,7 +2279,9 @@ export class Pong3D {
 			surfaceNormal3D.z
 		);
 		const basisNormal =
-			normalXZ.lengthSquared() > 1e-6 ? normalXZ.normalize() : new BABYLON.Vector3(0, 0, 1);
+			normalXZ.lengthSquared() > 1e-6
+				? normalXZ.normalize()
+				: new BABYLON.Vector3(0, 0, 1);
 		const ballVelXZ = new BABYLON.Vector3(
 			ballVelocity.x,
 			0,
@@ -2297,9 +2318,10 @@ export class Pong3D {
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(
-				`🎯 Base reflection angle: ${((baseAngle * 180) / Math.PI).toFixed(
-					1
-				)}° relative to paddle normal`
+				`🎯 Base reflection angle: ${(
+					(baseAngle * 180) /
+					Math.PI
+				).toFixed(1)}° relative to paddle normal`
 			);
 		}
 
@@ -2323,7 +2345,8 @@ export class Pong3D {
 				-1,
 				Math.min(1, velocityRatio * this.BALL_ANGLE_MULTIPLIER)
 			);
-			const shapedRatio = Math.sign(scaledRatio) * Math.sqrt(Math.abs(scaledRatio));
+			const shapedRatio =
+				Math.sign(scaledRatio) * Math.sqrt(Math.abs(scaledRatio));
 			let velocityBasedAngle = shapedRatio * this.ANGULAR_RETURN_LIMIT;
 
 			// 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
@@ -2344,15 +2367,19 @@ export class Pong3D {
 			}
 
 			let effectiveVelocityAngle = velocityBasedAngle;
-			if (this.playerCount === 3 && (paddleIndex === 1 || paddleIndex === 2)) {
+			if (
+				this.playerCount === 3 &&
+				(paddleIndex === 1 || paddleIndex === 2)
+			) {
 				effectiveVelocityAngle = -velocityBasedAngle;
 				this.conditionalLog(
 					`🔄 3P Mode velocity flip for Player ${paddleIndex + 1}: ${(
 						(velocityBasedAngle * 180) /
 						Math.PI
-					).toFixed(1)}° → ${((effectiveVelocityAngle * 180) / Math.PI).toFixed(
-						1
-					)}°`
+					).toFixed(1)}° → ${(
+						(effectiveVelocityAngle * 180) /
+						Math.PI
+					).toFixed(1)}°`
 				);
 			} else if (
 				this.playerCount === 4 &&
@@ -2360,7 +2387,10 @@ export class Pong3D {
 			) {
 				effectiveVelocityAngle = -velocityBasedAngle;
 				this.conditionalLog(
-					`🔄 4P side paddle velocity flip: ${((velocityBasedAngle * 180) / Math.PI).toFixed(
+					`🔄 4P side paddle velocity flip: ${(
+						(velocityBasedAngle * 180) /
+						Math.PI
+					).toFixed(
 						1
 					)}° → ${((effectiveVelocityAngle * 180) / Math.PI).toFixed(1)}°`
 				);
@@ -2374,53 +2404,53 @@ export class Pong3D {
 			this.conditionalLog(
 				`  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`
 			);
-				this.conditionalLog(
-					`  - Paddle normal: (${surfaceNormal3D.x.toFixed(3)}, ${surfaceNormal3D.y.toFixed(3)}, ${surfaceNormal3D.z.toFixed(3)})`
-				);
-				const dotProduct = BABYLON.Vector3.Dot(
-					ballVelNormalized,
-					surfaceNormal3D
-				);
-				this.conditionalLog(
-					`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
-				);
+			this.conditionalLog(
+				`  - Paddle normal: (${surfaceNormal3D.x.toFixed(3)}, ${surfaceNormal3D.y.toFixed(3)}, ${surfaceNormal3D.z.toFixed(3)})`
+			);
+			const dotProduct = BABYLON.Vector3.Dot(
+				ballVelNormalized,
+				surfaceNormal3D
+			);
+			this.conditionalLog(
+				`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
+			);
 
-				// Calculate perfect physics reflection
-				const perfectReflection = ballVelNormalized.subtract(
-					surfaceNormal3D.scale(2 * dotProduct)
-				);
-				this.conditionalLog(
-					`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
-				);
+			// Calculate perfect physics reflection
+			const perfectReflection = ballVelNormalized.subtract(
+				surfaceNormal3D.scale(2 * dotProduct)
+			);
+			this.conditionalLog(
+				`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
+			);
 
-				// === 2D REFLECTION LOGIC ===
-				// Check angle of perfect reflection from normal
-				const reflectionDot = BABYLON.Vector3.Dot(
-					perfectReflection,
-					surfaceNormal3D
-				);
+			// === 2D REFLECTION LOGIC ===
+			// Check angle of perfect reflection from normal
+			const reflectionDot = BABYLON.Vector3.Dot(
+				perfectReflection,
+				surfaceNormal3D
+			);
 			const reflectionAngle = Math.acos(Math.abs(reflectionDot));
 
 			this.conditionalLog(
 				`  - Perfect reflection angle from normal: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}°`
 			);
-				this.conditionalLog(
-					`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
-				);
+			this.conditionalLog(
+				`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+			);
 
-				if (reflectionAngle <= this.ANGULAR_RETURN_LIMIT) {
+			if (reflectionAngle <= this.ANGULAR_RETURN_LIMIT) {
 				// Ball approach angle is within limits - use perfect reflection
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
 						`✅ Using perfect reflection (incoming angle within limits)`
 					);
 				}
-				} else {
-					this.conditionalLog(
-						`🔒 Clamping reflection: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
-					);
-				}
+			} else {
+				this.conditionalLog(
+					`🔒 Clamping reflection: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+				);
 			}
+		}
 
 		const rotationMatrix = BABYLON.Matrix.RotationAxis(
 			BABYLON.Vector3.Up(),
@@ -2483,21 +2513,18 @@ export class Pong3D {
 		this.conditionalLog(
 			`🎯 Final angle from normal (enforced): ${((angleFromNormal * 180) / Math.PI).toFixed(1)}° (limit ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°)`
 		);
-		this.conditionalLog(
-			'[AngularLimit]',
-			{
-				requestedAngleDeg: (requestedAngle * 180) / Math.PI,
-				limitedAngleDeg: (limitedAngle * 180) / Math.PI,
-				finalDirection: {
-					x: finalDirection.x,
-					y: finalDirection.y,
-					z: finalDirection.z,
-				},
-				limitDeg: (this.ANGULAR_RETURN_LIMIT * 180) / Math.PI,
-				paddleIndex,
-				hasPaddleVelocity,
-			}
-		);
+		this.conditionalLog('[AngularLimit]', {
+			requestedAngleDeg: (requestedAngle * 180) / Math.PI,
+			limitedAngleDeg: (limitedAngle * 180) / Math.PI,
+			finalDirection: {
+				x: finalDirection.x,
+				y: finalDirection.y,
+				z: finalDirection.z,
+			},
+			limitDeg: (this.ANGULAR_RETURN_LIMIT * 180) / Math.PI,
+			paddleIndex,
+			hasPaddleVelocity,
+		});
 
 		// Increment rally speed - globally throttled by time and distance traveled
 		const rallyIntervalMs = GameConfig.getMinRallyIncrementIntervalMs();
@@ -2539,7 +2566,9 @@ export class Pong3D {
 		} else {
 			// Skip increment but still clamp to current target speed via newVelocity below
 			if (GameConfig.isDebugLoggingEnabled()) {
-				const deltaMs = (now - this.lastRallyIncrementTimeGlobalMs).toFixed(1);
+				const deltaMs = (
+					now - this.lastRallyIncrementTimeGlobalMs
+				).toFixed(1);
 				this.conditionalLog(
 					`⏱️/📏 Rally increment throttled (Δt=${deltaMs}ms < ${rallyIntervalMs}ms or moved < ${rallyDistance})`
 				);
@@ -2548,7 +2577,7 @@ export class Pong3D {
 
 		// Apply the new velocity with rally-adjusted speed
 		const directionForVelocity = finalDirection ?? basisNormal.clone();
-			const newVelocity = directionForVelocity.scale(
+		const newVelocity = directionForVelocity.scale(
 			this.ballEffects.getCurrentBallSpeed()
 		);
 
@@ -2672,9 +2701,9 @@ export class Pong3D {
 					);
 				}
 			}
-				this.conditionalLog(
-					`  - Final direction: (${directionForVelocity.x.toFixed(2)}, ${directionForVelocity.z.toFixed(2)})`
-				);
+			this.conditionalLog(
+				`  - Final direction: (${directionForVelocity.x.toFixed(2)}, ${directionForVelocity.z.toFixed(2)})`
+			);
 			this.conditionalLog(
 				`  - New velocity: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`
 			);
@@ -2792,8 +2821,7 @@ export class Pong3D {
 			const denom = currentDistance - previousDistance;
 			if (Math.abs(denom) < 1e-6) continue;
 
-			const targetDistance =
-				Math.sign(previousDistance || 1) * radius;
+			const targetDistance = Math.sign(previousDistance || 1) * radius;
 			const t =
 				(previousDistance - targetDistance) /
 				(previousDistance - currentDistance);
@@ -2802,13 +2830,7 @@ export class Pong3D {
 			}
 
 			const contactPoint = BABYLON.Vector3.Lerp(previous, current, t);
-			if (
-				!this.pointWithinPaddleBounds(
-					contactPoint,
-					paddle,
-					radius
-				)
-			) {
+			if (!this.pointWithinPaddleBounds(contactPoint, paddle, radius)) {
 				continue;
 			}
 
@@ -2870,8 +2892,9 @@ export class Pong3D {
 		normal: BABYLON.Vector3,
 		directionSign: number
 	): void {
-		const safeOffset = normal
-			.scale(directionSign * (Pong3D.BALL_RADIUS + 0.01));
+		const safeOffset = normal.scale(
+			directionSign * (Pong3D.BALL_RADIUS + 0.01)
+		);
 		const correctedPosition = contactPoint.add(safeOffset);
 
 		if (!isFinite(correctedPosition.y)) {
@@ -2902,7 +2925,9 @@ export class Pong3D {
 		this.handleBallPaddleCollision(ballImpostor, paddleImpostor);
 	}
 
-	private computeWallNormal(position: BABYLON.Vector3): BABYLON.Vector3 | null {
+	private computeWallNormal(
+		position: BABYLON.Vector3
+	): BABYLON.Vector3 | null {
 		if (
 			this.boundsXMin === null ||
 			this.boundsXMax === null ||
@@ -2912,10 +2937,22 @@ export class Pong3D {
 			return null;
 
 		const distances = [
-			{ value: Math.abs(position.x - this.boundsXMin), normal: new BABYLON.Vector3(1, 0, 0) },
-			{ value: Math.abs(position.x - this.boundsXMax), normal: new BABYLON.Vector3(-1, 0, 0) },
-			{ value: Math.abs(position.z - this.boundsZMin), normal: new BABYLON.Vector3(0, 0, 1) },
-			{ value: Math.abs(position.z - this.boundsZMax), normal: new BABYLON.Vector3(0, 0, -1) },
+			{
+				value: Math.abs(position.x - this.boundsXMin),
+				normal: new BABYLON.Vector3(1, 0, 0),
+			},
+			{
+				value: Math.abs(position.x - this.boundsXMax),
+				normal: new BABYLON.Vector3(-1, 0, 0),
+			},
+			{
+				value: Math.abs(position.z - this.boundsZMin),
+				normal: new BABYLON.Vector3(0, 0, 1),
+			},
+			{
+				value: Math.abs(position.z - this.boundsZMax),
+				normal: new BABYLON.Vector3(0, 0, -1),
+			},
 		];
 
 		distances.sort((a, b) => a.value - b.value);
@@ -3027,7 +3064,9 @@ export class Pong3D {
 		// }
 
 		// Preserve spin with configurable reduction only
-		this.ballEffects.applyWallSpinFriction(GameConfig.getWallSpinFriction());
+		this.ballEffects.applyWallSpinFriction(
+			GameConfig.getWallSpinFriction()
+		);
 
 		const velocity = ballImpostor.getLinearVelocity();
 		if (velocity) {
@@ -3040,57 +3079,85 @@ export class Pong3D {
 					const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
 					const angle = Math.acos(BABYLON.Scalar.Clamp(dot, -1, 1));
 					const ninety = Math.PI / 2;
-					const threshold = GameConfig.getWallNearParallelAngleThreshold();
-					const adjustment = GameConfig.getWallNearParallelAngleAdjustment();
+					const threshold =
+						GameConfig.getWallNearParallelAngleThreshold();
+					const adjustment =
+						GameConfig.getWallNearParallelAngleAdjustment();
 					const maxAngle = GameConfig.getWallNearParallelMaxAngle();
 					const isObtuse = angle >= ninety;
 					const deltaFromParallel = Math.abs(ninety - angle);
 					if (deltaFromParallel <= threshold) {
-						const rawTangent = normalizedVelocity.subtract(normal.scale(dot));
+						const rawTangent = normalizedVelocity.subtract(
+							normal.scale(dot)
+						);
 						let tangentDir = rawTangent;
 						if (tangentDir.lengthSquared() < 1e-6) {
 							// Head-on collision: derive a consistent tangent from velocity first, then fall back to axes
-							tangentDir = BABYLON.Vector3.Cross(normal, normalizedVelocity);
+							tangentDir = BABYLON.Vector3.Cross(
+								normal,
+								normalizedVelocity
+							);
 							if (tangentDir.lengthSquared() < 1e-6) {
-								tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.Y);
+								tangentDir = BABYLON.Vector3.Cross(
+									normal,
+									BABYLON.Axis.Y
+								);
 								if (tangentDir.lengthSquared() < 1e-6) {
-									tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.X);
+									tangentDir = BABYLON.Vector3.Cross(
+										normal,
+										BABYLON.Axis.X
+									);
 								}
 							}
 						}
 						if (tangentDir.lengthSquared() >= 1e-6) {
 							const tangentNormalized = tangentDir.normalize();
 							let orientation = Math.sign(
-								BABYLON.Vector3.Dot(normalizedVelocity, tangentNormalized)
+								BABYLON.Vector3.Dot(
+									normalizedVelocity,
+									tangentNormalized
+								)
 							);
 							if (orientation === 0) orientation = 1;
 
-					const reducedDelta = Math.max(0, deltaFromParallel - adjustment);
-					const cappedAngle = Math.min(maxAngle, ninety - 1e-3);
-					const desiredDeviation = Math.max(
-						reducedDelta,
-						ninety - cappedAngle,
-						1e-3
-					);
-					const targetAngle = isObtuse
-						? ninety + desiredDeviation
-						: ninety - desiredDeviation;
+							const reducedDelta = Math.max(
+								0,
+								deltaFromParallel - adjustment
+							);
+							const cappedAngle = Math.min(
+								maxAngle,
+								ninety - 1e-3
+							);
+							const desiredDeviation = Math.max(
+								reducedDelta,
+								ninety - cappedAngle,
+								1e-3
+							);
+							const targetAngle = isObtuse
+								? ninety + desiredDeviation
+								: ninety - desiredDeviation;
 
 							const cosTarget = Math.cos(targetAngle);
 							const sinTarget = Math.sin(targetAngle);
 							const adjustedDir = normal
 								.scale(cosTarget)
-								.add(tangentNormalized.scale(sinTarget * orientation));
-							const adjusted = adjustedDir.normalize().scale(speed);
+								.add(
+									tangentNormalized.scale(
+										sinTarget * orientation
+									)
+								);
+							const adjusted = adjustedDir
+								.normalize()
+								.scale(speed);
 							this.conditionalLog(
-								`⬅️ Wall angle nudged: current=${(angle * 180 / Math.PI).toFixed(2)}°, target=${(targetAngle * 180 / Math.PI).toFixed(2)}°`
+								`⬅️ Wall angle nudged: current=${((angle * 180) / Math.PI).toFixed(2)}°, target=${((targetAngle * 180) / Math.PI).toFixed(2)}°`
 							);
 							ballImpostor.setLinearVelocity(
 								new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
 							);
 						} else {
 							this.conditionalLog(
-								`⛔ Wall angle adjustment skipped (no tangent basis). current=${(angle * 180 / Math.PI).toFixed(2)}°`
+								`⛔ Wall angle adjustment skipped (no tangent basis). current=${((angle * 180) / Math.PI).toFixed(2)}°`
 							);
 						}
 					}
@@ -3382,8 +3449,7 @@ export class Pong3D {
 					if (i === goalPlayer) continue;
 					if (
 						winningIndex === -1 ||
-						this.playerScores[i] >
-							this.playerScores[winningIndex]
+						this.playerScores[i] > this.playerScores[winningIndex]
 					) {
 						winningIndex = i;
 					}
@@ -4306,7 +4372,9 @@ export class Pong3D {
 
 			this.updatePowerups();
 
-			this.scene.render();
+			// this.scene.render();
+			EngineManager.startRenderLoop(this.scene);
+
 			this.maybeLogPaddles();
 		});
 	}
@@ -4553,7 +4621,8 @@ export class Pong3D {
 
 		const mainEntity = this.mainBallEntity;
 		const mainMesh = mainEntity?.mesh ?? this.ballMesh;
-		const mainImpostor = mainEntity?.impostor ?? this.ballMesh?.physicsImpostor ?? null;
+		const mainImpostor =
+			mainEntity?.impostor ?? this.ballMesh?.physicsImpostor ?? null;
 		const rawMainVelocity =
 			mainEntity?.getVelocity() ?? mainImpostor?.getLinearVelocity();
 
@@ -6073,11 +6142,13 @@ export class Pong3D {
 		this.teardownGlowEffects();
 		this.clearLocalTournamentTrophy();
 
+		EngineManager.stopRenderLoop();
+
 		// Stop the render loop first
-		if (this.engine) {
-			this.engine.stopRenderLoop();
-			this.conditionalLog('✅ Stopped render loop');
-		}
+		// if (this.engine) {
+		// 	this.engine.stopRenderLoop();
+		// 	this.conditionalLog('✅ Stopped render loop');
+		// }
 
 		// Clean up game loop
 		if (this.gameLoop) {
@@ -6117,12 +6188,6 @@ export class Pong3D {
 		if (this.scene) {
 			this.scene.dispose();
 			this.conditionalLog('✅ Disposed Babylon scene');
-		}
-
-		// Dispose of Babylon engine
-		if (this.engine) {
-			this.engine.dispose();
-			this.conditionalLog('✅ Disposed Babylon engine');
 		}
 
 		// Remove canvas from DOM
@@ -6529,7 +6594,11 @@ export class Pong3D {
 		mesh: BABYLON.Mesh,
 		durationMs: number,
 		glowColor: BABYLON.Color3,
-		options?: { key?: string; fadeDurationMs?: number; holdDurationMs?: number }
+		options?: {
+			key?: string;
+			fadeDurationMs?: number;
+			holdDurationMs?: number;
+		}
 	): void {
 		if (!this.glowLayer) return;
 		const material = mesh.material as
@@ -6616,7 +6685,8 @@ export class Pong3D {
 			if (elapsed >= effect.durationMs || effect.strength <= 0) {
 				this.stopGlowEffect(meshState, effect);
 				this.recomputeMeshGlow(meshState);
-				if (meshState.effects.size === 0) this.cleanupMeshGlowState(meshId);
+				if (meshState.effects.size === 0)
+					this.cleanupMeshGlowState(meshId);
 				return;
 			}
 			effect.animationFrame = window.requestAnimationFrame(animate);
@@ -6624,7 +6694,10 @@ export class Pong3D {
 		effect.animationFrame = window.requestAnimationFrame(animate);
 	}
 
-	private stopGlowEffect(state: GlowMeshState, effect: GlowEffectState): void {
+	private stopGlowEffect(
+		state: GlowMeshState,
+		effect: GlowEffectState
+	): void {
 		if (!effect.active) return;
 		effect.active = false;
 		if (effect.animationFrame !== null) {
