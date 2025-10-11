@@ -1,15 +1,18 @@
-import { Modal } from './Modal';
 import { Button } from '../buttons/Button';
 import { state } from '../utils/State';
 import { clearAllGameData } from '../utils/clearSessionStorage';
 import { LocalSetupModal } from './LocalSetupModal';
+import { Modal } from './Modal';
 
 export class LocalGameModal extends Modal {
 	private btn2: Button;
 	private btn3: Button;
 	private btn4: Button;
 	private btnT: Button;
-	private keydownHandlers = new Map<HTMLElement, (e: KeyboardEvent) => void>();
+	private keydownHandlers = new Map<
+		HTMLElement,
+		(e: KeyboardEvent) => void
+	>();
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -31,10 +34,26 @@ export class LocalGameModal extends Modal {
 		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
 
 		// Create buttons with images inside
-		this.btn2 = new Button(img2, () => this.setupLocalGame(2, false), this.box);
-		this.btn3 = new Button(img3, () => this.setupLocalGame(3, false), this.box);
-		this.btn4 = new Button(img4, () => this.setupLocalGame(4, false), this.box);
-		this.btnT = new Button(imgt, () => this.setupLocalGame(4, true), this.box);
+		this.btn2 = new Button(
+			img2,
+			() => this.setupLocalGame(2, false),
+			this.box
+		);
+		this.btn3 = new Button(
+			img3,
+			() => this.setupLocalGame(3, false),
+			this.box
+		);
+		this.btn4 = new Button(
+			img4,
+			() => this.setupLocalGame(4, false),
+			this.box
+		);
+		this.btnT = new Button(
+			imgt,
+			() => this.setupLocalGame(4, true),
+			this.box
+		);
 
 		// Fixed button size
 		[this.btn2, this.btn3, this.btn4, this.btnT].forEach(btn => {
@@ -47,6 +66,7 @@ export class LocalGameModal extends Modal {
 		});
 
 		// Modal box background
+		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
@@ -54,10 +74,6 @@ export class LocalGameModal extends Modal {
 			' relative flex flex-col items-center justify-center' +
 			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
 
-		// Setup keyboard navigation
-		this.addEnterListener();
-
-		// Set initial focus
 		this.btn2.element.focus();
 		this.btn2.element.tabIndex = 0;
 		this.btn3.element.tabIndex = 0;
@@ -85,7 +101,12 @@ export class LocalGameModal extends Modal {
 				// Arrow key navigation
 				if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
 					e.preventDefault();
-					const buttons = [this.btn2, this.btn3, this.btn4, this.btnT];
+					const buttons = [
+						this.btn2,
+						this.btn3,
+						this.btn4,
+						this.btnT,
+					];
 					const currentIndex = buttons.indexOf(button);
 					const nextIndex = (currentIndex + 1) % buttons.length;
 					buttons[nextIndex].element.focus();
@@ -94,16 +115,22 @@ export class LocalGameModal extends Modal {
 
 				if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
 					e.preventDefault();
-					const buttons = [this.btn2, this.btn3, this.btn4, this.btnT];
+					const buttons = [
+						this.btn2,
+						this.btn3,
+						this.btn4,
+						this.btnT,
+					];
 					const currentIndex = buttons.indexOf(button);
-					const prevIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+					const prevIndex =
+						(currentIndex - 1 + buttons.length) % buttons.length;
 					buttons[prevIndex].element.focus();
 				}
 			};
 
 			// Store handler for cleanup
 			this.keydownHandlers.set(button.element, handler);
-			
+
 			// Add event listener
 			button.element.addEventListener('keydown', handler);
 		});

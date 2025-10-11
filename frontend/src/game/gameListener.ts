@@ -126,7 +126,7 @@ export async function gameListener(event: MessageEvent) {
 						router.currentScreen!.element,
 						'The game has been quit.'
 					);
-				}, 100);
+				}, 50);
 				break;
 
 			case MESSAGE_REPLAY:

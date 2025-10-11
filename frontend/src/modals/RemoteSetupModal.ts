@@ -10,6 +10,7 @@ import { WaitingModal } from './WaitingModal';
 export class RemoteSetupModal extends Modal {
 	private aliasField: HTMLInputElement;
 	private isSubmitting = false;
+	private keydownHandler: (e: KeyboardEvent) => void;
 
 	constructor(parent: HTMLElement, type: TournamentType) {
 		super(parent);
@@ -19,9 +20,10 @@ export class RemoteSetupModal extends Modal {
 		this.aliasField = this.createInput(defaultValue);
 		this.box.appendChild(this.aliasField);
 
-		this.aliasField.addEventListener('keydown', (e: KeyboardEvent) => {
+		this.keydownHandler = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') this.submit(type);
-		});
+		};
+		this.aliasField.addEventListener('keydown', this.keydownHandler);
 
 		this.aliasField.focus();
 		new Button('Continue', () => this.submit(type), this.box);
@@ -47,7 +49,7 @@ export class RemoteSetupModal extends Modal {
 	private async submit(type: TournamentType): Promise<void> {
 		if (this.isSubmitting) return;
 		this.isSubmitting = true;
-		
+
 		const alias = this.aliasField.value.trim() || 'Player1';
 		sessionStorage.setItem('alias', alias);
 
@@ -66,5 +68,13 @@ export class RemoteSetupModal extends Modal {
 
 		this.destroy();
 		new WaitingModal(this.parent);
+	}
+
+	public destroy(): void {
+		if (this.keydownHandler) {
+			this.aliasField.removeEventListener('keydown', this.keydownHandler);
+			this.keydownHandler = undefined!;
+		}
+		super.destroy();
 	}
 }

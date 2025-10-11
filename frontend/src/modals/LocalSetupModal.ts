@@ -18,9 +18,18 @@ export class LocalSetupModal extends Modal {
 		HTMLInputElement
 	> | null = null;
 
+	// Store references to all added listeners
 	private documentClickHandlers: ((e: Event) => void)[] = [];
 	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
 		new Map();
+	private buttonClickHandlers: Map<
+		HTMLButtonElement,
+		(e: MouseEvent) => void
+	> = new Map();
+	private optionClickHandlers: Map<
+		HTMLButtonElement,
+		(e: MouseEvent) => void
+	> = new Map();
 
 	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
@@ -41,13 +50,11 @@ export class LocalSetupModal extends Modal {
 				n === 1
 					? alias || username || `player${i + 1}`
 					: aliases[i] || `player${i + 1}`;
-
 			const row = this.createPlayerRow(i, defaultValue, aliasHints[i]);
 			this.box.appendChild(row);
 		}
 
 		this.powerupCheckboxes = this.createPowerupSection();
-
 		this.addKeyboardListeners(type);
 		this.aliasFields[0].focus();
 		this.aliasFields[0].select();
@@ -74,8 +81,7 @@ export class LocalSetupModal extends Modal {
 		const checkboxMap: Record<
 			'split' | 'stretch' | 'shrink',
 			HTMLInputElement
-		> = {} as Record<'split' | 'stretch' | 'shrink', HTMLInputElement>;
-
+		> = {} as any;
 		const powerups: {
 			key: 'split' | 'stretch' | 'shrink';
 			label: string;
@@ -153,7 +159,6 @@ export class LocalSetupModal extends Modal {
 		index: number,
 		input: HTMLInputElement
 	): { button: HTMLButtonElement; dropdown: HTMLDivElement } {
-		// AI Button with corners
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className =
@@ -171,39 +176,39 @@ export class LocalSetupModal extends Modal {
 		button.appendChild(aiIcon);
 		button.appendChild(arrow);
 
-		// Dropdown with proper white background
 		const dropdown = document.createElement('div');
 		dropdown.className =
-			'hidden absolute right-0 top-full mt-1 min-w-[8rem] ' +
-			'bg-white border border-[var(--color3)]-lg shadow-lg ' +
-			'z-10 overflow-hidden';
+			'hidden absolute right-0 top-full mt-1 min-w-[8rem] bg-white border border-[var(--color3)]-lg shadow-lg z-10 overflow-hidden';
 
-		this.aiOptions.forEach((option, i) => {
+		// Add option buttons and store handlers
+		this.aiOptions.forEach(option => {
 			const optionButton = document.createElement('button');
 			optionButton.type = 'button';
 			optionButton.textContent = option.label;
 			optionButton.className =
-				'w-full px-3 py-2 text-left text-sm bg-white hover:bg-[var(--color3)]/10 ' +
-				'transition-colors border-none';
+				'w-full px-3 py-2 text-left text-sm bg-white hover:bg-[var(--color3)]/10 transition-colors border-none';
 
-			optionButton.addEventListener('click', e => {
+			const clickHandler = (e: MouseEvent) => {
 				e.stopPropagation();
 				input.value = option.value;
 				this.closeAllDropdowns();
 				input.focus();
-			});
+			};
+			optionButton.addEventListener('click', clickHandler);
+			this.optionClickHandlers.set(optionButton, clickHandler);
 
 			dropdown.appendChild(optionButton);
 		});
 
-		button.addEventListener('click', e => {
+		const toggleHandler = (e: MouseEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
 			this.toggleDropdown(index);
-		});
+		};
+		button.addEventListener('click', toggleHandler);
+		this.buttonClickHandlers.set(button, toggleHandler);
 
-		// Store handler reference for cleanup
-		const clickHandler = (e: Event) => {
+		const docClickHandler = (e: Event) => {
 			if (
 				!button.contains(e.target as Node) &&
 				!dropdown.contains(e.target as Node)
@@ -211,8 +216,8 @@ export class LocalSetupModal extends Modal {
 				this.closeDropdown(index);
 			}
 		};
-		this.documentClickHandlers.push(clickHandler);
-		document.addEventListener('click', clickHandler);
+		document.addEventListener('click', docClickHandler);
+		this.documentClickHandlers.push(docClickHandler);
 
 		return { button, dropdown };
 	}
@@ -285,12 +290,14 @@ export class LocalSetupModal extends Modal {
 				);
 			}
 		});
+
 		if (!isTournament) {
 			for (let i = 1; i <= 4; i++) {
 				sessionStorage.removeItem(`alias${i}controls`);
 			}
 			GameConfig.clearTournamentSeedAliases();
 		}
+
 		if (this.powerupCheckboxes) {
 			sessionStorage.setItem(
 				'split',
@@ -305,23 +312,41 @@ export class LocalSetupModal extends Modal {
 				this.powerupCheckboxes.shrink.checked ? '1' : '0'
 			);
 		}
+
 		location.hash = '#game';
 	}
 
 	public destroy(): void {
 		this.closeAllDropdowns();
 
-		// Clean up all document click handlers
-		this.documentClickHandlers.forEach(handler => {
-			document.removeEventListener('click', handler);
-		});
+		// Remove all document click listeners
+		this.documentClickHandlers.forEach(handler =>
+			document.removeEventListener('click', handler)
+		);
 		this.documentClickHandlers = [];
 
-		// Clean up field listeners
-		this.fieldHandlers.forEach((handler, field) => {
-			field.removeEventListener('keydown', handler);
-		});
+		// Remove all button click listeners
+		this.buttonClickHandlers.forEach((handler, button) =>
+			button.removeEventListener('click', handler)
+		);
+		this.buttonClickHandlers.clear();
+
+		// Remove all option click listeners
+		this.optionClickHandlers.forEach((handler, button) =>
+			button.removeEventListener('click', handler)
+		);
+		this.optionClickHandlers.clear();
+
+		// Remove all keyboard handlers
+		this.fieldHandlers.forEach((handler, field) =>
+			field.removeEventListener('keydown', handler)
+		);
 		this.fieldHandlers.clear();
+
+		// Clear DOM references
+		this.aliasFields = [];
+		this.dropdownContainers = [];
+		this.powerupCheckboxes = null;
 
 		super.destroy();
 	}

@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
+import { state } from '../utils/State';
 import { GameConfig } from './GameConfig';
 import { conditionalLog } from './Logger';
-import { state } from '../utils/State';
 import type { GameState } from './Pong3DGameLoopBase';
 
 export class Pong3DGameLoop {
@@ -14,6 +14,7 @@ export class Pong3DGameLoop {
 		0
 	);
 	private pong3D: any; // Reference to main Pong3D instance for paddle access
+	private serveDelayTimeout: number | null = null; // Track serve delay timeout
 
 	constructor(scene: BABYLON.Scene, pong3D?: any) {
 		this.scene = scene;
@@ -72,13 +73,14 @@ export class Pong3DGameLoop {
 		// During auto-start in onModelLoaded, currentServer is -1, so don't reset ball
 		if (initialServingPlayer !== undefined) {
 			// Add 1-second delay before the first serve
-			setTimeout(() => {
+			this.serveDelayTimeout = window.setTimeout(() => {
 				if (this.gameState.isRunning) {
 					// Check if game is still running
 					// Mark game as ongoing right when we actually perform the first serve
 					state.gameOngoing = true;
 					this.resetBall(initialServingPlayer);
 				}
+				this.serveDelayTimeout = null; // Clear reference when done
 			}, 1000); // 1 second delay
 		} else {
 			if (GameConfig.isDebugLoggingEnabled()) {
@@ -104,6 +106,13 @@ export class Pong3DGameLoop {
 			conditionalLog('⏹️ Stopping Pong3D Game Loop');
 		}
 		this.gameState.isRunning = false;
+
+		// Clear any pending serve delay timeout
+		if (this.serveDelayTimeout !== null) {
+			window.clearTimeout(this.serveDelayTimeout);
+			this.serveDelayTimeout = null;
+		}
+
 		// Stop the ball
 		if (this.ballMesh && this.ballMesh.physicsImpostor) {
 			this.ballMesh.physicsImpostor.setLinearVelocity(
@@ -167,17 +176,15 @@ export class Pong3DGameLoop {
 							baseDirection.x > 0
 								? 1
 								: baseDirection.x < 0
-								? -1
-								: -1;
+									? -1
+									: -1;
 					}
 					const maxApproach = Math.max(
 						Math.abs(axisPos) - ballRadius,
 						0
 					);
 					const appliedOffset =
-						sign === 0
-							? 0
-							: Math.min(serveOffset, maxApproach);
+						sign === 0 ? 0 : Math.min(serveOffset, maxApproach);
 					servePosition.x = axisPos + sign * appliedOffset;
 					servePosition.z = paddle.position.z;
 				} else {
@@ -188,17 +195,15 @@ export class Pong3DGameLoop {
 							baseDirection.z > 0
 								? 1
 								: baseDirection.z < 0
-								? -1
-								: -1;
+									? -1
+									: -1;
 					}
 					const maxApproach = Math.max(
 						Math.abs(axisPos) - ballRadius,
 						0
 					);
 					const appliedOffset =
-						sign === 0
-							? 0
-							: Math.min(serveOffset, maxApproach);
+						sign === 0 ? 0 : Math.min(serveOffset, maxApproach);
 					servePosition.z = axisPos + sign * appliedOffset;
 					servePosition.x = paddle.position.x;
 				}
@@ -221,18 +226,15 @@ export class Pong3DGameLoop {
 				const angleLimit =
 					this.pong3D?.SERVE_ANGLE_LIMIT ??
 					GameConfig.getServeAngleLimit();
-				const spreadAngle =
-					(Math.random() - 0.5) * 2 * angleLimit;
-				const rotationMatrix =
-					BABYLON.Matrix.RotationAxis(
-						BABYLON.Vector3.Up(),
-						spreadAngle
-					);
-				let spreadDirection =
-					BABYLON.Vector3.TransformCoordinates(
-						baseDirection,
-						rotationMatrix
-					).normalize();
+				const spreadAngle = (Math.random() - 0.5) * 2 * angleLimit;
+				const rotationMatrix = BABYLON.Matrix.RotationAxis(
+					BABYLON.Vector3.Up(),
+					spreadAngle
+				);
+				let spreadDirection = BABYLON.Vector3.TransformCoordinates(
+					baseDirection,
+					rotationMatrix
+				).normalize();
 
 				// Safety: if the spread accidentally points away from origin, flip it
 				const toOrigin = BABYLON.Vector3.Zero()

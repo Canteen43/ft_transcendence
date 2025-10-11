@@ -6693,6 +6693,17 @@ export class Pong3D {
 			this.conditionalLog('✅ Cleared power-up manager');
 		}
 
+		// Clear any pending timeouts to prevent memory leaks
+		if (this.activeStretchTimeout !== null) {
+			window.clearTimeout(this.activeStretchTimeout);
+			this.activeStretchTimeout = null;
+		}
+		this.paddleStretchTimeouts.forEach(timeoutId => {
+			window.clearTimeout(timeoutId);
+		});
+		this.paddleStretchTimeouts.clear();
+		this.conditionalLog('✅ Cleared pending timeouts');
+
 		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
 		if (this.scene) {
 			this.scene.dispose();
@@ -6709,6 +6720,13 @@ export class Pong3D {
 		if (this.canvas && this.canvas.parentNode) {
 			this.canvas.parentNode.removeChild(this.canvas);
 			this.conditionalLog('✅ Removed canvas from DOM');
+		}
+
+		// Clear ball manager and related resources
+		if (this.ballManager) {
+			this.ballManager.clear();
+			this.ballManager = null as any;
+			this.conditionalLog('✅ Cleared ball manager');
 		}
 
 		// Clear references to help with garbage collection

@@ -12,6 +12,10 @@ export class RemoteGameModal extends Modal {
 	private btn2plyrPwr: Button;
 	private btnTourn: Button;
 	private btnTournPwr: Button;
+	private keydownHandlers = new Map<
+		HTMLElement,
+		(e: KeyboardEvent) => void
+	>();
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -110,10 +114,11 @@ export class RemoteGameModal extends Modal {
 		];
 
 		buttonConfigs.forEach(({ button, player, powerUp }) => {
-			button.element.addEventListener('keydown', (e: KeyboardEvent) => {
+			const handler = (e: KeyboardEvent) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
 					this.logicRemote(player, powerUp);
+					return;
 				}
 
 				// Arrow key navigation
@@ -128,6 +133,7 @@ export class RemoteGameModal extends Modal {
 					const currentIndex = buttons.indexOf(button);
 					const nextIndex = (currentIndex + 1) % buttons.length;
 					buttons[nextIndex].element.focus();
+					return;
 				}
 
 				if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
@@ -143,16 +149,18 @@ export class RemoteGameModal extends Modal {
 						(currentIndex - 1 + buttons.length) % buttons.length;
 					buttons[prevIndex].element.focus();
 				}
-			});
+			};
+			// Store handler for cleanup
+			this.keydownHandlers.set(button.element, handler);
+
+			// Add event listener
+			button.element.addEventListener('keydown', handler);
 		});
 	}
 
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
 		leaveTournament();
-
-		console.debug('Clearing match data before queuing');
 		clearAllGameData();
-		console.debug('Cleared data');
 
 		console.debug('Set sessionStorage');
 
@@ -180,10 +188,21 @@ export class RemoteGameModal extends Modal {
 			type == TournamentType.Regular ? '0' : '1'
 		);
 
-		this.destroy();
-		console.log('Destroyed modal');
-
 		new RemoteSetupModal(this.parent, type);
-		console.log('Created new modal');
+		this.destroy();
+	}
+
+	public destroy(): void {
+		this.keydownHandlers.forEach((handler, element) => {
+			element.removeEventListener('keydown', handler);
+		});
+		this.keydownHandlers.clear();
+
+		this.btn2plyr?.destroy();
+		this.btn2plyrPwr?.destroy();
+		this.btnTourn?.destroy();
+		this.btnTournPwr?.destroy();
+
+		super.destroy();
 	}
 }
