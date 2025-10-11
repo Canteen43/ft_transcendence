@@ -71,9 +71,9 @@ export class LocalGameModal extends Modal {
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
 			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
-			' relative flex flex-col items-center justify-center' +
-			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
-
+			' relative grid place-items-center' +
+			' gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm' +
+			' grid-cols-1 sm:grid-cols-2';
 		this.btn2.element.focus();
 		this.btn2.element.tabIndex = 0;
 		this.btn3.element.tabIndex = 0;

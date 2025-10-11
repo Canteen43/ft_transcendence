@@ -23,19 +23,19 @@ export class RemoteGameModal extends Modal {
 
 		const img2 = document.createElement('img');
 		img2.src = '2_players.png';
-		img2.className = 'h-16 sm:h-20 md:h-[100px]';
+		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const img2_pu = document.createElement('img');
 		img2_pu.src = '2_players_powerups.png';
-		img2_pu.className = 'h-16 sm:h-20 md:h-[100px]';
+		img2_pu.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const imgt = document.createElement('img');
 		imgt.src = 'trophy.png';
-		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
+		imgt.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const imgt_pu = document.createElement('img');
 		imgt_pu.src = 'trophy_powerups.png';
-		imgt_pu.className = 'h-16 sm:h-20 md:h-[100px]';
+		imgt_pu.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		this.btn2plyr = new Button(
 			img2,
@@ -58,7 +58,7 @@ export class RemoteGameModal extends Modal {
 			this.box
 		);
 
-		// fixed button size
+		// Fixed button size with proper aspect ratio
 		[
 			this.btn2plyr,
 			this.btn2plyrPwr,
@@ -66,21 +66,23 @@ export class RemoteGameModal extends Modal {
 			this.btnTournPwr,
 		].forEach(btn => {
 			btn.element.className +=
-				' w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
-				' h-[100px] sm:h-[120px] md:h-[140px]' +
+				' w-full' +
+				' min-h-[120px]' + // Minimum height for consistency
 				' flex items-center justify-center' +
+				' p-4' +
 				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
-		// modal box background
+		// Modal box background
 		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
 			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
-			' relative flex flex-col items-center justify-center' +
-			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
+			' relative grid place-items-center' +
+			' gap-4 w-[90vw] sm:w-auto max-w-[600px] rounded-sm' + // Increased max-w
+			' grid-cols-1 sm:grid-cols-2';
 
 		this.btn2plyr.element.focus();
 		this.btn2plyr.element.tabIndex = 0;
