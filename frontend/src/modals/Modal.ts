@@ -2,12 +2,14 @@ export class Modal {
 	protected parent: HTMLElement;
 	protected overlay: HTMLDivElement;
 	protected box: HTMLDivElement;
+
 	private escHandler: (e: KeyboardEvent) => void;
 	private clickOutside: (e: MouseEvent) => void;
-	public onClose?: () => void;
-	private closeButton?: HTMLButtonElement;
+	private stopPropagationHandler: (e: MouseEvent) => void;
 
-	constructor(parent: HTMLElement, showCloseButton = false) {
+	public onClose?: () => void;
+
+	constructor(parent: HTMLElement) {
 		this.parent = parent;
 
 		this.overlay = document.createElement('div');
@@ -18,39 +20,27 @@ export class Modal {
 		this.box.className =
 			'bg-white/70 shadow-lg p-10 relative flex flex-col items-center justify-center gap-4 rounded-sm';
 
-
-		if (showCloseButton) {
-			this.closeButton = document.createElement('button');
-			this.closeButton.textContent = '×';
-			this.closeButton.className =
-				'bg-white shadow-lg p-4 sm:p-6 md:p-10' +
-				' relative flex flex-col items-center justify-center' +
-				' gap-3 sm:gap-4' +
-				' w-full max-w-[90vw] sm:max-w-[500px] md:max-w-[600px]';
-			this.closeButton.addEventListener('click', () => this.destroy());
-			this.box.appendChild(this.closeButton);
-		}
-
 		this.overlay.appendChild(this.box);
 		parent.appendChild(this.overlay);
 
 		this.escHandler = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') this.destroy();
 		};
-		document.addEventListener('keydown', this.escHandler);
-
 		this.clickOutside = (e: MouseEvent) => {
 			if (e.target === this.overlay) this.destroy();
 		};
+		this.stopPropagationHandler = (e: MouseEvent) => e.stopPropagation();
+
+		document.addEventListener('keydown', this.escHandler);
 		this.overlay.addEventListener('click', this.clickOutside);
-
-		this.box.addEventListener('click', e => e.stopPropagation());
+		this.box.addEventListener('click', this.stopPropagationHandler);
 	}
-
 
 	public destroy(): void {
 		document.removeEventListener('keydown', this.escHandler);
 		this.overlay.removeEventListener('click', this.clickOutside);
+		this.box.removeEventListener('click', this.stopPropagationHandler);
+	
 		this.overlay.remove();
 		this.onClose?.();
 	}
