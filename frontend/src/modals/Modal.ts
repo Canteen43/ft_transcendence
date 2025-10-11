@@ -27,7 +27,7 @@ export class Modal {
 				' relative flex flex-col items-center justify-center' +
 				' gap-3 sm:gap-4' +
 				' w-full max-w-[90vw] sm:max-w-[500px] md:max-w-[600px]';
-			this.closeButton.addEventListener('click', () => this.quit());
+			this.closeButton.addEventListener('click', () => this.destroy());
 			this.box.appendChild(this.closeButton);
 		}
 
@@ -35,21 +35,18 @@ export class Modal {
 		parent.appendChild(this.overlay);
 
 		this.escHandler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') this.quit();
+			if (e.key === 'Escape') this.destroy();
 		};
 		document.addEventListener('keydown', this.escHandler);
 
 		this.clickOutside = (e: MouseEvent) => {
-			if (e.target === this.overlay) this.quit();
+			if (e.target === this.overlay) this.destroy();
 		};
 		this.overlay.addEventListener('click', this.clickOutside);
 
 		this.box.addEventListener('click', e => e.stopPropagation());
 	}
 
-	public quit() {
-		this.destroy();
-	}
 
 	public destroy(): void {
 		document.removeEventListener('keydown', this.escHandler);

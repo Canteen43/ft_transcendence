@@ -34,8 +34,7 @@ export class WaitingModal extends Modal {
 				`Failed to leave tournament: ${error.message}`
 			);
 		}
-		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
-		super.quit();
+		this.destroy();
 	}
 
 	private async printMessageLoader(): Promise<void> {

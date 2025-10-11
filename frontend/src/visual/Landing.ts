@@ -4,6 +4,8 @@ export interface LandingCallbacks {
 	onLocalGameClick?: () => void;
 	onRemoteGameClick?: () => void;
 	onStatsClick?: () => void;
+	onLoadProgress?: (progress: number) => void;
+	onLoadComplete?: () => void;
 }
 
 export class Landing {
@@ -11,23 +13,16 @@ export class Landing {
 	private scene!: BABYLON.Scene;
 	private camera!: BABYLON.ArcRotateCamera;
 	private canvas!: HTMLCanvasElement;
-	private highlightLayer?: BABYLON.HighlightLayer;
 	private resizeHandler?: () => void;
 	private shadowGenerator?: BABYLON.ShadowGenerator;
 	private envTexture?: BABYLON.HDRCubeTexture;
 	private renderLoopCallback?: () => void;
+	private contextMenuHandler = (e: MouseEvent) => e.preventDefault();
 
-	// Clickable mesh references (groups of meshes)
+	// Clickable mesh references
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
 	private remoteGameMeshes: BABYLON.AbstractMesh[] = [];
 	private statsMeshes: BABYLON.AbstractMesh[] = [];
-
-	// Animation tracking
-	private hoveredMeshGroup: BABYLON.AbstractMesh[] | null = null;
-	private animationTargets = new Map<
-		BABYLON.AbstractMesh,
-		{ originalY: number; animation?: BABYLON.Animation }
-	>();
 
 	// Callbacks
 	private callbacks: LandingCallbacks;
@@ -49,7 +44,7 @@ export class Landing {
 			this.engine = new BABYLON.Engine(this.canvas, true, {
 				preserveDrawingBuffer: true,
 				stencil: true,
-				antialias: true, // Better quality
+				antialias: true,
 			});
 
 			this.scene = new BABYLON.Scene(this.engine);
@@ -58,21 +53,15 @@ export class Landing {
 			this.setupCamera();
 			this.setupLighting();
 			this.setupHDR();
-			this.highlightLayer = new BABYLON.HighlightLayer(
-				'highlight',
-				this.scene
-			);
 			this.setupControls();
 			await this.loadModel(modelPath);
 
-			// Store render loop callback reference
+			// Start render loop
 			this.renderLoopCallback = () => {
 				if (this.scene && !this.scene.isDisposed) {
 					this.scene.render();
 				}
 			};
-
-			// Start render loop
 			this.engine.runRenderLoop(this.renderLoopCallback);
 
 			// Setup resize handler
@@ -82,6 +71,8 @@ export class Landing {
 				}
 			};
 			window.addEventListener('resize', this.resizeHandler);
+
+			console.log('✅ Scene initialized');
 		} catch (err) {
 			console.error('Error initializing scene:', err);
 		}
@@ -98,7 +89,6 @@ export class Landing {
 		);
 
 		this.camera.attachControl(this.canvas, true);
-
 		this.camera.lowerRadiusLimit = 5;
 		this.camera.upperRadiusLimit = 50;
 		this.camera.lowerBetaLimit = -1;
@@ -106,8 +96,6 @@ export class Landing {
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100;
 		this.camera.wheelPrecision = 50;
-
-		console.debug('Camera setup complete');
 	}
 
 	private setupLighting(): void {
@@ -125,8 +113,6 @@ export class Landing {
 		);
 		directionalLight.intensity = 3;
 		directionalLight.position = new BABYLON.Vector3(0, 20, -20);
-
-		console.debug('Lighting setup complete');
 	}
 
 	private setupHDR(): void {
@@ -140,7 +126,7 @@ export class Landing {
 			true
 		);
 		this.scene.environmentTexture = this.envTexture;
-		// this.scene.createDefaultSkybox(this.envTexture, true);
+		this.scene.createDefaultSkybox(this.envTexture, true);
 	}
 
 	private setupControls(): void {
@@ -154,27 +140,9 @@ export class Landing {
 			}
 		});
 
-		this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
 	}
 
-	// private async loadModel(modelPath: string): Promise<void> {
-	// 	return new Promise((resolve, reject) => {
-	// 		BABYLON.SceneLoader.ImportMesh(
-	// 			'',
-	// 			'',
-	// 			modelPath,
-	// 			this.scene,
-	// 			meshes => {
-	// 				this.onModelLoaded(meshes);
-	// 				resolve();
-	// 			},
-	// 			null,
-	// 			(_, message) => reject(new Error(message))
-	// 		);
-	// 	});
-	// }
-
-	// In Landing.ts, add loading progress
 	private async loadModel(modelPath: string): Promise<void> {
 		return new Promise((resolve, reject) => {
 			BABYLON.SceneLoader.ImportMesh(
@@ -184,12 +152,14 @@ export class Landing {
 				this.scene,
 				meshes => {
 					this.onModelLoaded(meshes);
+					this.callbacks.onLoadComplete?.();
+					console.log('✅ Model loaded and ready');
 					resolve();
 				},
-				// Progress callback
 				event => {
 					if (event.lengthComputable) {
 						const progress = (event.loaded / event.total) * 100;
+						this.callbacks.onLoadProgress?.(progress);
 						console.log(`Loading: ${progress.toFixed(0)}%`);
 					}
 				},
@@ -207,15 +177,16 @@ export class Landing {
 		this.statsMeshes = findMeshes('stats');
 		const titleMeshes = findMeshes('title');
 
+		// Make meshes clickable
 		[
 			...this.localGameMeshes,
 			...this.remoteGameMeshes,
 			...this.statsMeshes,
 		].forEach(mesh => {
 			mesh.isPickable = true;
-			this.animationTargets.set(mesh, { originalY: mesh.position.y });
 		});
 
+		// Setup shadows
 		const planeMesh = meshes.find(m => m.name.toLowerCase() === 'plane');
 		if (planeMesh) {
 			const directionalLight = this.scene.lights.find(
@@ -223,7 +194,6 @@ export class Landing {
 			) as BABYLON.DirectionalLight;
 
 			if (directionalLight) {
-				// Store shadow generator for proper disposal
 				this.shadowGenerator = new BABYLON.ShadowGenerator(
 					1024,
 					directionalLight
@@ -268,9 +238,9 @@ export class Landing {
 		this.camera.radius = maxSize * 0.2;
 
 		console.debug(
-			'📹 Camera fitted to scene at',
+			'📹 Camera fitted:',
 			center.toString(),
-			'radius',
+			'radius:',
 			this.camera.radius
 		);
 	}
@@ -281,16 +251,11 @@ export class Landing {
 		const name = mesh.name.toLowerCase();
 
 		if (name.includes('local')) {
-			console.debug('Local Game selected');
 			this.callbacks.onLocalGameClick?.();
 		} else if (name.includes('remote')) {
-			console.debug('Remote Game selected');
 			this.callbacks.onRemoteGameClick?.();
 		} else if (name.includes('stats')) {
-			console.debug('Stats selected');
 			this.callbacks.onStatsClick?.();
-		} else {
-			console.debug('Unknown mesh clicked');
 		}
 	}
 
@@ -298,19 +263,15 @@ export class Landing {
 		console.log('🧹 Disposing Landing scene');
 
 		try {
-			// Stop render loop FIRST
+			// Stop render loop
 			if (this.engine && !this.engine.isDisposed) {
 				this.engine.stopRenderLoop();
 			}
 
-			// Stop all animations
+			// Stop animations
 			if (this.scene && !this.scene.isDisposed) {
 				this.scene.stopAllAnimations();
 			}
-
-			// Clear animation targets map
-			this.animationTargets.clear();
-			this.hoveredMeshGroup = null;
 
 			// Clear mesh arrays
 			this.localGameMeshes = [];
@@ -323,13 +284,7 @@ export class Landing {
 				this.shadowGenerator = undefined;
 			}
 
-			// Dispose highlight layer
-			if (this.highlightLayer) {
-				this.highlightLayer.dispose();
-				this.highlightLayer = undefined;
-			}
-
-			// Dispose HDR texture explicitly
+			// Dispose HDR texture
 			if (this.envTexture) {
 				this.envTexture.dispose();
 				this.envTexture = undefined;
@@ -341,12 +296,19 @@ export class Landing {
 				this.resizeHandler = undefined;
 			}
 
+			if (this.contextMenuHandler) {
+				this.canvas.removeEventListener(
+					'contextmenu',
+					this.contextMenuHandler
+				);
+			}
+
 			// Detach camera controls
 			if (this.camera) {
 				this.camera.detachControl();
 			}
 
-			// Dispose scene (this disposes all scene objects)
+			// Dispose scene
 			if (this.scene && !this.scene.isDisposed) {
 				this.scene.dispose();
 			}
@@ -356,15 +318,15 @@ export class Landing {
 				this.engine.dispose();
 			}
 
-			// Remove canvas from DOM
+			// Remove canvas
 			if (this.canvas && this.canvas.parentNode) {
 				this.canvas.parentNode.removeChild(this.canvas);
 			}
-
-			// Clear callback reference
+			this.scene.onPointerObservable.clear();
+			
 			this.renderLoopCallback = undefined;
 
-			console.log('✅ Landing scene fully disposed');
+			console.log('✅ Landing scene disposed');
 		} catch (err) {
 			console.error('Error during disposal:', err);
 		}

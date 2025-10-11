@@ -13,6 +13,8 @@ class BabylonEngineManager {
 		return this._instance;
 	}
 
+	private resizeHandler = () => this.engine?.resize();
+
 	public getEngine(canvas: HTMLCanvasElement): BABYLON.Engine {
 		// First time initialization
 		if (!this.engine) {
@@ -22,7 +24,9 @@ class BabylonEngineManager {
 				alpha: true,
 			});
 			this.canvas = canvas;
-			window.addEventListener('resize', () => this.engine?.resize());
+
+			window.addEventListener('resize', this.resizeHandler);
+
 			console.log('✅ Babylon Engine created');
 			return this.engine;
 		}
@@ -48,10 +52,10 @@ class BabylonEngineManager {
 
 	public startRenderLoop(scene: BABYLON.Scene): void {
 		if (!this.engine) return;
-		
+
 		// Stop any existing render loop
 		this.engine.stopRenderLoop();
-		
+
 		// Start new render loop for this scene
 		this.currentScene = scene;
 		this.engine.runRenderLoop(() => {
@@ -59,7 +63,7 @@ class BabylonEngineManager {
 				this.currentScene.render();
 			}
 		});
-		
+
 		console.log('▶️ Render loop started');
 	}
 
@@ -69,12 +73,18 @@ class BabylonEngineManager {
 	}
 
 	public dispose(): void {
+		if (this.resizeHandler) {
+			window.removeEventListener('resize', this.resizeHandler);
+		}
+		if (this.currentScene) {
+			this.currentScene.dispose();
+			this.currentScene = null;
+		}
 		if (this.engine) {
 			this.engine.stopRenderLoop();
 			this.engine.dispose();
 			this.engine = null;
 			this.canvas = null;
-			this.currentScene = null;
 			console.log('🗑️ Babylon Engine fully disposed');
 		}
 	}

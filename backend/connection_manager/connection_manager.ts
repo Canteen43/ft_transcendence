@@ -51,6 +51,9 @@ export function handleClose(event: CloseEvent) {
 	GameProtocol.getInstance().handleClose(socket.socketId);
 	connections.delete(socket.socketId);
 	userIdToConnectionMap.delete(socket.userId);
+	// HELENE: rm event listeners to avoid leaks
+	socket.removeEventListener('message', handleMessage);
+	socket.removeEventListener('close', handleClose);
 }
 
 export function handleMessage(event: MessageEvent) {

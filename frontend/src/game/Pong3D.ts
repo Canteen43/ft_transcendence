@@ -129,6 +129,9 @@ export class Pong3D {
 	private static readonly SOUND_WALL = 1;
 	private static readonly SOUND_POWERUP_BALL = 2;
 	private static readonly SOUND_POWERUP_WALL = 3;
+	private remoteScoreUpdateHandler?: (event: Event) => void;
+	private remoteGameStateHandler?: (event: Event) => void;
+
 	private static babylonWarnFilterInstalled = false;
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
@@ -1643,9 +1646,8 @@ export class Pong3D {
 			);
 		}
 	}
-
 	private setupEventListeners(): void {
-		// Only initialize input handler in local/master modes - client sends input via WebSocket
+		// Only initialize input handler in local/master modes
 		if (this.gameMode !== 'client') {
 			this.inputHandler = new Pong3DInput(this.canvas);
 		}
@@ -1654,12 +1656,13 @@ export class Pong3D {
 		this.resizeHandler = () => this.engine.resize();
 		window.addEventListener('resize', this.resizeHandler);
 
-		// Listen for remote score updates from WebSocket (client mode only)
+		// Listen for remote score updates (client mode only)
 		if (this.gameMode === 'client') {
 			this.conditionalLog(
 				'🎮 Setting up remoteScoreUpdate event listener for client mode'
 			);
-			document.addEventListener('remoteScoreUpdate', (event: Event) => {
+
+			this.remoteScoreUpdateHandler = (event: Event) => {
 				this.conditionalLog(
 					'🎮 remoteScoreUpdate event received:',
 					event
@@ -1674,7 +1677,12 @@ export class Pong3D {
 				this.handleRemoteScoreUpdate(
 					customEvent.detail.scoringPlayerUID
 				);
-			});
+			};
+
+			document.addEventListener(
+				'remoteScoreUpdate',
+				this.remoteScoreUpdateHandler
+			);
 		} else {
 			this.conditionalLog(
 				'🎮 Not setting up remoteScoreUpdate listener - game mode:',
@@ -1682,8 +1690,8 @@ export class Pong3D {
 			);
 		}
 
-		// Listen for remote game state updates from WebSocket (both master and client modes)
-		document.addEventListener('remoteGameState', (event: Event) => {
+		// Listen for remote game state updates (both master and client modes)
+		this.remoteGameStateHandler = (event: Event) => {
 			const customEvent = event as CustomEvent<any>;
 			const gameState = customEvent.detail;
 			this.conditionalLog('📡 remoteGameState received:', gameState);
@@ -1692,7 +1700,12 @@ export class Pong3D {
 			if (gameState && typeof gameState.s === 'number') {
 				this.handleRemoteSoundEffect(gameState.s);
 			}
-		});
+		};
+
+		document.addEventListener(
+			'remoteGameState',
+			this.remoteGameStateHandler
+		);
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
@@ -4726,7 +4739,7 @@ export class Pong3D {
 					`❌ Goal ${index + 1}: Goal mesh is null or undefined`
 				);
 			}
-			});
+		});
 	}
 
 	private findDefencePlanes(scene: BABYLON.Scene): void {
@@ -4753,7 +4766,11 @@ export class Pong3D {
 					const position = new BABYLON.Vector3();
 					const rotationQuaternion = new BABYLON.Quaternion();
 					const scaling = new BABYLON.Vector3();
-					worldMatrix.decompose(scaling, rotationQuaternion, position);
+					worldMatrix.decompose(
+						scaling,
+						rotationQuaternion,
+						position
+					);
 					defence.parent = null;
 					defence.position = position;
 					defence.rotationQuaternion = rotationQuaternion;
@@ -4763,7 +4780,8 @@ export class Pong3D {
 				defence.checkCollisions = false;
 				defence.isPickable = false;
 				defence.metadata = {
-					...(typeof defence.metadata === 'object' && defence.metadata !== null
+					...(typeof defence.metadata === 'object' &&
+					defence.metadata !== null
 						? defence.metadata
 						: {}),
 					aiDefence: true,
@@ -4775,7 +4793,9 @@ export class Pong3D {
 					);
 				}
 			} else if (GameConfig.isDebugLoggingEnabled()) {
-				this.conditionalLog(`⚠️ Defence ${defenceNumber}: Not found in scene`);
+				this.conditionalLog(
+					`⚠️ Defence ${defenceNumber}: Not found in scene`
+				);
 			}
 
 			this.defenceMeshes[i] = defence || null;
@@ -6639,6 +6659,25 @@ export class Pong3D {
 			window.removeEventListener('resize', this.resizeHandler);
 			this.resizeHandler = null;
 			this.conditionalLog('✅ Removed resize event listener');
+		}
+
+		// Remove document event listeners
+		if (this.remoteScoreUpdateHandler) {
+			document.removeEventListener(
+				'remoteScoreUpdate',
+				this.remoteScoreUpdateHandler
+			);
+			this.remoteScoreUpdateHandler = undefined;
+			this.conditionalLog('✅ Removed remoteScoreUpdate event listener');
+		}
+
+		if (this.remoteGameStateHandler) {
+			document.removeEventListener(
+				'remoteGameState',
+				this.remoteGameStateHandler
+			);
+			this.remoteGameStateHandler = undefined;
+			this.conditionalLog('✅ Removed remoteGameState event listener');
 		}
 
 		// Dispose audio system

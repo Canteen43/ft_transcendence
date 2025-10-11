@@ -1,9 +1,7 @@
 import { MESSAGE_CHAT } from '../../../shared/constants.js';
+import { isLoggedIn } from '../buttons/AuthButton';
 import { state } from './State.js';
 import { webSocket } from './WebSocketWrapper.js';
-
-import { isLoggedIn } from '../buttons/AuthButton';
-
 
 export class ChatManager {
 	private chat: Chat | null = null;
@@ -27,8 +25,7 @@ export class ChatManager {
 
 	private initChat() {
 		if (!isLoggedIn() || !this.parent) return;
-		console.debug('Initializing chat and banner');
-
+		console.debug('Initializing chat');
 		if (!this.chat) {
 			this.chat = new Chat(this.parent);
 		}
@@ -45,7 +42,7 @@ export class ChatManager {
 	destroy() {
 		this.destroyChat();
 		document.removeEventListener('login-success', this.bndInitChat);
-		document.removeEventListener('login-fail', this.bndDestroyChat);
+		document.removeEventListener('login-failed', this.bndDestroyChat);
 		document.removeEventListener('logout-success', this.bndDestroyChat);
 	}
 }
@@ -56,8 +53,10 @@ export class Chat {
 	private input: HTMLInputElement;
 	private toggleButton: HTMLButtonElement;
 	private isExpanded: boolean = true;
+	private username: string;
 
 	constructor(parent: HTMLElement) {
+		this.username = sessionStorage.getItem('username') || 'Anonymous';
 		this.isExpanded = state.chatExpanded ?? true;
 		state.chatExpanded = this.isExpanded;
 
@@ -107,7 +106,9 @@ export class Chat {
 		parent.appendChild(this.container);
 
 		// Listen for incoming messages via document event
-		document.addEventListener('chat-message', this.handleChatMessage);
+		document.addEventListener('chat-message', this.handleIncomingMessage);
+		// Listen for incoming messages via document event
+		document.addEventListener('keydown', this.handleGlobalKeydown);
 	}
 
 	private handleKeypress = (e: KeyboardEvent) => {
@@ -138,11 +139,19 @@ export class Chat {
 		}
 	};
 
-	private handleChatMessage = (e: Event) => {
-		this.receiveMessage((e as CustomEvent).detail);
+	private handleIncomingMessage = (e: Event) => {
+		this.addMessage((e as CustomEvent).detail);
 	};
 
-	private receiveMessage(message: string): void {
+	private handleGlobalKeydown = (e: Event) => {
+		const ke = e as KeyboardEvent;
+		if (ke.code === 'Space' && document.activeElement !== this.input) {
+			ke.preventDefault();
+			this.handleToggle();
+		}
+	};
+
+	private addMessage(message: string): void {
 		const messageEl = document.createElement('div');
 		messageEl.className =
 			'px-1 py-1 rounded-md text-sm text-white bg-gray-400/30 max-w-full break-words';
@@ -154,22 +163,20 @@ export class Chat {
 	}
 
 	private sendMessage(message: string): void {
-		const username = sessionStorage.getItem('username') || 'Anonymous';
-		const fullMessage = `${username}: ${message}`;
+		const fullMessage = `${this.username}: ${message}`;
 
 		// Send to server
 		webSocket.send({ t: MESSAGE_CHAT, d: fullMessage });
 		// add to message board
-		this.receiveMessage(fullMessage);
+		this.addMessage(fullMessage);
 	}
 
 	public destroy(): void {
-		// Remove all event listeners
-		document.removeEventListener('chat-message', this.handleChatMessage);
+		document.removeEventListener('chat-message',this.handleIncomingMessage);
+		document.removeEventListener('keydown', this.handleGlobalKeydown);
 		this.input.removeEventListener('keypress', this.handleKeypress);
 		this.toggleButton.removeEventListener('click', this.handleToggle);
 
-		// Remove from DOM
 		this.container.remove();
 	}
 }

@@ -9,10 +9,10 @@ import type { Message } from '../../../shared/schemas/message';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
+import { leaveTournament } from '../utils/tournamentJoin';
 import { wsURL } from './endpoints';
 import { regListener } from './regListener';
 import { router } from './Router';
-import { leaveTournament } from '../utils/tournamentJoin';
 
 // INFO: A webSocket object opens automatically at creation.
 // That's why a wrapper class is used. It can be created without opening the connection.
@@ -32,6 +32,10 @@ export class WebSocketWrapper {
 	public shouldReconnect: boolean = false;
 	private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	private readonly RECONNECT_DELAY = 3000;
+	private boundOnOpen = () => this.onOpen();
+	private boundOnClose = (event: Event) => this.onClose(event as CloseEvent);
+	private boundOnMessage = (event: MessageEvent) => this.onMessage(event);
+	private boundOnError = (error: Event) => this.onError(error);
 
 	constructor() {
 		if (isLoggedIn()) {
@@ -50,6 +54,7 @@ export class WebSocketWrapper {
 			code: event.code,
 			reason: event.reason,
 		});
+		this.removeListeners();
 		this.ws = null;
 
 		// Clear any existing reconnect timeout
@@ -129,6 +134,15 @@ export class WebSocketWrapper {
 		console.error('WebSocket error:', error);
 	}
 
+	private removeListeners(): void {
+		if (!this.ws) return;
+
+		this.ws.removeEventListener('open', this.boundOnOpen);
+		this.ws.removeEventListener('close', this.boundOnClose);
+		this.ws.removeEventListener('message', this.boundOnMessage);
+		this.ws.removeEventListener('error', this.boundOnError);
+	}
+
 	// Public methods
 	public open(): void {
 		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
@@ -153,12 +167,10 @@ export class WebSocketWrapper {
 		const wsUrlWithToken = `${wsURL}?token=${token}`;
 		this.ws = new WebSocket(wsUrlWithToken);
 
-		this.ws.addEventListener('open', () => this.onOpen());
-		this.ws.addEventListener('close', event =>
-			this.onClose(event as CloseEvent)
-		);
-		this.ws.addEventListener('message', event => this.onMessage(event));
-		this.ws.addEventListener('error', error => this.onError(error));
+		this.ws.addEventListener('open', this.boundOnOpen);
+		this.ws.addEventListener('close', this.boundOnClose);
+		this.ws.addEventListener('message', this.boundOnMessage);
+		this.ws.addEventListener('error', this.boundOnError);
 	}
 
 	public close(): void {
@@ -169,7 +181,7 @@ export class WebSocketWrapper {
 			clearTimeout(this.reconnectTimeoutId);
 			this.reconnectTimeoutId = null;
 		}
-
+		this.removeListeners();
 		this.ws?.close(1000, 'Manual close');
 		this.ws = null;
 	}
