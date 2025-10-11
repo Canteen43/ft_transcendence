@@ -61,8 +61,6 @@
 // 		super.destroy();
 // 	}
 // }
-
-
 import { isLoggedIn } from '../buttons/AuthButton';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
@@ -83,10 +81,11 @@ export class HomeScreen extends Screen {
 		// Show immediate content first
 		this.showLoadingState();
 		
-		// Defer 3D scene loading
-		requestIdleCallback(() => {
+		// Initialize 3D immediately (not deferred!)
+		// Use setTimeout 0 just to let the loading UI render first
+		setTimeout(() => {
 			this.initThreeD();
-		}, { timeout: 100 });
+		}, 0);
 	}
 
 	private showLoadingState() {
@@ -116,6 +115,7 @@ export class HomeScreen extends Screen {
 				</div>
 				<div class="mt-8">
 					<div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-white"></div>
+					<p class="mt-4 text-sm text-gray-400" id="progress-text">Initializing...</p>
 				</div>
 			</div>
 		`;
@@ -134,30 +134,37 @@ export class HomeScreen extends Screen {
 			threeDContainer.className = 'w-full h-full absolute inset-0 opacity-0 transition-opacity duration-1000';
 			this.element.appendChild(threeDContainer);
 
-			// Create Landing instance
+			// Create Landing instance with progress tracking
 			this.landing = new Landing(threeDContainer, '/landingpageTEST.glb', {
 				onLocalGameClick: () => this.localLogic(),
 				onRemoteGameClick: () => this.remoteLogic(),
 				onStatsClick: () => this.statLogic(),
-			});
-
-			// Wait a moment for scene to render, then fade in
-			setTimeout(() => {
-				threeDContainer.style.opacity = '1';
-				
-				// Fade out and remove loading overlay
-				if (this.loadingOverlay) {
-					this.loadingOverlay.style.transition = 'opacity 1s';
-					this.loadingOverlay.style.opacity = '0';
+				onLoadProgress: (progress) => {
+					// Update loading indicator
+					const progressText = this.loadingOverlay?.querySelector('#progress-text');
+					if (progressText) {
+						progressText.textContent = `Loading: ${Math.round(progress)}%`;
+					}
+				},
+				onLoadComplete: () => {
+					console.log('✅ 3D scene fully loaded, fading in');
+					// Scene is fully loaded, fade in
+					threeDContainer.style.opacity = '1';
 					
-					setTimeout(() => {
-						if (this.loadingOverlay) {
-							this.loadingOverlay.remove();
-							this.loadingOverlay = null;
-						}
-					}, 1000);
+					// Fade out and remove loading overlay
+					if (this.loadingOverlay) {
+						this.loadingOverlay.style.transition = 'opacity 1s';
+						this.loadingOverlay.style.opacity = '0';
+						
+						setTimeout(() => {
+							if (this.loadingOverlay) {
+								this.loadingOverlay.remove();
+								this.loadingOverlay = null;
+							}
+						}, 1000);
+					}
 				}
-			}, 500);
+			});
 		} catch (err) {
 			console.error('Error initializing HomeScreen:', err);
 			
