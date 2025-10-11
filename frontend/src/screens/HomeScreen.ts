@@ -33,23 +33,56 @@ export class HomeScreen extends Screen {
 	}
 
 	private remoteLogic() {
+		// Disable camera controls before opening modal
+		if (this.landing) {
+			this.landing.disableCameraControls();
+		}
+
 		if (!isLoggedIn()) {
-			new LoginModal(router.currentScreen!.element);
+			const modal = new LoginModal(router.currentScreen!.element);
+			this.setupModalCloseHandler(modal);
 			return;
 		}
-		new RemoteGameModal(this.element);
+		const modal = new RemoteGameModal(this.element);
+		this.setupModalCloseHandler(modal);
 	}
 
 	private localLogic() {
-		new LocalGameModal(this.element);
+		// Disable camera controls before opening modal
+		if (this.landing) {
+			this.landing.disableCameraControls();
+		}
+
+		const modal = new LocalGameModal(this.element);
+		this.setupModalCloseHandler(modal);
 	}
 
 	private statLogic() {
+		// Disable camera controls before opening modal
+		if (this.landing) {
+			this.landing.disableCameraControls();
+		}
+
 		if (!isLoggedIn()) {
-			new LoginModal(router.currentScreen!.element);
+			const modal = new LoginModal(router.currentScreen!.element);
+			this.setupModalCloseHandler(modal);
 			return;
 		}
-		new StatModal(this.element);
+		const modal = new StatModal(this.element);
+		this.setupModalCloseHandler(modal);
+	}
+
+	private setupModalCloseHandler(modal: any): void {
+		// Set up onClose callback to re-enable camera controls
+		modal.onClose = () => {
+			console.log('🏠 Modal closed, re-enabling camera controls');
+			// Small delay to ensure modal DOM cleanup is complete
+			setTimeout(() => {
+				if (this.landing) {
+					this.landing.enableCameraControls();
+				}
+			}, 50);
+		};
 	}
 
 	public destroy(): void {

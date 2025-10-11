@@ -41,28 +41,36 @@ export class Landing {
 
 	private async init(modelPath: string): Promise<void> {
 		try {
+			console.log('🎬 Starting scene initialization...');
+
 			this.engine = new BABYLON.Engine(this.canvas, true, {
 				preserveDrawingBuffer: true,
 				stencil: true,
 				antialias: true,
+				failIfMajorPerformanceCaveat: false, // Don't fail on slow GPU
 			});
+			console.log('✅ Engine created');
 
 			this.scene = new BABYLON.Scene(this.engine);
 			this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+			console.log('✅ Scene created');
 
 			this.setupCamera();
 			this.setupLighting();
 			this.setupHDR();
 			this.setupControls();
 			await this.loadModel(modelPath);
+			console.log('✅ Model loaded');
+
+			// Store render loop callback reference
+			this.renderLoopCallback = () => {
+				if (!this.scene || this.scene.isDisposed) return;
+				this.scene.render();
+			};
 
 			// Start render loop
-			this.renderLoopCallback = () => {
-				if (this.scene && !this.scene.isDisposed) {
-					this.scene.render();
-				}
-			};
 			this.engine.runRenderLoop(this.renderLoopCallback);
+			console.log('✅ Render loop started');
 
 			// Setup resize handler
 			this.resizeHandler = () => {
@@ -71,10 +79,12 @@ export class Landing {
 				}
 			};
 			window.addEventListener('resize', this.resizeHandler);
+			console.log('✅ Resize handler added');
 
-			console.log('✅ Scene initialized');
+			console.log('🎉 Scene fully initialized!');
 		} catch (err) {
-			console.error('Error initializing scene:', err);
+			console.error('❌ Error initializing scene:', err);
+			this.callbacks.onLoadComplete?.();
 		}
 	}
 
@@ -119,7 +129,7 @@ export class Landing {
 		this.envTexture = new BABYLON.HDRCubeTexture(
 			'/psychedelic.hdr',
 			this.scene,
-			128,
+			512,
 			false,
 			true,
 			false,
@@ -141,6 +151,67 @@ export class Landing {
 		});
 
 		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
+
+		// Listen for modal open/close events to manage camera controls
+		this.setupModalListeners();
+	}
+
+	private setupModalListeners(): void {
+		// Listen for modals opening (when any modal gets created)
+		const observer = new MutationObserver(mutations => {
+			mutations.forEach(mutation => {
+				mutation.addedNodes.forEach(node => {
+					if (node.nodeType === Node.ELEMENT_NODE) {
+						const element = node as HTMLElement;
+						// Check if a modal was added (common modal classes/attributes)
+						if (
+							element.classList.contains('modal') ||
+							element.classList.contains('fixed') ||
+							element.querySelector('.modal')
+						) {
+							this.onModalOpen();
+						}
+					}
+				});
+
+				mutation.removedNodes.forEach(node => {
+					if (node.nodeType === Node.ELEMENT_NODE) {
+						const element = node as HTMLElement;
+						// Check if a modal was removed
+						if (
+							element.classList.contains('modal') ||
+							element.classList.contains('fixed') ||
+							element.querySelector('.modal')
+						) {
+							this.onModalClose();
+						}
+					}
+				});
+			});
+		});
+
+		// Observe changes to document body
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+		});
+	}
+
+	private onModalOpen(): void {
+		console.log('🚪 Modal opened - detaching camera controls');
+		if (this.camera) {
+			this.camera.detachControl();
+		}
+	}
+
+	private onModalClose(): void {
+		console.log('🚪 Modal closed - reattaching camera controls');
+		// Small delay to ensure modal cleanup is complete
+		setTimeout(() => {
+			if (this.camera && this.canvas) {
+				this.camera.attachControl(this.canvas, true);
+			}
+		}, 100);
 	}
 
 	private async loadModel(modelPath: string): Promise<void> {
@@ -259,6 +330,31 @@ export class Landing {
 		}
 	}
 
+	// Public methods to manually control camera for modal interactions
+	public disableCameraControls(): void {
+		console.log('🎥 Disabling camera controls');
+		if (this.camera) {
+			this.camera.detachControl();
+		}
+	}
+
+	public enableCameraControls(): void {
+		console.log('🎥 Enabling camera controls');
+		if (this.camera && this.canvas) {
+			// Firefox-specific fix: Ensure pointer lock is properly released
+			if (document.pointerLockElement) {
+				document.exitPointerLock();
+			}
+
+			// Re-attach camera controls with a small delay to ensure clean state
+			setTimeout(() => {
+				if (this.camera && this.canvas) {
+					this.camera.attachControl(this.canvas, true);
+				}
+			}, 10);
+		}
+	}
+
 	public dispose(): void {
 		console.log('🧹 Disposing Landing scene');
 
@@ -316,14 +412,30 @@ export class Landing {
 			// Dispose engine
 			if (this.engine && !this.engine.isDisposed) {
 				this.engine.dispose();
+				console.log('  ✅ Engine disposed');
+			}
+
+			// Force WebGL context loss if available
+			const gl =
+				this.canvas.getContext('webgl2') ||
+				this.canvas.getContext('webgl');
+			if (gl) {
+				const loseContext = gl.getExtension('WEBGL_lose_context');
+				if (loseContext) {
+					loseContext.loseContext();
+					console.log('  ✅ Forced WebGL context loss');
+				}
 			}
 
 			// Remove canvas
 			if (this.canvas && this.canvas.parentNode) {
 				this.canvas.parentNode.removeChild(this.canvas);
 			}
+			if (document.pointerLockElement) {
+				document.exitPointerLock();
+			}
 			this.scene.onPointerObservable.clear();
-			
+
 			this.renderLoopCallback = undefined;
 
 			console.log('✅ Landing scene disposed');
