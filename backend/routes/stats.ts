@@ -48,7 +48,7 @@ async function getUserRankingItem(
 	return result;
 }
 
-async function getTournamenStats(
+async function getTournamentStats(
 	request: FastifyRequest<{ Params: { user_id: UUID } }>
 ): Promise<TournamentStats> {
 	var result: TournamentStats | null;
@@ -106,7 +106,7 @@ export default async function statsRoutes(fastify: FastifyInstance) {
 			params: z.object({ user_id: zUUID }),
 			response: TournamentStatsSchema,
 		}),
-		getTournamenStats
+		getTournamentStats
 	);
 	fastify.get(
 		'/wins_history/:user_id',

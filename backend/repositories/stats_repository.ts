@@ -207,10 +207,11 @@ export class StatsRepository {
 				INNER JOIN tournament tournament
 					ON  tournament.id = participant.tournament_id 
 					AND participant.user_id = ?
+					AND tournament.status = 'finished'
+					AND tournament.size > 2
 				LEFT JOIN tournament_match match
 					ON  tournament.id = match.tournament_id
 					AND match.tournament_round = (SELECT round FROM final LIMIT 1)
-				WHERE tournament.status = 'finished'
 			)
 			SELECT  user_id,
 					login,
