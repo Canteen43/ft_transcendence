@@ -92,7 +92,7 @@ export class Chat {
 		this.toggleButton.className =
 			'px-4 py-2 bg-[var(--color1)] text-[var(--color3)] rounded-sm ' +
 			'hover:bg-[var(--color5)] transition-colors focus:outline-none';
-		this.toggleButton.innerHTML = '▼'; // Down arrow when expanded
+		this.toggleButton.textContent = '▼'; // Down arrow when expanded
 		this.toggleButton.addEventListener('click', this.handleToggle);
 
 		// input and toggle in inputContainer
@@ -131,11 +131,11 @@ export class Chat {
 			// Show messages
 			this.input.focus();
 			this.messagesContainer.style.display = 'block';
-			this.toggleButton.innerHTML = '▼';
+			this.toggleButton.textContent = '▼';
 		} else {
 			// Hide messages
 			this.messagesContainer.style.display = 'none';
-			this.toggleButton.innerHTML = '▲';
+			this.toggleButton.textContent = '▲';
 		}
 	};
 

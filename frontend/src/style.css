@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:ital,wght@0,100..900;1,100..900&family=Nabla&family=Outfit:wght@100..900&family=Press+Start+2P&family=Rubik+Microbe&family=Sigmar&display=swap" rel="stylesheet');
 @import 'tailwindcss';
 
-
 @theme {
 	/* --font-ps2p: 'Press Start 2P', monospace; */
 	/* --font-ignazio: 'Ignazio', sans-serif; */
@@ -54,4 +53,54 @@
 }
 .animate-scroll:hover {
 	animation-play-state: paused;
+}
+
+.tournament-content {
+	position: relative;
+	z-index: 1;
+}
+
+.player-slot {
+	background: var(--color1);
+	color: var(--color3);
+	transition: all 0.3s ease;
+	backdrop-filter: blur(2px);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.player-slot.winner {
+	background: var(--color1);
+	color: var(--color3);
+	box-shadow:
+		0 0 30px rgba(41, 100, 189, 0.8),
+		0 0 60px rgba(3, 39, 94, 0.8);
+	transform: scale(1.05);
+	border: 3px solid #2f5792ff;
+	font-weight: bold;
+	animation: winnerPulse 2s infinite;
+}
+.player-slot.loser {
+	background: #6c757d;
+	color: #ffffff;
+	opacity: 0.7;
+}
+
+@keyframes winnerPulse {
+	0%,
+	100% {
+		box-shadow:
+			0 0 30px rgba(41, 100, 189, 0.8),
+			0 0 60px rgba(41, 100, 189, 0.8);
+	}
+	50% {
+		box-shadow:
+			0 0 40px rgba(41, 100, 189, 0.8),
+			0 0 80px rgba(41, 100, 189, 0.8);
+	}
+}
+
+body,
+html {
+	overflow: hidden;
+	height: 100vh;
+	width: 100vw;
 }

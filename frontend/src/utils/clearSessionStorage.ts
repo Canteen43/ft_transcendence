@@ -3,8 +3,6 @@ export function clearRemoteData() {
 	sessionStorage.removeItem('thisPlayer');
 	sessionStorage.removeItem('player1');
 	sessionStorage.removeItem('player2');
-	sessionStorage.removeItem('alias1');
-	sessionStorage.removeItem('alias2');
 }
 
 export function clearPowerUps() {

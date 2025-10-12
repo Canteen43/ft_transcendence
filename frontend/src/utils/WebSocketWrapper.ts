@@ -43,9 +43,54 @@ export class WebSocketWrapper {
 		}
 	}
 
+	// Public methods
+	public open(): void {
+		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
+		const token = sessionStorage.getItem('token');
+		if (!token) {
+			console.warn('No token - cannot open WebSocket');
+			this.shouldReconnect = false;
+			return;
+		}
+		if (this.ws?.readyState === WebSocket.OPEN) {
+			console.log('WebSocket already open');
+			return;
+		}
+		if (this.ws?.readyState === WebSocket.CONNECTING) {
+			console.log('WebSocket already connecting');
+			return;
+		}
+
+		console.info('Opening WebSocket');
+		this.shouldReconnect = false;
+
+		const wsUrlWithToken = `${wsURL}?token=${token}`;
+		this.ws = new WebSocket(wsUrlWithToken);
+
+		this.ws.addEventListener('open', this.boundOnOpen);
+		this.ws.addEventListener('close', this.boundOnClose);
+		this.ws.addEventListener('message', this.boundOnMessage);
+		this.ws.addEventListener('error', this.boundOnError);
+	}
+
+	public close(): void {
+		console.log('Manually closing WebSocket');
+		this.shouldReconnect = false;
+
+		if (this.reconnectTimeoutId) {
+			clearTimeout(this.reconnectTimeoutId);
+			this.reconnectTimeoutId = null;
+		}
+		this.removeListeners();
+		this.ws?.close(1000, 'Manual close');
+		this.ws = null;
+	}
+
 	// Event handlers
 	private onOpen(): void {
+		sessionStorage.setItem('wsOpen', 'true');
 		console.info('WebSocket opened');
+
 	}
 
 	private onClose(event: CloseEvent): void {
@@ -55,6 +100,7 @@ export class WebSocketWrapper {
 			reason: event.reason,
 		});
 		this.removeListeners();
+		sessionStorage.setItem('wsOpen', 'false');
 		this.ws = null;
 
 		// Clear any existing reconnect timeout
@@ -141,49 +187,6 @@ export class WebSocketWrapper {
 		this.ws.removeEventListener('close', this.boundOnClose);
 		this.ws.removeEventListener('message', this.boundOnMessage);
 		this.ws.removeEventListener('error', this.boundOnError);
-	}
-
-	// Public methods
-	public open(): void {
-		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
-		const token = sessionStorage.getItem('token');
-		if (!token) {
-			console.warn('No token - cannot open WebSocket');
-			this.shouldReconnect = false;
-			return;
-		}
-		if (this.ws?.readyState === WebSocket.OPEN) {
-			console.log('WebSocket already open');
-			return;
-		}
-		if (this.ws?.readyState === WebSocket.CONNECTING) {
-			console.log('WebSocket already connecting');
-			return;
-		}
-
-		console.info('Opening WebSocket');
-		this.shouldReconnect = false;
-
-		const wsUrlWithToken = `${wsURL}?token=${token}`;
-		this.ws = new WebSocket(wsUrlWithToken);
-
-		this.ws.addEventListener('open', this.boundOnOpen);
-		this.ws.addEventListener('close', this.boundOnClose);
-		this.ws.addEventListener('message', this.boundOnMessage);
-		this.ws.addEventListener('error', this.boundOnError);
-	}
-
-	public close(): void {
-		console.log('Manually closing WebSocket');
-		this.shouldReconnect = false;
-
-		if (this.reconnectTimeoutId) {
-			clearTimeout(this.reconnectTimeoutId);
-			this.reconnectTimeoutId = null;
-		}
-		this.removeListeners();
-		this.ws?.close(1000, 'Manual close');
-		this.ws = null;
 	}
 
 	public send(message: Message): void {

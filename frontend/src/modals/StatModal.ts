@@ -4,21 +4,23 @@ import {
 	PercentageWinsHistorySchema,
 	RankingItemSchema,
 	RankingSchema,
+	TournamentStatsSchema,
+	TournamentStats,
+	Ranking,
+	PercentageWinsHistory,
+	RankingItem,
 } from '../../../shared/schemas/stats';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { apiCall } from '../utils/apiCall';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
 
-type RankingData = z.infer<typeof RankingSchema>;
-type HistoryData = z.infer<typeof PercentageWinsHistorySchema>;
-type MatchData = z.infer<typeof RankingItemSchema>;
-
 export class StatModal extends Modal {
 	private element: HTMLElement;
-	private rankData: RankingData | null = null;
-	private histData: HistoryData | null = null;
-	private matchData: MatchData | null = null;
+	private rankData: Ranking | null = null;
+	private histData: PercentageWinsHistory | null = null;
+	private matchData: RankingItem | null = null;
+	private tournData: TournamentStats | null = null;
 	private chartInstance: Chart | null = null;
 
 	constructor(parent: HTMLElement) {
@@ -37,8 +39,9 @@ export class StatModal extends Modal {
 		await this.getRankData();
 		await this.getHistData();
 		await this.getMatchData();
+		await this.getTournData();
 
-		if (!this.histData && !this.rankData && !this.matchData) {
+		if (!this.histData && !this.rankData && !this.matchData && !this.tournData) {
 			console.debug('No stat, closing modal');
 			this.destroy();
 			return;
@@ -112,6 +115,30 @@ export class StatModal extends Modal {
 		console.debug(matchData);
 		this.matchData = matchData;
 	}
+
+
+	private async getTournData() {
+		const userID = sessionStorage.getItem('userID');
+		if (!userID) {
+			this.showErrorModal('No user ID found - please login');
+			return;
+		}
+		const { data: tournData, error: tournError } = await apiCall(
+			'GET',
+			`/stats/tournament/${userID}`,
+			TournamentStatsSchema
+		);
+		if (tournError) {
+			console.error('Error getting match history: ', tournError);
+			this.showErrorModal(
+				`Failed to get match data: ${tournError.message}`
+			);
+			return;
+		}
+		console.debug(tournData);
+		this.tournData = tournData;
+	}
+
 
 	private createOutput(): void {
 		const base =

@@ -41,7 +41,7 @@ export class Landing {
 
 	private async init(modelPath: string): Promise<void> {
 		try {
-			console.log('🎬 Starting scene initialization...');
+			console.log('Starting scene initialization...');
 
 			this.engine = new BABYLON.Engine(this.canvas, true, {
 				preserveDrawingBuffer: true,
@@ -49,18 +49,15 @@ export class Landing {
 				antialias: true,
 				failIfMajorPerformanceCaveat: false, // Don't fail on slow GPU
 			});
-			console.log('✅ Engine created');
 
 			this.scene = new BABYLON.Scene(this.engine);
 			this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
-			console.log('✅ Scene created');
 
 			this.setupCamera();
 			this.setupLighting();
 			this.setupHDR();
 			this.setupControls();
 			await this.loadModel(modelPath);
-			console.log('✅ Model loaded');
 
 			// Store render loop callback reference
 			this.renderLoopCallback = () => {
@@ -70,7 +67,6 @@ export class Landing {
 
 			// Start render loop
 			this.engine.runRenderLoop(this.renderLoopCallback);
-			console.log('✅ Render loop started');
 
 			// Setup resize handler
 			this.resizeHandler = () => {
@@ -79,11 +75,10 @@ export class Landing {
 				}
 			};
 			window.addEventListener('resize', this.resizeHandler);
-			console.log('✅ Resize handler added');
 
-			console.log('🎉 Scene fully initialized!');
+			console.log('✅ Scene fully initialized!');
 		} catch (err) {
-			console.error('❌ Error initializing scene:', err);
+			console.error('Error initializing scene:', err);
 			this.callbacks.onLoadComplete?.();
 		}
 	}
@@ -198,14 +193,12 @@ export class Landing {
 	}
 
 	private onModalOpen(): void {
-		console.log('🚪 Modal opened - detaching camera controls');
 		if (this.camera) {
 			this.camera.detachControl();
 		}
 	}
 
 	private onModalClose(): void {
-		console.log('🚪 Modal closed - reattaching camera controls');
 		// Small delay to ensure modal cleanup is complete
 		setTimeout(() => {
 			if (this.camera && this.canvas) {
@@ -224,7 +217,7 @@ export class Landing {
 				meshes => {
 					this.onModelLoaded(meshes);
 					this.callbacks.onLoadComplete?.();
-					console.log('✅ Model loaded and ready');
+					console.log('Model loaded and ready');
 					resolve();
 				},
 				event => {
@@ -287,11 +280,11 @@ export class Landing {
 			}
 		}
 
-		console.group('🔍 Meshes loaded');
-		for (const m of meshes) {
-			console.log(m.name, '-> parent:', m.parent?.name || 'none');
-		}
-		console.groupEnd();
+		// console.group('Meshes loaded');
+		// for (const m of meshes) {
+		// 	console.log(m.name, '-> parent:', m.parent?.name || 'none');
+		// }
+		// console.groupEnd();
 
 		this.fitCameraToScene(meshes);
 	}
@@ -309,7 +302,7 @@ export class Landing {
 		this.camera.radius = maxSize * 0.2;
 
 		console.debug(
-			'📹 Camera fitted:',
+			'Camera fitted:',
 			center.toString(),
 			'radius:',
 			this.camera.radius
@@ -317,7 +310,7 @@ export class Landing {
 	}
 
 	private handleMeshClick(mesh: BABYLON.AbstractMesh): void {
-		console.debug(`🖱️ Clicked mesh: ${mesh.name}`);
+		console.debug(`Clicked mesh: ${mesh.name}`);
 
 		const name = mesh.name.toLowerCase();
 
@@ -332,20 +325,17 @@ export class Landing {
 
 	// Public methods to manually control camera for modal interactions
 	public disableCameraControls(): void {
-		console.log('🎥 Disabling camera controls');
 		if (this.camera) {
 			this.camera.detachControl();
 		}
 	}
 
 	public enableCameraControls(): void {
-		console.log('🎥 Enabling camera controls');
 		if (this.camera && this.canvas) {
 			// Firefox-specific fix: Ensure pointer lock is properly released
 			if (document.pointerLockElement) {
 				document.exitPointerLock();
 			}
-
 			// Re-attach camera controls with a small delay to ensure clean state
 			setTimeout(() => {
 				if (this.camera && this.canvas) {
@@ -356,7 +346,6 @@ export class Landing {
 	}
 
 	public dispose(): void {
-		console.log('🧹 Disposing Landing scene');
 
 		try {
 			// Stop render loop
@@ -412,7 +401,7 @@ export class Landing {
 			// Dispose engine
 			if (this.engine && !this.engine.isDisposed) {
 				this.engine.dispose();
-				console.log('  ✅ Engine disposed');
+				console.log('Engine disposed');
 			}
 
 			// Force WebGL context loss if available
@@ -423,7 +412,7 @@ export class Landing {
 				const loseContext = gl.getExtension('WEBGL_lose_context');
 				if (loseContext) {
 					loseContext.loseContext();
-					console.log('  ✅ Forced WebGL context loss');
+					console.log('Forced WebGL context loss');
 				}
 			}
 
