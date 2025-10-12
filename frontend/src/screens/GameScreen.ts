@@ -9,7 +9,7 @@ export class GameScreen extends Screen {
 	private pong3DInstance?: Pong3D;
 
 	constructor() {
-		super();
+		super(true);
 
 		// Game screen, remote game, no match ID -> redirect to home
 		const matchID = sessionStorage.getItem('matchID');
@@ -23,9 +23,6 @@ export class GameScreen extends Screen {
 					location.hash = '#home';
 				}
 			);
-			modal.onClose = () => {
-					location.hash = '#home';
-				}
 			return;
 		}
 
@@ -43,12 +40,13 @@ export class GameScreen extends Screen {
 		if (this.pong3DInstance) {
 			this.pong3DInstance.dispose();
 		}
+		this.pong3DInstance = undefined;
 		if (state.gameOngoing && state.gameMode === 'remote') {
 			webSocket.send({ t: MESSAGE_QUIT });
 		}
 		state.gameOngoing = false;
 		state.gameMode = null;
-		// Call parent destroy to remove DOM element
+
 		super.destroy();
 	}
 }

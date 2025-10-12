@@ -2,7 +2,7 @@ import { FullTournamentSchema } from '../../../shared/schemas/tournament.js';
 import { ReadyButton } from '../buttons/ReadyButton';
 import { TextModal } from '../modals/TextModal';
 import { apiCall } from '../utils/apiCall';
-import { clearMatchData, clearTournData } from '../utils/cleanSessionStorage';
+import { clearRemoteData, clearTournData } from '../utils/clearSessionStorage';
 import { updateTournData } from '../utils/updateTurnMatchData.js';
 import { Trophy } from '../visual/Trophy';
 import { Screen } from './Screen';
@@ -10,15 +10,16 @@ import { Screen } from './Screen';
 export class TournamentScreen extends Screen {
 	private readyButton?: ReadyButton;
 	private trophyInstance?: Trophy;
+	private tournamentUpdateHandler = () => void this.tournamentUpdate();
 
 	constructor() {
-		super();
-		clearMatchData();
+		super(true);
+		clearRemoteData();
 		clearTournData();
 		this.addStyles();
 		document.addEventListener(
 			'tournament-updated',
-			() => void this.tournamentUpdate()
+			this.tournamentUpdateHandler
 		);
 		this.initialize();
 	}
@@ -363,6 +364,7 @@ export class TournamentScreen extends Screen {
 
 	public destroy(): void {
 		console.log('Destroying TournamentScreen...');
+
 		if (this.trophyInstance) {
 			this.trophyInstance.dispose();
 			this.trophyInstance = undefined;
@@ -374,8 +376,9 @@ export class TournamentScreen extends Screen {
 
 		document.removeEventListener(
 			'tournament-updated',
-			this.tournamentUpdate.bind(this)
+			this.tournamentUpdateHandler
 		);
+
 		super.destroy();
 	}
 }

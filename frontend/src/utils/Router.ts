@@ -11,23 +11,18 @@ export class Router {
 	public currentScreen: Screen | null = null;
 
 	public init(): void {
-		// This will ensure destroy functions are called
-		window.addEventListener('beforeunload', () => {
-			if (this.currentScreen) {
-				this.currentScreen.destroy();
-			}
-		});
 
-		// This is the proper routing logic
-		location.hash = location.hash || '#home'; // Default to #home if no hash
+		// routing logic
+		location.hash = location.hash || '#home';
 		window.addEventListener('hashchange', () => this.handleRoute());
-		this.handleRoute(); // Initial route won't trigger hashchange so call it manually
+		this.handleRoute(); 
 	}
 
 	private handleRoute(): void {
 		const hash = location.hash;
 
 		if (this.currentScreen) {
+			console.info('this.currentScreen.destroy() : ', this.currentScreen);
 			this.currentScreen.destroy();
 			this.currentScreen = null;
 		}
@@ -46,10 +41,7 @@ export class Router {
 				this.currentScreen = new TournamentScreen();
 				break;
 			default:
-				new TextModal(
-					router.currentScreen!.element,
-					'Unknown route: ' + hash + '. Redirected to home.'
-				);
+				console.warn('Unknown route: ' + hash + '. Redirected to home.');
 				location.hash = '#home';
 		}
 	}

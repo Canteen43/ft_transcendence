@@ -1,6 +1,6 @@
 import { TextModal } from '../modals/TextModal';
 import { state } from '../utils/State';
-import { clearMatchData } from '../utils/cleanSessionStorage';
+import { clearRemoteData } from '../utils/clearSessionStorage';
 
 export class HomeButton {
 	private button: HTMLButtonElement;
@@ -41,7 +41,7 @@ export class HomeButton {
 				undefined,
 				'Leave',
 				() => {
-					clearMatchData();
+					clearRemoteData();
 					location.hash = '#home';
 				}
 			);

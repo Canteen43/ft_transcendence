@@ -242,7 +242,6 @@ export class RegisterModal extends Modal {
 			'keydown',
 			this.handleEnter
 		);
-
 		this.destroy();
 		new LoginModal(parent);
 	}

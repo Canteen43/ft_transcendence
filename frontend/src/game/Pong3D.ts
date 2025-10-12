@@ -23,9 +23,15 @@ import { Trophy } from '../visual/Trophy';
 import { BallEntity } from './BallEntity';
 import { BallManager } from './BallManager';
 import { GameConfig } from './GameConfig';
+import {
+	conditionalError as loggerConditionalError,
+	conditionalLog as loggerConditionalLog,
+	conditionalWarn as loggerConditionalWarn,
+} from './Logger';
 import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
+import type { NetworkPowerupState } from './Pong3DGameLoopBase';
 import { Pong3DGameLoopClient } from './Pong3DGameLoopClient';
 import { Pong3DGameLoopMaster } from './Pong3DGameLoopMaster';
 import { Pong3DInput } from './Pong3DInput';
@@ -37,19 +43,16 @@ import {
 } from './Pong3DPOV';
 import { createPong3DUI } from './Pong3DUI';
 import {
-	conditionalLog as loggerConditionalLog,
-	conditionalWarn as loggerConditionalWarn,
-	conditionalError as loggerConditionalError,
-} from './Logger';
-import {
 	Pong3DPowerups,
+	POWERUP_ID_TO_TYPE,
 	POWERUP_SESSION_FLAGS,
+	type PowerupNetworkSnapshot,
 	type PowerupType,
 } from './Pong3Dpowerups';
 import {
 	AI_DIFFICULTY_PRESETS,
-	type AIConfig,
 	type AIBallSnapshot,
+	type AIConfig,
 	type GameStateForAI,
 	getAIDifficultyFromName,
 	Pong3DAI,
@@ -122,6 +125,13 @@ interface GlowMeshState {
 }
 
 export class Pong3D {
+	private static readonly SOUND_PADDLE = 0;
+	private static readonly SOUND_WALL = 1;
+	private static readonly SOUND_POWERUP_BALL = 2;
+	private static readonly SOUND_POWERUP_WALL = 3;
+	private remoteScoreUpdateHandler?: (event: Event) => void;
+	private remoteGameStateHandler?: (event: Event) => void;
+
 	private static babylonWarnFilterInstalled = false;
 	// Debug flag - set to false to disable all debug logging for better performance
 	// private static readonly DEBUG_ENABLED = false;
@@ -152,7 +162,10 @@ export class Pong3D {
 			const original = target[key].bind(target);
 			target[key] = (...args: any[]) => {
 				const message = args[0];
-				if (typeof message === 'string' && message.includes(suppressFragment)) {
+				if (
+					typeof message === 'string' &&
+					message.includes(suppressFragment)
+				) {
 					return;
 				}
 				original(...args);
@@ -310,7 +323,14 @@ export class Pong3D {
 	private paddleShrinkTimeouts: Map<number, number> = new Map();
 	private mainBallHandlersAttached = false;
 	private baseBallY = 0;
-	private ballPositionHistory = new Map<number, BABYLON.Vector3>();
+	private readonly REMOTE_POWERUP_SPIN_SPEED = 0.5;
+	private readonly REMOTE_POWERUP_SPAWN_DURATION = 0.25;
+	private readonly REMOTE_POWERUP_COLLECT_DURATION = 0.25;
+	private remotePowerupBaseScale: BABYLON.Vector3 = BABYLON.Vector3.One();
+	private remotePowerupChildBaseScales: WeakMap<
+		BABYLON.AbstractMesh,
+		BABYLON.Vector3
+	> = new WeakMap();
 	// Debounce repeated paddle collision handling (prevents multiple rally increments per contact)
 	private lastCollisionTimeMs: number = 0;
 	private lastCollisionPaddleIndex: number = -1;
@@ -321,13 +341,73 @@ export class Pong3D {
 	private powerupManager: Pong3DPowerups | null = null;
 	private enabledPowerupTypes: PowerupType[] = [];
 	private lastPowerupUpdateTimeMs = 0;
+	private remotePowerupNode: BABYLON.TransformNode | null = null;
+	private remotePowerupType: PowerupType | null = null;
+	private lastRemotePowerupState: NetworkPowerupState | null = null;
+	private pendingRemotePowerupState: NetworkPowerupState | null = null;
+	private ballPositionHistory = new Map<number, BABYLON.Vector3>();
+
+	private remotePowerupAnimation: {
+		type: 'spawn' | 'collect';
+		elapsed: number;
+		duration: number;
+		startPos: BABYLON.Vector3;
+		targetPos: BABYLON.Vector3;
+	} | null = null;
+	private cleanupStaleRemotePowerups(
+		except?: BABYLON.TransformNode | null
+	): void {
+		if (!this.scene) {
+			return;
+		}
+		const keep = except ?? null;
+		for (const node of this.scene.transformNodes) {
+			if (!node || node === keep || !node.name) {
+				continue;
+			}
+			if (node.isDisposed()) {
+				continue;
+			}
+			if (node.name.includes('.remote.')) {
+				try {
+					node.dispose(false, false);
+				} catch (_) {}
+			}
+		}
+		for (const mesh of this.scene.meshes) {
+			if (!mesh || mesh.isDisposed() || !mesh.name) {
+				continue;
+			}
+			if (keep && mesh.parent === keep) {
+				continue;
+			}
+			if (mesh.name.includes('.remote.')) {
+				try {
+					mesh.dispose(false, false);
+				} catch (_) {}
+			}
+		}
+	}
 
 	private refreshPowerupConfiguration(): void {
 		if (!this.powerupManager) return;
-		if (this.gameMode !== 'local') {
-			this.enabledPowerupTypes = [];
-			this.powerupManager.setEnabledTypes([]);
+		if (this.gameMode === 'client') {
+			const allTypes: PowerupType[] = [
+				'split',
+				'boost',
+				'stretch',
+				'shrink',
+			];
+			this.enabledPowerupTypes = allTypes;
+			this.powerupManager.setEnabledTypes(allTypes);
+			this.powerupManager.setSpawningPaused(true);
 			this.powerupManager.clearActivePowerups();
+			this.powerupManager.loadAssets().catch(error => {
+				this.conditionalWarn(
+					'Power-up assets failed to load (client)',
+					error
+				);
+			});
 			return;
 		}
 
@@ -360,15 +440,9 @@ export class Pong3D {
 	}
 
 	private updatePowerups(): void {
-		if (!this.powerupManager || this.enabledPowerupTypes.length === 0) {
+		if (!this.powerupManager) {
 			return;
 		}
-
-		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
-		// and we are waiting for the ball to reach boundary (dead-ball state).
-		const pauseSpawning =
-			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
-		this.powerupManager.setSpawningPaused(pauseSpawning);
 
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -384,6 +458,21 @@ export class Pong3D {
 		}
 		deltaSeconds = Math.min(deltaSeconds, 0.25); // Clamp to avoid huge teleporting steps
 
+		if (this.gameMode === 'client') {
+			this.updateRemotePowerupVisual(deltaSeconds);
+			return;
+		}
+
+		if (this.enabledPowerupTypes.length === 0) {
+			return;
+		}
+
+		// Pause spawning during game end, while a split ball is active, or when a goal has been scored
+		// and we are waiting for the ball to reach boundary (dead-ball state).
+		const pauseSpawning =
+			this.gameEnded || this.splitBalls.length > 0 || this.goalScored;
+		this.powerupManager.setSpawningPaused(pauseSpawning);
+
 		this.powerupManager.update(
 			deltaSeconds,
 			this.paddles,
@@ -391,6 +480,55 @@ export class Pong3D {
 				this.handlePowerupPickup(type, paddleIndex, entity as any),
 			type => this.handlePowerupOutOfBounds(type)
 		);
+	}
+
+	private updateRemotePowerupVisual(deltaSeconds: number): void {
+		if (this.pendingRemotePowerupState) {
+			const pending = this.pendingRemotePowerupState;
+			this.pendingRemotePowerupState = null;
+			this.handleRemotePowerupState(pending);
+		}
+		if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
+			return;
+		}
+		if (this.remotePowerupAnimation) {
+			const anim = this.remotePowerupAnimation;
+			anim.elapsed = Math.min(anim.elapsed + deltaSeconds, anim.duration);
+			const t = anim.duration > 0 ? anim.elapsed / anim.duration : 1;
+			if (anim.type === 'spawn') {
+				const scale = Math.min(1, t);
+				this.setRemotePowerupScale(scale);
+			} else if (anim.type === 'collect') {
+				const smooth = t * t * (3 - 2 * t);
+				const newPos = BABYLON.Vector3.Lerp(
+					anim.startPos,
+					anim.targetPos,
+					smooth
+				);
+				newPos.y = this.baseBallY;
+				this.remotePowerupNode.position.copyFrom(newPos);
+				const scale = Math.max(0, 1 - smooth);
+				this.setRemotePowerupScale(scale);
+			}
+			if (anim.elapsed >= anim.duration) {
+				if (anim.type === 'collect') {
+					this.disposeRemotePowerupVisual();
+				} else {
+					this.setRemotePowerupScale(1);
+				}
+				this.remotePowerupAnimation = null;
+				return;
+			}
+		}
+		const spin = this.REMOTE_POWERUP_SPIN_SPEED * deltaSeconds;
+		const increment = BABYLON.Quaternion.RotationAxis(
+			BABYLON.Vector3.Up(),
+			spin
+		);
+		const current =
+			this.remotePowerupNode.rotationQuaternion ??
+			BABYLON.Quaternion.Identity();
+		this.remotePowerupNode.rotationQuaternion = current.multiply(increment);
 	}
 
 	private handlePowerupPickup(
@@ -434,7 +572,9 @@ export class Pong3D {
 
 		switch (type) {
 			case 'split':
-				this.activateSplitBallPowerup();
+				if (this.gameMode !== 'client') {
+					this.activateSplitBallPowerup();
+				}
 				break;
 			case 'stretch':
 				this.applyStretchPowerup(paddleIndex, entity);
@@ -493,11 +633,13 @@ export class Pong3D {
 		const stretchHoldDurationMs = 20000;
 		const stretchGrowDurationMs = 1500;
 		const stretchShrinkDurationMs = 1500;
-		const totalGlowDurationMs = stretchHoldDurationMs + stretchShrinkDurationMs;
+		const totalGlowDurationMs =
+			stretchHoldDurationMs + stretchShrinkDurationMs;
 		if (this.activeStretchTimeout !== null) {
 			window.clearTimeout(this.activeStretchTimeout);
 			this.activeStretchTimeout = null;
 		}
+		this.disposeRemotePowerupVisual();
 		if (this.powerupManager) {
 			this.powerupManager.setTypeBlocked('stretch', true);
 		}
@@ -516,9 +658,15 @@ export class Pong3D {
 		const original = this.paddleOriginalScaleX.get(paddleIndex)!;
 		const target = original * 1.5; // 3 -> 4.5
 
-		this.animatePaddleScale(paddle, original, target, stretchGrowDurationMs, () => {
-			this.recreatePaddleImpostor(paddleIndex);
-		});
+		this.animatePaddleScale(
+			paddle,
+			original,
+			target,
+			stretchGrowDurationMs,
+			() => {
+				this.recreatePaddleImpostor(paddleIndex);
+			}
+		);
 
 		// Clear any existing timeout
 		const existing = this.paddleStretchTimeouts.get(paddleIndex);
@@ -527,14 +675,20 @@ export class Pong3D {
 		const timeoutId = window.setTimeout(() => {
 			const p = this.paddles[paddleIndex];
 			if (!p) return;
-			this.animatePaddleScale(p, p.scaling.x, original, stretchShrinkDurationMs, () => {
-				this.recreatePaddleImpostor(paddleIndex);
-				this.paddleStretchTimeouts.delete(paddleIndex);
-				if (this.powerupManager) {
-					this.powerupManager.setTypeBlocked('stretch', false);
+			this.animatePaddleScale(
+				p,
+				p.scaling.x,
+				original,
+				stretchShrinkDurationMs,
+				() => {
+					this.recreatePaddleImpostor(paddleIndex);
+					this.paddleStretchTimeouts.delete(paddleIndex);
+					if (this.powerupManager) {
+						this.powerupManager.setTypeBlocked('stretch', false);
+					}
+					this.activeStretchTimeout = null;
 				}
-				this.activeStretchTimeout = null;
-			});
+			);
 		}, stretchHoldDurationMs); // 20 seconds
 		this.paddleStretchTimeouts.set(paddleIndex, timeoutId);
 		this.activeStretchTimeout = timeoutId;
@@ -544,7 +698,8 @@ export class Pong3D {
 		const shrinkHoldDurationMs = 20000;
 		const shrinkDownDurationMs = 1500;
 		const shrinkRestoreDurationMs = 1500;
-		const totalGlowDurationMs = shrinkHoldDurationMs + shrinkRestoreDurationMs;
+		const totalGlowDurationMs =
+			shrinkHoldDurationMs + shrinkRestoreDurationMs;
 		const red = new BABYLON.Color3(1, 0, 0);
 
 		const opponents: { mesh: BABYLON.Mesh; index: number }[] = [];
@@ -586,9 +741,15 @@ export class Pong3D {
 				window.clearTimeout(existing);
 			}
 
-			this.animatePaddleScale(mesh, mesh.scaling.x, target, shrinkDownDurationMs, () => {
-				this.recreatePaddleImpostor(index);
-			});
+			this.animatePaddleScale(
+				mesh,
+				mesh.scaling.x,
+				target,
+				shrinkDownDurationMs,
+				() => {
+					this.recreatePaddleImpostor(index);
+				}
+			);
 
 			const timeoutId = window.setTimeout(() => {
 				const paddle = this.paddles[index];
@@ -959,17 +1120,17 @@ export class Pong3D {
 			splitBall.impostor
 		);
 		this.ballManager.removeByImpostor(splitBall.impostor);
-	if (existingEntity) {
-		existingEntity.setSpinDelay(GameConfig.getSpinDelayMs());
-		this.mainBallEntity = existingEntity;
-	} else {
-		this.mainBallEntity = new BallEntity(
-			splitBall.mesh,
-			splitBall.impostor,
-			this.baseBallY,
-			{ spinDelayMs: GameConfig.getSpinDelayMs() }
-		);
-	}
+		if (existingEntity) {
+			existingEntity.setSpinDelay(GameConfig.getSpinDelayMs());
+			this.mainBallEntity = existingEntity;
+		} else {
+			this.mainBallEntity = new BallEntity(
+				splitBall.mesh,
+				splitBall.impostor,
+				this.baseBallY,
+				{ spinDelayMs: GameConfig.getSpinDelayMs() }
+			);
+		}
 	}
 
 	private removeSplitBallByImpostor(
@@ -1016,6 +1177,252 @@ export class Pong3D {
 	): boolean {
 		if (!impostor) return false;
 		return this.splitBalls.some(ball => ball.impostor === impostor);
+	}
+
+	public getSplitBallNetworkPosition(): { x: number; z: number } | null {
+		if (this.splitBalls.length === 0) {
+			return null;
+		}
+		const ball = this.splitBalls[0];
+		if (!ball || !ball.mesh || ball.mesh.isDisposed()) {
+			return null;
+		}
+		return {
+			x: ball.mesh.position.x,
+			z: ball.mesh.position.z,
+		};
+	}
+
+	public getPowerupNetworkSnapshot(): PowerupNetworkSnapshot | null {
+		if (!this.powerupManager) {
+			return null;
+		}
+		const active = this.powerupManager.getActiveNetworkSnapshot();
+		if (active) {
+			return active;
+		}
+		return this.powerupManager.consumePendingNetworkEvent();
+	}
+
+	public handleRemotePowerupState(state: NetworkPowerupState | null): void {
+		if (this.gameMode !== 'client') {
+			return;
+		}
+		if (!this.powerupManager) {
+			this.pendingRemotePowerupState = state;
+			return;
+		}
+		void this.powerupManager.loadAssets().catch(error => {
+			this.conditionalWarn(
+				'Power-up assets failed to load during remote state handling',
+				error
+			);
+		});
+
+		const previous = this.lastRemotePowerupState
+			? { ...this.lastRemotePowerupState }
+			: null;
+		this.lastRemotePowerupState = state ? { ...state } : null;
+
+		if (!state) {
+			if (
+				this.remotePowerupAnimation &&
+				this.remotePowerupAnimation.type === 'collect'
+			) {
+				this.pendingRemotePowerupState = null;
+				return;
+			}
+			this.disposeRemotePowerupVisual();
+			this.pendingRemotePowerupState = null;
+			return;
+		}
+
+		const type = POWERUP_ID_TO_TYPE[state.t];
+		if (!type) {
+			this.conditionalWarn(`Unknown remote power-up type id ${state.t}`);
+			return;
+		}
+
+		const visual = this.ensureRemotePowerupVisual(type);
+		if (!visual) {
+			this.pendingRemotePowerupState = state;
+			return;
+		}
+		this.pendingRemotePowerupState = null;
+
+		const worldX = -state.x;
+		const worldZ = state.z;
+		visual.position.x = worldX;
+		visual.position.z = worldZ;
+
+		const previousStateValue = previous?.s ?? -1;
+		const glowMesh = this.getRemotePowerupGlowMesh();
+		const glowEntity = glowMesh
+			? ({ collisionMesh: glowMesh } as any)
+			: undefined;
+
+		if (state.s === 0) {
+			visual.setEnabled(true);
+			if (!previous || previousStateValue !== 0) {
+				this.setRemotePowerupScale(0);
+				this.remotePowerupAnimation = {
+					type: 'spawn',
+					elapsed: 0,
+					duration: this.REMOTE_POWERUP_SPAWN_DURATION,
+					startPos: visual.position.clone(),
+					targetPos: visual.position.clone(),
+				};
+			}
+			return;
+		}
+
+		const isActivePickup = state.s === 1;
+		const isInactivePickup = state.s === 2;
+
+		if (
+			isActivePickup &&
+			typeof state.p === 'number' &&
+			state.p >= 0 &&
+			previousStateValue !== 1
+		) {
+			this.handlePowerupPickup(type, state.p, glowEntity);
+		} else if (
+			isInactivePickup &&
+			typeof state.p === 'number' &&
+			state.p >= 0 &&
+			previousStateValue !== 1 &&
+			previousStateValue !== 2
+		) {
+			this.handlePowerupPickup(type, state.p, glowEntity);
+		}
+
+		if (
+			previousStateValue === 0 &&
+			this.remotePowerupNode &&
+			!this.remotePowerupNode.isDisposed()
+		) {
+			const startPos = this.remotePowerupNode.position.clone();
+			let targetPos = startPos.clone();
+			if (
+				isActivePickup &&
+				typeof state.p === 'number' &&
+				state.p >= 0 &&
+				state.p < this.paddles.length
+			) {
+				const paddle = this.paddles[state.p];
+				if (paddle) {
+					const absolute = paddle.getAbsolutePosition();
+					targetPos = new BABYLON.Vector3(
+						absolute.x,
+						this.baseBallY,
+						absolute.z
+					);
+				}
+			}
+			this.remotePowerupAnimation = {
+				type: 'collect',
+				elapsed: 0,
+				duration: this.REMOTE_POWERUP_COLLECT_DURATION,
+				startPos,
+				targetPos,
+			};
+			return;
+		}
+
+		if (
+			this.remotePowerupAnimation &&
+			this.remotePowerupAnimation.type === 'collect'
+		) {
+			return;
+		}
+
+		this.disposeRemotePowerupVisual();
+	}
+
+	private ensureRemotePowerupVisual(
+		type: PowerupType
+	): BABYLON.TransformNode | null {
+		if (!this.powerupManager) {
+			return null;
+		}
+		if (
+			this.remotePowerupNode &&
+			!this.remotePowerupNode.isDisposed() &&
+			this.remotePowerupType === type
+		) {
+			return this.remotePowerupNode;
+		}
+		this.disposeRemotePowerupVisual();
+		const clone = this.powerupManager.clonePrototypeForNetwork(type);
+		if (!clone) {
+			return null;
+		}
+		clone.position.y = this.baseBallY;
+		clone.rotationQuaternion = BABYLON.Quaternion.Identity();
+		clone.rotation = BABYLON.Vector3.Zero();
+		clone.scaling.setAll(1);
+		this.remotePowerupBaseScale = clone.scaling.clone();
+		this.remotePowerupChildBaseScales = new WeakMap();
+		const meshes = clone.getChildMeshes(false);
+		meshes.forEach(mesh => {
+			mesh.isPickable = false;
+			this.remotePowerupChildBaseScales.set(mesh, mesh.scaling.clone());
+		});
+		this.remotePowerupNode = clone;
+		this.remotePowerupType = type;
+		this.cleanupStaleRemotePowerups(clone);
+		return clone;
+	}
+
+	private disposeRemotePowerupVisual(): void {
+		if (this.remotePowerupNode && !this.remotePowerupNode.isDisposed()) {
+			try {
+				this.remotePowerupNode.dispose(false, false);
+			} catch (_) {}
+		}
+		this.remotePowerupNode = null;
+		this.remotePowerupType = null;
+		this.remotePowerupAnimation = null;
+		this.remotePowerupBaseScale = BABYLON.Vector3.One();
+		this.remotePowerupChildBaseScales = new WeakMap();
+		this.cleanupStaleRemotePowerups(null);
+	}
+
+	private getRemotePowerupGlowMesh(): BABYLON.Mesh | null {
+		if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
+			return null;
+		}
+		const meshes = this.remotePowerupNode.getChildMeshes(false);
+		const mesh = meshes.find(child => child instanceof BABYLON.Mesh) as
+			| BABYLON.Mesh
+			| undefined;
+		return mesh ?? null;
+	}
+
+	private setRemotePowerupScale(scale: number): void {
+		if (!this.remotePowerupNode || this.remotePowerupNode.isDisposed()) {
+			return;
+		}
+		const clamped = Math.max(0, Math.min(1, scale));
+		const base = this.remotePowerupBaseScale;
+		this.remotePowerupNode.scaling.copyFromFloats(
+			base.x * clamped,
+			base.y * clamped,
+			base.z * clamped
+		);
+		const meshes = this.remotePowerupNode.getChildMeshes(false);
+		meshes.forEach(mesh => {
+			let baseScale = this.remotePowerupChildBaseScales.get(mesh);
+			if (!baseScale) {
+				baseScale = mesh.scaling.clone();
+				this.remotePowerupChildBaseScales.set(mesh, baseScale.clone());
+			}
+			mesh.scaling.copyFromFloats(
+				baseScale.x * clamped,
+				baseScale.y * clamped,
+				baseScale.z * clamped
+			);
+		});
 	}
 
 	private getActiveBallImpostors(): BABYLON.PhysicsImpostor[] {
@@ -1171,6 +1578,7 @@ export class Pong3D {
 
 	// Goal detection
 	private goalMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // Goal zones for each player
+	private defenceMeshes: (BABYLON.Mesh | null)[] = [null, null, null, null]; // AI defence planes aligned with paddle fronts
 	private lastPlayerToHitBall: number = -1; // Track which player last hit the ball (0-based index)
 	private secondLastPlayerToHitBall: number = -1; // Track which player hit the ball before the last hitter (0-based index)
 	private recentHitterHistory: number[] = [];
@@ -1238,9 +1646,8 @@ export class Pong3D {
 			);
 		}
 	}
-
 	private setupEventListeners(): void {
-		// Only initialize input handler in local/master modes - client sends input via WebSocket
+		// Only initialize input handler in local/master modes
 		if (this.gameMode !== 'client') {
 			this.inputHandler = new Pong3DInput(this.canvas);
 		}
@@ -1249,12 +1656,13 @@ export class Pong3D {
 		this.resizeHandler = () => this.engine.resize();
 		window.addEventListener('resize', this.resizeHandler);
 
-		// Listen for remote score updates from WebSocket (client mode only)
+		// Listen for remote score updates (client mode only)
 		if (this.gameMode === 'client') {
 			this.conditionalLog(
 				'🎮 Setting up remoteScoreUpdate event listener for client mode'
 			);
-			document.addEventListener('remoteScoreUpdate', (event: Event) => {
+
+			this.remoteScoreUpdateHandler = (event: Event) => {
 				this.conditionalLog(
 					'🎮 remoteScoreUpdate event received:',
 					event
@@ -1269,7 +1677,12 @@ export class Pong3D {
 				this.handleRemoteScoreUpdate(
 					customEvent.detail.scoringPlayerUID
 				);
-			});
+			};
+
+			document.addEventListener(
+				'remoteScoreUpdate',
+				this.remoteScoreUpdateHandler
+			);
 		} else {
 			this.conditionalLog(
 				'🎮 Not setting up remoteScoreUpdate listener - game mode:',
@@ -1277,8 +1690,8 @@ export class Pong3D {
 			);
 		}
 
-		// Listen for remote game state updates from WebSocket (both master and client modes)
-		document.addEventListener('remoteGameState', (event: Event) => {
+		// Listen for remote game state updates (both master and client modes)
+		this.remoteGameStateHandler = (event: Event) => {
 			const customEvent = event as CustomEvent<any>;
 			const gameState = customEvent.detail;
 			this.conditionalLog('📡 remoteGameState received:', gameState);
@@ -1287,7 +1700,12 @@ export class Pong3D {
 			if (gameState && typeof gameState.s === 'number') {
 				this.handleRemoteSoundEffect(gameState.s);
 			}
-		});
+		};
+
+		document.addEventListener(
+			'remoteGameState',
+			this.remoteGameStateHandler
+		);
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
@@ -1349,12 +1767,18 @@ export class Pong3D {
 					'dong',
 					'powerupHigh'
 				);
+				if (this.gameMode === 'master') {
+					this.sendSoundEffectToClients(Pong3D.SOUND_POWERUP_BALL);
+				}
 			},
 			onWallCollision: () => {
 				void this.audioSystem.playSoundEffectWithHarmonic(
 					'dong',
 					'powerupLow'
 				);
+				if (this.gameMode === 'master') {
+					this.sendSoundEffectToClients(Pong3D.SOUND_POWERUP_WALL);
+				}
 			},
 		});
 		this.lastPowerupUpdateTimeMs =
@@ -1495,6 +1919,7 @@ export class Pong3D {
 
 		this.findPaddles(scene);
 		this.findGoals(scene);
+		this.findDefencePlanes(scene);
 		this.findBall(scene);
 		this.setupPhysicsImpostors(scene); // Create physics impostors for meshes
 
@@ -1615,6 +2040,34 @@ export class Pong3D {
 			}
 		});
 
+		this.defenceMeshes.forEach((defence, index) => {
+			if (defence && !defence.physicsImpostor) {
+				try {
+					defence.physicsImpostor = new BABYLON.PhysicsImpostor(
+						defence,
+						BABYLON.PhysicsImpostor.MeshImpostor,
+						{ mass: 0, restitution: 0.0, friction: 0.0 },
+						this.scene
+					);
+
+					if (defence.physicsImpostor.physicsBody) {
+						defence.physicsImpostor.physicsBody.collisionResponse = false;
+					}
+
+					if (GameConfig.isDebugLoggingEnabled()) {
+						this.conditionalLog(
+							`🛡️ Defence ${index + 1} (${defence.name}): Created sensor MeshImpostor`
+						);
+					}
+				} catch (error) {
+					this.conditionalWarn(
+						`❌ Failed to create physics impostor for defence ${index + 1}:`,
+						error
+					);
+				}
+			}
+		});
+
 		// Ball impostor (for local and master modes - both need physics)
 		if (
 			this.ballMesh &&
@@ -1664,15 +2117,15 @@ export class Pong3D {
 			}
 
 			// Initialize main ball entity for per-ball updates
-		if (this.ballMesh.physicsImpostor) {
-			const baseY = this.ballMesh.position.y;
-			this.mainBallEntity = new BallEntity(
-				this.ballMesh,
-				this.ballMesh.physicsImpostor,
-				baseY,
-				{ spinDelayMs: GameConfig.getSpinDelayMs() }
-			);
-		}
+			if (this.ballMesh.physicsImpostor) {
+				const baseY = this.ballMesh.position.y;
+				this.mainBallEntity = new BallEntity(
+					this.ballMesh,
+					this.ballMesh.physicsImpostor,
+					baseY,
+					{ spinDelayMs: GameConfig.getSpinDelayMs() }
+				);
+			}
 		} else if (this.ballMesh) {
 			this.conditionalLog(
 				`🏐 Skipped physics impostor for ball in ${this.gameMode} mode - using custom physics`
@@ -2026,7 +2479,7 @@ export class Pong3D {
 
 		// Send sound effect to clients (master mode only)
 		if (this.gameMode === 'master') {
-			this.sendSoundEffectToClients(0); // 0 = paddle ping
+			this.sendSoundEffectToClients(Pong3D.SOUND_PADDLE);
 		}
 
 		const paddle = this.paddles[paddleIndex]!;
@@ -2260,7 +2713,9 @@ export class Pong3D {
 			surfaceNormal3D.z
 		);
 		const basisNormal =
-			normalXZ.lengthSquared() > 1e-6 ? normalXZ.normalize() : new BABYLON.Vector3(0, 0, 1);
+			normalXZ.lengthSquared() > 1e-6
+				? normalXZ.normalize()
+				: new BABYLON.Vector3(0, 0, 1);
 		const ballVelXZ = new BABYLON.Vector3(
 			ballVelocity.x,
 			0,
@@ -2297,9 +2752,10 @@ export class Pong3D {
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			this.conditionalLog(
-				`🎯 Base reflection angle: ${((baseAngle * 180) / Math.PI).toFixed(
-					1
-				)}° relative to paddle normal`
+				`🎯 Base reflection angle: ${(
+					(baseAngle * 180) /
+					Math.PI
+				).toFixed(1)}° relative to paddle normal`
 			);
 		}
 
@@ -2323,7 +2779,8 @@ export class Pong3D {
 				-1,
 				Math.min(1, velocityRatio * this.BALL_ANGLE_MULTIPLIER)
 			);
-			const shapedRatio = Math.sign(scaledRatio) * Math.sqrt(Math.abs(scaledRatio));
+			const shapedRatio =
+				Math.sign(scaledRatio) * Math.sqrt(Math.abs(scaledRatio));
 			let velocityBasedAngle = shapedRatio * this.ANGULAR_RETURN_LIMIT;
 
 			// 🔒 CLAMP: Ensure velocity-based angle respects angular return limit
@@ -2344,15 +2801,19 @@ export class Pong3D {
 			}
 
 			let effectiveVelocityAngle = velocityBasedAngle;
-			if (this.playerCount === 3 && (paddleIndex === 1 || paddleIndex === 2)) {
+			if (
+				this.playerCount === 3 &&
+				(paddleIndex === 1 || paddleIndex === 2)
+			) {
 				effectiveVelocityAngle = -velocityBasedAngle;
 				this.conditionalLog(
 					`🔄 3P Mode velocity flip for Player ${paddleIndex + 1}: ${(
 						(velocityBasedAngle * 180) /
 						Math.PI
-					).toFixed(1)}° → ${((effectiveVelocityAngle * 180) / Math.PI).toFixed(
-						1
-					)}°`
+					).toFixed(1)}° → ${(
+						(effectiveVelocityAngle * 180) /
+						Math.PI
+					).toFixed(1)}°`
 				);
 			} else if (
 				this.playerCount === 4 &&
@@ -2360,7 +2821,10 @@ export class Pong3D {
 			) {
 				effectiveVelocityAngle = -velocityBasedAngle;
 				this.conditionalLog(
-					`🔄 4P side paddle velocity flip: ${((velocityBasedAngle * 180) / Math.PI).toFixed(
+					`🔄 4P side paddle velocity flip: ${(
+						(velocityBasedAngle * 180) /
+						Math.PI
+					).toFixed(
 						1
 					)}° → ${((effectiveVelocityAngle * 180) / Math.PI).toFixed(1)}°`
 				);
@@ -2374,53 +2838,53 @@ export class Pong3D {
 			this.conditionalLog(
 				`  - Ball velocity: (${ballVelNormalized.x.toFixed(3)}, ${ballVelNormalized.y.toFixed(3)}, ${ballVelNormalized.z.toFixed(3)})`
 			);
-				this.conditionalLog(
-					`  - Paddle normal: (${surfaceNormal3D.x.toFixed(3)}, ${surfaceNormal3D.y.toFixed(3)}, ${surfaceNormal3D.z.toFixed(3)})`
-				);
-				const dotProduct = BABYLON.Vector3.Dot(
-					ballVelNormalized,
-					surfaceNormal3D
-				);
-				this.conditionalLog(
-					`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
-				);
+			this.conditionalLog(
+				`  - Paddle normal: (${surfaceNormal3D.x.toFixed(3)}, ${surfaceNormal3D.y.toFixed(3)}, ${surfaceNormal3D.z.toFixed(3)})`
+			);
+			const dotProduct = BABYLON.Vector3.Dot(
+				ballVelNormalized,
+				surfaceNormal3D
+			);
+			this.conditionalLog(
+				`  - Dot product (ball·normal): ${dotProduct.toFixed(3)}`
+			);
 
-				// Calculate perfect physics reflection
-				const perfectReflection = ballVelNormalized.subtract(
-					surfaceNormal3D.scale(2 * dotProduct)
-				);
-				this.conditionalLog(
-					`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
-				);
+			// Calculate perfect physics reflection
+			const perfectReflection = ballVelNormalized.subtract(
+				surfaceNormal3D.scale(2 * dotProduct)
+			);
+			this.conditionalLog(
+				`  - Perfect reflection: (${perfectReflection.x.toFixed(3)}, ${perfectReflection.y.toFixed(3)}, ${perfectReflection.z.toFixed(3)})`
+			);
 
-				// === 2D REFLECTION LOGIC ===
-				// Check angle of perfect reflection from normal
-				const reflectionDot = BABYLON.Vector3.Dot(
-					perfectReflection,
-					surfaceNormal3D
-				);
+			// === 2D REFLECTION LOGIC ===
+			// Check angle of perfect reflection from normal
+			const reflectionDot = BABYLON.Vector3.Dot(
+				perfectReflection,
+				surfaceNormal3D
+			);
 			const reflectionAngle = Math.acos(Math.abs(reflectionDot));
 
 			this.conditionalLog(
 				`  - Perfect reflection angle from normal: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}°`
 			);
-				this.conditionalLog(
-					`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
-				);
+			this.conditionalLog(
+				`  - Angular return limit: ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+			);
 
-				if (reflectionAngle <= this.ANGULAR_RETURN_LIMIT) {
+			if (reflectionAngle <= this.ANGULAR_RETURN_LIMIT) {
 				// Ball approach angle is within limits - use perfect reflection
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
 						`✅ Using perfect reflection (incoming angle within limits)`
 					);
 				}
-				} else {
-					this.conditionalLog(
-						`🔒 Clamping reflection: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
-					);
-				}
+			} else {
+				this.conditionalLog(
+					`🔒 Clamping reflection: ${((reflectionAngle * 180) / Math.PI).toFixed(1)}° → ${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°`
+				);
 			}
+		}
 
 		const rotationMatrix = BABYLON.Matrix.RotationAxis(
 			BABYLON.Vector3.Up(),
@@ -2483,21 +2947,18 @@ export class Pong3D {
 		this.conditionalLog(
 			`🎯 Final angle from normal (enforced): ${((angleFromNormal * 180) / Math.PI).toFixed(1)}° (limit ±${((this.ANGULAR_RETURN_LIMIT * 180) / Math.PI).toFixed(1)}°)`
 		);
-		this.conditionalLog(
-			'[AngularLimit]',
-			{
-				requestedAngleDeg: (requestedAngle * 180) / Math.PI,
-				limitedAngleDeg: (limitedAngle * 180) / Math.PI,
-				finalDirection: {
-					x: finalDirection.x,
-					y: finalDirection.y,
-					z: finalDirection.z,
-				},
-				limitDeg: (this.ANGULAR_RETURN_LIMIT * 180) / Math.PI,
-				paddleIndex,
-				hasPaddleVelocity,
-			}
-		);
+		this.conditionalLog('[AngularLimit]', {
+			requestedAngleDeg: (requestedAngle * 180) / Math.PI,
+			limitedAngleDeg: (limitedAngle * 180) / Math.PI,
+			finalDirection: {
+				x: finalDirection.x,
+				y: finalDirection.y,
+				z: finalDirection.z,
+			},
+			limitDeg: (this.ANGULAR_RETURN_LIMIT * 180) / Math.PI,
+			paddleIndex,
+			hasPaddleVelocity,
+		});
 
 		// Increment rally speed - globally throttled by time and distance traveled
 		const rallyIntervalMs = GameConfig.getMinRallyIncrementIntervalMs();
@@ -2539,7 +3000,9 @@ export class Pong3D {
 		} else {
 			// Skip increment but still clamp to current target speed via newVelocity below
 			if (GameConfig.isDebugLoggingEnabled()) {
-				const deltaMs = (now - this.lastRallyIncrementTimeGlobalMs).toFixed(1);
+				const deltaMs = (
+					now - this.lastRallyIncrementTimeGlobalMs
+				).toFixed(1);
 				this.conditionalLog(
 					`⏱️/📏 Rally increment throttled (Δt=${deltaMs}ms < ${rallyIntervalMs}ms or moved < ${rallyDistance})`
 				);
@@ -2548,7 +3011,7 @@ export class Pong3D {
 
 		// Apply the new velocity with rally-adjusted speed
 		const directionForVelocity = finalDirection ?? basisNormal.clone();
-			const newVelocity = directionForVelocity.scale(
+		const newVelocity = directionForVelocity.scale(
 			this.ballEffects.getCurrentBallSpeed()
 		);
 
@@ -2672,9 +3135,9 @@ export class Pong3D {
 					);
 				}
 			}
-				this.conditionalLog(
-					`  - Final direction: (${directionForVelocity.x.toFixed(2)}, ${directionForVelocity.z.toFixed(2)})`
-				);
+			this.conditionalLog(
+				`  - Final direction: (${directionForVelocity.x.toFixed(2)}, ${directionForVelocity.z.toFixed(2)})`
+			);
 			this.conditionalLog(
 				`  - New velocity: (${newVelocity.x.toFixed(2)}, ${newVelocity.z.toFixed(2)})`
 			);
@@ -2792,8 +3255,7 @@ export class Pong3D {
 			const denom = currentDistance - previousDistance;
 			if (Math.abs(denom) < 1e-6) continue;
 
-			const targetDistance =
-				Math.sign(previousDistance || 1) * radius;
+			const targetDistance = Math.sign(previousDistance || 1) * radius;
 			const t =
 				(previousDistance - targetDistance) /
 				(previousDistance - currentDistance);
@@ -2802,13 +3264,7 @@ export class Pong3D {
 			}
 
 			const contactPoint = BABYLON.Vector3.Lerp(previous, current, t);
-			if (
-				!this.pointWithinPaddleBounds(
-					contactPoint,
-					paddle,
-					radius
-				)
-			) {
+			if (!this.pointWithinPaddleBounds(contactPoint, paddle, radius)) {
 				continue;
 			}
 
@@ -2870,8 +3326,9 @@ export class Pong3D {
 		normal: BABYLON.Vector3,
 		directionSign: number
 	): void {
-		const safeOffset = normal
-			.scale(directionSign * (Pong3D.BALL_RADIUS + 0.01));
+		const safeOffset = normal.scale(
+			directionSign * (Pong3D.BALL_RADIUS + 0.01)
+		);
 		const correctedPosition = contactPoint.add(safeOffset);
 
 		if (!isFinite(correctedPosition.y)) {
@@ -2902,7 +3359,9 @@ export class Pong3D {
 		this.handleBallPaddleCollision(ballImpostor, paddleImpostor);
 	}
 
-	private computeWallNormal(position: BABYLON.Vector3): BABYLON.Vector3 | null {
+	private computeWallNormal(
+		position: BABYLON.Vector3
+	): BABYLON.Vector3 | null {
 		if (
 			this.boundsXMin === null ||
 			this.boundsXMax === null ||
@@ -2912,10 +3371,22 @@ export class Pong3D {
 			return null;
 
 		const distances = [
-			{ value: Math.abs(position.x - this.boundsXMin), normal: new BABYLON.Vector3(1, 0, 0) },
-			{ value: Math.abs(position.x - this.boundsXMax), normal: new BABYLON.Vector3(-1, 0, 0) },
-			{ value: Math.abs(position.z - this.boundsZMin), normal: new BABYLON.Vector3(0, 0, 1) },
-			{ value: Math.abs(position.z - this.boundsZMax), normal: new BABYLON.Vector3(0, 0, -1) },
+			{
+				value: Math.abs(position.x - this.boundsXMin),
+				normal: new BABYLON.Vector3(1, 0, 0),
+			},
+			{
+				value: Math.abs(position.x - this.boundsXMax),
+				normal: new BABYLON.Vector3(-1, 0, 0),
+			},
+			{
+				value: Math.abs(position.z - this.boundsZMin),
+				normal: new BABYLON.Vector3(0, 0, 1),
+			},
+			{
+				value: Math.abs(position.z - this.boundsZMax),
+				normal: new BABYLON.Vector3(0, 0, -1),
+			},
 		];
 
 		distances.sort((a, b) => a.value - b.value);
@@ -2953,7 +3424,7 @@ export class Pong3D {
 		this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
 
 		// Send sound effect to clients (Master mode only)
-		this.sendSoundEffectToClients(1); // 1 = wall ping
+		this.sendSoundEffectToClients(Pong3D.SOUND_WALL);
 
 		// Corner handling: if near a convex corner (near X and Z bounds),
 		// reflect velocity about the corner bisector to avoid unstable normals.
@@ -3027,7 +3498,9 @@ export class Pong3D {
 		// }
 
 		// Preserve spin with configurable reduction only
-		this.ballEffects.applyWallSpinFriction(GameConfig.getWallSpinFriction());
+		this.ballEffects.applyWallSpinFriction(
+			GameConfig.getWallSpinFriction()
+		);
 
 		const velocity = ballImpostor.getLinearVelocity();
 		if (velocity) {
@@ -3040,57 +3513,85 @@ export class Pong3D {
 					const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
 					const angle = Math.acos(BABYLON.Scalar.Clamp(dot, -1, 1));
 					const ninety = Math.PI / 2;
-					const threshold = GameConfig.getWallNearParallelAngleThreshold();
-					const adjustment = GameConfig.getWallNearParallelAngleAdjustment();
+					const threshold =
+						GameConfig.getWallNearParallelAngleThreshold();
+					const adjustment =
+						GameConfig.getWallNearParallelAngleAdjustment();
 					const maxAngle = GameConfig.getWallNearParallelMaxAngle();
 					const isObtuse = angle >= ninety;
 					const deltaFromParallel = Math.abs(ninety - angle);
 					if (deltaFromParallel <= threshold) {
-						const rawTangent = normalizedVelocity.subtract(normal.scale(dot));
+						const rawTangent = normalizedVelocity.subtract(
+							normal.scale(dot)
+						);
 						let tangentDir = rawTangent;
 						if (tangentDir.lengthSquared() < 1e-6) {
 							// Head-on collision: derive a consistent tangent from velocity first, then fall back to axes
-							tangentDir = BABYLON.Vector3.Cross(normal, normalizedVelocity);
+							tangentDir = BABYLON.Vector3.Cross(
+								normal,
+								normalizedVelocity
+							);
 							if (tangentDir.lengthSquared() < 1e-6) {
-								tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.Y);
+								tangentDir = BABYLON.Vector3.Cross(
+									normal,
+									BABYLON.Axis.Y
+								);
 								if (tangentDir.lengthSquared() < 1e-6) {
-									tangentDir = BABYLON.Vector3.Cross(normal, BABYLON.Axis.X);
+									tangentDir = BABYLON.Vector3.Cross(
+										normal,
+										BABYLON.Axis.X
+									);
 								}
 							}
 						}
 						if (tangentDir.lengthSquared() >= 1e-6) {
 							const tangentNormalized = tangentDir.normalize();
 							let orientation = Math.sign(
-								BABYLON.Vector3.Dot(normalizedVelocity, tangentNormalized)
+								BABYLON.Vector3.Dot(
+									normalizedVelocity,
+									tangentNormalized
+								)
 							);
 							if (orientation === 0) orientation = 1;
 
-					const reducedDelta = Math.max(0, deltaFromParallel - adjustment);
-					const cappedAngle = Math.min(maxAngle, ninety - 1e-3);
-					const desiredDeviation = Math.max(
-						reducedDelta,
-						ninety - cappedAngle,
-						1e-3
-					);
-					const targetAngle = isObtuse
-						? ninety + desiredDeviation
-						: ninety - desiredDeviation;
+							const reducedDelta = Math.max(
+								0,
+								deltaFromParallel - adjustment
+							);
+							const cappedAngle = Math.min(
+								maxAngle,
+								ninety - 1e-3
+							);
+							const desiredDeviation = Math.max(
+								reducedDelta,
+								ninety - cappedAngle,
+								1e-3
+							);
+							const targetAngle = isObtuse
+								? ninety + desiredDeviation
+								: ninety - desiredDeviation;
 
 							const cosTarget = Math.cos(targetAngle);
 							const sinTarget = Math.sin(targetAngle);
 							const adjustedDir = normal
 								.scale(cosTarget)
-								.add(tangentNormalized.scale(sinTarget * orientation));
-							const adjusted = adjustedDir.normalize().scale(speed);
+								.add(
+									tangentNormalized.scale(
+										sinTarget * orientation
+									)
+								);
+							const adjusted = adjustedDir
+								.normalize()
+								.scale(speed);
 							this.conditionalLog(
-								`⬅️ Wall angle nudged: current=${(angle * 180 / Math.PI).toFixed(2)}°, target=${(targetAngle * 180 / Math.PI).toFixed(2)}°`
+								`⬅️ Wall angle nudged: current=${((angle * 180) / Math.PI).toFixed(2)}°, target=${((targetAngle * 180) / Math.PI).toFixed(2)}°`
 							);
 							ballImpostor.setLinearVelocity(
 								new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
 							);
 						} else {
 							this.conditionalLog(
-								`⛔ Wall angle adjustment skipped (no tangent basis). current=${(angle * 180 / Math.PI).toFixed(2)}°`
+								`⛔ Wall angle adjustment skipped (no tangent basis). current=${((angle * 180) / Math.PI).toFixed(2)}°`
 							);
 						}
 					}
@@ -3382,8 +3883,7 @@ export class Pong3D {
 					if (i === goalPlayer) continue;
 					if (
 						winningIndex === -1 ||
-						this.playerScores[i] >
-							this.playerScores[winningIndex]
+						this.playerScores[i] > this.playerScores[winningIndex]
 					) {
 						winningIndex = i;
 					}
@@ -3428,8 +3928,7 @@ export class Pong3D {
 							this.container,
 							undefined,
 							'Play again',
-							() => this.gameScreen!.reloadPong(),
-							true
+							() => this.gameScreen!.reloadPong()
 						);
 					}
 				} else {
@@ -3441,7 +3940,7 @@ export class Pong3D {
 
 			setTimeout(() => {
 				state.gameOngoing = false;
-			}, 1000);
+			}, 2000);
 
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
@@ -3512,12 +4011,11 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						const playAgain = new TextModal(
+						new TextModal(
 							this.container,
 							undefined,
 							'Play again',
-							() => this.gameScreen!.reloadPong(),
-							true
+							() => this.gameScreen!.reloadPong()
 						);
 					}
 				} else {
@@ -3533,8 +4031,6 @@ export class Pong3D {
 				new ReplayModal(this.container);
 				// location.hash = '#home';
 			}
-
-			state.gameOngoing = false;
 			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
 				state.gameOngoing = false;
@@ -4246,6 +4742,70 @@ export class Pong3D {
 		});
 	}
 
+	private findDefencePlanes(scene: BABYLON.Scene): void {
+		const meshes = scene.meshes;
+		const defenceCandidates = meshes.filter(
+			m => m && m.name && /defen[cs]e/i.test(m.name)
+		);
+
+		for (let i = 0; i < this.playerCount; i++) {
+			const defenceNumber = i + 1;
+			let defence = defenceCandidates.find(m =>
+				m?.name
+					? new RegExp(`defen[cs]e${defenceNumber}`, 'i').test(m.name)
+					: false
+			) as BABYLON.Mesh | undefined;
+
+			if (!defence && i < defenceCandidates.length) {
+				defence = defenceCandidates[i] as BABYLON.Mesh;
+			}
+
+			if (defence) {
+				if (defence.parent) {
+					const worldMatrix = defence.getWorldMatrix();
+					const position = new BABYLON.Vector3();
+					const rotationQuaternion = new BABYLON.Quaternion();
+					const scaling = new BABYLON.Vector3();
+					worldMatrix.decompose(
+						scaling,
+						rotationQuaternion,
+						position
+					);
+					defence.parent = null;
+					defence.position = position;
+					defence.rotationQuaternion = rotationQuaternion;
+					defence.scaling = scaling;
+				}
+				defence.isVisible = false;
+				defence.checkCollisions = false;
+				defence.isPickable = false;
+				defence.metadata = {
+					...(typeof defence.metadata === 'object' &&
+					defence.metadata !== null
+						? defence.metadata
+						: {}),
+					aiDefence: true,
+					aiPlayerIndex: i,
+				};
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🛡️ Defence ${defenceNumber}: ${defence.name} prepared for AI sensor`
+					);
+				}
+			} else if (GameConfig.isDebugLoggingEnabled()) {
+				this.conditionalLog(
+					`⚠️ Defence ${defenceNumber}: Not found in scene`
+				);
+			}
+
+			this.defenceMeshes[i] = defence || null;
+		}
+
+		for (let i = this.playerCount; i < 4; i++) {
+			this.defenceMeshes[i] = null;
+		}
+	}
+
 	private hideDuplicatePaddles(meshes: BABYLON.AbstractMesh[]): void {
 		try {
 			const allPaddles = meshes.filter(
@@ -4553,7 +5113,8 @@ export class Pong3D {
 
 		const mainEntity = this.mainBallEntity;
 		const mainMesh = mainEntity?.mesh ?? this.ballMesh;
-		const mainImpostor = mainEntity?.impostor ?? this.ballMesh?.physicsImpostor ?? null;
+		const mainImpostor =
+			mainEntity?.impostor ?? this.ballMesh?.physicsImpostor ?? null;
 		const rawMainVelocity =
 			mainEntity?.getVelocity() ?? mainImpostor?.getLinearVelocity();
 
@@ -6100,6 +6661,25 @@ export class Pong3D {
 			this.conditionalLog('✅ Removed resize event listener');
 		}
 
+		// Remove document event listeners
+		if (this.remoteScoreUpdateHandler) {
+			document.removeEventListener(
+				'remoteScoreUpdate',
+				this.remoteScoreUpdateHandler
+			);
+			this.remoteScoreUpdateHandler = undefined;
+			this.conditionalLog('✅ Removed remoteScoreUpdate event listener');
+		}
+
+		if (this.remoteGameStateHandler) {
+			document.removeEventListener(
+				'remoteGameState',
+				this.remoteGameStateHandler
+			);
+			this.remoteGameStateHandler = undefined;
+			this.conditionalLog('✅ Removed remoteGameState event listener');
+		}
+
 		// Dispose audio system
 		if (this.audioSystem) {
 			this.audioSystem.dispose();
@@ -6112,6 +6692,17 @@ export class Pong3D {
 			this.powerupManager = null;
 			this.conditionalLog('✅ Cleared power-up manager');
 		}
+
+		// Clear any pending timeouts to prevent memory leaks
+		if (this.activeStretchTimeout !== null) {
+			window.clearTimeout(this.activeStretchTimeout);
+			this.activeStretchTimeout = null;
+		}
+		this.paddleStretchTimeouts.forEach(timeoutId => {
+			window.clearTimeout(timeoutId);
+		});
+		this.paddleStretchTimeouts.clear();
+		this.conditionalLog('✅ Cleared pending timeouts');
 
 		// Dispose of Babylon scene (this also disposes meshes, materials, textures, etc.)
 		if (this.scene) {
@@ -6131,11 +6722,19 @@ export class Pong3D {
 			this.conditionalLog('✅ Removed canvas from DOM');
 		}
 
+		// Clear ball manager and related resources
+		if (this.ballManager) {
+			this.ballManager.clear();
+			this.ballManager = null as any;
+			this.conditionalLog('✅ Cleared ball manager');
+		}
+
 		// Clear references to help with garbage collection
 		this.guiTexture = null;
 		this.ballMesh = null;
 		this.paddles = [null, null, null, null];
 		this.goalMeshes = [null, null, null, null];
+		this.defenceMeshes = [null, null, null, null];
 		this.scene = null as any;
 		this.engine = null as any;
 		this.canvas = null as any;
@@ -6182,7 +6781,7 @@ export class Pong3D {
 
 		try {
 			// Send via WebSocket using game's message format
-			const soundData = { s: soundType }; // s = sound, 0 = paddle ping, 1 = wall ping
+			const soundData = { s: soundType }; // s = sound id (see SOUND_* constants)
 			const payloadString = JSON.stringify(soundData);
 			const message: Message = {
 				t: MESSAGE_GAME_STATE,
@@ -6210,12 +6809,16 @@ export class Pong3D {
 		this.conditionalLog(`🔊 Remote sound effect received: ${soundType}`);
 
 		// Play the appropriate sound effect based on type
-		if (soundType === 0) {
+		if (soundType === Pong3D.SOUND_PADDLE) {
 			// Paddle ping
 			this.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
-		} else if (soundType === 1) {
+		} else if (soundType === Pong3D.SOUND_WALL) {
 			// Wall ping
 			this.audioSystem.playSoundEffectWithHarmonic('ping', 'wall');
+		} else if (soundType === Pong3D.SOUND_POWERUP_BALL) {
+			this.audioSystem.playSoundEffectWithHarmonic('dong', 'powerupHigh');
+		} else if (soundType === Pong3D.SOUND_POWERUP_WALL) {
+			this.audioSystem.playSoundEffectWithHarmonic('dong', 'powerupLow');
 		} else {
 			this.conditionalWarn(`Unknown sound effect type: ${soundType}`);
 		}
@@ -6367,8 +6970,8 @@ export class Pong3D {
 			}
 
 			// Wait 2 seconds for victory handling before redirecting when acting as master
-			state.gameOngoing = false;
 			setTimeout(() => {
+				state.gameOngoing = false;
 				this.conditionalLog(
 					'🏆 Victory handler delay finished, gameOngoing set to false'
 				);
@@ -6529,7 +7132,11 @@ export class Pong3D {
 		mesh: BABYLON.Mesh,
 		durationMs: number,
 		glowColor: BABYLON.Color3,
-		options?: { key?: string; fadeDurationMs?: number; holdDurationMs?: number }
+		options?: {
+			key?: string;
+			fadeDurationMs?: number;
+			holdDurationMs?: number;
+		}
 	): void {
 		if (!this.glowLayer) return;
 		const material = mesh.material as
@@ -6616,7 +7223,8 @@ export class Pong3D {
 			if (elapsed >= effect.durationMs || effect.strength <= 0) {
 				this.stopGlowEffect(meshState, effect);
 				this.recomputeMeshGlow(meshState);
-				if (meshState.effects.size === 0) this.cleanupMeshGlowState(meshId);
+				if (meshState.effects.size === 0)
+					this.cleanupMeshGlowState(meshId);
 				return;
 			}
 			effect.animationFrame = window.requestAnimationFrame(animate);
@@ -6624,7 +7232,10 @@ export class Pong3D {
 		effect.animationFrame = window.requestAnimationFrame(animate);
 	}
 
-	private stopGlowEffect(state: GlowMeshState, effect: GlowEffectState): void {
+	private stopGlowEffect(
+		state: GlowMeshState,
+		effect: GlowEffectState
+	): void {
 		if (!effect.active) return;
 		effect.active = false;
 		if (effect.animationFrame !== null) {

@@ -1,6 +1,5 @@
 import { AuthComponent } from './buttons/AuthButton';
-import { HomeButton } from './buttons/HomeButton';
-import { ChatBannerManager } from './utils/ChatBannerManager';
+import { ChatManager } from './utils/Chat';
 import { router } from './utils/Router';
 import { state } from './utils/State';
 import { webSocket } from './utils/WebSocketWrapper';
@@ -27,8 +26,19 @@ app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
 
-await getEndpoints();
-router.init();
-new AuthComponent(app);
-new HomeButton(app);
-//new ChatBannerManager(app);
+async function initApp() {
+	try {
+		await getEndpoints();
+
+		router.init();
+
+		new AuthComponent(app);
+		new ChatManager(app); 
+
+		console.log('App initialized');
+	} catch (error) {
+		console.error('Failed to initialize app:', error);
+	}
+}
+
+initApp();

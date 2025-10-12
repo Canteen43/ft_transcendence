@@ -18,10 +18,10 @@ import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { apiCall } from '../utils/apiCall';
 import {
-	clearMatchData,
+	clearRemoteData,
 	clearOtherGameData,
 	clearTournData,
-} from '../utils/cleanSessionStorage';
+} from '../utils/clearSessionStorage';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
 import { updateTournData } from '../utils/updateTurnMatchData';
@@ -39,9 +39,6 @@ export async function gameListener(event: MessageEvent) {
 		switch (msg.t) {
 			case MESSAGE_START_TOURNAMENT:
 				conditionalLog('Received "st":', msg);
-				conditionalLog('Clearing match data before GET tournament');
-				clearMatchData();
-				clearTournData();
 				sessionStorage.setItem('tournamentID', `${msg.d}`);
 
 				const { data: tournData, error } = await apiCall(
@@ -108,20 +105,28 @@ export async function gameListener(event: MessageEvent) {
 				location.hash = '#game';
 				conditionalLog('reloading pong.ts');
 				(router.currentScreen as GameScreen)?.reloadPong();
+				conditionalLog('Received start message:', msg);
+				state.gameOngoing = true;
+				state.gameMode = 'remote';
+				location.hash = '#game';
+				conditionalLog('reloading pong.ts');
+				(router.currentScreen as GameScreen)?.reloadPong();
 				break;
 
 			case MESSAGE_QUIT:
 				conditionalLog('Clearing game data');
-				clearMatchData();
-				clearTournData();
-				clearOtherGameData();
+				conditionalLog('Clearing game data');
+				// clearRemoteData();
+				// clearTournData();
+				// clearOtherGameData();
+				location.hash = '#home';
 				location.hash = '#home';
 				setTimeout(() => {
 					void new TextModal(
 						router.currentScreen!.element,
 						'The game has been quit.'
 					);
-				}, 100);
+				}, 50);
 				break;
 
 			case MESSAGE_REPLAY:

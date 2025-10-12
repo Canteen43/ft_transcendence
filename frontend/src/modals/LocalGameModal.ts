@@ -1,10 +1,7 @@
 import { Button } from '../buttons/Button';
-import {
-	clearLocalGameData,
-	clearOtherGameData,
-} from '../utils/cleanSessionStorage';
 import { state } from '../utils/State';
-import { AliasModal } from './AliasModal';
+import { clearAllGameData } from '../utils/clearSessionStorage';
+import { LocalSetupModal } from './LocalSetupModal';
 import { Modal } from './Modal';
 
 export class LocalGameModal extends Modal {
@@ -12,6 +9,10 @@ export class LocalGameModal extends Modal {
 	private btn3: Button;
 	private btn4: Button;
 	private btnT: Button;
+	private keydownHandlers = new Map<
+		HTMLElement,
+		(e: KeyboardEvent) => void
+	>();
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -32,7 +33,7 @@ export class LocalGameModal extends Modal {
 		imgt.src = 'trophy.png';
 		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
 
-		// create buttons with images inside
+		// Create buttons with images inside
 		this.btn2 = new Button(
 			img2,
 			() => this.setupLocalGame(2, false),
@@ -54,7 +55,7 @@ export class LocalGameModal extends Modal {
 			this.box
 		);
 
-		// fixed button size
+		// Fixed button size
 		[this.btn2, this.btn3, this.btn4, this.btnT].forEach(btn => {
 			btn.element.className +=
 				' w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
@@ -64,15 +65,15 @@ export class LocalGameModal extends Modal {
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
 
-		// modal box background
+		// Modal box background
 		this.addEnterListener();
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
-			'bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
-			' relative flex flex-col items-center justify-center' +
-			' gap-3 sm:gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm';
-
+			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
+			' relative grid place-items-center' +
+			' gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm' +
+			' grid-cols-1 sm:grid-cols-2';
 		this.btn2.element.focus();
 		this.btn2.element.tabIndex = 0;
 		this.btn3.element.tabIndex = 0;
@@ -89,51 +90,77 @@ export class LocalGameModal extends Modal {
 		];
 
 		buttonConfigs.forEach(({ button, player, tourn }) => {
-			button.element.addEventListener('keydown', (e: KeyboardEvent) => {
+			// Create handler and store reference
+			const handler = (e: KeyboardEvent) => {
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault();
 					this.setupLocalGame(player, tourn);
+					return;
 				}
 
 				// Arrow key navigation
 				if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
 					e.preventDefault();
-					const buttons = [this.btn2, this.btn3, this.btn4];
+					const buttons = [
+						this.btn2,
+						this.btn3,
+						this.btn4,
+						this.btnT,
+					];
 					const currentIndex = buttons.indexOf(button);
 					const nextIndex = (currentIndex + 1) % buttons.length;
 					buttons[nextIndex].element.focus();
+					return;
 				}
 
 				if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
 					e.preventDefault();
-					const buttons = [this.btn2, this.btn3, this.btn4];
+					const buttons = [
+						this.btn2,
+						this.btn3,
+						this.btn4,
+						this.btnT,
+					];
 					const currentIndex = buttons.indexOf(button);
 					const prevIndex =
 						(currentIndex - 1 + buttons.length) % buttons.length;
 					buttons[prevIndex].element.focus();
 				}
-			});
+			};
+
+			// Store handler for cleanup
+			this.keydownHandlers.set(button.element, handler);
+
+			// Add event listener
+			button.element.addEventListener('keydown', handler);
 		});
 	}
 
 	private setupLocalGame(n: number, tourn: boolean) {
-		clearLocalGameData();
-		clearOtherGameData();
+		clearAllGameData();
+
 		state.gameMode = 'local';
-		sessionStorage.setItem('gameMode', 'local');
 		state.playerCount = n;
+		sessionStorage.setItem('gameMode', 'local');
 		sessionStorage.setItem('playerCount', n.toString());
 		sessionStorage.setItem('thisPlayer', '1');
-		if (tourn === true) {
-			// Correct key for tournament flag
-			sessionStorage.setItem('tournament', '1');
-			// Clean up legacy misspelling to avoid confusion
-			sessionStorage.removeItem('tounament');
-		} else {
-			// Explicitly set to non-tournament for clarity
-			sessionStorage.setItem('tournament', '0');
-		}
-		new AliasModal(this.parent, n);
+		sessionStorage.setItem('tournament', tourn ? '1' : '0');
+
+		new LocalSetupModal(this.parent, n, 0);
 		this.destroy();
+	}
+
+	public destroy(): void {
+		this.keydownHandlers.forEach((handler, element) => {
+			element.removeEventListener('keydown', handler);
+		});
+		this.keydownHandlers.clear();
+
+		this.btn2?.destroy();
+		this.btn3?.destroy();
+		this.btn4?.destroy();
+		this.btnT?.destroy();
+
+		super.destroy();
 	}
 }

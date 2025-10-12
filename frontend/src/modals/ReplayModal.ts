@@ -2,7 +2,7 @@ import { hourglass, jelly, newtonsCradle } from 'ldrs';
 import { z } from 'zod';
 import { MESSAGE_REPLAY } from '../../../shared/constants';
 import { Button } from '../buttons/Button';
-import { clearMatchData } from '../utils/cleanSessionStorage';
+import { clearRemoteData } from '../utils/clearSessionStorage';
 import { router } from '../utils/Router';
 import { replayTournament } from '../utils/tournamentJoin';
 import { webSocket } from '../utils/WebSocketWrapper';
@@ -51,7 +51,7 @@ export class ReplayModal extends Modal {
 	private startTimer() {
 		this.timeoutId = setTimeout(() => {
 			console.debug('Replay timer expired, returning to home');
-			clearMatchData();
+			// clearRemoteData();
 			location.hash = '#home';
 			this.destroy();
 			setTimeout(() => {
@@ -117,7 +117,6 @@ export class ReplayModal extends Modal {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;
 		}
-		clearMatchData();
 		document.removeEventListener('RemoteReplay', this.remoteReplayHandler);
 		super.destroy();
 		// location.hash = '#home';
