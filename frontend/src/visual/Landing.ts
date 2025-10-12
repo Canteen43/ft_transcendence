@@ -18,11 +18,19 @@ export class Landing {
 	private envTexture?: BABYLON.HDRCubeTexture;
 	private renderLoopCallback?: () => void;
 	private contextMenuHandler = (e: MouseEvent) => e.preventDefault();
+	private mouseMoveHandler?: (event: MouseEvent) => void;
 
 	// Clickable mesh references
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
 	private remoteGameMeshes: BABYLON.AbstractMesh[] = [];
 	private statsMeshes: BABYLON.AbstractMesh[] = [];
+
+	// Hover properties
+	private hoveredMesh: BABYLON.AbstractMesh | null = null;
+	private originalMaterials: Map<
+		BABYLON.AbstractMesh,
+		BABYLON.Material | null
+	> = new Map();
 
 	// Callbacks
 	private callbacks: LandingCallbacks;
@@ -93,11 +101,10 @@ export class Landing {
 			this.scene
 		);
 
-		this.camera.attachControl(this.canvas, true);
-		this.camera.lowerRadiusLimit = 5;
-		this.camera.upperRadiusLimit = 50;
-		this.camera.lowerBetaLimit = -1;
-		this.camera.upperBetaLimit = Math.PI / 2 - 0.1;
+		this.camera.lowerRadiusLimit = 3;
+		this.camera.upperRadiusLimit = 15;
+		this.camera.lowerBetaLimit = -1.5 ;
+		this.camera.upperBetaLimit = Math.PI / 2 ;
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100;
 		this.camera.wheelPrecision = 50;
@@ -135,6 +142,10 @@ export class Landing {
 	}
 
 	private setupControls(): void {
+		let lastHoveredMesh: string | null = null;
+		let hoverCount = 0;
+
+		// Handle clicks with pointer observable (this works)
 		this.scene.onPointerObservable.add(info => {
 			if (
 				info.type === BABYLON.PointerEventTypes.POINTERDOWN &&
@@ -145,8 +156,60 @@ export class Landing {
 			}
 		});
 
-		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
+		// Handle hover detection with manual canvas events (alternative approach)
+		let throttleTimer: ReturnType<typeof setTimeout> | null = null;
 
+		this.mouseMoveHandler = (event: MouseEvent) => {
+			// Throttle hover detection to avoid performance issues
+			if (throttleTimer) return;
+
+			throttleTimer = setTimeout(() => {
+				throttleTimer = null;
+			}, 16); // ~60fps throttling
+
+			hoverCount++;
+
+			// Use Babylon.js built-in picking method (same as pointer observables)
+			const pickInfo = this.scene.pick(
+				event.offsetX,
+				event.offsetY,
+				undefined, // predicate (check all meshes)
+				false, // fastCheck
+				this.camera
+			);
+
+			if (pickInfo?.hit && pickInfo.pickedMesh) {
+				const meshName = pickInfo.pickedMesh.name;
+				// Only update when hovering a different mesh (avoid spam)
+				if (meshName !== lastHoveredMesh) {
+					// Stop glow on previous mesh
+					if (this.hoveredMesh) {
+						this.stopHoverGlow(this.hoveredMesh);
+					}
+					// Start glow on new mesh
+					if (this.isClickableMesh(pickInfo.pickedMesh)) {
+						this.startHoverGlow(pickInfo.pickedMesh);
+						this.hoveredMesh = pickInfo.pickedMesh;
+					} else {
+						this.hoveredMesh = null;
+					}
+					lastHoveredMesh = meshName;
+				}
+			} else {
+				// Reset when not hovering over anything
+				if (lastHoveredMesh !== null) {
+					// Stop glow on current hovered mesh
+					if (this.hoveredMesh) {
+						this.stopHoverGlow(this.hoveredMesh);
+						this.hoveredMesh = null;
+					}
+					lastHoveredMesh = null;
+				}
+			}
+		};
+
+		this.canvas.addEventListener('mousemove', this.mouseMoveHandler);
+		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
 		// Listen for modal open/close events to manage camera controls
 		this.setupModalListeners();
 	}
@@ -279,14 +342,15 @@ export class Landing {
 				planeMesh.receiveShadows = true;
 			}
 		}
-
-		// console.group('Meshes loaded');
-		// for (const m of meshes) {
-		// 	console.log(m.name, '-> parent:', m.parent?.name || 'none');
-		// }
-		// console.groupEnd();
-
 		this.fitCameraToScene(meshes);
+
+		// Attach camera controls after everything is set up
+		setTimeout(() => {
+			if (this.camera && this.canvas) {
+				this.camera.attachControl(this.canvas, true);
+				console.log('✅ Camera controls attached after model load');
+			}
+		}, 100);
 	}
 
 	private fitCameraToScene(meshes: BABYLON.AbstractMesh[]): void {
@@ -323,6 +387,15 @@ export class Landing {
 		}
 	}
 
+	private isClickableMesh(mesh: BABYLON.AbstractMesh): boolean {
+		const name = mesh.name.toLowerCase();
+		return (
+			name.includes('local') ||
+			name.includes('remote') ||
+			name.includes('stats')
+		);
+	}
+
 	// Public methods to manually control camera for modal interactions
 	public disableCameraControls(): void {
 		if (this.camera) {
@@ -345,8 +418,83 @@ export class Landing {
 		}
 	}
 
-	public dispose(): void {
+	private startHoverGlow(mesh: BABYLON.AbstractMesh): void {
+		if (!this.isClickableMesh(mesh)) return;
 
+		// Determine which group this mesh belongs to and get all related meshes
+		const meshName = mesh.name.toLowerCase();
+		let targetMeshes: BABYLON.AbstractMesh[] = [];
+		let glowColor: { diffuse: BABYLON.Color3; emissive: BABYLON.Color3 };
+
+		if (meshName.includes('local')) {
+			targetMeshes = this.localGameMeshes;
+			// Darker yellow/orange glow
+			glowColor = {
+				diffuse: new BABYLON.Color3(0.9, 0.8, 0.2),
+				emissive: new BABYLON.Color3(0.5, 0.45, 0.1),
+			};
+		} else if (meshName.includes('remote')) {
+			targetMeshes = this.remoteGameMeshes;
+			// Darker green glow
+			glowColor = {
+				diffuse: new BABYLON.Color3(0.1, 0.5, 0.1),
+				emissive: new BABYLON.Color3(0.05, 0.3, 0.05),
+			};
+		} else if (meshName.includes('stats')) {
+			targetMeshes = this.statsMeshes;
+			// Blue glow
+			glowColor = {
+				diffuse: new BABYLON.Color3(0.3, 0.3, 1.0),
+				emissive: new BABYLON.Color3(0.15, 0.15, 0.6),
+			};
+		}
+
+		// Apply glow to all meshes in the group
+		targetMeshes.forEach(targetMesh => {
+			// Store original material if not already stored
+			if (!this.originalMaterials.has(targetMesh)) {
+				this.originalMaterials.set(targetMesh, targetMesh.material);
+			}
+
+			// Create glow material
+			const glowMaterial = new BABYLON.StandardMaterial(
+				`${targetMesh.name}_glow`,
+				this.scene
+			);
+			glowMaterial.diffuseColor = glowColor.diffuse;
+			glowMaterial.emissiveColor = glowColor.emissive;
+			glowMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+			glowMaterial.specularPower = 64;
+			glowMaterial.backFaceCulling = false;
+
+			// Apply glow material
+			targetMesh.material = glowMaterial;
+		});
+	}
+
+	private stopHoverGlow(mesh: BABYLON.AbstractMesh): void {
+		// Determine which group this mesh belongs to and get all related meshes
+		const meshName = mesh.name.toLowerCase();
+		let targetMeshes: BABYLON.AbstractMesh[] = [];
+
+		if (meshName.includes('local')) {
+			targetMeshes = this.localGameMeshes;
+		} else if (meshName.includes('remote')) {
+			targetMeshes = this.remoteGameMeshes;
+		} else if (meshName.includes('stats')) {
+			targetMeshes = this.statsMeshes;
+		}
+
+		// Restore original materials for all meshes in the group
+		targetMeshes.forEach(targetMesh => {
+			const originalMaterial = this.originalMaterials.get(targetMesh);
+			if (originalMaterial !== undefined) {
+				targetMesh.material = originalMaterial;
+			}
+		});
+	}
+
+	public dispose(): void {
 		try {
 			// Stop render loop
 			if (this.engine && !this.engine.isDisposed) {
@@ -357,6 +505,13 @@ export class Landing {
 			if (this.scene && !this.scene.isDisposed) {
 				this.scene.stopAllAnimations();
 			}
+
+			// Clean up hover glow
+			if (this.hoveredMesh) {
+				this.stopHoverGlow(this.hoveredMesh);
+				this.hoveredMesh = null;
+			}
+			this.originalMaterials.clear();
 
 			// Clear mesh arrays
 			this.localGameMeshes = [];
@@ -386,6 +541,14 @@ export class Landing {
 					'contextmenu',
 					this.contextMenuHandler
 				);
+			}
+
+			if (this.mouseMoveHandler) {
+				this.canvas.removeEventListener(
+					'mousemove',
+					this.mouseMoveHandler
+				);
+				this.mouseMoveHandler = undefined;
 			}
 
 			// Detach camera controls

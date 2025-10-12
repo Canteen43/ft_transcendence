@@ -1,14 +1,13 @@
 import Chart from 'chart.js/auto';
-import { z } from 'zod';
 import {
+	PercentageWinsHistory,
 	PercentageWinsHistorySchema,
+	Ranking,
+	RankingItem,
 	RankingItemSchema,
 	RankingSchema,
-	TournamentStatsSchema,
 	TournamentStats,
-	Ranking,
-	PercentageWinsHistory,
-	RankingItem,
+	TournamentStatsSchema,
 } from '../../../shared/schemas/stats';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { apiCall } from '../utils/apiCall';
@@ -41,7 +40,12 @@ export class StatModal extends Modal {
 		await this.getMatchData();
 		await this.getTournData();
 
-		if (!this.histData && !this.rankData && !this.matchData && !this.tournData) {
+		if (
+			!this.histData &&
+			!this.rankData &&
+			!this.matchData &&
+			!this.tournData
+		) {
 			console.debug('No stat, closing modal');
 			this.destroy();
 			return;
@@ -116,7 +120,6 @@ export class StatModal extends Modal {
 		this.matchData = matchData;
 	}
 
-
 	private async getTournData() {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
@@ -138,7 +141,6 @@ export class StatModal extends Modal {
 		console.debug(tournData);
 		this.tournData = tournData;
 	}
-
 
 	private createOutput(): void {
 		const base =
@@ -175,8 +177,10 @@ export class StatModal extends Modal {
 			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 my-6';
 		leftContainer.appendChild(leftContainerTitle);
 
-		leftContainer.appendChild(this.createIndivData());
-		leftContainer.appendChild(this.createCumulativeGraph());
+		leftContainer.appendChild(this.createMatchData());
+		leftContainer.appendChild(this.createScoreData());
+		leftContainer.appendChild(this.createTournData());
+		leftContainer.appendChild(this.createGraph());
 		return leftContainer;
 	}
 
@@ -190,7 +194,7 @@ export class StatModal extends Modal {
 		rightContainerTitle.src = imgRight;
 		rightContainerTitle.alt = 'Hist';
 		rightContainerTitle.className =
-			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 my-6';
+			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 my-8';
 		rightContainer.appendChild(rightContainerTitle);
 
 		rightContainer.appendChild(this.createLeaderBoard());
@@ -274,16 +278,16 @@ export class StatModal extends Modal {
 	}
 	/////////////////
 	// individual data
-	private createIndivData(): HTMLDivElement {
-		const indivContainer = document.createElement('div');
-		indivContainer.className = 'flex flex-col gap-6 mb-6';
+	private createMatchData(): HTMLDivElement {
+		const matchContainer = document.createElement('div');
+		matchContainer.className = 'flex flex-col gap-3 mt-6';
 
 		// Match Stats Title
 		const matchTitle = document.createElement('h3');
 		matchTitle.className =
 			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
 		matchTitle.textContent = 'Match Statistics';
-		indivContainer.appendChild(matchTitle);
+		matchContainer.appendChild(matchTitle);
 
 		// Header row
 		const header = document.createElement('div');
@@ -300,7 +304,7 @@ export class StatModal extends Modal {
 		header.appendChild(playedHeader);
 		header.appendChild(winsHeader);
 		header.appendChild(percentHeader);
-		indivContainer.appendChild(header);
+		matchContainer.appendChild(header);
 
 		// Data row
 		const dataRow = document.createElement('div');
@@ -322,8 +326,69 @@ export class StatModal extends Modal {
 		dataRow.appendChild(total);
 		dataRow.appendChild(totalWin);
 		dataRow.appendChild(percentWin);
-		indivContainer.appendChild(dataRow);
 
+		matchContainer.appendChild(dataRow);
+
+		return matchContainer;
+	}
+
+	/////////////////
+	// tourn data
+	private createTournData(): HTMLDivElement {
+		const matchContainer = document.createElement('div');
+		matchContainer.className = 'flex flex-col gap-3 mt-6';
+
+		// Match Stats Title
+		const matchTitle = document.createElement('h3');
+		matchTitle.className =
+			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
+		matchTitle.textContent = 'Tournament Statistics';
+		matchContainer.appendChild(matchTitle);
+
+		// Header row
+		const header = document.createElement('div');
+		header.className =
+			'grid grid-cols-3 gap-0 text-center text-[var(--color3)] items-center text-sm sm:text-base font-semibold';
+
+		const playedHeader = document.createElement('span');
+		playedHeader.textContent = 'Played';
+		const winsHeader = document.createElement('span');
+		winsHeader.textContent = 'Wins';
+		const percentHeader = document.createElement('span');
+		percentHeader.textContent = '% Wins';
+
+		header.appendChild(playedHeader);
+		header.appendChild(winsHeader);
+		header.appendChild(percentHeader);
+		matchContainer.appendChild(header);
+
+		// Data row
+		const dataRow = document.createElement('div');
+		dataRow.className =
+			'grid grid-cols-3 gap-0 text-center items-center text-[var(--color3)]';
+
+		const total = document.createElement('span');
+		total.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		total.textContent = this.tournData!.played.toString();
+
+		const percentFinal = document.createElement('span');
+		percentFinal.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		percentFinal.textContent = `${(this.tournData!.percentage_final * 100).toFixed(1)}%`;
+
+		const percentWin = document.createElement('span');
+		percentWin.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		percentWin.textContent = `${(this.tournData!.percentage_wins * 100).toFixed(1)}%`;
+
+		dataRow.appendChild(total);
+		dataRow.appendChild(percentFinal);
+		dataRow.appendChild(percentWin);
+
+		matchContainer.appendChild(dataRow);
+
+		return matchContainer;
+	}
+
+	private createScoreData(): HTMLDivElement {
 		// Goals bar graph
 		const goalsContainer = document.createElement('div');
 		goalsContainer.className = 'flex flex-col gap-3 mt-6';
@@ -375,32 +440,30 @@ export class StatModal extends Modal {
 
 		barContainer.appendChild(scoredBar);
 		barContainer.appendChild(concededBar);
+
 		goalsContainer.appendChild(barContainer);
 
-		indivContainer.appendChild(goalsContainer);
-
-		return indivContainer;
+		return goalsContainer;
 	}
 
 	/////////////////
 	// GRAPH CUMULATIVE WINS
-	private createCumulativeGraph(): HTMLDivElement {
+	private createGraph(): HTMLDivElement {
 		const graph = document.createElement('div');
 		graph.className = 'flex flex-col gap-4';
 
 		// Graph Title
 		const graphTitle = document.createElement('h3');
 		graphTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
+			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center  border border-gray-300  rounded';
 		graphTitle.textContent = '% Wins History';
 		graph.appendChild(graphTitle);
 
 		const buttonContainer = document.createElement('div');
-		buttonContainer.className = 'flex gap-2 mb-4 py-1.5 justify-center';
+		buttonContainer.className = 'flex gap-2  justify-center';
 
 		const limits = [20, 50, 100];
 		let currentLimit = 100;
-		let chartInstance: Chart | null = null;
 
 		const createChart = (limit: number) => {
 			if (!this.histData) return;
