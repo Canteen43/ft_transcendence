@@ -42,6 +42,7 @@ export class GameScreen extends Screen {
 		}
 		this.pong3DInstance = undefined;
 		if (state.gameOngoing && state.gameMode === 'remote') {
+			console.debug('QUIT sent')
 			webSocket.send({ t: MESSAGE_QUIT });
 		}
 		state.gameOngoing = false;

@@ -18,20 +18,20 @@ export class LocalGameModal extends Modal {
 		super(parent);
 
 		const img2 = document.createElement('img');
-		img2.src = '2_players.png';
-		img2.className = 'h-16 sm:h-20 md:h-[100px]';
+		img2.src = '2p.png';
+		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const img3 = document.createElement('img');
-		img3.src = '3_players.png';
-		img3.className = 'h-16 sm:h-20 md:h-[100px]';
+		img3.src = '3p.png';
+		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const img4 = document.createElement('img');
-		img4.src = '4_players.png';
-		img4.className = 'h-16 sm:h-20 md:h-[100px]';
+		img4.src = '4p.png';
+		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const imgt = document.createElement('img');
 		imgt.src = 'trophy.png';
-		imgt.className = 'h-16 sm:h-20 md:h-[100px]';
+		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		// Create buttons with images inside
 		this.btn2 = new Button(
@@ -58,9 +58,10 @@ export class LocalGameModal extends Modal {
 		// Fixed button size
 		[this.btn2, this.btn3, this.btn4, this.btnT].forEach(btn => {
 			btn.element.className +=
-				' w-full max-w-[300px] sm:max-w-[350px] md:max-w-[400px]' +
-				' h-[100px] sm:h-[120px] md:h-[140px]' +
+				' w-full' +
+				' min-h-[120px]' +
 				' flex items-center justify-center' +
+				' p-4' +
 				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
@@ -72,8 +73,9 @@ export class LocalGameModal extends Modal {
 		this.box.className +=
 			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
 			' relative grid place-items-center' +
-			' gap-4 w-[90vw] sm:w-auto max-w-[500px] rounded-sm' +
+			' gap-4 w-[90vw] sm:w-auto max-w-[600px] rounded-sm' + // Increased max-w
 			' grid-cols-1 sm:grid-cols-2';
+
 		this.btn2.element.focus();
 		this.btn2.element.tabIndex = 0;
 		this.btn3.element.tabIndex = 0;

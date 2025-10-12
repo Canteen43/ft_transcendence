@@ -92,8 +92,10 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			case MESSAGE_QUIT:
 				console.info('Received quit message:', msg);
 				if (location.hash === '#home') {
-					const readyModal = document.querySelector('.ready-modal');
-					readyModal?.remove();
+					if (state.currentModal) {
+						state.currentModal.destroy();
+						state.currentModal = null;
+					}
 				}
 				location.hash = '#home';
 				new TextModal(

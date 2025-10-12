@@ -1,3 +1,5 @@
+import { Modal } from '../modals/Modal';
+
 class State {
 	public tournamentOngoing: boolean = false;
 	public gameOngoing: boolean = false;
@@ -6,9 +8,7 @@ class State {
 	public tournamentSize: number = 0;
 	public replayCounter: number = 0;
 	public chatExpanded: boolean = true;
-	// debug variables
-	// public normalGameReady: boolean = false;
-	// public playerId: string = '';
+	public currentModal: Modal | null = null;
 	}
 
 export const state = new State();

@@ -104,7 +104,7 @@ export class Landing {
 		this.camera.lowerRadiusLimit = 3;
 		this.camera.upperRadiusLimit = 15;
 		this.camera.lowerBetaLimit = -1.5 ;
-		this.camera.upperBetaLimit = Math.PI / 2 ;
+		this.camera.upperBetaLimit = Math.PI / 2;
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100;
 		this.camera.wheelPrecision = 50;

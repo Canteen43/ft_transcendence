@@ -67,7 +67,8 @@ export class RemoteSetupModal extends Modal {
 		}
 
 		this.destroy();
-		new WaitingModal(this.parent);
+		const waitingModal = new WaitingModal(this.parent);
+		state.currentModal = waitingModal;
 	}
 
 	public destroy(): void {

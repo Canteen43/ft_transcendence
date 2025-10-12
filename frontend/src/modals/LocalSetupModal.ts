@@ -312,7 +312,6 @@ export class LocalSetupModal extends Modal {
 				this.powerupCheckboxes.shrink.checked ? '1' : '0'
 			);
 		}
-
 		location.hash = '#game';
 	}
 

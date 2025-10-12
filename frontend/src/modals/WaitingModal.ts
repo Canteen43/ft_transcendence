@@ -1,5 +1,6 @@
 import { hourglass, jelly, newtonsCradle } from 'ldrs';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { Modal } from './Modal';
 import { ReadyModal } from './ReadyModal';
 import { TextModal } from './TextModal';
@@ -21,7 +22,8 @@ export class WaitingModal extends Modal {
 	}
 
 	private async nextStep(): Promise<void> {
-		new ReadyModal(this.parent);
+		const readyModal = new ReadyModal(this.parent);
+		state.currentModal = readyModal;
 		this.destroy();
 	}
 

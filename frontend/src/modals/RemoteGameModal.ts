@@ -22,11 +22,11 @@ export class RemoteGameModal extends Modal {
 		this.box.classList.add('remote-modal');
 
 		const img2 = document.createElement('img');
-		img2.src = '2_players.png';
+		img2.src = '2p.png';
 		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const img2_pu = document.createElement('img');
-		img2_pu.src = '2_players_powerups.png';
+		img2_pu.src = '2pPU.png';
 		img2_pu.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const imgt = document.createElement('img');
@@ -34,7 +34,7 @@ export class RemoteGameModal extends Modal {
 		imgt.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		const imgt_pu = document.createElement('img');
-		imgt_pu.src = 'trophy_powerups.png';
+		imgt_pu.src = 'trophyPU.png';
 		imgt_pu.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
 
 		this.btn2plyr = new Button(
@@ -67,7 +67,7 @@ export class RemoteGameModal extends Modal {
 		].forEach(btn => {
 			btn.element.className +=
 				' w-full' +
-				' min-h-[120px]' + // Minimum height for consistency
+				' min-h-[120px]' + 
 				' flex items-center justify-center' +
 				' p-4' +
 				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
@@ -165,6 +165,8 @@ export class RemoteGameModal extends Modal {
 		clearAllGameData();
 
 		console.debug('Set sessionStorage');
+
+		state.currentModal = null;
 
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;

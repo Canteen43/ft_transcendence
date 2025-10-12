@@ -24,10 +24,10 @@ export class Modal {
 		parent.appendChild(this.overlay);
 
 		this.escHandler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') this.destroy();
+			if (e.key === 'Escape') this.quit();
 		};
 		this.clickOutside = (e: MouseEvent) => {
-			if (e.target === this.overlay) this.destroy();
+			if (e.target === this.overlay) this.quit();
 		};
 		this.stopPropagationHandler = (e: MouseEvent) => e.stopPropagation();
 
@@ -36,11 +36,15 @@ export class Modal {
 		this.box.addEventListener('click', this.stopPropagationHandler);
 	}
 
+	public quit() {
+		this.destroy();
+	}
+
 	public destroy(): void {
 		document.removeEventListener('keydown', this.escHandler);
 		this.overlay.removeEventListener('click', this.clickOutside);
 		this.box.removeEventListener('click', this.stopPropagationHandler);
-	
+
 		this.overlay.remove();
 		this.onClose?.();
 	}
