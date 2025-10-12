@@ -98,7 +98,10 @@ async function joinTournament(
 		throw error;
 	}
 
-	const queue = await TournamentService.getQueueWithLock(request.body.size);
+	const queue = await TournamentService.getQueueWithLock(
+		request.body.size,
+		request.body.type
+	);
 	return { queue: Array.from(queue).map(user => user.userId) };
 }
 

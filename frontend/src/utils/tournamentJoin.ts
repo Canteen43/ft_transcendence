@@ -16,6 +16,7 @@ export async function joinTournament(
 ): Promise<TournamentJoinResult> {
 	const joinData = {
 		size: targetSize,
+		type: 0,
 		alias: sessionStorage.getItem('alias'),
 	};
 
@@ -118,7 +119,6 @@ export async function createTournament(
 	};
 }
 
-
 export async function leaveTournament(): Promise<void> {
 	console.debug('POST /tournaments/leave');
 	const { error } = await apiCall('POST', '/tournaments/leave');
@@ -126,8 +126,6 @@ export async function leaveTournament(): Promise<void> {
 		console.error('Error leaving tournament:', error);
 	}
 }
-
-
 
 export async function replayTournament(
 	playerQueue: any
@@ -171,4 +169,3 @@ export async function replayTournament(
 		error: 'Failed to create tournament',
 	};
 }
-
