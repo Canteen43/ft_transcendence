@@ -27,8 +27,8 @@ export class StatModal extends Modal {
 
 		this.element = document.createElement('div');
 		this.element.className =
-			'mx-auto my-auto w-full h-full ' +
-			'flex flex-col items-center justify-center p-4 sm:p-8';
+			'mx-auto my-auto max-w-4xl max-h-[90vh] overflow-y-auto ' +
+			'flex flex-col items-center justify-center p-3 sm:p-6';
 		this.box.appendChild(this.element);
 
 		if (isLoggedIn()) this.initialize();
@@ -143,8 +143,7 @@ export class StatModal extends Modal {
 	}
 
 	private createOutput(): void {
-		const base =
-			"font-azeret [font-variation-settings:'wght'_900] w-full mx-auto";
+		const base = "  [font-variation-settings:'wght'_900] w-full mx-auto";
 		const container = document.createElement('div');
 		container.className =
 			this.matchData && this.histData && this.rankData
@@ -165,37 +164,33 @@ export class StatModal extends Modal {
 	}
 
 	private creatLeftSide(): HTMLDivElement {
-		const imgTop = '../stats2.png';
-
 		const leftContainer = document.createElement('div');
 		leftContainer.className = 'bg-white p-6 rounded-2xl';
 
-		const leftContainerTitle = document.createElement('img');
-		leftContainerTitle.src = imgTop;
-		leftContainerTitle.alt = 'Hist';
-		leftContainerTitle.className =
-			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 my-6';
-		leftContainer.appendChild(leftContainerTitle);
-
-		leftContainer.appendChild(this.createMatchData());
-		leftContainer.appendChild(this.createScoreData());
-		leftContainer.appendChild(this.createTournData());
-		leftContainer.appendChild(this.createGraph());
+		// Remove image and create sections with more space between them
+		if (this.matchData) {
+			leftContainer.appendChild(this.createMatchData());
+			leftContainer.appendChild(this.createScoreData());
+		}
+		if (this.tournData) {
+			leftContainer.appendChild(this.createTournData());
+		}
+		if (this.histData) {
+			leftContainer.appendChild(this.createGraph());
+		}
 		return leftContainer;
 	}
 
 	private creatRightSide(): HTMLDivElement {
-		const imgRight = '../Leaderboard2.png';
-
 		const rightContainer = document.createElement('div');
 		rightContainer.className = 'bg-white p-6 rounded-2xl';
 
-		const rightContainerTitle = document.createElement('img');
-		rightContainerTitle.src = imgRight;
-		rightContainerTitle.alt = 'Hist';
-		rightContainerTitle.className =
-			'mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 my-8';
-		rightContainer.appendChild(rightContainerTitle);
+		// Add LEADERBOARD title
+		const leaderboardTitle = document.createElement('h3');
+		leaderboardTitle.className =
+			'text-3xl sm:text-4xl font-nabla text-gray-800 text-center mb-4';
+		leaderboardTitle.textContent = 'LEADERBOARD';
+		rightContainer.appendChild(leaderboardTitle);
 
 		rightContainer.appendChild(this.createLeaderBoard());
 		return rightContainer;
@@ -205,14 +200,14 @@ export class StatModal extends Modal {
 	// Right column: Leaderboard
 	private createLeaderBoard(): HTMLDivElement {
 		const leaderBoard = document.createElement('div');
-		leaderBoard.className = 'bg-white p-3 min-w-[500px]';
+		leaderBoard.className = 'bg-white p-3 w-full';
 
 		const baseGrid =
 			'grid grid-cols-[1rem_1fr_3.5rem_4rem] gap-2 sm:gap-6 items-center ';
 
 		// header
 		const header = document.createElement('div');
-		header.className = `${baseGrid} px-2 sm:px-3 py-1 text-[var(--color3bis)] sticky top-2 bg-white text-sm sm:text-base`;
+		header.className = `${baseGrid} px-2 sm:px-3 py-1 text-gray-600 sticky top-2 bg-white text-xs sm:text-sm`;
 
 		// header cells
 		const emptyCell1 = document.createElement('span');
@@ -240,28 +235,27 @@ export class StatModal extends Modal {
 				const isCurrentUser = currentUsername === playerUsername;
 
 				const row = document.createElement('div');
-				row.className = `${baseGrid} px-3 sm:px-4 py-2 sm:py-3 text-[var(--color3bis)] font-semibold transition-colors ${
-					isCurrentUser ? 'text-[var(--color2bis)]' : ''
-				}`;
+				row.className = `${baseGrid} px-3 sm:px-4 py-2 sm:py-3 text-gray-500   transition-colors `;
+				//  ${  isCurrentUser ? 'text-[var(--color6)] username-glow  font-bold' : ''
 
 				// Rank
 				const rank = document.createElement('span');
-				rank.className = `text-xl sm:text-2xl text-xl sm:text-3xl ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				rank.className = `text-sm sm:text-base ${isCurrentUser ? 'text-pink username-glow font-bold' : ''}`;
 				rank.textContent = player.rank.toString() + '.';
 
 				// Name
 				const name = document.createElement('span');
-				name.className = `text-xl sm:text-3xl font-bold truncate ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				name.className = `text-sm sm:text-base font-bold truncate  ${isCurrentUser ? 'text-pink username-glow ' : ''}`;
 				name.textContent = playerUsername;
 
 				// Played
 				const played = document.createElement('div');
-				played.className = `text-base sm:text-xl text-center font-semibold  min-w-[3rem] sm:min-w-[4rem]  ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				played.className = `text-xs sm:text-sm text-center min-w-[3rem] sm:min-w-[4rem] ${isCurrentUser ? 'text-pink username-glow  font-bold' : ''}`;
 				played.textContent = player.played.toString();
 
 				// % Wins
 				const wins = document.createElement('div');
-				wins.className = `text-base sm:text-xl text-center font-semibold  min-w-[3rem] sm:min-w-[4rem] ${isCurrentUser ? 'text-[var(--color2)]' : ''}`;
+				wins.className = `text-xs sm:text-sm text-center min-w-[3rem] sm:min-w-[4rem] ${isCurrentUser ? 'text-pink username-glow font-bold' : ''}`;
 				wins.textContent = `${(player.percentage_wins * 100).toFixed(1)}%`;
 
 				row.appendChild(rank);
@@ -280,19 +274,19 @@ export class StatModal extends Modal {
 	// individual data
 	private createMatchData(): HTMLDivElement {
 		const matchContainer = document.createElement('div');
-		matchContainer.className = 'flex flex-col gap-3 mt-6';
+		matchContainer.className = 'flex flex-col gap-1 mb-8';
 
 		// Match Stats Title
 		const matchTitle = document.createElement('h3');
 		matchTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
-		matchTitle.textContent = 'Match Statistics';
+			'text-3xl sm:text-4xl font-nabla text-gray-800 text-center mb-2';
+		matchTitle.textContent = 'All Matches';
 		matchContainer.appendChild(matchTitle);
 
 		// Header row
 		const header = document.createElement('div');
 		header.className =
-			'grid grid-cols-3 gap-0 text-center text-[var(--color3)] items-center text-sm sm:text-base font-semibold';
+			'grid grid-cols-3 gap-0 text-center text-gray-600 items-center text-xs sm:text-sm  ';
 
 		const playedHeader = document.createElement('span');
 		playedHeader.textContent = 'Played';
@@ -309,18 +303,18 @@ export class StatModal extends Modal {
 		// Data row
 		const dataRow = document.createElement('div');
 		dataRow.className =
-			'grid grid-cols-3 gap-0 text-center items-center text-[var(--color3)]';
+			'grid grid-cols-3 gap-0 text-center items-center text-gray-500';
 
 		const total = document.createElement('span');
-		total.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		total.className = 'text-lg sm:text-xl leading-none';
 		total.textContent = this.matchData!.played.toString();
 
 		const totalWin = document.createElement('span');
-		totalWin.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		totalWin.className = 'text-lg sm:text-xl leading-none';
 		totalWin.textContent = this.matchData!.wins.toString();
 
 		const percentWin = document.createElement('span');
-		percentWin.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		percentWin.className = 'text-lg sm:text-xl font-bold leading-none';
 		percentWin.textContent = `${(this.matchData!.percentage_wins * 100).toFixed(1)}%`;
 
 		dataRow.appendChild(total);
@@ -336,24 +330,24 @@ export class StatModal extends Modal {
 	// tourn data
 	private createTournData(): HTMLDivElement {
 		const matchContainer = document.createElement('div');
-		matchContainer.className = 'flex flex-col gap-3 mt-6';
+		matchContainer.className = 'flex flex-col gap-1 mb-8';
 
-		// Match Stats Title
+		// Tournament Stats Title
 		const matchTitle = document.createElement('h3');
 		matchTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
-		matchTitle.textContent = 'Tournament Statistics';
+			'text-3xl sm:text-4xl font-nabla text-gray-800 text-center mb-2';
+		matchTitle.textContent = 'Tournaments';
 		matchContainer.appendChild(matchTitle);
 
 		// Header row
 		const header = document.createElement('div');
 		header.className =
-			'grid grid-cols-3 gap-0 text-center text-[var(--color3)] items-center text-sm sm:text-base font-semibold';
+			'grid grid-cols-3 gap-0 text-center text-gray-600 items-center text-xs sm:text-sm  ';
 
 		const playedHeader = document.createElement('span');
 		playedHeader.textContent = 'Played';
 		const winsHeader = document.createElement('span');
-		winsHeader.textContent = 'Wins';
+		winsHeader.textContent = '% Finals';
 		const percentHeader = document.createElement('span');
 		percentHeader.textContent = '% Wins';
 
@@ -365,18 +359,18 @@ export class StatModal extends Modal {
 		// Data row
 		const dataRow = document.createElement('div');
 		dataRow.className =
-			'grid grid-cols-3 gap-0 text-center items-center text-[var(--color3)]';
+			'grid grid-cols-3 gap-0 text-center items-center text-gray-500';
 
 		const total = document.createElement('span');
-		total.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		total.className = 'text-lg sm:text-xl leading-none';
 		total.textContent = this.tournData!.played.toString();
 
 		const percentFinal = document.createElement('span');
-		percentFinal.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		percentFinal.className = 'text-lg sm:text-xl leading-none';
 		percentFinal.textContent = `${(this.tournData!.percentage_final * 100).toFixed(1)}%`;
 
 		const percentWin = document.createElement('span');
-		percentWin.className = 'text-2xl sm:text-3xl font-bold leading-none';
+		percentWin.className = 'text-lg sm:text-xl font-bold leading-none';
 		percentWin.textContent = `${(this.tournData!.percentage_wins * 100).toFixed(1)}%`;
 
 		dataRow.appendChild(total);
@@ -391,12 +385,12 @@ export class StatModal extends Modal {
 	private createScoreData(): HTMLDivElement {
 		// Goals bar graph
 		const goalsContainer = document.createElement('div');
-		goalsContainer.className = 'flex flex-col gap-3 mt-6';
+		goalsContainer.className = 'flex flex-col gap-1 mb-8';
 
 		// Goals Title
 		const goalsTitle = document.createElement('h3');
 		goalsTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center mb-4 border border-gray-300 p-2 rounded';
+			'text-3xl sm:text-4xl font-nabla text-gray-800 text-center mb-2';
 		goalsTitle.textContent = 'Goals';
 		goalsContainer.appendChild(goalsTitle);
 
@@ -408,8 +402,7 @@ export class StatModal extends Modal {
 
 		// Goals header
 		const goalsHeader = document.createElement('div');
-		goalsHeader.className =
-			'flex justify-between text-sm text-[var(--color3)] font-semibold';
+		goalsHeader.className = 'flex justify-between text-xs text-gray-600  ';
 
 		const scoredLabel = document.createElement('span');
 		scoredLabel.textContent = `Scored: ${goalsScored}`;
@@ -426,14 +419,14 @@ export class StatModal extends Modal {
 
 		const scoredBar = document.createElement('div');
 		scoredBar.className =
-			'bg-[var(--color6)] flex items-center justify-center text-white text-sm font-bold';
+			'bg-[var(--color6)] flex items-center justify-center text-white text-xs  ';
 		scoredBar.style.width = `${scoredPercentage}%`;
 		scoredBar.textContent =
 			scoredPercentage > 15 ? `${scoredPercentage.toFixed(0)}%` : '';
 
 		const concededBar = document.createElement('div');
 		concededBar.className =
-			'bg-[var(--color7)] flex items-center justify-center text-white text-sm font-bold';
+			'bg-[var(--color7)] flex items-center justify-center text-white text-xs  ';
 		concededBar.style.width = `${againstPercentage}%`;
 		concededBar.textContent =
 			againstPercentage > 15 ? `${againstPercentage.toFixed(0)}%` : '';
@@ -450,12 +443,12 @@ export class StatModal extends Modal {
 	// GRAPH CUMULATIVE WINS
 	private createGraph(): HTMLDivElement {
 		const graph = document.createElement('div');
-		graph.className = 'flex flex-col gap-4';
+		graph.className = 'flex flex-col gap-1 mb-8';
 
 		// Graph Title
 		const graphTitle = document.createElement('h3');
 		graphTitle.className =
-			'text-xl sm:text-2xl font-bold text-[var(--color3bis)] text-center  border border-gray-300  rounded';
+			'text-3xl sm:text-4xl font-nabla text-gray-800 text-center mb-2';
 		graphTitle.textContent = '% Wins History';
 		graph.appendChild(graphTitle);
 
@@ -507,8 +500,8 @@ export class StatModal extends Modal {
 							label: '% Wins',
 							data: values,
 							fill: false,
-							backgroundColor: 'rgba(99, 102, 241, 0.2)',
-							borderColor: '#2c5fa5',
+							backgroundColor: 'rgba(249, 252, 54, 0.94)',
+							borderColor: '#ee1af5ff',
 							borderWidth: 2,
 							tension: 0.3,
 							pointRadius: 2,
@@ -547,18 +540,18 @@ export class StatModal extends Modal {
 			const button = document.createElement('button');
 			button.textContent = `Last ${limit}`;
 			button.className =
-				'px-4 py-1 rounded transition-colors font-semibold ' +
+				'px-4 py-1 rounded transition-colors   ' +
 				(limit === currentLimit
-					? 'bg-[var(--color3)] text-white'
+					? 'bg-pink-300 text-white'
 					: 'bg-gray-200 text-gray-700 hover:bg-gray-300');
 
 			button.addEventListener('click', () => {
 				currentLimit = limit;
 				buttonContainer.querySelectorAll('button').forEach(btn => {
 					btn.className =
-						'px-4 py-1 rounded transition-colors font-semibold ' +
+						'px-4 py-1 rounded transition-colors   ' +
 						(btn === button
-							? 'bg-[var(--color3)] text-white'
+							? 'bg-pink-300 text-white'
 							: 'bg-gray-200 text-gray-700 hover:bg-gray-300');
 				});
 				createChart(limit);

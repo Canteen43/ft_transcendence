@@ -12,6 +12,23 @@
 	--font-nabla: 'Nabla', sans-serif;
 }
 
+.text-pink {
+	color: var(--color6);
+}
+
+.username-glow {
+	animation: usernameGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes usernameGlow {
+	0% {
+		text-shadow: 0 0 5px var(--color8), 0 0 10px var(--color8);
+	}
+	100% {
+		text-shadow: 0 0 10px var(--color8), 0 0 20px var(--color8), 0 0 30px var(--color8);
+	}
+}
+
 :root {
 	--color1: #dee5e6;
 	--color1bis: rgba(247, 231, 231, 0.712);
@@ -23,7 +40,8 @@
 	--color5: #c6d6eb;
 	--color6: #f703ff;
 	--color7: #fdc500;
-	--color8: #ffd500;
+	--color8: #f5a4f8;
+
 }
 
 ::-webkit-scrollbar {
