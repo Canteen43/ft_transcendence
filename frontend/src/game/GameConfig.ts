@@ -219,8 +219,7 @@ export class GameConfig {
 
 	static isLocalTournament(): boolean {
 		return (
-			this.isLocalMode() &&
-			sessionStorage.getItem('tournament') === '1'
+			this.isLocalMode() && sessionStorage.getItem('tournament') === '1'
 		);
 	}
 
@@ -369,17 +368,14 @@ export class GameConfig {
 		}
 	}
 
-	static getDefaultControlScheme(
-		playerIndex: 1 | 2 | 3 | 4
-	): ControlScheme {
+	static getDefaultControlScheme(playerIndex: 1 | 2 | 3 | 4): ControlScheme {
 		return (
-			this.DEFAULT_CONTROL_SCHEMES[playerIndex - 1] ?? this.DEFAULT_CONTROL_SCHEMES[0]
+			this.DEFAULT_CONTROL_SCHEMES[playerIndex - 1] ??
+			this.DEFAULT_CONTROL_SCHEMES[0]
 		);
 	}
 
-	static getPlayerControlScheme(
-		playerIndex: 1 | 2 | 3 | 4
-	): ControlScheme {
+	static getPlayerControlScheme(playerIndex: 1 | 2 | 3 | 4): ControlScheme {
 		const key = `alias${playerIndex}controls`;
 		const stored = sessionStorage.getItem(key);
 		const normalized = this.normalizeControlScheme(stored);
@@ -400,31 +396,23 @@ export class GameConfig {
 		sessionStorage.setItem(`alias${playerIndex}controls`, normalized);
 	}
 
-	static setTournamentSeedAlias(
-		playerIndex: 1 | 2 | 3 | 4,
-		alias: string
-	): void {
-		sessionStorage.setItem(
-			`tournamentSeedAlias${playerIndex}`,
-			alias
-		);
+	static setoriginalAlias(playerIndex: 1 | 2 | 3 | 4, alias: string): void {
+		sessionStorage.setItem(`originalAlias${playerIndex}`, alias);
 	}
 
-	static getTournamentSeedAlias(
-		playerIndex: 1 | 2 | 3 | 4
-	): string | null {
-		return sessionStorage.getItem(`tournamentSeedAlias${playerIndex}`);
+	static getoriginalAlias(playerIndex: 1 | 2 | 3 | 4): string | null {
+		return sessionStorage.getItem(`originalAlias${playerIndex}`);
 	}
 
-	static clearTournamentSeedAliases(): void {
+	static clearoriginalAliases(): void {
 		for (let i = 1; i <= 4; i++) {
-			sessionStorage.removeItem(`tournamentSeedAlias${i}`);
+			sessionStorage.removeItem(`originalAlias${i}`);
 		}
 	}
 
 	static isCurrentAliasSeed(playerIndex: 1 | 2 | 3 | 4): boolean {
 		const current = sessionStorage.getItem(`alias${playerIndex}`);
-		const seed = this.getTournamentSeedAlias(playerIndex);
+		const seed = this.getoriginalAlias(playerIndex);
 		if (seed === null || current === null) return true;
 		return current === seed;
 	}
@@ -671,14 +659,14 @@ export class GameConfig {
 				}
 				const alias = sessionStorage.getItem(`alias${index}`);
 				if (alias !== null) {
-					this.setTournamentSeedAlias(index, alias);
+					this.setoriginalAlias(index, alias);
 				}
 			}
 		} else {
 			for (let i = 1; i <= 4; i++) {
 				sessionStorage.removeItem(`alias${i}controls`);
 			}
-			this.clearTournamentSeedAliases();
+			this.clearoriginalAliases();
 		}
 
 		conditionalLog('🎮 GameConfig initialized:', this.getGameConfig());
@@ -699,7 +687,7 @@ export class GameConfig {
 		sessionStorage.removeItem('alias2controls');
 		sessionStorage.removeItem('alias3controls');
 		sessionStorage.removeItem('alias4controls');
-		this.clearTournamentSeedAliases();
+		this.clearoriginalAliases();
 		sessionStorage.removeItem('player1');
 		sessionStorage.removeItem('player2');
 		sessionStorage.removeItem('player3');

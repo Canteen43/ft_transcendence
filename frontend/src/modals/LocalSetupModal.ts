@@ -284,7 +284,7 @@ export class LocalSetupModal extends Modal {
 					(index + 1) as 1 | 2 | 3 | 4,
 					controlScheme
 				);
-				GameConfig.setTournamentSeedAlias(
+				GameConfig.setoriginalAlias(
 					(index + 1) as 1 | 2 | 3 | 4,
 					alias
 				);
@@ -295,7 +295,7 @@ export class LocalSetupModal extends Modal {
 			for (let i = 1; i <= 4; i++) {
 				sessionStorage.removeItem(`alias${i}controls`);
 			}
-			GameConfig.clearTournamentSeedAliases();
+			GameConfig.clearoriginalAliases();
 		}
 
 		if (this.powerupCheckboxes) {

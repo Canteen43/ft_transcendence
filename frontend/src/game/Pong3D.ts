@@ -7154,6 +7154,14 @@ export class Pong3D {
 			`Player ${winningPlayerIndex + 1}`;
 		sessionStorage.setItem('winner', winnerName);
 		this.showLocalTournamentTrophy(winnerName);
+
+		// Restore seed aliases back to regular aliases for future tournaments
+		for (let i = 1; i <= 4; i++) {
+			const seedAlias = GameConfig.getoriginalAlias(i as 1 | 2 | 3 | 4);
+			if (seedAlias !== null) {
+				sessionStorage.setItem(`alias${i}`, seedAlias);
+			}
+		}
 	}
 
 	private setupGlowEffects(): void {
