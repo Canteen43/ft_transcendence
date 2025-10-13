@@ -43,6 +43,14 @@ export class Pong3DInput {
 		'8456': { left: false, right: false },
 	};
 
+	// Track which specific keys are pressed for each control scheme
+	private keysPressed: Record<ControlScheme, Set<string>> = {
+		arrows: new Set(),
+		wasd: new Set(),
+		ijkl: new Set(),
+		'8456': new Set(),
+	};
+
 	private canvas: HTMLCanvasElement;
 	private aiControllers: (Pong3DAI | null)[] = [null, null, null, null];
 
@@ -89,6 +97,7 @@ export class Pong3DInput {
 	private updateControlState(
 		scheme: ControlScheme,
 		side: 'left' | 'right',
+		key: string,
 		value: boolean,
 		requiresFullControl: boolean,
 		allowAll: boolean
@@ -96,8 +105,50 @@ export class Pong3DInput {
 		if (requiresFullControl && !allowAll) return;
 		const state = this.controlState[scheme];
 		if (!state) return;
-		if (state[side] === value) return;
-		state[side] = value;
+
+		const keySet = this.keysPressed[scheme];
+		
+		if (value) {
+			// Key pressed - add to set
+			keySet.add(key);
+			// New key press overrides opposite direction (like client behavior)
+			state[side] = true;
+			state[side === 'left' ? 'right' : 'left'] = false;
+		} else {
+			// Key released - remove from set
+			keySet.delete(key);
+			
+			// Check if any keys for this side are still pressed
+			const leftKeys = this.getLeftKeysForScheme(scheme);
+			const rightKeys = this.getRightKeysForScheme(scheme);
+			
+			const hasLeftKeyPressed = leftKeys.some(k => keySet.has(k));
+			const hasRightKeyPressed = rightKeys.some(k => keySet.has(k));
+			
+			// Update both directions based on remaining pressed keys
+			state.left = hasLeftKeyPressed;
+			state.right = hasRightKeyPressed;
+		}
+	}
+
+	private getLeftKeysForScheme(scheme: ControlScheme): string[] {
+		switch (scheme) {
+			case 'arrows': return ['ArrowLeft', 'ArrowDown'];
+			case 'wasd': return ['a', 'w'];
+			case 'ijkl': return ['j', 'i'];
+			case '8456': return ['4', '8'];
+			default: return [];
+		}
+	}
+
+	private getRightKeysForScheme(scheme: ControlScheme): string[] {
+		switch (scheme) {
+			case 'arrows': return ['ArrowRight', 'ArrowUp'];
+			case 'wasd': return ['d', 's'];
+			case 'ijkl': return ['l', 'k'];
+			case '8456': return ['6', '5'];
+			default: return [];
+		}
 	}
 
 	private processKeyInput(
@@ -108,31 +159,31 @@ export class Pong3DInput {
 		const normalized = key.length === 1 ? key.toLowerCase() : key;
 
 		if (key === 'ArrowRight' || key === 'ArrowUp') {
-			this.updateControlState('arrows', 'right', value, false, allowAll);
+			this.updateControlState('arrows', 'right', key, value, false, allowAll);
 		}
 		if (key === 'ArrowLeft' || key === 'ArrowDown') {
-			this.updateControlState('arrows', 'left', value, false, allowAll);
+			this.updateControlState('arrows', 'left', key, value, false, allowAll);
 		}
 
 		if (normalized === 'a' || normalized === 'w') {
-			this.updateControlState('wasd', 'left', value, true, allowAll);
+			this.updateControlState('wasd', 'left', normalized, value, true, allowAll);
 		}
 		if (normalized === 'd' || normalized === 's') {
-			this.updateControlState('wasd', 'right', value, true, allowAll);
+			this.updateControlState('wasd', 'right', normalized, value, true, allowAll);
 		}
 
 		if (normalized === 'j' || normalized === 'i') {
-			this.updateControlState('ijkl', 'left', value, true, allowAll);
+			this.updateControlState('ijkl', 'left', normalized, value, true, allowAll);
 		}
 		if (normalized === 'l' || normalized === 'k') {
-			this.updateControlState('ijkl', 'right', value, true, allowAll);
+			this.updateControlState('ijkl', 'right', normalized, value, true, allowAll);
 		}
 
 		if (normalized === '4' || normalized === '8') {
-			this.updateControlState('8456', 'left', value, true, allowAll);
+			this.updateControlState('8456', 'left', normalized, value, true, allowAll);
 		}
 		if (normalized === '6' || normalized === '5') {
-			this.updateControlState('8456', 'right', value, true, allowAll);
+			this.updateControlState('8456', 'right', normalized, value, true, allowAll);
 		}
 	}
 

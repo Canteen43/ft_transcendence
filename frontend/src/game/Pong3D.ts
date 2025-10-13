@@ -92,6 +92,8 @@ export interface Pong3DOptions {
 interface GameState {
 	paddlePositionsX: number[]; // x positions for paddles 0-3 (players 1-2 and some 3-4)
 	paddlePositionsY: number[]; // y positions for paddles 2-3 (players 3-4 in 4-player mode)
+	waitingForServe?: boolean; // True when ball is positioned but waiting for server input
+	servingPlayer?: number; // Index of player who will serve (-1 if none)
 }
 
 //The outer bounding box of all meshes used, helps to place default lights and cameras
@@ -1974,8 +1976,36 @@ export class Pong3D {
 
 		// Auto-start the game loop after everything is loaded
 		if (this.gameLoop) {
-			// Set a random server for the initial serve
-			this.currentServer = Math.floor(Math.random() * this.playerCount);
+			// Set the first server - prefer human players over AI
+			const humanPlayers: number[] = [];
+			const aiPlayers: number[] = [];
+			
+			for (let i = 0; i < this.playerCount; i++) {
+				const playerName = this.playerNames[i];
+				if (playerName && playerName.startsWith('*')) {
+					aiPlayers.push(i);
+				} else {
+					humanPlayers.push(i);
+				}
+			}
+			
+			// Choose a human player if any exist, otherwise choose an AI
+			if (humanPlayers.length > 0) {
+				this.currentServer = humanPlayers[Math.floor(Math.random() * humanPlayers.length)];
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with human server: Player ${this.currentServer + 1}...`
+					);
+				}
+			} else {
+				this.currentServer = aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with AI server: Player ${this.currentServer + 1}...`
+					);
+				}
+			}
+			
 			if (GameConfig.isDebugLoggingEnabled()) {
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
@@ -5474,6 +5504,15 @@ export class Pong3D {
 		const targetSpeedForSplits = this.ballEffects.getCurrentBallSpeed();
 		this.ballManager.updateAll(targetSpeedForSplits);
 
+		// Sync serve waiting state from game loop
+		if (this.gameLoop && 'getGameState' in this.gameLoop) {
+			const gameLoopState = (this.gameLoop as any).getGameState();
+			if (gameLoopState) {
+				this.gameState.waitingForServe = gameLoopState.waitingForServe || false;
+				this.gameState.servingPlayer = gameLoopState.servingPlayer ?? -1;
+			}
+		}
+
 		// Get current key state from input handler
 		const keyState = this.inputHandler?.getKeyState() || {
 			p1Left: false,
@@ -5485,6 +5524,27 @@ export class Pong3D {
 			p4Left: false,
 			p4Right: false,
 		};
+
+		// Check if we're waiting for serve and the serving player pressed a key
+		if (this.gameLoop && this.gameState.waitingForServe) {
+			const servingPlayer = this.gameState.servingPlayer;
+			const playerKeys = [
+				{ left: keyState.p1Left, right: keyState.p1Right },
+				{ left: keyState.p2Left, right: keyState.p2Right },
+				{ left: keyState.p3Left, right: keyState.p3Right },
+				{ left: keyState.p4Left, right: keyState.p4Right },
+			];
+			
+			if (servingPlayer !== undefined && servingPlayer >= 0 && servingPlayer < playerKeys.length) {
+				const keys = playerKeys[servingPlayer];
+				if (keys.left || keys.right) {
+					// Serving player pressed a movement key - launch the serve!
+					if ('launchServe' in this.gameLoop) {
+						(this.gameLoop as any).launchServe();
+					}
+				}
+			}
+		}
 
 		this.conditionalLog(`🎮 Paddle update - keyState:`, keyState);
 
