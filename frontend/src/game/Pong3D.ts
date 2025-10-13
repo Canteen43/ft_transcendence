@@ -2586,7 +2586,7 @@ export class Pong3D {
 		if (this.playerCount === 2) {
 			// Players 1,2 move on X-axis, paddle faces are on Z-axis
 			const maxXOffset =
-				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
+				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 1; // Allow full paddle width
 			if (Math.abs(relativePos.x) > maxXOffset) {
 				this.conditionalLog(
 					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`
@@ -2597,7 +2597,7 @@ export class Pong3D {
 			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles)
 			// P3 and P4 use Z-axis edge collision detection
 			const maxZOffset =
-				(paddleBounds.maximum.z - paddleBounds.minimum.z) * 0.6; // Same as 2P X-offset
+				(paddleBounds.maximum.z - paddleBounds.minimum.z) * 1; // Allow full paddle depth
 			if (Math.abs(relativePos.z) > maxZOffset) {
 				this.conditionalLog(
 					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (4P Z-axis check)`
