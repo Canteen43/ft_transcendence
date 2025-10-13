@@ -65,7 +65,10 @@ export class Landing {
 			this.setupLighting();
 			this.setupHDR();
 			this.setupControls();
+
+			// added by rufus for background game animation
 			await this.loadModel(modelPath);
+			await this.loadBackgroundAnimation();
 
 			// Store render loop callback reference
 			this.renderLoopCallback = () => {
@@ -103,7 +106,7 @@ export class Landing {
 
 		this.camera.lowerRadiusLimit = 3;
 		this.camera.upperRadiusLimit = 15;
-		this.camera.lowerBetaLimit = -1.5 ;
+		this.camera.lowerBetaLimit = -1.5;
 		this.camera.upperBetaLimit = Math.PI / 2;
 		this.camera.minZ = 0.1;
 		this.camera.maxZ = 100;
@@ -290,6 +293,51 @@ export class Landing {
 						console.log(`Loading: ${progress.toFixed(0)}%`);
 					}
 				},
+				(_, message) => reject(new Error(message))
+			);
+		});
+	}
+
+	//added by Rufus for background game animation
+
+	private async loadBackgroundAnimation(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			BABYLON.SceneLoader.ImportMesh(
+				'', // meshNames: empty string = load all meshes from the file
+				'', // rootUrl: empty string = use current directory (public folder)
+				'background-game.glb', // sceneFilename: the GLB file to load
+				this.scene, // scene: Babylon.js scene to add meshes to
+				(meshes, particleSystems, skeletons, animationGroups) => {
+					// Create a parent transform node for the entire GLB
+					const glbRoot = new BABYLON.TransformNode(
+						'background_glb_root',
+						this.scene
+					);
+
+					// Parent the root mesh to our transform node (preserves hierarchy)
+					const rootMesh = meshes[0];
+					if (rootMesh) {
+						rootMesh.parent = glbRoot;
+
+						// Position and rotate the entire GLB as one unit through the parent
+						glbRoot.position.z = 10; // Push behind the main scene
+						glbRoot.position.y = 2; // Center vertically
+						glbRoot.position.x = 8; // Center horizontally
+						glbRoot.rotation.y = (150 * Math.PI) / 180; // 
+
+						// Optional: Scale if needed
+						glbRoot.scaling = new BABYLON.Vector3(1.2, 1.2, 1.2);
+
+						// Start animations if they exist
+						animationGroups.forEach(animGroup => {
+							animGroup.start(true); // Loop animations
+						});
+					}
+
+					console.log('Background animation loaded');
+					resolve();
+				},
+				undefined, // onProgress
 				(_, message) => reject(new Error(message))
 			);
 		});
