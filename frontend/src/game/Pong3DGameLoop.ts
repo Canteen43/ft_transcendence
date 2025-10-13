@@ -15,6 +15,7 @@ export class Pong3DGameLoop {
 	);
 	private pong3D: any; // Reference to main Pong3D instance for paddle access
 	private serveDelayTimeout: number | null = null; // Track serve delay timeout
+	private pendingServeVelocity: BABYLON.Vector3 | null = null; // Stored velocity for serve launch
 
 	constructor(scene: BABYLON.Scene, pong3D?: any) {
 		this.scene = scene;
@@ -27,6 +28,8 @@ export class Pong3DGameLoop {
 				velocity: this.generateRandomStartingVelocity(5), // Random starting direction
 			},
 			isRunning: false,
+			waitingForServe: false,
+			servingPlayer: -1,
 		};
 	}
 
@@ -72,15 +75,14 @@ export class Pong3DGameLoop {
 		// Only reset ball if we have a designated server (actual game start)
 		// During auto-start in onModelLoaded, currentServer is -1, so don't reset ball
 		if (initialServingPlayer !== undefined) {
-			// Add 1-second delay before the first serve
+			// Add 1-second delay before positioning ball for serve
 			this.serveDelayTimeout = window.setTimeout(() => {
 				if (this.gameState.isRunning) {
-					// Check if game is still running
-					// Mark game as ongoing right when we actually perform the first serve
+					// Position ball at serve location and wait for player input
 					state.gameOngoing = true;
-					this.resetBall(initialServingPlayer);
+					this.resetBall(initialServingPlayer, true); // true = wait for input
 				}
-				this.serveDelayTimeout = null; // Clear reference when done
+				this.serveDelayTimeout = null;
 			}, 1000); // 1 second delay
 		} else {
 			if (GameConfig.isDebugLoggingEnabled()) {
@@ -124,7 +126,7 @@ export class Pong3DGameLoop {
 	/**
 	 * Reset ball to center with initial velocity, or serve from paddle position if servingPlayerIndex provided
 	 */
-	resetBall(servingPlayerIndex?: number): void {
+	resetBall(servingPlayerIndex?: number, waitForInput: boolean = false): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 
 		// Reset per-serve visual/effect state FIRST (this clears hit history)
@@ -332,17 +334,74 @@ export class Pong3DGameLoop {
 			BABYLON.Vector3.Zero()
 		);
 
-		// Apply the serve velocity as an impulse
-		this.ballMesh.physicsImpostor.applyImpulse(
-			serveVelocity,
+		if (waitForInput && servingPlayerIndex !== undefined) {
+			// Wait for serving player input before launching ball
+			this.gameState.waitingForServe = true;
+			this.gameState.servingPlayer = servingPlayerIndex;
+			this.gameState.ball.position = this.ballMesh.position.clone();
+			this.gameState.ball.velocity = BABYLON.Vector3.Zero();
+			
+			// Store the serve velocity for later use
+			this.pendingServeVelocity = serveVelocity;
+			
+			if (GameConfig.isDebugLoggingEnabled()) {
+				conditionalLog(
+					`🎾 Ball positioned for serve - waiting for Player ${servingPlayerIndex + 1} to press a movement key`
+				);
+			}
+		} else {
+			// Immediate serve (normal behavior after goals)
+
+			// Play ping sound for serve
+			if (this.pong3D && typeof this.pong3D.audioSystem?.playSoundEffectWithHarmonic === 'function') {
+				void this.pong3D.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
+			}
+
+			this.ballMesh.physicsImpostor.applyImpulse(
+				serveVelocity,
+				this.ballMesh.getAbsolutePosition()
+			);
+
+			// Sync gameState
+			this.gameState.ball.position = this.ballMesh.position.clone();
+			this.gameState.ball.velocity = serveVelocity;
+			this.gameState.waitingForServe = false;
+			this.gameState.servingPlayer = -1;
+		}
+
+		// conditionalLog(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
+	}
+
+	/**
+	 * Launch the serve (called when serving player presses input)
+	 */
+	public launchServe(): void {
+		if (!this.gameState.waitingForServe || !this.pendingServeVelocity || !this.ballMesh) {
+			return;
+		}
+
+		if (GameConfig.isDebugLoggingEnabled()) {
+			conditionalLog(
+				`🚀 Player ${this.gameState.servingPlayer + 1} launched serve!`
+			);
+		}
+
+		// Play ping sound for serve launch
+		if (this.pong3D && typeof this.pong3D.audioSystem?.playSoundEffectWithHarmonic === 'function') {
+			void this.pong3D.audioSystem.playSoundEffectWithHarmonic('ping', 'paddle');
+		}
+
+		// Apply the stored serve velocity
+		this.ballMesh.physicsImpostor?.applyImpulse(
+			this.pendingServeVelocity,
 			this.ballMesh.getAbsolutePosition()
 		);
 
-		// Sync gameState
-		this.gameState.ball.position = this.ballMesh.position.clone();
-		this.gameState.ball.velocity = serveVelocity;
-
-		// conditionalLog(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
+		// Update game state
+		this.gameState.ball.velocity = this.pendingServeVelocity.clone();
+		this.gameState.waitingForServe = false;
+		this.gameState.servingPlayer = -1;
+		this.pendingServeVelocity = null;
 	}
 
 	/**
@@ -382,6 +441,8 @@ export class Pong3DGameLoop {
 				velocity: this.gameState.ball.velocity.clone(),
 			},
 			isRunning: this.gameState.isRunning,
+			waitingForServe: this.gameState.waitingForServe,
+			servingPlayer: this.gameState.servingPlayer,
 		};
 	}
 
