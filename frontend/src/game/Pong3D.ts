@@ -1976,8 +1976,36 @@ export class Pong3D {
 
 		// Auto-start the game loop after everything is loaded
 		if (this.gameLoop) {
-			// Set a random server for the initial serve
-			this.currentServer = Math.floor(Math.random() * this.playerCount);
+			// Set the first server - prefer human players over AI
+			const humanPlayers: number[] = [];
+			const aiPlayers: number[] = [];
+			
+			for (let i = 0; i < this.playerCount; i++) {
+				const playerName = this.playerNames[i];
+				if (playerName && playerName.startsWith('*')) {
+					aiPlayers.push(i);
+				} else {
+					humanPlayers.push(i);
+				}
+			}
+			
+			// Choose a human player if any exist, otherwise choose an AI
+			if (humanPlayers.length > 0) {
+				this.currentServer = humanPlayers[Math.floor(Math.random() * humanPlayers.length)];
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with human server: Player ${this.currentServer + 1}...`
+					);
+				}
+			} else {
+				this.currentServer = aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with AI server: Player ${this.currentServer + 1}...`
+					);
+				}
+			}
+			
 			if (GameConfig.isDebugLoggingEnabled()) {
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(

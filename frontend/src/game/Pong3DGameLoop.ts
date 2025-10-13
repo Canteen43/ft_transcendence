@@ -75,15 +75,43 @@ export class Pong3DGameLoop {
 		// Only reset ball if we have a designated server (actual game start)
 		// During auto-start in onModelLoaded, currentServer is -1, so don't reset ball
 		if (initialServingPlayer !== undefined) {
-			// Add 1-second delay before positioning ball for serve
-			this.serveDelayTimeout = window.setTimeout(() => {
-				if (this.gameState.isRunning) {
-					// Position ball at serve location and wait for player input
-					state.gameOngoing = true;
-					this.resetBall(initialServingPlayer, true); // true = wait for input
+			// Check if the serving player is an AI
+			const isServingPlayerAI = 
+				this.pong3D?.playerNames?.[initialServingPlayer]?.startsWith('*') || false;
+
+			if (isServingPlayerAI) {
+				// AI server: Position ball and wait 4 seconds, then auto-serve
+				if (GameConfig.isDebugLoggingEnabled()) {
+					conditionalLog(
+						`🤖 AI is serving - will show ball for 4 seconds then auto-serve`
+					);
 				}
-				this.serveDelayTimeout = null;
-			}, 1000); // 1 second delay
+				this.serveDelayTimeout = window.setTimeout(() => {
+					if (this.gameState.isRunning) {
+						state.gameOngoing = true;
+						// Position ball in serve position and wait for input
+						this.resetBall(initialServingPlayer, true); // true = wait for input
+						
+						// Auto-launch serve after another 4 seconds
+						window.setTimeout(() => {
+							if (this.gameState.isRunning && this.gameState.waitingForServe) {
+								this.launchServe();
+							}
+						}, 4000); // 4 seconds to show the static ball
+					}
+					this.serveDelayTimeout = null;
+				}, 1000); // 1 second initial delay
+			} else {
+				// Human server: Wait 1 second then wait for input
+				this.serveDelayTimeout = window.setTimeout(() => {
+					if (this.gameState.isRunning) {
+						// Position ball at serve location and wait for player input
+						state.gameOngoing = true;
+						this.resetBall(initialServingPlayer, true); // true = wait for input
+					}
+					this.serveDelayTimeout = null;
+				}, 1000); // 1 second delay
+			}
 		} else {
 			if (GameConfig.isDebugLoggingEnabled()) {
 				conditionalLog(
