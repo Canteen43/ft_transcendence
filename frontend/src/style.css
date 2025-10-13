@@ -116,8 +116,15 @@
 	}
 }
 
-body,
+/* body,
 html {
+	overflow: hidden;
+	height: 100vh;
+	width: 100vw;
+} */
+
+body {
+	font-size: 14px;
 	overflow: hidden;
 	height: 100vh;
 	width: 100vw;

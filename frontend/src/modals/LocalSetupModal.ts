@@ -47,20 +47,20 @@ export class LocalSetupModal extends Modal {
 
 		for (let i = 0; i < n; i++) {
 			// Create container for title + input
-			const container = document.createElement('div');
-			container.className = 'player-input-container';
+			const containerAlias = document.createElement('div');
+			containerAlias.className = 'w-full flex flex-col gap-0.5 m-0';
 
 			// Add tiny title
 			const title = document.createElement('label');
-			title.className = 'player-input-title text-[var(--color4)]';
+			title.className = 'player-input-title text-[var(--color4)] text-xs m-0';
 			title.textContent = `${aliasHints[i]}`;
 
 			const defaultValue = aliases[i] || `player${i + 1}`;
 			const row = this.createPlayerRow(i, defaultValue, aliasHints[i]);
 
-			container.appendChild(title);
-			container.appendChild(row);
-			this.box.appendChild(container);
+			containerAlias.appendChild(title);
+			containerAlias.appendChild(row);
+			this.box.appendChild(containerAlias);
 		}
 
 		this.powerupCheckboxes = this.createPowerupSection();
@@ -75,17 +75,17 @@ export class LocalSetupModal extends Modal {
 		'split' | 'stretch' | 'shrink',
 		HTMLInputElement
 	> {
-		const container = document.createElement('div');
-		container.className = 'w-full flex flex-col gap-2 mt-4';
+		const containerPU = document.createElement('div');
+		containerPU.className = 'w-full flex flex-col gap-1.5 mt-1';
 
 		const title = document.createElement('h2');
 		title.textContent = 'PowerUps';
-		title.className = 'text-2xl font-bold text-[var(--color4)]';
-		container.appendChild(title);
+		title.className = 'text-lg font-bold text-[var(--color4)]';
+		containerPU.appendChild(title);
 
 		const list = document.createElement('div');
-		list.className = 'flex flex-col gap-1 pb-4';
-		container.appendChild(list);
+		list.className = 'flex flex-col gap-1 pb-1';
+		containerPU.appendChild(list);
 
 		const checkboxMap: Record<
 			'split' | 'stretch' | 'shrink',
@@ -103,7 +103,7 @@ export class LocalSetupModal extends Modal {
 		powerups.forEach(({ key, label }) => {
 			const row = document.createElement('label');
 			row.className =
-				'flex items-center gap-3 text-base text-[var(--color4)]';
+				'flex items-center gap-2.5 text-base text-[var(--color4)]';
 
 			const checkbox = document.createElement('input');
 			checkbox.type = 'checkbox';
@@ -112,7 +112,7 @@ export class LocalSetupModal extends Modal {
 
 			const span = document.createElement('span');
 			span.textContent = label;
-			span.className = 'text-lg font-medium text-[var(--color4)]';
+			span.className = 'text-sm font-medium text-[var(--color4)]';
 
 			row.appendChild(checkbox);
 			row.appendChild(span);
@@ -121,7 +121,7 @@ export class LocalSetupModal extends Modal {
 			checkboxMap[key] = checkbox;
 		});
 
-		this.box.appendChild(container);
+		this.box.appendChild(containerPU);
 		return checkboxMap;
 	}
 
@@ -132,7 +132,7 @@ export class LocalSetupModal extends Modal {
 	): HTMLDivElement {
 		const row = document.createElement('div');
 		row.className =
-			'flex items-center gap-2 w-full relative text-[var(--color4)]';
+			'flex items-center gap-1 w-full relative text-[var(--color4)]';
 
 		const input = this.createInput(
 			defaultValue,
@@ -161,7 +161,7 @@ export class LocalSetupModal extends Modal {
 		input.value = defaultValue;
 		input.title = hint;
 		input.className =
-			'border border-[var(--color3)] p-2 flex-1 text-[var(--color4)] text-lg h-10';
+			'border border-[var(--color3)] p-2 flex-1 text-[var(--color4)] text-sm h-10';
 		return input;
 	}
 
@@ -172,7 +172,7 @@ export class LocalSetupModal extends Modal {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className =
-			'flex items-center justify-center border border-[var(--color3)] px-2 py-2 text-sm text-[var(--color4)] hover:bg-[var(--color3)]/10 transition-colors h-10 w-10';
+			'flex items-center justify-center border border-[var(--color3)] px-2 py-1 text-sm text-[var(--color4)] hover:bg-[var(--color3)]/10 transition-colors h-10 w-10';
 
 		const aiIcon = document.createElement('img');
 		aiIcon.src = '/ai.png';
@@ -191,7 +191,7 @@ export class LocalSetupModal extends Modal {
 			optionButton.type = 'button';
 			optionButton.textContent = option.label;
 			optionButton.className =
-				'w-full px-2 py-1 text-left text-sm bg-white hover:bg-[var(--color3)]/10 transition-colors border-none text-[var(--color4)]';
+				'w-full px-2 py-0 text-left bg-white hover:bg-[var(--color3)]/10 transition-colors border-none text-[var(--color4)]';
 
 			const clickHandler = (e: MouseEvent) => {
 				e.stopPropagation();

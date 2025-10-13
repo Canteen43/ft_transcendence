@@ -20,7 +20,7 @@ export class TextModal extends Modal {
 		if (notification) {
 			const textElmt = document.createElement('p');
 			textElmt.textContent = notification;
-			textElmt.className = 'text-center text-lg text-[var(--color3)]';
+			textElmt.className = 'text-center text-sm sm:text-base  text-[var(--color3)]';
 			this.box.appendChild(textElmt);
 		}
 

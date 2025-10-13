@@ -55,7 +55,7 @@ export class AuthComponent {
 		// Create wrapper with fixed positioning
 		this.wrapper = document.createElement('div');
 		this.wrapper.className =
-			`fixed top-4 z-10 w-32 sm:w-48 md:w-60 transition-all duration-300` +
+			`fixed top-4 z-10 w-24 sm:w-36 md:w-48 transition-all duration-300` +
 			` ${moveButtonLeft ? 'right-[21rem]' : 'right-4'}`;
 
 		this.button = new Button(
@@ -66,7 +66,7 @@ export class AuthComponent {
 
 		// Update button to be relative within the wrapper
 		this.button.element.className +=
-			' relative w-full text-center truncate';
+			' relative w-full text-center truncate text-sm sm:text-base';
 		this.parent.appendChild(this.wrapper);
 
 		if (userIsLoggedIn) {
@@ -242,8 +242,8 @@ export class AuthComponent {
 		this.twoFABtn = document.createElement('button');
 		this.twoFABtn.textContent = '2-FA';
 		this.twoFABtn.className =
-			"font-outfit [font-variation-settings:'wght'_900] text-lg sm:text-2xl " +
-			'px-6 sm:px-12 py-3 sm:py-4 transition-colors ' +
+			"font-outfit [font-variation-settings:'wght'_900] text-sm sm:text-base " +
+			'px-3 sm:px-6 py-1.5 sm:py-2 transition-colors ' +
 			'bg-[var(--color1)] text-[var(--color3)] ' +
 			'hover:bg-[var(--color5)]';
 		this.twoFABtn.addEventListener('click', this.handle2FA);
@@ -253,8 +253,8 @@ export class AuthComponent {
 		this.logoutBtn = document.createElement('button');
 		this.logoutBtn.textContent = 'sign out';
 		this.logoutBtn.className =
-			"font-outfit [font-variation-settings:'wght'_900] text-lg sm:text-2xl " +
-			'px-6 sm:px-12 py-3 sm:py-4 transition-colors ' +
+			"font-outfit [font-variation-settings:'wght'_900] text-sm sm:text-base " +
+			'px-3 sm:px-6 py-1.5 sm:py-2 transition-colors ' +
 			'bg-[var(--color1)] text-[var(--color3)] ' +
 			'hover:bg-[var(--color5)]';
 		this.logoutBtn.addEventListener('click', this.handleLogout);
