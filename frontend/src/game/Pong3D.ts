@@ -6621,6 +6621,10 @@ export class Pong3D {
 	/** Set the last player to hit the ball (used by game loop for serve tracking) */
 	public setLastPlayerToHitBall(playerIndex: number): void {
 		this.lastPlayerToHitBall = playerIndex;
+		// Also update the ball entity's hit history for proper scoring
+		if (this.mainBallEntity) {
+			this.mainBallEntity.recordHit(playerIndex);
+		}
 	}
 
 	/**
@@ -6835,28 +6839,12 @@ export class Pong3D {
 				this.conditionalLog(`  📡 Player ${i} UID: ${uid || 'null'}`);
 			}
 
-			// For remote games, map scoringPlayerIndex to the correct UID based on thisPlayer
-			let playerNumber: 1 | 2 | 3 | 4;
-			const thisPlayer = GameConfig.getThisPlayer();
-
-			if (
-				this.playerCount === 2 &&
-				sessionStorage.getItem('gameMode') === 'remote'
-			) {
-				// In 2-player remote games, scoringPlayerIndex 0 is always current user, 1 is opponent
-				if (thisPlayer === 1) {
-					playerNumber = (scoringPlayerIndex + 1) as 1 | 2;
-				} else if (thisPlayer === 2) {
-					// If current user is player 2, then scoringPlayerIndex 0 -> player 2, scoringPlayerIndex 1 -> player 1
-					playerNumber = scoringPlayerIndex === 0 ? 2 : 1;
-				} else {
-					playerNumber = (scoringPlayerIndex + 1) as 1 | 2;
-				}
-			} else {
-				// For local games or multi-player games, use direct mapping
-				playerNumber = (scoringPlayerIndex + 1) as 1 | 2 | 3 | 4;
-			}
-
+			// Direct mapping: scoringPlayerIndex (0-based paddle/goal index) -> playerNumber (1-based UID key)
+			// scoringPlayerIndex 0 = paddle1/goal1 defender = player1 UID
+			// scoringPlayerIndex 1 = paddle2/goal2 defender = player2 UID
+			// This mapping is consistent regardless of local/remote mode because the scoring logic
+			// operates on the actual game-world paddle indices, not relative player positions
+			const playerNumber = (scoringPlayerIndex + 1) as 1 | 2 | 3 | 4;
 			const scoringPlayerUID = GameConfig.getPlayerUID(playerNumber);
 
 			this.conditionalLog(
@@ -6919,44 +6907,24 @@ export class Pong3D {
 		}
 
 		// Find the player index from the UID
-		// In remote games, player indices must be mapped correctly based on thisPlayer
+		// Direct mapping: player1 UID -> index 0, player2 UID -> index 1, etc.
+		// This matches the master's sending logic (scoringPlayerIndex 0 -> player1 UID)
 		let scoringPlayerIndex = -1;
-		const thisPlayer = GameConfig.getThisPlayer();
-
-		// For 2-player remote games, map UIDs to player indices based on thisPlayer
-		if (this.playerCount === 2) {
-			const player1UID = GameConfig.getPlayerUID(1);
-			const player2UID = GameConfig.getPlayerUID(2);
-
-			if (thisPlayer === 1) {
-				// thisPlayer=1 means current user is player1, opponent is player2
-				if (scoringPlayerUID === player1UID) {
-					scoringPlayerIndex = 0; // current user scored
-				} else if (scoringPlayerUID === player2UID) {
-					scoringPlayerIndex = 1; // opponent scored
-				}
-			} else if (thisPlayer === 2) {
-				// thisPlayer=2 means current user is player2, opponent is player1
-				if (scoringPlayerUID === player2UID) {
-					scoringPlayerIndex = 0; // current user scored
-				} else if (scoringPlayerUID === player1UID) {
-					scoringPlayerIndex = 1; // opponent scored
-				}
-			}
-		} else {
-			// For local games or 3+/4-player games, use the original logic
-			for (let i = 0; i < this.playerCount; i++) {
-				const playerUID = GameConfig.getPlayerUID(
-					(i + 1) as 1 | 2 | 3 | 4
-				);
+		
+		for (let i = 0; i < this.playerCount; i++) {
+			const playerUID = GameConfig.getPlayerUID(
+				(i + 1) as 1 | 2 | 3 | 4
+			);
+			this.conditionalLog(
+				`🎮 Checking player ${i + 1} UID:`,
+				playerUID
+			);
+			if (playerUID === scoringPlayerUID) {
+				scoringPlayerIndex = i;
 				this.conditionalLog(
-					`🎮 Checking player ${i + 1} UID:`,
-					playerUID
+					`🎮 Match found! Scoring player index: ${scoringPlayerIndex}`
 				);
-				if (playerUID === scoringPlayerUID) {
-					scoringPlayerIndex = i;
-					break;
-				}
+				break;
 			}
 		}
 
