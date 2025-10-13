@@ -100,9 +100,9 @@ export class Landing {
 	private setupCamera(): void {
 		this.camera = new BABYLON.ArcRotateCamera(
 			'camera',
-			-Math.PI / 1.2,
-			Math.PI / 2.8,
-			1,
+			-Math.PI / 1.2, // Distance from camera to target - overwritten by fitcamera to scene
+			Math.PI / 2.8, // Vertical rotation angle
+			2, //Distance from camera to target -
 			BABYLON.Vector3.Zero(),
 			this.scene
 		);
@@ -323,10 +323,12 @@ export class Landing {
 						rootMesh.parent = this.backgroundRoot;
 
 						// Position and rotate the entire GLB as one unit through the parent
-						this.backgroundRoot.position.z = 2; // Push behind the main scene
-						this.backgroundRoot.position.y = 1.6; // Center vertically
-						this.backgroundRoot.position.x = 1; // Center horizontally
-						this.backgroundRoot.rotation.y = (145 * Math.PI) / 180; //
+						this.backgroundRoot.position.z = -2.2; // Push behind the main scene
+						this.backgroundRoot.position.y = 4; // Center vertically
+						this.backgroundRoot.position.x = -4; // Center horizontally
+						this.backgroundRoot.rotation.x = Math.PI;
+						this.backgroundRoot.rotation.y =
+							((330) * Math.PI) / 180;
 
 						// Optional: Scale if needed
 						this.backgroundRoot.scaling = new BABYLON.Vector3(
@@ -401,7 +403,7 @@ export class Landing {
 
 		// Set camera angles after fitting to scene (adjust beta for vertical angle)
 		this.camera.alpha = -Math.PI / 1.18;
-		this.camera.beta = Math.PI / 2.2; // Higher angle (more upwards)
+		this.camera.beta = Math.PI / 2; // Higher angle (more upwards)
 
 		// Attach camera controls after everything is set up
 		setTimeout(() => {
@@ -426,7 +428,7 @@ export class Landing {
 		target.y += 0.6;
 
 		this.camera.setTarget(target);
-		this.camera.radius = maxSize * 0.2;
+		this.camera.radius = maxSize * 0.25;
 
 		console.debug(
 			'Camera fitted:',
