@@ -127,6 +127,13 @@ export class Pong3DGameLoop {
 	resetBall(servingPlayerIndex?: number): void {
 		if (!this.ballMesh || !this.ballMesh.physicsImpostor) return;
 
+		// Reset per-serve visual/effect state FIRST (this clears hit history)
+		try {
+			if (this.pong3D && typeof this.pong3D.onServeStart === 'function') {
+				this.pong3D.onServeStart();
+			}
+		} catch (_) {}
+
 		let servePosition: BABYLON.Vector3;
 		let serveVelocity: BABYLON.Vector3;
 
@@ -134,7 +141,7 @@ export class Pong3DGameLoop {
 			// SERVE SYSTEM: Reset ball from paddle position toward court center
 			const paddle = this.pong3D.getPaddle(servingPlayerIndex);
 			if (paddle) {
-				// Update hit tracking - the server "hit" the ball
+				// Update hit tracking - the server "hit" the ball (AFTER onServeStart clears history)
 				this.pong3D.setLastPlayerToHitBall(servingPlayerIndex);
 
 				// Position ball in front of paddle toward origin to avoid spawning inside paddle
@@ -334,13 +341,6 @@ export class Pong3DGameLoop {
 		// Sync gameState
 		this.gameState.ball.position = this.ballMesh.position.clone();
 		this.gameState.ball.velocity = serveVelocity;
-
-		// Notify main Pong3D to reset per-serve visual/effect state
-		try {
-			if (this.pong3D && typeof this.pong3D.onServeStart === 'function') {
-				this.pong3D.onServeStart();
-			}
-		} catch (_) {}
 
 		// conditionalLog(`🔄 Ball reset to position: ${this.gameState.ball.position.toString()}`);
 	}
