@@ -30,7 +30,7 @@ export class StatModal extends Modal {
 		this.element = document.createElement('div');
 		this.element.className =
 			'mx-auto my-auto max-w-4xl max-h-[90vh] overflow-y-auto ' +
-			'flex flex-col items-center justify-center p-3 sm:p-6';
+			'flex flex-col items-center justify-start p-3 sm:p-6';
 		this.box.appendChild(this.element);
 
 		if (isLoggedIn()) this.initialize();

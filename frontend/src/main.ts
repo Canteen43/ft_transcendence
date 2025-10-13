@@ -41,4 +41,18 @@ async function initApp() {
 	}
 }
 
-initApp();
+async function requestFullscreen() {
+	const elem = document.documentElement;
+	if (elem.requestFullscreen && window.innerWidth < 768) {
+		try {
+			await elem.requestFullscreen();
+		} catch (error) {
+			console.warn('Fullscreen request failed:', error);
+		}
+	}
+}
+
+// Request fullscreen on mobile
+initApp().then(() => {
+	requestFullscreen();
+});
