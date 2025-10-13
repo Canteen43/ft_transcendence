@@ -320,13 +320,13 @@ export class Landing {
 						rootMesh.parent = glbRoot;
 
 						// Position and rotate the entire GLB as one unit through the parent
-						glbRoot.position.z = 10; // Push behind the main scene
-						glbRoot.position.y = 2; // Center vertically
-						glbRoot.position.x = 8; // Center horizontally
-						glbRoot.rotation.y = (150 * Math.PI) / 180; // 
+						glbRoot.position.z = 2; // Push behind the main scene
+						glbRoot.position.y = 1.6; // Center vertically
+						glbRoot.position.x = 1; // Center horizontally
+						glbRoot.rotation.y = (145 * Math.PI) / 180; //
 
 						// Optional: Scale if needed
-						glbRoot.scaling = new BABYLON.Vector3(1.2, 1.2, 1.2);
+						glbRoot.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
 
 						// Start animations if they exist
 						animationGroups.forEach(animGroup => {
@@ -392,6 +392,10 @@ export class Landing {
 		}
 		this.fitCameraToScene(meshes);
 
+		// Set camera angles after fitting to scene (adjust beta for vertical angle)
+		this.camera.alpha = -Math.PI / 1.18;
+		this.camera.beta = Math.PI / 2.2; // Higher angle (more upwards)
+
 		// Attach camera controls after everything is set up
 		setTimeout(() => {
 			if (this.camera && this.canvas) {
@@ -410,12 +414,16 @@ export class Landing {
 		const center = min.add(max).scale(0.5);
 		const maxSize = max.subtract(min).length();
 
-		this.camera.setTarget(center);
+		// Offset the target slightly higher so everything appears lower in the view
+		const target = center.clone();
+		target.y += 0.6;
+
+		this.camera.setTarget(target);
 		this.camera.radius = maxSize * 0.2;
 
 		console.debug(
 			'Camera fitted:',
-			center.toString(),
+			target.toString(),
 			'radius:',
 			this.camera.radius
 		);
