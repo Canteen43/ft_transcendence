@@ -19,6 +19,9 @@ export class Landing {
 	private renderLoopCallback?: () => void;
 	private contextMenuHandler = (e: MouseEvent) => e.preventDefault();
 	private mouseMoveHandler?: (event: MouseEvent) => void;
+	private mutationObserver?: MutationObserver;
+	private animationGroups: BABYLON.AnimationGroup[] = [];
+	private backgroundRoot?: BABYLON.TransformNode;
 
 	// Clickable mesh references
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
@@ -219,7 +222,7 @@ export class Landing {
 
 	private setupModalListeners(): void {
 		// Listen for modals opening (when any modal gets created)
-		const observer = new MutationObserver(mutations => {
+		this.mutationObserver = new MutationObserver(mutations => {
 			mutations.forEach(mutation => {
 				mutation.addedNodes.forEach(node => {
 					if (node.nodeType === Node.ELEMENT_NODE) {
@@ -252,7 +255,7 @@ export class Landing {
 		});
 
 		// Observe changes to document body
-		observer.observe(document.body, {
+		this.mutationObserver.observe(document.body, {
 			childList: true,
 			subtree: true,
 		});
@@ -309,7 +312,7 @@ export class Landing {
 				this.scene, // scene: Babylon.js scene to add meshes to
 				(meshes, particleSystems, skeletons, animationGroups) => {
 					// Create a parent transform node for the entire GLB
-					const glbRoot = new BABYLON.TransformNode(
+					this.backgroundRoot = new BABYLON.TransformNode(
 						'background_glb_root',
 						this.scene
 					);
@@ -317,16 +320,20 @@ export class Landing {
 					// Parent the root mesh to our transform node (preserves hierarchy)
 					const rootMesh = meshes[0];
 					if (rootMesh) {
-						rootMesh.parent = glbRoot;
+						rootMesh.parent = this.backgroundRoot;
 
 						// Position and rotate the entire GLB as one unit through the parent
-						glbRoot.position.z = 2; // Push behind the main scene
-						glbRoot.position.y = 1.6; // Center vertically
-						glbRoot.position.x = 1; // Center horizontally
-						glbRoot.rotation.y = (145 * Math.PI) / 180; //
+						this.backgroundRoot.position.z = 2; // Push behind the main scene
+						this.backgroundRoot.position.y = 1.6; // Center vertically
+						this.backgroundRoot.position.x = 1; // Center horizontally
+						this.backgroundRoot.rotation.y = (145 * Math.PI) / 180; //
 
 						// Optional: Scale if needed
-						glbRoot.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+						this.backgroundRoot.scaling = new BABYLON.Vector3(
+							0.5,
+							0.5,
+							0.5
+						);
 
 						// Start animations if they exist
 						animationGroups.forEach(animGroup => {
@@ -550,14 +557,33 @@ export class Landing {
 		});
 	}
 
+	// Improved dispose method:
 	public dispose(): void {
 		try {
-			// Stop render loop
-			if (this.engine && !this.engine.isDisposed) {
-				this.engine.stopRenderLoop();
+			// Disconnect mutation observer first
+			if (this.mutationObserver) {
+				this.mutationObserver.disconnect();
+				this.mutationObserver = undefined;
 			}
 
-			// Stop animations
+			// Clear observables BEFORE disposing scene
+			if (this.scene && !this.scene.isDisposed) {
+				this.scene.onPointerObservable.clear();
+			}
+
+			// Stop render loop
+			if (this.engine && !this.engine.isDisposed) {
+				this.engine.stopRenderLoop(this.renderLoopCallback);
+			}
+
+			// Stop and dispose animation groups
+			this.animationGroups.forEach(animGroup => {
+				animGroup.stop();
+				animGroup.dispose();
+			});
+			this.animationGroups = [];
+
+			// Stop all animations
 			if (this.scene && !this.scene.isDisposed) {
 				this.scene.stopAllAnimations();
 			}
@@ -574,6 +600,12 @@ export class Landing {
 			this.remoteGameMeshes = [];
 			this.statsMeshes = [];
 
+			// Dispose background root
+			if (this.backgroundRoot) {
+				this.backgroundRoot.dispose();
+				this.backgroundRoot = undefined;
+			}
+
 			// Dispose shadow generator
 			if (this.shadowGenerator) {
 				this.shadowGenerator.dispose();
@@ -586,7 +618,7 @@ export class Landing {
 				this.envTexture = undefined;
 			}
 
-			// Remove event listener
+			// Remove event listeners
 			if (this.resizeHandler) {
 				window.removeEventListener('resize', this.resizeHandler);
 				this.resizeHandler = undefined;
@@ -612,6 +644,11 @@ export class Landing {
 				this.camera.detachControl();
 			}
 
+			// Exit pointer lock
+			if (document.pointerLockElement) {
+				document.exitPointerLock();
+			}
+
 			// Dispose scene
 			if (this.scene && !this.scene.isDisposed) {
 				this.scene.dispose();
@@ -623,7 +660,7 @@ export class Landing {
 				console.log('Engine disposed');
 			}
 
-			// Force WebGL context loss if available
+			// Force WebGL context loss
 			const gl =
 				this.canvas.getContext('webgl2') ||
 				this.canvas.getContext('webgl');
@@ -639,10 +676,6 @@ export class Landing {
 			if (this.canvas && this.canvas.parentNode) {
 				this.canvas.parentNode.removeChild(this.canvas);
 			}
-			if (document.pointerLockElement) {
-				document.exitPointerLock();
-			}
-			this.scene.onPointerObservable.clear();
 
 			this.renderLoopCallback = undefined;
 
