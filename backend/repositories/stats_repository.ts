@@ -218,8 +218,8 @@ export class StatsRepository {
 					SUM(played)									AS played,
 					SUM(final)									AS final,
 					SUM(won)									AS wins,
-					1.0 * SUM(won) / NULLIF(SUM(played), 0)		AS percentage_final,
-					1.0 * SUM(final) / NULLIF(SUM(played), 0)	AS percentage_wins
+					1.0 * SUM(won) / NULLIF(SUM(played), 0)		AS percentage_wins,
+					1.0 * SUM(final) / NULLIF(SUM(played), 0)	AS percentage_final
 			FROM pre_calc
 			INNER JOIN user
 				ON pre_calc.user_id = user.id

@@ -7,6 +7,7 @@ import * as CANNON from 'cannon-es';
 // Optional GUI package (available as BABYLON GUI namespace)
 import '@babylonjs/core/Layers/glowLayer';
 import * as GUI from '@babylonjs/gui';
+import { relative } from 'path';
 import {
 	DEFAULT_MAX_SCORE,
 	MESSAGE_GAME_STATE,
@@ -3924,11 +3925,10 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new TextModal(
+						new ReplayModal(
 							this.container,
-							undefined,
-							'Play again',
-							() => this.gameScreen!.reloadPong()
+							'local',
+							this.gameScreen
 						);
 					}
 				} else {
@@ -4011,11 +4011,10 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new TextModal(
+						new ReplayModal(
 							this.container,
-							undefined,
-							'Play again',
-							() => this.gameScreen!.reloadPong()
+							'local',
+							this.gameScreen
 						);
 					}
 				} else {
@@ -4028,7 +4027,7 @@ export class Pong3D {
 				sessionStorage.getItem('tournament') === '0'
 			) {
 				state.replayCounter = 0;
-				new ReplayModal(this.container);
+				new ReplayModal(this.container, 'remote');
 				// location.hash = '#home';
 			}
 			// Wait 7 seconds for victory music to finish, then set game status
@@ -7015,7 +7014,7 @@ export class Pong3D {
 				sessionStorage.getItem('tournament') === '0'
 			) {
 				state.replayCounter = 0;
-				new ReplayModal(this.container);
+				new ReplayModal(this.container, 'remote');
 				// location.hash = '#home';
 			}
 

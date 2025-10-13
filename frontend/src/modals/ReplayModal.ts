@@ -2,6 +2,7 @@ import { hourglass, jelly, newtonsCradle } from 'ldrs';
 import { z } from 'zod';
 import { MESSAGE_REPLAY } from '../../../shared/constants';
 import { Button } from '../buttons/Button';
+import { GameScreen } from '../screens/GameScreen';
 import { clearRemoteData } from '../utils/clearSessionStorage';
 import { router } from '../utils/Router';
 import { replayTournament } from '../utils/tournamentJoin';
@@ -17,22 +18,52 @@ hourglass.register();
 export class ReplayModal extends Modal {
 	private remoteReplayHandler = () => this.handleRemoteReplay();
 	private timeoutId: ReturnType<typeof setTimeout> | null = null;
+	private gameScreen?: GameScreen;
 
-	constructor(parent: HTMLElement) {
+	constructor(
+		parent: HTMLElement,
+		gameMode: string,
+		gameScreen?: GameScreen
+	) {
 		super(parent);
 
+		if (gameScreen) this.gameScreen = gameScreen;
 		this.overlay.className =
-			'fixed inset-0 flex items-center justify-end flex-col pb-[25vh] bg-black/40 z-20 rounded-sm';
+			'fixed inset-0 flex items-center justify-end flex-col pb-[25vh] bg-black/20 z-20 rounded-sm';
 
 		this.box.classList.add('replay-modal');
 
-		new Button('Replay', () => this.replayClicked(), this.box);
-
-		// Start 10 second timer- redirected to home after
-		this.startTimer();
-
-		// both players sent R -> activate RemoteReplay
-		document.addEventListener('RemoteReplay', this.remoteReplayHandler);
+		try {
+			if (gameMode === 'local') {
+				console.debug('replay local');
+				const button = new Button(
+					'Play again',
+					() => {
+						this.gameScreen!.reloadPong();
+						this.destroy();
+					},
+					this.box
+				);
+				button.element.focus();
+			} else {
+				console.debug('replay remote');
+				const button = new Button(
+					'Replay',
+					() => this.replayClicked(),
+					this.box
+				);
+				button.element.focus();
+				// Start 10 second timer- redirected to home after
+				this.startTimer();
+				// both players sent R -> activate RemoteReplay
+				document.addEventListener(
+					'RemoteReplay',
+					this.remoteReplayHandler
+				);
+			}
+		} catch (e: any) {
+			console.error(e);
+		}
 	}
 
 	// replay -> sends R
@@ -86,12 +117,9 @@ export class ReplayModal extends Modal {
 	}
 
 	private showLoader() {
-		// Clear the button content but keep button styling
-		this.box.textContent = '';
-		this.box.classList.remove('hover:bg-whatever');
-		this.box.classList.add('cursor-not-allowed');
-		this.box.style.backgroundColor = 'white';
-		this.box.style.border = '2px solid white';
+		const button = this.box.querySelector('button');
+		if (button) button.remove();
+
 		// Add loader
 		const container = document.createElement('div');
 		container.className = 'flex items-center justify-center';
