@@ -23,6 +23,8 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	// Track current input state to only send changes
 	private currentInputState = 0; // 0=none, 1=left/up, 2=right/down
 	private logCounter = 0; // Counter for throttling detailed logs to 1Hz
+	// Track which keys are currently pressed to avoid spurious stop commands
+	private keysPressed = new Set<string>();
 
 	constructor(
 		scene: BABYLON.Scene,
@@ -102,6 +104,12 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	 * Handle key down events for sending input to master
 	 */
 	private handleKeyDown(key: string): void {
+		// Track which arrow keys are pressed
+		const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+		if (arrowKeys.includes(key)) {
+			this.keysPressed.add(key);
+		}
+
 		let inputCommand = 0; // 0=none
 
 		// Client mode: Use arrow keys to control this player's paddle
@@ -125,10 +133,26 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	 * Handle key up events
 	 */
 	private handleKeyUp(key: string): void {
-		// Check if the released key was an arrow key controlling movement
+		// Track which arrow keys are released
 		const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-		if (arrowKeys.includes(key) && this.currentInputState !== 0) {
-			this.sendInput(0); // Stop movement
+		if (arrowKeys.includes(key)) {
+			this.keysPressed.delete(key);
+			
+			// Only send stop command if NO arrow keys are pressed anymore
+			if (this.keysPressed.size === 0 && this.currentInputState !== 0) {
+				this.sendInput(0); // Stop movement
+			} else if (this.keysPressed.size > 0) {
+				// If other keys are still pressed, re-send the correct input command
+				// Check which keys are still held and send appropriate command
+				const hasUpLeft = this.keysPressed.has('ArrowUp') || this.keysPressed.has('ArrowLeft');
+				const hasDownRight = this.keysPressed.has('ArrowDown') || this.keysPressed.has('ArrowRight');
+				
+				if (hasUpLeft) {
+					this.sendInput(1); // Continue moving up/left
+				} else if (hasDownRight) {
+					this.sendInput(2); // Continue moving down/right
+				}
+			}
 		}
 	}
 
