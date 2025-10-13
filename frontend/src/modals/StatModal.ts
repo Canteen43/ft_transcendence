@@ -21,6 +21,8 @@ export class StatModal extends Modal {
 	private matchData: RankingItem | null = null;
 	private tournData: TournamentStats | null = null;
 	private chartInstance: Chart | null = null;
+	private graphButtonContainer: HTMLDivElement | null = null;
+	private buttonHandlers: Map<HTMLButtonElement, () => void> = new Map();
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -346,14 +348,14 @@ export class StatModal extends Modal {
 
 		const playedHeader = document.createElement('span');
 		playedHeader.textContent = 'Played';
+		const finalsHeader = document.createElement('span');
+		finalsHeader.textContent = '% Finals';
 		const winsHeader = document.createElement('span');
-		winsHeader.textContent = '% Finals';
-		const percentHeader = document.createElement('span');
-		percentHeader.textContent = '% Wins';
+		winsHeader.textContent = '% Wins';
 
 		header.appendChild(playedHeader);
+		header.appendChild(finalsHeader);
 		header.appendChild(winsHeader);
-		header.appendChild(percentHeader);
 		matchContainer.appendChild(header);
 
 		// Data row
@@ -452,8 +454,8 @@ export class StatModal extends Modal {
 		graphTitle.textContent = '% Wins History';
 		graph.appendChild(graphTitle);
 
-		const buttonContainer = document.createElement('div');
-		buttonContainer.className = 'flex gap-2  justify-center';
+		this.graphButtonContainer = document.createElement('div');
+		this.graphButtonContainer.className = 'flex gap-2  justify-center';
 
 		const limits = [20, 50, 100];
 		let currentLimit = 100;
@@ -479,8 +481,6 @@ export class StatModal extends Modal {
 
 			// Add 15% padding
 			const range = Math.max(distanceFrom50 + 15, 15);
-
-			// Create symmetrical bounds around 50%
 			let minY = Math.max(0, Math.round(50 - range));
 			let maxY = Math.min(100, Math.round(50 + range));
 
@@ -540,27 +540,34 @@ export class StatModal extends Modal {
 			const button = document.createElement('button');
 			button.textContent = `Last ${limit}`;
 			button.className =
-				'px-4 py-1 rounded transition-colors   ' +
+				'px-4 py-1 rounded transition-colors ' +
 				(limit === currentLimit
 					? 'bg-pink-300 text-white'
 					: 'bg-gray-200 text-gray-700 hover:bg-gray-300');
 
-			button.addEventListener('click', () => {
+			// store handler to remove later
+			const handler = () => {
 				currentLimit = limit;
-				buttonContainer.querySelectorAll('button').forEach(btn => {
-					btn.className =
-						'px-4 py-1 rounded transition-colors   ' +
-						(btn === button
-							? 'bg-pink-300 text-white'
-							: 'bg-gray-200 text-gray-700 hover:bg-gray-300');
-				});
+				this.graphButtonContainer
+					?.querySelectorAll('button')
+					.forEach(btn => {
+						const btnLimit = parseInt(
+							btn.textContent?.match(/\d+/)?.[0] || '0'
+						);
+						btn.className =
+							'px-4 py-1 rounded transition-colors ' +
+							(btnLimit === limit
+								? 'bg-pink-300 text-white'
+								: 'bg-gray-200 text-gray-700 hover:bg-gray-300');
+					});
 				createChart(limit);
-			});
-
-			buttonContainer.appendChild(button);
+			};
+			this.buttonHandlers.set(button, handler);
+			button.addEventListener('click', handler);
+			this.graphButtonContainer!.appendChild(button);
 		});
 
-		graph.appendChild(buttonContainer);
+		graph.appendChild(this.graphButtonContainer);
 
 		const canvas = document.createElement('canvas');
 		canvas.id = 'histChart';
@@ -578,6 +585,11 @@ export class StatModal extends Modal {
 			this.chartInstance.destroy();
 			this.chartInstance = null;
 		}
+		this.buttonHandlers.forEach((handler, button) => {
+			button.removeEventListener('click', handler);
+		});
+		this.buttonHandlers.clear();
+
 		super.destroy();
 	}
 }
