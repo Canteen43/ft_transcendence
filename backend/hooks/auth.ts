@@ -44,8 +44,7 @@ export const authHook = (
 ) => {
 	if (
 		request.routeOptions?.config?.secure !== false &&
-		!request.url?.startsWith('/docs') &&
-		process.env.DISABLE_AUTH !== 'true'
+		!request.url?.startsWith('/docs')
 	)
 		authenticateRequest(request);
 	done();

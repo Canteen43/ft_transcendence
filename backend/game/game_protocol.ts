@@ -81,7 +81,15 @@ export class GameProtocol {
 
 	handleMessage(connectionId: UUID, message: string) {
 		logger.trace(`websocket: message received: ${message}`);
-		const json = JSON.parse(message);
+
+		let json: Message;
+		try {
+			json = JSON.parse(message);
+		} catch (error) {
+			logger.warn('Invalid websocket message');
+			return;
+		}
+
 		const handler =
 			this.protocolFunctionMap[
 				json.t as keyof typeof this.protocolFunctionMap
