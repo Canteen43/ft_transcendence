@@ -235,6 +235,7 @@ export class LocalSetupModal extends Modal {
 					this.handleAlias(type);
 				}
 				if (e.key === 'Escape') {
+					e.stopPropagation();
 					this.closeAllDropdowns();
 				}
 			};

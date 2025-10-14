@@ -60,6 +60,7 @@ export const MESSAGE_POINT = 'x';
 export const MESSAGE_FINISH = 'f';
 export const MESSAGE_REPLAY = 'r';
 export const MESSAGE_CHAT = 'c';
+export const MESSAGE_PONG = 'p';
 
 export const DOTENV_BACKEND = 'backend/.env';
 export const TWO_FACTOR_ISSUER = 'No pong intended';

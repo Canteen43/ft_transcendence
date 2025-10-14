@@ -1,6 +1,7 @@
 import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
+	MESSAGE_PONG,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_TOKEN_EXPIRED,
@@ -91,6 +92,10 @@ export class WebSocketWrapper {
 		sessionStorage.setItem('wsOpen', 'true');
 		console.info('WebSocket opened');
 
+		setInterval(() => {
+			this.ws?.send(MESSAGE_PONG);
+			console.debug('PONG sent');
+		}, 25000);
 	}
 
 	private onClose(event: CloseEvent): void {
@@ -166,12 +171,16 @@ export class WebSocketWrapper {
 		if (raw.t != MESSAGE_GAME_STATE && raw.t != MESSAGE_MOVE) {
 			console.trace(location.hash, 'WS message received:', event.data);
 		}
-		if (location.hash === '#game') {
-			console.debug('Routing to in-game ws-handler.');
-			gameListener(event);
+		if (raw.t == MESSAGE_PONG) {
+			console.info('MESSAGE_PONG received');
 		} else {
-			console.debug('Routing to non-game ws-handler.');
-			await regListener(event);
+			if (location.hash === '#game') {
+				console.debug('Routing to in-game ws-handler.');
+				gameListener(event);
+			} else {
+				console.debug('Routing to non-game ws-handler.');
+				await regListener(event);
+			}
 		}
 	}
 
