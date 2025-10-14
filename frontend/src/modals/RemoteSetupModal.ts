@@ -42,7 +42,7 @@ export class RemoteSetupModal extends Modal {
 		input.type = 'text';
 		input.value = value;
 		input.className =
-			'border border-[var(--color3)] p-2 w-full text-grey text-lg';
+			'border border-[var(--color3)] p-2 w-full text-grey text-sm sm:text-base ';
 		return input;
 	}
 
@@ -67,7 +67,8 @@ export class RemoteSetupModal extends Modal {
 		}
 
 		this.destroy();
-		new WaitingModal(this.parent);
+		const waitingModal = new WaitingModal(this.parent);
+		state.currentModal = waitingModal;
 	}
 
 	public destroy(): void {

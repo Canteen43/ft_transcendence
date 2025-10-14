@@ -1,0 +1,4 @@
+{
+	"apiBase": "https:///api",
+	"wsURL": "wss://uninferential-case-never.ngrok-free.dev/ws/websocket"
+}

@@ -46,12 +46,21 @@ export class LocalSetupModal extends Modal {
 		const aliasHints = ['↑←↓→', 'wasd', 'ijkl', '8456'];
 
 		for (let i = 0; i < n; i++) {
-			const defaultValue =
-				n === 1
-					? alias || username || `player${i + 1}`
-					: aliases[i] || `player${i + 1}`;
+			// Create container for title + input
+			const containerAlias = document.createElement('div');
+			containerAlias.className = 'w-full flex flex-col gap-0.5 m-0';
+
+			// Add tiny title
+			const title = document.createElement('label');
+			title.className = 'player-input-title text-[var(--color4)] text-xs m-0';
+			title.textContent = `${aliasHints[i]}`;
+
+			const defaultValue = aliases[i] || `player${i + 1}`;
 			const row = this.createPlayerRow(i, defaultValue, aliasHints[i]);
-			this.box.appendChild(row);
+
+			containerAlias.appendChild(title);
+			containerAlias.appendChild(row);
+			this.box.appendChild(containerAlias);
 		}
 
 		this.powerupCheckboxes = this.createPowerupSection();
@@ -66,17 +75,17 @@ export class LocalSetupModal extends Modal {
 		'split' | 'stretch' | 'shrink',
 		HTMLInputElement
 	> {
-		const container = document.createElement('div');
-		container.className = 'w-full flex flex-col gap-2 mt-4';
+		const containerPU = document.createElement('div');
+		containerPU.className = 'w-full flex flex-col gap-1.5 mt-1';
 
 		const title = document.createElement('h2');
 		title.textContent = 'PowerUps';
-		title.className = 'text-2xl font-bold text-[var(--color4)]';
-		container.appendChild(title);
+		title.className = 'text-lg font-bold text-[var(--color4)]';
+		containerPU.appendChild(title);
 
 		const list = document.createElement('div');
-		list.className = 'flex flex-col gap-1 pb-4';
-		container.appendChild(list);
+		list.className = 'flex flex-col gap-1 pb-1';
+		containerPU.appendChild(list);
 
 		const checkboxMap: Record<
 			'split' | 'stretch' | 'shrink',
@@ -94,7 +103,7 @@ export class LocalSetupModal extends Modal {
 		powerups.forEach(({ key, label }) => {
 			const row = document.createElement('label');
 			row.className =
-				'flex items-center gap-3 text-base text-[var(--color4)]';
+				'flex items-center gap-2.5 text-base text-[var(--color4)]';
 
 			const checkbox = document.createElement('input');
 			checkbox.type = 'checkbox';
@@ -103,7 +112,7 @@ export class LocalSetupModal extends Modal {
 
 			const span = document.createElement('span');
 			span.textContent = label;
-			span.className = 'text-lg font-medium text-[var(--color4)]';
+			span.className = 'text-sm font-medium text-[var(--color4)]';
 
 			row.appendChild(checkbox);
 			row.appendChild(span);
@@ -112,7 +121,7 @@ export class LocalSetupModal extends Modal {
 			checkboxMap[key] = checkbox;
 		});
 
-		this.box.appendChild(container);
+		this.box.appendChild(containerPU);
 		return checkboxMap;
 	}
 
@@ -122,7 +131,8 @@ export class LocalSetupModal extends Modal {
 		hint: string
 	): HTMLDivElement {
 		const row = document.createElement('div');
-		row.className = 'flex items-center gap-2 w-full relative';
+		row.className =
+			'flex items-center gap-1 w-full relative text-[var(--color4)]';
 
 		const input = this.createInput(
 			defaultValue,
@@ -151,7 +161,7 @@ export class LocalSetupModal extends Modal {
 		input.value = defaultValue;
 		input.title = hint;
 		input.className =
-			'border border-[var(--color3)] p-2 flex-1 text-grey text-lg';
+			'border border-[var(--color3)] p-2 flex-1 text-[var(--color4)] text-sm h-10';
 		return input;
 	}
 
@@ -162,23 +172,18 @@ export class LocalSetupModal extends Modal {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className =
-			'flex items-center gap-2 border border-[var(--color3)]-lg px-2 py-2 text-sm text-[var(--color3)] hover:bg-[var(--color3)]/10 transition-colors';
+			'flex items-center justify-center border border-[var(--color3)] px-2 py-1 text-sm text-[var(--color4)] hover:bg-[var(--color3)]/10 transition-colors h-10 w-10';
 
 		const aiIcon = document.createElement('img');
 		aiIcon.src = '/ai.png';
 		aiIcon.alt = 'AI options';
-		aiIcon.className = 'w-6 h-6';
-
-		const arrow = document.createElement('span');
-		arrow.textContent = '▾';
-		arrow.className = 'text-xs';
+		aiIcon.className = 'w-5 h-5';
 
 		button.appendChild(aiIcon);
-		button.appendChild(arrow);
 
 		const dropdown = document.createElement('div');
 		dropdown.className =
-			'hidden absolute right-0 top-full mt-1 min-w-[8rem] bg-white border border-[var(--color3)]-lg shadow-lg z-10 overflow-hidden';
+			'hidden absolute left-0 top-full mt-1 bg-white border border-[var(--color3)] shadow-lg z-10 overflow-hidden w-full';
 
 		// Add option buttons and store handlers
 		this.aiOptions.forEach(option => {
@@ -186,7 +191,7 @@ export class LocalSetupModal extends Modal {
 			optionButton.type = 'button';
 			optionButton.textContent = option.label;
 			optionButton.className =
-				'w-full px-3 py-2 text-left text-sm bg-white hover:bg-[var(--color3)]/10 transition-colors border-none';
+				'w-full px-2 py-0 text-left bg-white hover:bg-[var(--color3)]/10 transition-colors border-none text-[var(--color4)]';
 
 			const clickHandler = (e: MouseEvent) => {
 				e.stopPropagation();
@@ -230,6 +235,7 @@ export class LocalSetupModal extends Modal {
 					this.handleAlias(type);
 				}
 				if (e.key === 'Escape') {
+					e.stopPropagation();
 					this.closeAllDropdowns();
 				}
 			};
@@ -284,7 +290,7 @@ export class LocalSetupModal extends Modal {
 					(index + 1) as 1 | 2 | 3 | 4,
 					controlScheme
 				);
-				GameConfig.setTournamentSeedAlias(
+				GameConfig.setoriginalAlias(
 					(index + 1) as 1 | 2 | 3 | 4,
 					alias
 				);
@@ -295,7 +301,7 @@ export class LocalSetupModal extends Modal {
 			for (let i = 1; i <= 4; i++) {
 				sessionStorage.removeItem(`alias${i}controls`);
 			}
-			GameConfig.clearTournamentSeedAliases();
+			GameConfig.clearoriginalAliases();
 		}
 
 		if (this.powerupCheckboxes) {
@@ -312,7 +318,6 @@ export class LocalSetupModal extends Modal {
 				this.powerupCheckboxes.shrink.checked ? '1' : '0'
 			);
 		}
-
 		location.hash = '#game';
 	}
 

@@ -16,7 +16,7 @@ export class TournamentScreen extends Screen {
 		super(true);
 		clearRemoteData();
 		clearTournData();
-		this.addStyles();
+		this.background();
 		document.addEventListener(
 			'tournament-updated',
 			this.tournamentUpdateHandler
@@ -24,8 +24,25 @@ export class TournamentScreen extends Screen {
 		this.initialize();
 	}
 
+	private background(): void {
+		this.element.style.backgroundImage = 'url(tournBG.png)';
+		this.element.classList.add(
+			'bg-cover',
+			'bg-center',
+			'bg-no-repeat',
+			'bg-fixed',
+			'relative',
+			'overflow-hidden'
+		);
+
+		const overlay = document.createElement('div');
+		overlay.className = 'absolute inset-0 bg-black/40 -z-10';
+
+		this.element.appendChild(overlay);
+	}
+
 	// ASYNC INIT RENDER (waits for data before rendering)
-	private async initialize() {
+	private async initialize(): Promise<void> {
 		try {
 			await this.tournamentUpdate();
 		} catch (err) {
@@ -34,10 +51,8 @@ export class TournamentScreen extends Screen {
 		}
 	}
 
-	private errorModal(message: string) {
-		const modal = new TextModal(this.element, message, undefined, () => {
-			location.hash = '#home';
-		});
+	private errorModal(message: string): void {
+		const modal = new TextModal(this.element, message, undefined);
 		modal.onClose = () => {
 			location.hash = '#home';
 		};
@@ -78,25 +93,17 @@ export class TournamentScreen extends Screen {
 
 	private render() {
 		this.element.textContent = '';
-
 		this.element.className =
 			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
-
-		// Title
 		this.renderTitle();
-
-		// Tournament bracket container - made wider for bigger slots
+		// Tournament bracket container
 		const bracketGrid = this.createElement(
 			this.element,
 			'div',
 			'bracket-grid grid grid-cols-7 gap-6 items-center max-w-7xl mx-auto mb-8'
 		);
 		this.renderBracket(bracketGrid);
-
-		// Ready button
 		this.renderReadyButton();
-
-		// Trophy
 		this.renderTrophy();
 	}
 
@@ -110,12 +117,12 @@ export class TournamentScreen extends Screen {
 		const p4 = sessionStorage.getItem('p4') || 'Player 4';
 
 		// Get scores
-		const p1Score = sessionStorage.getItem('p1Score') || '0';
-		const p2Score = sessionStorage.getItem('p2Score') || '0';
-		const p3Score = sessionStorage.getItem('p3Score') || '0';
-		const p4Score = sessionStorage.getItem('p4Score') || '0';
-		const w1Score = sessionStorage.getItem('w1Score') || '0';
-		const w2Score = sessionStorage.getItem('w2Score') || '0';
+		const p1Score = sessionStorage.getItem('p1Score') || '-1';
+		const p2Score = sessionStorage.getItem('p2Score') || '-1';
+		const p3Score = sessionStorage.getItem('p3Score') || '-1';
+		const p4Score = sessionStorage.getItem('p4Score') || '-1';
+		const w1Score = sessionStorage.getItem('w1Score') || '-1';
+		const w2Score = sessionStorage.getItem('w2Score') || '-1';
 
 		// Left side players (match 0)
 		const leftSide = this.createElement(
@@ -251,29 +258,9 @@ export class TournamentScreen extends Screen {
 
 		slot.className = `player-slot px-6 py-4 text-center font-semibold text-xl min-h-[60px] min-w-[160px] flex items-center justify-center truncate max-w-[200px] border-2 border-transparent ${statusClass}`;
 
-		if (score !== undefined && score !== '0') {
-			// Create container
-			const container = document.createElement('div');
-			container.className = 'flex flex-col items-center';
-
-			// Name element
-			const nameEl = document.createElement('div');
-			nameEl.className = 'font-bold';
-			nameEl.textContent = name;
-
-			// Score element
-			const scoreEl = document.createElement('div');
-			scoreEl.className = 'text-lg mt-1';
-			scoreEl.textContent = score;
-
-			// Append to container
-			container.appendChild(nameEl);
-			container.appendChild(scoreEl);
-
-			// Append container to slot
-			slot.appendChild(container);
+		if (score !== undefined && score !== '-1') {
+			slot.textContent = `${name} - ${score}`;
 		} else {
-			// Only name
 			slot.textContent = name;
 		}
 
@@ -326,40 +313,6 @@ export class TournamentScreen extends Screen {
 		element.className = className;
 		parent.appendChild(element);
 		return element;
-	}
-
-	private addStyles() {
-		const style = document.createElement('style');
-		style.textContent = `
-            .player-slot { 
-                background: var(--color1); 
-                color: var(--color3); 
-                transition: all 0.3s ease; 
-            }
-            .player-slot.winner { 
-                background: var(--color1); 
-                color: var(--color3); 
-                box-shadow: 0 0 30px rgba(41, 100, 189, 0.8), 0 0 60px rgba(3, 39, 94, 0.8); 
-                transform: scale(1.05); 
-                border: 3px solid #2f5792ff; 
-                font-weight: bold; 
-                animation: winnerPulse 2s infinite; 
-            }
-            .player-slot.loser {
-                background: #6c757d;
-                color: #ffffff;
-                opacity: 0.7;
-            }
-            @keyframes winnerPulse { 
-                0%, 100% { 
-                    box-shadow: 0 0 30px rgba(41, 100, 189, 0.8), 0 0 60px rgba(41, 100, 189, 0.8);
-                } 
-                50% { 
-                    box-shadow: 0 0 40px rgba(41, 100, 189, 0.8), 0 0 80px rgba(41, 100, 189, 0.8);
-                } 
-            }
-        `;
-		document.head.appendChild(style);
 	}
 
 	public destroy(): void {

@@ -13,18 +13,17 @@ export class Banner {
 		this.bannerContainer = document.createElement('div');
 		this.bannerContainer.className =
 			'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
-			'border-t-2 border-[var(--color5)] py-2 h-10 z-20 overflow-hidden';
-
+			'border-t-2 border-[var(--color5)] py-1 h-8 z-20 overflow-hidden text-xs sm:text-sm';
 		// online players container
 		this.onlinePlayersContainer = document.createElement('div');
 		this.onlinePlayersContainer.className =
-			'flex items-center space-x-8 px-4';
+			'flex items-center space-x-4 px-2';
 
 		// Add title to onlinePlayersContainer
 		const title = document.createElement('span');
 		title.textContent = 'ONLINE PLAYERS:';
 		title.className =
-			"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg font-bold mr-8";
+			"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base  font-bold mr-8";
 		this.onlinePlayersContainer.appendChild(title);
 
 		// scrollWrapper
@@ -86,14 +85,14 @@ export class Banner {
 		const title = document.createElement('span');
 		title.textContent = 'ONLINE PLAYERS:';
 		title.className =
-			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-lg mr-8";
+			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base  mr-8";
 		newContainer.appendChild(title);
 
 		if (users.length === 0) {
 			const noPlayers = document.createElement('span');
 			noPlayers.textContent = 'No players online';
 			noPlayers.className =
-				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base opacity-75";
+				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base opacity-75";
 			newContainer.appendChild(noPlayers);
 		} else {
 			users.forEach((user: any) => {
@@ -101,7 +100,7 @@ export class Banner {
 				const playerElement = document.createElement('span');
 				playerElement.textContent = displayName;
 				playerElement.className =
-					"inline-flex items-center font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-base px-1 py-0.5 mr-1";
+					"inline-flex items-center font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base px-1 py-0.5 mr-1";
 				newContainer.appendChild(playerElement);
 			});
 		}

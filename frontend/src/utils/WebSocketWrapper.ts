@@ -1,6 +1,7 @@
 import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
+	MESSAGE_PONG,
 	WS_ALREADY_CONNECTED,
 	WS_AUTHENTICATION_FAILED,
 	WS_TOKEN_EXPIRED,
@@ -43,9 +44,58 @@ export class WebSocketWrapper {
 		}
 	}
 
+	// Public methods
+	public open(): void {
+		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
+		const token = sessionStorage.getItem('token');
+		if (!token) {
+			console.warn('No token - cannot open WebSocket');
+			this.shouldReconnect = false;
+			return;
+		}
+		if (this.ws?.readyState === WebSocket.OPEN) {
+			console.log('WebSocket already open');
+			return;
+		}
+		if (this.ws?.readyState === WebSocket.CONNECTING) {
+			console.log('WebSocket already connecting');
+			return;
+		}
+
+		console.info('Opening WebSocket');
+		this.shouldReconnect = false;
+
+		const wsUrlWithToken = `${wsURL}?token=${token}`;
+		this.ws = new WebSocket(wsUrlWithToken);
+
+		this.ws.addEventListener('open', this.boundOnOpen);
+		this.ws.addEventListener('close', this.boundOnClose);
+		this.ws.addEventListener('message', this.boundOnMessage);
+		this.ws.addEventListener('error', this.boundOnError);
+	}
+
+	public close(): void {
+		console.log('Manually closing WebSocket');
+		this.shouldReconnect = false;
+
+		if (this.reconnectTimeoutId) {
+			clearTimeout(this.reconnectTimeoutId);
+			this.reconnectTimeoutId = null;
+		}
+		this.removeListeners();
+		this.ws?.close(1000, 'Manual close');
+		this.ws = null;
+	}
+
 	// Event handlers
 	private onOpen(): void {
+		sessionStorage.setItem('wsOpen', 'true');
 		console.info('WebSocket opened');
+
+		setInterval(() => {
+			this.ws?.send(MESSAGE_PONG);
+			console.debug('PONG sent');
+		}, 25000);
 	}
 
 	private onClose(event: CloseEvent): void {
@@ -55,6 +105,7 @@ export class WebSocketWrapper {
 			reason: event.reason,
 		});
 		this.removeListeners();
+		sessionStorage.setItem('wsOpen', 'false');
 		this.ws = null;
 
 		// Clear any existing reconnect timeout
@@ -120,12 +171,16 @@ export class WebSocketWrapper {
 		if (raw.t != MESSAGE_GAME_STATE && raw.t != MESSAGE_MOVE) {
 			console.trace(location.hash, 'WS message received:', event.data);
 		}
-		if (location.hash === '#game') {
-			console.debug('Routing to in-game ws-handler.');
-			gameListener(event);
+		if (raw.t == MESSAGE_PONG) {
+			console.info('MESSAGE_PONG received');
 		} else {
-			console.debug('Routing to non-game ws-handler.');
-			await regListener(event);
+			if (location.hash === '#game') {
+				console.debug('Routing to in-game ws-handler.');
+				gameListener(event);
+			} else {
+				console.debug('Routing to non-game ws-handler.');
+				await regListener(event);
+			}
 		}
 	}
 
@@ -141,49 +196,6 @@ export class WebSocketWrapper {
 		this.ws.removeEventListener('close', this.boundOnClose);
 		this.ws.removeEventListener('message', this.boundOnMessage);
 		this.ws.removeEventListener('error', this.boundOnError);
-	}
-
-	// Public methods
-	public open(): void {
-		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
-		const token = sessionStorage.getItem('token');
-		if (!token) {
-			console.warn('No token - cannot open WebSocket');
-			this.shouldReconnect = false;
-			return;
-		}
-		if (this.ws?.readyState === WebSocket.OPEN) {
-			console.log('WebSocket already open');
-			return;
-		}
-		if (this.ws?.readyState === WebSocket.CONNECTING) {
-			console.log('WebSocket already connecting');
-			return;
-		}
-
-		console.info('Opening WebSocket');
-		this.shouldReconnect = false;
-
-		const wsUrlWithToken = `${wsURL}?token=${token}`;
-		this.ws = new WebSocket(wsUrlWithToken);
-
-		this.ws.addEventListener('open', this.boundOnOpen);
-		this.ws.addEventListener('close', this.boundOnClose);
-		this.ws.addEventListener('message', this.boundOnMessage);
-		this.ws.addEventListener('error', this.boundOnError);
-	}
-
-	public close(): void {
-		console.log('Manually closing WebSocket');
-		this.shouldReconnect = false;
-
-		if (this.reconnectTimeoutId) {
-			clearTimeout(this.reconnectTimeoutId);
-			this.reconnectTimeoutId = null;
-		}
-		this.removeListeners();
-		this.ws?.close(1000, 'Manual close');
-		this.ws = null;
 	}
 
 	public send(message: Message): void {

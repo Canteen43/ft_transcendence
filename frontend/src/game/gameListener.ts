@@ -105,22 +105,16 @@ export async function gameListener(event: MessageEvent) {
 				location.hash = '#game';
 				conditionalLog('reloading pong.ts');
 				(router.currentScreen as GameScreen)?.reloadPong();
-				conditionalLog('Received start message:', msg);
-				state.gameOngoing = true;
-				state.gameMode = 'remote';
-				location.hash = '#game';
-				conditionalLog('reloading pong.ts');
-				(router.currentScreen as GameScreen)?.reloadPong();
 				break;
 
 			case MESSAGE_QUIT:
 				conditionalLog('Clearing game data');
-				conditionalLog('Clearing game data');
+				sessionStorage.removeItem('tournamentID');
 				// clearRemoteData();
 				// clearTournData();
 				// clearOtherGameData();
 				location.hash = '#home';
-				location.hash = '#home';
+				
 				setTimeout(() => {
 					void new TextModal(
 						router.currentScreen!.element,

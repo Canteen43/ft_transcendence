@@ -22,7 +22,7 @@ export class QRModal extends Modal {
 			'The app will generate codes.\n' +
 			'Enter the code below to enable 2FA.';
 		message.className =
-			'text-center text-lg text-gray-800 whitespace-pre-line';
+			'text-center text-sm sm:text-base  text-gray-800 whitespace-pre-line';
 		this.box.appendChild(message);
 	}
 
@@ -38,7 +38,7 @@ export class QRModal extends Modal {
 		this.inputField.type = 'text';
 		this.inputField.placeholder = 'Enter code';
 		this.inputField.className =
-			'block w-full mt-2 p-2 border rounded-md text-center text-lg';
+			'block w-full mt-2 p-2 border rounded-md text-center text-sm sm:text-base ';
 		this.box.appendChild(this.inputField);
 		this.inputField.focus();
 	}

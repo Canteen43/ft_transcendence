@@ -8,6 +8,8 @@ export interface GameState {
 		velocity: BABYLON.Vector3;
 	};
 	isRunning: boolean;
+	waitingForServe: boolean; // True when ball is positioned but waiting for server input
+	servingPlayer: number; // Index of player who will serve (-1 if none)
 }
 
 /**
@@ -54,6 +56,8 @@ export abstract class Pong3DGameLoopBase {
 				velocity: this.generateRandomStartingVelocity(10), // Increased speed for custom physics
 			},
 			isRunning: false,
+			waitingForServe: false,
+			servingPlayer: -1,
 		};
 	}
 

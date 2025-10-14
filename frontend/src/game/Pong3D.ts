@@ -7,6 +7,7 @@ import * as CANNON from 'cannon-es';
 // Optional GUI package (available as BABYLON GUI namespace)
 import '@babylonjs/core/Layers/glowLayer';
 import * as GUI from '@babylonjs/gui';
+import { relative } from 'path';
 import {
 	DEFAULT_MAX_SCORE,
 	MESSAGE_GAME_STATE,
@@ -91,6 +92,8 @@ export interface Pong3DOptions {
 interface GameState {
 	paddlePositionsX: number[]; // x positions for paddles 0-3 (players 1-2 and some 3-4)
 	paddlePositionsY: number[]; // y positions for paddles 2-3 (players 3-4 in 4-player mode)
+	waitingForServe?: boolean; // True when ball is positioned but waiting for server input
+	servingPlayer?: number; // Index of player who will serve (-1 if none)
 }
 
 //The outer bounding box of all meshes used, helps to place default lights and cameras
@@ -1973,8 +1976,36 @@ export class Pong3D {
 
 		// Auto-start the game loop after everything is loaded
 		if (this.gameLoop) {
-			// Set a random server for the initial serve
-			this.currentServer = Math.floor(Math.random() * this.playerCount);
+			// Set the first server - prefer human players over AI
+			const humanPlayers: number[] = [];
+			const aiPlayers: number[] = [];
+			
+			for (let i = 0; i < this.playerCount; i++) {
+				const playerName = this.playerNames[i];
+				if (playerName && playerName.startsWith('*')) {
+					aiPlayers.push(i);
+				} else {
+					humanPlayers.push(i);
+				}
+			}
+			
+			// Choose a human player if any exist, otherwise choose an AI
+			if (humanPlayers.length > 0) {
+				this.currentServer = humanPlayers[Math.floor(Math.random() * humanPlayers.length)];
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with human server: Player ${this.currentServer + 1}...`
+					);
+				}
+			} else {
+				this.currentServer = aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
+				if (GameConfig.isDebugLoggingEnabled()) {
+					this.conditionalLog(
+						`🚀 Auto-starting game loop with AI server: Player ${this.currentServer + 1}...`
+					);
+				}
+			}
+			
 			if (GameConfig.isDebugLoggingEnabled()) {
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
@@ -2586,7 +2617,7 @@ export class Pong3D {
 		if (this.playerCount === 2) {
 			// Players 1,2 move on X-axis, paddle faces are on Z-axis
 			const maxXOffset =
-				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 0.6; // Allow 120% of paddle width (more lenient)
+				(paddleBounds.maximum.x - paddleBounds.minimum.x) * 1; // Allow full paddle width
 			if (Math.abs(relativePos.x) > maxXOffset) {
 				this.conditionalLog(
 					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (offset: ${relativePos.x.toFixed(3)}, limit: ${maxXOffset.toFixed(3)})`
@@ -2597,7 +2628,7 @@ export class Pong3D {
 			// 4P Mode: P1/P2 walled off, working with P3/P4 (side paddles)
 			// P3 and P4 use Z-axis edge collision detection
 			const maxZOffset =
-				(paddleBounds.maximum.z - paddleBounds.minimum.z) * 0.6; // Same as 2P X-offset
+				(paddleBounds.maximum.z - paddleBounds.minimum.z) * 1; // Allow full paddle depth
 			if (Math.abs(relativePos.z) > maxZOffset) {
 				this.conditionalLog(
 					`🚫 Edge collision detected on Player ${paddleIndex + 1} paddle - ignoring (4P Z-axis check)`
@@ -3924,11 +3955,10 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new TextModal(
+						new ReplayModal(
 							this.container,
-							undefined,
-							'Play again',
-							() => this.gameScreen!.reloadPong()
+							'local',
+							this.gameScreen
 						);
 					}
 				} else {
@@ -4011,11 +4041,10 @@ export class Pong3D {
 							() => this.gameScreen!.reloadPong()
 						);
 					} else {
-						new TextModal(
+						new ReplayModal(
 							this.container,
-							undefined,
-							'Play again',
-							() => this.gameScreen!.reloadPong()
+							'local',
+							this.gameScreen
 						);
 					}
 				} else {
@@ -4028,7 +4057,7 @@ export class Pong3D {
 				sessionStorage.getItem('tournament') === '0'
 			) {
 				state.replayCounter = 0;
-				new ReplayModal(this.container);
+				new ReplayModal(this.container, 'remote');
 				// location.hash = '#home';
 			}
 			// Wait 7 seconds for victory music to finish, then set game status
@@ -5475,6 +5504,15 @@ export class Pong3D {
 		const targetSpeedForSplits = this.ballEffects.getCurrentBallSpeed();
 		this.ballManager.updateAll(targetSpeedForSplits);
 
+		// Sync serve waiting state from game loop
+		if (this.gameLoop && 'getGameState' in this.gameLoop) {
+			const gameLoopState = (this.gameLoop as any).getGameState();
+			if (gameLoopState) {
+				this.gameState.waitingForServe = gameLoopState.waitingForServe || false;
+				this.gameState.servingPlayer = gameLoopState.servingPlayer ?? -1;
+			}
+		}
+
 		// Get current key state from input handler
 		const keyState = this.inputHandler?.getKeyState() || {
 			p1Left: false,
@@ -5486,6 +5524,27 @@ export class Pong3D {
 			p4Left: false,
 			p4Right: false,
 		};
+
+		// Check if we're waiting for serve and the serving player pressed a key
+		if (this.gameLoop && this.gameState.waitingForServe) {
+			const servingPlayer = this.gameState.servingPlayer;
+			const playerKeys = [
+				{ left: keyState.p1Left, right: keyState.p1Right },
+				{ left: keyState.p2Left, right: keyState.p2Right },
+				{ left: keyState.p3Left, right: keyState.p3Right },
+				{ left: keyState.p4Left, right: keyState.p4Right },
+			];
+			
+			if (servingPlayer !== undefined && servingPlayer >= 0 && servingPlayer < playerKeys.length) {
+				const keys = playerKeys[servingPlayer];
+				if (keys.left || keys.right) {
+					// Serving player pressed a movement key - launch the serve!
+					if ('launchServe' in this.gameLoop) {
+						(this.gameLoop as any).launchServe();
+					}
+				}
+			}
+		}
 
 		this.conditionalLog(`🎮 Paddle update - keyState:`, keyState);
 
@@ -6622,6 +6681,10 @@ export class Pong3D {
 	/** Set the last player to hit the ball (used by game loop for serve tracking) */
 	public setLastPlayerToHitBall(playerIndex: number): void {
 		this.lastPlayerToHitBall = playerIndex;
+		// Also update the ball entity's hit history for proper scoring
+		if (this.mainBallEntity) {
+			this.mainBallEntity.recordHit(playerIndex);
+		}
 	}
 
 	/**
@@ -6836,24 +6899,27 @@ export class Pong3D {
 				this.conditionalLog(`  📡 Player ${i} UID: ${uid || 'null'}`);
 			}
 
-			// Get the scoring player's UID from GameConfig
-			const scoringPlayerUID = GameConfig.getPlayerUID(
-				(scoringPlayerIndex + 1) as 1 | 2 | 3 | 4
-			); // Convert 0-based to 1-based
+			// Direct mapping: scoringPlayerIndex (0-based paddle/goal index) -> playerNumber (1-based UID key)
+			// scoringPlayerIndex 0 = paddle1/goal1 defender = player1 UID
+			// scoringPlayerIndex 1 = paddle2/goal2 defender = player2 UID
+			// This mapping is consistent regardless of local/remote mode because the scoring logic
+			// operates on the actual game-world paddle indices, not relative player positions
+			const playerNumber = (scoringPlayerIndex + 1) as 1 | 2 | 3 | 4;
+			const scoringPlayerUID = GameConfig.getPlayerUID(playerNumber);
 
 			this.conditionalLog(
-				`📡 Retrieved UID for scoring player ${scoringPlayerIndex + 1}: ${scoringPlayerUID || 'null'}`
+				`📡 Retrieved UID for scoring player ${scoringPlayerIndex} (mapped to player ${playerNumber}): ${scoringPlayerUID || 'null'}`
 			);
 
 			if (!scoringPlayerUID) {
 				this.conditionalWarn(
-					`No UID found for player ${scoringPlayerIndex + 1}, cannot send score update`
+					`No UID found for player ${playerNumber}, cannot send score update`
 				);
 				return;
 			}
 
 			this.conditionalLog(
-				`🏆 Sending score update for Player ${scoringPlayerIndex + 1} (UID: ${scoringPlayerUID})`
+				`🏆 Sending score update for Player ${scoringPlayerIndex} (UID: ${scoringPlayerUID})`
 			);
 
 			// Send via WebSocket using team's message format
@@ -6901,12 +6967,23 @@ export class Pong3D {
 		}
 
 		// Find the player index from the UID
+		// Direct mapping: player1 UID -> index 0, player2 UID -> index 1, etc.
+		// This matches the master's sending logic (scoringPlayerIndex 0 -> player1 UID)
 		let scoringPlayerIndex = -1;
+		
 		for (let i = 0; i < this.playerCount; i++) {
-			const playerUID = GameConfig.getPlayerUID((i + 1) as 1 | 2 | 3 | 4);
-			this.conditionalLog(`🎮 Checking player ${i + 1} UID:`, playerUID);
+			const playerUID = GameConfig.getPlayerUID(
+				(i + 1) as 1 | 2 | 3 | 4
+			);
+			this.conditionalLog(
+				`🎮 Checking player ${i + 1} UID:`,
+				playerUID
+			);
 			if (playerUID === scoringPlayerUID) {
 				scoringPlayerIndex = i;
+				this.conditionalLog(
+					`🎮 Match found! Scoring player index: ${scoringPlayerIndex}`
+				);
 				break;
 			}
 		}
@@ -6965,7 +7042,7 @@ export class Pong3D {
 				sessionStorage.getItem('tournament') === '0'
 			) {
 				state.replayCounter = 0;
-				new ReplayModal(this.container);
+				new ReplayModal(this.container, 'remote');
 				// location.hash = '#home';
 			}
 
@@ -7104,6 +7181,14 @@ export class Pong3D {
 			`Player ${winningPlayerIndex + 1}`;
 		sessionStorage.setItem('winner', winnerName);
 		this.showLocalTournamentTrophy(winnerName);
+
+		// Restore seed aliases back to regular aliases for future tournaments
+		for (let i = 1; i <= 4; i++) {
+			const seedAlias = GameConfig.getoriginalAlias(i as 1 | 2 | 3 | 4);
+			if (seedAlias !== null) {
+				sessionStorage.setItem(`alias${i}`, seedAlias);
+			}
+		}
 	}
 
 	private setupGlowEffects(): void {

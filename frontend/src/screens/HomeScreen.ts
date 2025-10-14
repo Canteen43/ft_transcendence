@@ -3,6 +3,7 @@ import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
 import { StatModal } from '../modals/StatModal';
+import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
 import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
@@ -43,6 +44,16 @@ export class HomeScreen extends Screen {
 			this.setupModalCloseHandler(modal);
 			return;
 		}
+		const ws = sessionStorage.getItem('wsOpen');
+		if (ws !== 'true') {
+			const modal = new TextModal(
+				this.element,
+				'WebSocket is not connected. Please refresh the page or try again later.',
+				undefined
+			);
+			this.setupModalCloseHandler(modal);
+			return;
+		}
 		const modal = new RemoteGameModal(this.element);
 		this.setupModalCloseHandler(modal);
 	}
@@ -68,6 +79,16 @@ export class HomeScreen extends Screen {
 			this.setupModalCloseHandler(modal);
 			return;
 		}
+		const ws = sessionStorage.getItem('wsOpen');
+		if (ws !== 'true') {
+			const modal = new TextModal(
+				this.element,
+				'WebSocket is not connected. Please refresh the page or try again later.',
+				undefined
+			);
+			this.setupModalCloseHandler(modal);
+			return;
+		}
 		const modal = new StatModal(this.element);
 		this.setupModalCloseHandler(modal);
 	}
@@ -75,7 +96,6 @@ export class HomeScreen extends Screen {
 	private setupModalCloseHandler(modal: any): void {
 		// Set up onClose callback to re-enable camera controls
 		modal.onClose = () => {
-			console.log('🏠 Modal closed, re-enabling camera controls');
 			// Small delay to ensure modal DOM cleanup is complete
 			setTimeout(() => {
 				if (this.landing) {

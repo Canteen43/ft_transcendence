@@ -22,20 +22,20 @@ export class RemoteGameModal extends Modal {
 		this.box.classList.add('remote-modal');
 
 		const img2 = document.createElement('img');
-		img2.src = '2_players.png';
-		img2.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
+		img2.src = '2p.png';
+		img2.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
 
 		const img2_pu = document.createElement('img');
-		img2_pu.src = '2_players_powerups.png';
-		img2_pu.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
+		img2_pu.src = '2pPU.png';
+		img2_pu.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
 
 		const imgt = document.createElement('img');
 		imgt.src = 'trophy.png';
-		imgt.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
+		imgt.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
 
 		const imgt_pu = document.createElement('img');
-		imgt_pu.src = 'trophy_powerups.png';
-		imgt_pu.className = 'h-24 sm:h-28 md:h-32 w-auto object-contain';
+		imgt_pu.src = 'trophyPU.png';
+		imgt_pu.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
 
 		this.btn2plyr = new Button(
 			img2,
@@ -67,9 +67,9 @@ export class RemoteGameModal extends Modal {
 		].forEach(btn => {
 			btn.element.className +=
 				' w-full' +
-				' min-h-[120px]' + // Minimum height for consistency
+				' min-h-[60px] sm:min-h-[80px] md:min-h-[100px]' +
 				' flex items-center justify-center' +
-				' p-4' +
+				' p-1 sm:p-2 md:p-3' +
 				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
 				' focus:outline-none focus:ring-2 focus:ring-[var(--color1)]';
 		});
@@ -79,9 +79,9 @@ export class RemoteGameModal extends Modal {
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
-			' bg-[var(--color3)] p-4 sm:p-6 md:p-10' +
+			' bg-[var(--color3)] p-1 sm:p-3 md:p-5' +
 			' relative grid place-items-center' +
-			' gap-4 w-[90vw] sm:w-auto max-w-[600px] rounded-sm' + // Increased max-w
+			' gap-1 w-[90vw] sm:w-auto max-w-[400] rounded-sm' + // Increased max-w
 			' grid-cols-1 sm:grid-cols-2';
 
 		this.btn2plyr.element.focus();
@@ -165,6 +165,8 @@ export class RemoteGameModal extends Modal {
 		clearAllGameData();
 
 		console.debug('Set sessionStorage');
+
+		state.currentModal = null;
 
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
