@@ -232,6 +232,12 @@ export class RegisterModal extends Modal {
 	}
 
 	private handleGoBack(parent: HTMLElement) {
+		this.destroy();
+		new LoginModal(parent);
+	}
+
+	public destroy(): void {
+		// Remove all keydown listeners
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.AliasField.removeEventListener('keydown', this.handleEnter);
 		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
@@ -242,7 +248,8 @@ export class RegisterModal extends Modal {
 			'keydown',
 			this.handleEnter
 		);
-		this.destroy();
-		new LoginModal(parent);
+
+		// Call parent destroy
+		super.destroy();
 	}
 }
