@@ -93,7 +93,7 @@ export class WebSocketWrapper {
 		console.info('WebSocket opened');
 
 		setInterval(() => {
-			this.ws?.send(MESSAGE_PONG);
+			this.ws?.send(JSON.stringify({ t: MESSAGE_PONG }));
 			console.debug('PONG sent');
 		}, 25000);
 	}
