@@ -31,7 +31,7 @@ services:
             dockerfile: build/backend/Dockerfile
         restart: unless-stopped
         command: npm run start:backend
-        env_file: ./backend/prod.env
+        env_file: ./backend/.env
         volumes:
             - db_volume:/app/database
         ports:
@@ -43,6 +43,12 @@ services:
         container_name: tunnel
         image: ngrok/ngrok:latest
         restart: unless-stopped
-        command: ['http', 'frontend:80', '--log=stdout', '--authtoken=${NGROK_AUTHTOKEN}']
+        command:
+            [
+                'http',
+                'frontend:80',
+                '--log=stdout',
+                '--authtoken=${NGROK_AUTHTOKEN}',
+            ]
         networks:
             - my_network
