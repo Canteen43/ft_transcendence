@@ -68,12 +68,11 @@ project-root/
 │ └─ schemas/ # TypeScript schemas, constants, utils
 │
 ├─ build/ # Production build assets
-│ ├─ frontend/ # Frontend Dockerfile, prod.env
+│ ├─ frontend/ # Frontend Dockerfile, .env
+│ │ └─ Dockerfile
+│ ├─ backend/ # Backend Dockerfile
 │ │ ├─ Dockerfile
-│ │ └─ prod.env
-│ ├─ backend/ # Backend Dockerfile, prod.env
-│ │ ├─ Dockerfile
-│ │ └─ prod.env
+│ │ └─ .env
 │ └─ database/ # Production database files
 │
 ├─ .gitignore

@@ -11,6 +11,7 @@ import {
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
 	MESSAGE_POINT,
+	MESSAGE_PONG,
 	MESSAGE_QUIT,
 	MESSAGE_REPLAY,
 	MESSAGE_START_TOURNAMENT,
@@ -68,6 +69,7 @@ export class GameProtocol {
 		[MESSAGE_QUIT]: this.handleQuit,
 		[MESSAGE_REPLAY]: this.handleReplay,
 		[MESSAGE_CHAT]: this.handleChat,
+		[MESSAGE_PONG]: this.handlePing,
 	} as const;
 
 	static getInstance(): GameProtocol {
@@ -215,11 +217,15 @@ export class GameProtocol {
 	private handleReplay(connectionId: UUID, message: Message) {
 		logger.debug('websocket: replay message received.');
 		const matchId = message.d as UUID;
-		// const match = this.getDbMatch(matchId);
 		this.sendTournamentMessage(
 			message,
 			this.getTournamentParticipants(matchId)
 		);
+	}
+
+	private handlePing(connectionId: UUID, message: Message) {
+		const response: Message = { t: MESSAGE_PONG };
+		getConnection(connectionId)?.send(JSON.stringify(response));
 	}
 
 	private handleChat(connectionId: UUID, message: Message) {
