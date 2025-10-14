@@ -171,15 +171,12 @@ export class Pong3DAudio {
 
 		try {
 			// Load sound effects from sounds folder
-			await this.loadSoundEffect('ping', './src/game/sounds/ping.mp3');
-			await this.loadSoundEffect('dong', './src/game/sounds/dong.mp3');
-			await this.loadSoundEffect('powerup', './src/game/sounds/powerup.mp3');
-			await this.loadSoundEffect('shrink', './src/game/sounds/shrink.mp3');
-			await this.loadSoundEffect('goal', './src/game/sounds/goal.mp3');
-			await this.loadSoundEffect(
-				'victory',
-				'./src/game/sounds/victory.mp3'
-			);
+			await this.loadSoundEffect('ping', './src/public/ping.mp3');
+			await this.loadSoundEffect('dong', './src/public/dong.mp3');
+			await this.loadSoundEffect('powerup', './src/public/powerup.mp3');
+			await this.loadSoundEffect('shrink', './src/public/shrink.mp3');
+			await this.loadSoundEffect('goal', './src/public/goal.mp3');
+			await this.loadSoundEffect('victory', './src/public/victory.mp3');
 		} catch (error) {
 			conditionalWarn('🔊 Audio loading failed:', error);
 		}
