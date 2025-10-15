@@ -1699,8 +1699,12 @@ export class Pong3D {
 			const gameState = customEvent.detail;
 			this.conditionalLog('📡 remoteGameState received:', gameState);
 
-			// Handle sound effects if present in the game state
-			if (gameState && typeof gameState.s === 'number') {
+			// Handle sound effects if present in the game state (clients only)
+			if (
+				this.gameMode !== 'master' &&
+				gameState &&
+				typeof gameState.s === 'number'
+			) {
 				this.handleRemoteSoundEffect(gameState.s);
 			}
 		};
