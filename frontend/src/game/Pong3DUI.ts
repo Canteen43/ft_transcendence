@@ -2,6 +2,7 @@
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import montserratBoldUrl from '../../fonts/montserrat/Montserrat-Bold.ttf';
+import { isMobileInputEnabled } from './MobileControlsOverlay';
 import { conditionalWarn } from './Logger';
 
 const MESH_UI_FONT_FAMILY = 'MontserratBold';
@@ -78,6 +79,7 @@ export function createPong3DUI(
 	const positions = opts?.positions ?? ['bottom', 'top', 'right', 'left'];
 
 	const guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+	const isMobile = isMobileInputEnabled();
 	const texturesToDispose = new Set<GUI.AdvancedDynamicTexture>();
 	texturesToDispose.add(guiTexture);
 	ensureMeshUIFontLoaded();
@@ -276,7 +278,7 @@ export function createPong3DUI(
 		const colors = ['red', '#5bc8ff', 'lightgreen', 'cyan'];
 		const playerColor = colors[idx] ?? 'white';
 		name.color = playerColor;
-		name.fontSize = 44;
+		name.fontSize = isMobile ? 22 : 44;
 		name.fontWeight = 'bold';
 		name.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
 		name.paddingRight = '6px';
@@ -288,7 +290,7 @@ export function createPong3DUI(
 		score.width = 'auto';
 		score.text = String(scores[idx] ?? 0);
 		score.color = 'white';
-		score.fontSize = 50;
+		score.fontSize = isMobile ? 25 : 50;
 		score.fontWeight = 'bold';
 		score.textHorizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
 		// vertically center text so when stacked horizontally both lines align
@@ -319,7 +321,7 @@ export function createPong3DUI(
 				name.text,
 				{
 					color: playerColor,
-					fontSize: 220,
+					fontSize: isMobile ? 110 : 220,
 					shadowColor: 'rgba(0, 0, 0, 0.65)',
 					shadowBlur: 10,
 					shadowOffsetX: 4,
@@ -341,7 +343,7 @@ export function createPong3DUI(
 				`score${idx + 1}-primary`,
 				score.text,
 				{
-					fontSize: 360,
+					fontSize: isMobile ? 180 : 360,
 					color: 'white',
 					shadowColor: 'rgba(0, 0, 0, 0.7)',
 					shadowBlur: 12,
