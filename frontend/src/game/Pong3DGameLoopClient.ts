@@ -1,6 +1,11 @@
 import * as BABYLON from '@babylonjs/core';
 import { GameConfig } from './GameConfig';
 import { conditionalLog, conditionalWarn } from './Logger';
+import {
+	isMobileInputEnabled,
+	MobileControlSide,
+	MobileControlsOverlay,
+} from './MobileControlsOverlay';
 import { Pong3DGameLoopBase } from './Pong3DGameLoopBase';
 import type { NetworkPowerupState } from './Pong3DGameLoopBase';
 
@@ -19,6 +24,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		BABYLON.Observer<BABYLON.KeyboardInfo>
 	> = null;
 	private splitBallMesh: BABYLON.Mesh | null = null;
+	private mobileControls?: MobileControlsOverlay;
 
 	// Track current input state to only send changes
 	private currentInputState = 0; // 0=none, 1=left/up, 2=right/down
@@ -36,6 +42,8 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		this.thisPlayerId = thisPlayerId;
 		this.onInputSend = onInputSend;
 		this.pong3DInstance = pong3DInstance;
+
+		this.setupMobileControls();
 
 		// Set up WebSocket listener for remote game state updates
 		this.handleRemoteGameState = (event: any) => {
@@ -98,6 +106,29 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 					break;
 			}
 		});
+	}
+
+	private setupMobileControls(): void {
+		if (!isMobileInputEnabled()) {
+			return;
+		}
+
+		this.mobileControls = new MobileControlsOverlay({
+			onStateChange: (side, pressed) =>
+				this.handleMobileControlChange(side, pressed),
+		});
+	}
+
+	private handleMobileControlChange(
+		side: MobileControlSide,
+		pressed: boolean
+	): void {
+		const key = side === 'left' ? 'ArrowLeft' : 'ArrowRight';
+		if (pressed) {
+			this.handleKeyDown(key);
+		} else {
+			this.handleKeyUp(key);
+		}
 	}
 
 	/**
@@ -178,6 +209,8 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			'remoteGameState',
 			this.handleRemoteGameState
 		);
+		this.mobileControls?.destroy();
+		this.mobileControls = undefined;
 
 		if (this.splitBallMesh && !this.splitBallMesh.isDisposed()) {
 			try {

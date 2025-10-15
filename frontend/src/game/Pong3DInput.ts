@@ -16,6 +16,11 @@
  */
 import { conditionalLog, conditionalWarn } from './Logger';
 import { ControlScheme, GameConfig } from './GameConfig';
+import {
+	isMobileInputEnabled,
+	MobileControlSide,
+	MobileControlsOverlay,
+} from './MobileControlsOverlay';
 import { AIConfig, AIInput, GameStateForAI, Pong3DAI } from './pong3DAI';
 
 export interface KeyState {
@@ -53,6 +58,7 @@ export class Pong3DInput {
 
 	private canvas: HTMLCanvasElement;
 	private aiControllers: (Pong3DAI | null)[] = [null, null, null, null];
+	private mobileControls?: MobileControlsOverlay;
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -62,12 +68,32 @@ export class Pong3DInput {
 		this.handleKeyUp = this.handleKeyUp.bind(this);
 		this.toggleFullscreen = this.toggleFullscreen.bind(this);
 		this.setupEventListeners();
+		this.setupMobileControls();
 	}
 
 	private setupEventListeners(): void {
 		window.addEventListener('keydown', this.handleKeyDown);
 		window.addEventListener('keyup', this.handleKeyUp);
 		this.canvas.addEventListener('dblclick', this.toggleFullscreen);
+	}
+
+	private setupMobileControls(): void {
+		if (!isMobileInputEnabled()) {
+			return;
+		}
+
+		this.mobileControls = new MobileControlsOverlay({
+			onStateChange: this.handleMobileControlChange.bind(this),
+		});
+	}
+
+	private handleMobileControlChange(
+		side: MobileControlSide,
+		pressed: boolean
+	): void {
+		const allowAll = this.shouldAllowFullMasterControl();
+		const key = side === 'left' ? 'ArrowLeft' : 'ArrowRight';
+		this.processKeyInput(key, pressed, allowAll);
 	}
 
 	private isLocalTournament(): boolean {
@@ -386,6 +412,8 @@ export class Pong3DInput {
 		window.removeEventListener('keydown', this.handleKeyDown);
 		window.removeEventListener('keyup', this.handleKeyUp);
 		this.canvas.removeEventListener('dblclick', this.toggleFullscreen);
+		this.mobileControls?.destroy();
+		this.mobileControls = undefined;
 
 		// Clean up AI controllers
 		this.aiControllers = [null, null, null, null];
