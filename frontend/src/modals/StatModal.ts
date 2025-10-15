@@ -11,6 +11,7 @@ import {
 } from '../../../shared/schemas/stats';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { Modal } from './Modal';
 import { TextModal } from './TextModal';
 
@@ -26,6 +27,10 @@ export class StatModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
+
+		if (state.currentModal) {
+			state.currentModal.destroy();
+		}
 
 		this.element = document.createElement('div');
 		this.element.className =
@@ -53,6 +58,8 @@ export class StatModal extends Modal {
 			return;
 		}
 		this.createOutput();
+
+		state.currentModal = this;
 	}
 
 	private showErrorModal(message: string) {
@@ -148,7 +155,10 @@ export class StatModal extends Modal {
 		const base = "  [font-variation-settings:'wght'_900] w-full mx-auto";
 		const container = document.createElement('div');
 		container.className =
-			this.matchData && this.histData && this.rankData
+			this.matchData &&
+			this.histData &&
+			this.rankData &&
+			this.rankData.length > 0
 				? `${base} grid grid-cols-1 lg:grid-cols-2 gap-6`
 				: `${base} flex justify-center`;
 
@@ -582,6 +592,9 @@ export class StatModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		if (this.chartInstance) {
 			this.chartInstance.destroy();
 			this.chartInstance = null;

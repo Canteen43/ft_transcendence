@@ -17,6 +17,10 @@ export class LocalGameModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
+		if (state.currentModal) {
+			state.currentModal.destroy();
+		}
+
 		const img2 = document.createElement('img');
 		img2.src = '2p.png';
 		img2.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
@@ -81,6 +85,8 @@ export class LocalGameModal extends Modal {
 		this.btn3.element.tabIndex = 0;
 		this.btn4.element.tabIndex = 0;
 		this.btnT.element.tabIndex = 0;
+
+		state.currentModal = this;
 	}
 
 	private addEnterListener() {
@@ -153,6 +159,9 @@ export class LocalGameModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		this.keydownHandlers.forEach((handler, element) => {
 			element.removeEventListener('keydown', handler);
 		});
