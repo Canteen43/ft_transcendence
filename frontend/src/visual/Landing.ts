@@ -231,10 +231,19 @@ export class Landing {
 				return;
 			}
 
+			// Ignore if a modal is open (check for common modal selectors)
+			if (
+				document.querySelector('.modal') ||
+				document.querySelector('[role="dialog"]') ||
+				document.querySelector('.fixed.inset-0')
+			) {
+				return;
+			}
+
 			const groups = [
 				this.localGameMeshes,
 				this.remoteGameMeshes,
-				this.statsMeshes
+				this.statsMeshes,
 			];
 
 			switch (event.key) {
@@ -246,9 +255,11 @@ export class Landing {
 					}
 					// Cycle focus (Shift+Tab goes backwards)
 					if (event.shiftKey) {
-						this.focusedGroupIndex = (this.focusedGroupIndex - 1 + 3) % 3;
+						this.focusedGroupIndex =
+							(this.focusedGroupIndex - 1 + 3) % 3;
 					} else {
-						this.focusedGroupIndex = (this.focusedGroupIndex + 1) % 3;
+						this.focusedGroupIndex =
+							(this.focusedGroupIndex + 1) % 3;
 					}
 					// Start glow on new group
 					if (groups[this.focusedGroupIndex].length > 0) {
@@ -378,8 +389,7 @@ export class Landing {
 						this.backgroundRoot.position.y = 4; // Center vertically
 						this.backgroundRoot.position.x = -4; // Center horizontally
 						this.backgroundRoot.rotation.x = Math.PI;
-						this.backgroundRoot.rotation.y =
-							((330) * Math.PI) / 180;
+						this.backgroundRoot.rotation.y = (330 * Math.PI) / 180;
 
 						// Optional: Scale if needed
 						this.backgroundRoot.scaling = new BABYLON.Vector3(

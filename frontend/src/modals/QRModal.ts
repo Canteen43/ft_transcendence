@@ -16,6 +16,7 @@ export class QRModal extends Modal {
 	}
 
 	private addMessage() {
+		
 		const message = document.createElement('p');
 		message.textContent =
 			'Scan this QR code with your authenticator app.\n' +

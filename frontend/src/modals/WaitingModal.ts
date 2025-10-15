@@ -15,15 +15,18 @@ export class WaitingModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		this.box.classList.add('waiting-modal');
+		if (state.currentModal) {
+			state.currentModal.destroy();
+		}
 
 		document.addEventListener('2plyrsGameReady', this.gameReadyHandler);
 		this.printMessageLoader();
+		state.currentModal = this;
 	}
 
 	private async nextStep(): Promise<void> {
 		const readyModal = new ReadyModal(this.parent);
-		state.currentModal = readyModal;
+
 		this.destroy();
 	}
 
@@ -59,6 +62,9 @@ export class WaitingModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		document.removeEventListener('2plyrsGameReady', this.gameReadyHandler);
 		super.destroy();
 	}

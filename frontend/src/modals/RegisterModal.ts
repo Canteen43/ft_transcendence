@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { CreateUserSchema, UserSchema } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { LoginModal } from './LoginModal';
 import { Modal } from './Modal.ts';
 import { TextModal } from './TextModal';
@@ -18,6 +19,10 @@ export class RegisterModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
+
+		if (state.currentModal) {
+			state.currentModal.destroy();
+		}
 
 		const form = document.createElement('form');
 		form.className = 'flex flex-col gap-4';
@@ -86,6 +91,8 @@ export class RegisterModal extends Modal {
 			}
 		};
 		this.addEnterListener();
+
+		state.currentModal = this;
 	}
 
 	private errorModal(message: string) {
@@ -237,6 +244,9 @@ export class RegisterModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		// Remove all keydown listeners
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.AliasField.removeEventListener('keydown', this.handleEnter);

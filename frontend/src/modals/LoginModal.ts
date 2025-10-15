@@ -6,6 +6,7 @@ import {
 } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
@@ -18,6 +19,10 @@ export class LoginModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
+
+		if (state.currentModal) {
+			state.currentModal.destroy();
+		}
 
 		// Create form
 		const form = document.createElement('form');
@@ -52,6 +57,8 @@ export class LoginModal extends Modal {
 		};
 
 		this.addEnterListener();
+
+		state.currentModal = this;
 	}
 
 	private addEnterListener() {
@@ -232,6 +239,9 @@ export class LoginModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}	
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();

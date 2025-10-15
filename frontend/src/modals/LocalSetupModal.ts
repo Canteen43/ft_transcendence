@@ -1,6 +1,7 @@
 import { TournamentType } from '../../../shared/enums.js';
 import { Button } from '../buttons/Button';
 import { GameConfig } from '../game/GameConfig';
+import { state } from '../utils/State';
 import { Modal } from './Modal';
 
 export class LocalSetupModal extends Modal {
@@ -8,10 +9,10 @@ export class LocalSetupModal extends Modal {
 	private dropdownContainers: HTMLDivElement[] = [];
 	private openDropdownIndex: number | null = null;
 	private readonly aiOptions: { label: string; value: string }[] = [
-		{ label: 'Circe', value: '*Circe' },
-		{ label: 'Merlin', value: '*Merlin' },
-		{ label: 'Morgana', value: '*Morgana' },
-		{ label: 'Gandalf', value: '*Gandalf' },
+		{ label: 'Circe', value: '[AI]Circe' },
+		{ label: 'Merlin', value: '[AI]Merlin' },
+		{ label: 'Morgana', value: '[AI]Morgana' },
+		{ label: 'Gandalf', value: '[AI]Gandalf' },
 	];
 	private powerupCheckboxes: Record<
 		'split' | 'stretch' | 'shrink',
@@ -33,6 +34,15 @@ export class LocalSetupModal extends Modal {
 
 	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
+
+		if (state.currentModal) {
+			state.currentModal.destroy();
+		}
+
+		if (n < 1 || n > 4) {
+			throw new Error('Number of players must be between 1 and 4');
+		}
+
 		this.box.classList.add('alias-modal');
 
 		const username = sessionStorage.getItem('username') ?? '';
@@ -52,7 +62,8 @@ export class LocalSetupModal extends Modal {
 
 			// Add tiny title
 			const title = document.createElement('label');
-			title.className = 'player-input-title text-[var(--color4)] text-xs m-0';
+			title.className =
+				'player-input-title text-[var(--color4)] text-xs m-0';
 			title.textContent = `${aliasHints[i]}`;
 
 			const defaultValue = aliases[i] || `player${i + 1}`;
@@ -69,6 +80,8 @@ export class LocalSetupModal extends Modal {
 		this.aliasFields[0].select();
 
 		new Button('Continue', () => this.handleAlias(type), this.box);
+
+		state.currentModal = this;
 	}
 
 	private createPowerupSection(): Record<
@@ -322,6 +335,9 @@ export class LocalSetupModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		this.closeAllDropdowns();
 
 		// Remove all document click listeners
