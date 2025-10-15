@@ -148,7 +148,7 @@ export class StatModal extends Modal {
 		const base = "  [font-variation-settings:'wght'_900] w-full mx-auto";
 		const container = document.createElement('div');
 		container.className =
-			this.matchData && this.histData && this.rankData
+			this.matchData && this.histData && this.rankData && this.rankData.length > 0
 				? `${base} grid grid-cols-1 lg:grid-cols-2 gap-6`
 				: `${base} flex justify-center`;
 

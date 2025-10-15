@@ -19,9 +19,11 @@ export class Landing {
 	private renderLoopCallback?: () => void;
 	private contextMenuHandler = (e: MouseEvent) => e.preventDefault();
 	private mouseMoveHandler?: (event: MouseEvent) => void;
+	private keyboardHandler?: (event: KeyboardEvent) => void;
 	private mutationObserver?: MutationObserver;
 	private animationGroups: BABYLON.AnimationGroup[] = [];
 	private backgroundRoot?: BABYLON.TransformNode;
+	private focusedGroupIndex: number = 0; // 0=local, 1=remote, 2=stats
 
 	// Clickable mesh references
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
@@ -216,8 +218,57 @@ export class Landing {
 
 		this.canvas.addEventListener('mousemove', this.mouseMoveHandler);
 		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
+		this.setupKeyboardControls();
 		// Listen for modal open/close events to manage camera controls
 		this.setupModalListeners();
+	}
+
+	private setupKeyboardControls(): void {
+		this.keyboardHandler = (event: KeyboardEvent) => {
+			// Ignore if user is typing in an input field
+			const target = event.target as HTMLElement;
+			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+				return;
+			}
+
+			const groups = [
+				this.localGameMeshes,
+				this.remoteGameMeshes,
+				this.statsMeshes
+			];
+
+			switch (event.key) {
+				case 'Tab':
+					event.preventDefault();
+					// Stop glow on current group
+					if (groups[this.focusedGroupIndex].length > 0) {
+						this.stopHoverGlow(groups[this.focusedGroupIndex][0]);
+					}
+					// Cycle focus (Shift+Tab goes backwards)
+					if (event.shiftKey) {
+						this.focusedGroupIndex = (this.focusedGroupIndex - 1 + 3) % 3;
+					} else {
+						this.focusedGroupIndex = (this.focusedGroupIndex + 1) % 3;
+					}
+					// Start glow on new group
+					if (groups[this.focusedGroupIndex].length > 0) {
+						this.startHoverGlow(groups[this.focusedGroupIndex][0]);
+					}
+					break;
+
+				case 'Enter':
+				case ' ':
+					event.preventDefault();
+					// Trigger click on focused group
+					if (groups[this.focusedGroupIndex].length > 0) {
+						this.handleMeshClick(groups[this.focusedGroupIndex][0]);
+					}
+					break;
+			}
+		};
+
+		window.addEventListener('keydown', this.keyboardHandler);
+		console.log('✅ Keyboard controls enabled (Tab, Enter/Space)');
 	}
 
 	private setupModalListeners(): void {
@@ -573,7 +624,6 @@ export class Landing {
 				this.scene.onPointerObservable.clear();
 			}
 
-			// Stop render loop
 			if (this.engine && !this.engine.isDisposed) {
 				this.engine.stopRenderLoop(this.renderLoopCallback);
 			}
@@ -641,7 +691,11 @@ export class Landing {
 				this.mouseMoveHandler = undefined;
 			}
 
-			// Detach camera controls
+			if (this.keyboardHandler) {
+				window.removeEventListener('keydown', this.keyboardHandler);
+				this.keyboardHandler = undefined;
+			}
+
 			if (this.camera) {
 				this.camera.detachControl();
 			}
@@ -681,7 +735,7 @@ export class Landing {
 
 			this.renderLoopCallback = undefined;
 
-			console.log('✅ Landing scene disposed');
+			console.log('Landing scene disposed');
 		} catch (err) {
 			console.error('Error during disposal:', err);
 		}
