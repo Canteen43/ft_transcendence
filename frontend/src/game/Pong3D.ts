@@ -1693,26 +1693,27 @@ export class Pong3D {
 			);
 		}
 
-		// Listen for remote game state updates (both master and client modes)
-		this.remoteGameStateHandler = (event: Event) => {
-			const customEvent = event as CustomEvent<any>;
-			const gameState = customEvent.detail;
-			this.conditionalLog('📡 remoteGameState received:', gameState);
+		// Listen for remote game state updates (clients only)
+		if (this.gameMode !== 'master') {
+			this.remoteGameStateHandler = (event: Event) => {
+				const customEvent = event as CustomEvent<any>;
+				const gameState = customEvent.detail;
+				this.conditionalLog('📡 remoteGameState received:', gameState);
 
-			// Handle sound effects if present in the game state (clients only)
-			if (
-				this.gameMode !== 'master' &&
-				gameState &&
-				typeof gameState.s === 'number'
-			) {
-				this.handleRemoteSoundEffect(gameState.s);
-			}
-		};
+				if (gameState && typeof gameState.s === 'number') {
+					this.handleRemoteSoundEffect(gameState.s);
+				}
+			};
 
-		document.addEventListener(
-			'remoteGameState',
-			this.remoteGameStateHandler
-		);
+			document.addEventListener(
+				'remoteGameState',
+				this.remoteGameStateHandler
+			);
+		} else {
+			this.conditionalLog(
+				'🎮 Skipping remoteGameState listener in master mode'
+			);
+		}
 	}
 
 	constructor(container: HTMLElement, options?: Pong3DOptions) {
