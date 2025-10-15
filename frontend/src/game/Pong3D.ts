@@ -1745,9 +1745,15 @@ export class Pong3D {
 
 		// Create canvas inside container
 		this.canvas = document.createElement('canvas');
+		this.canvas.tabIndex = 0; // allow focus so keyboard input works without clicking
 		this.canvas.style.width = '100%';
 		this.canvas.style.height = '100%';
 		container.appendChild(this.canvas);
+		window.requestAnimationFrame(() => {
+			if (document.activeElement !== this.canvas) {
+				this.canvas.focus({ preventScroll: true });
+			}
+		});
 
 		// Initialize Babylon.js engine with alpha support
 		this.engine = new BABYLON.Engine(this.canvas, true, {
