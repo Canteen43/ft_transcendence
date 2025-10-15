@@ -1,11 +1,10 @@
-import { z } from 'zod';
 import type { QRCode, User } from '../../../shared/schemas/user';
 import { QRCodeSchema, UserSchema } from '../../../shared/schemas/user';
 import { Button } from '../buttons/Button';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { Modal } from './Modal';
 import { QRModal } from './QRModal';
-import { TextModal } from './TextModal';
 
 export class TwoFactorAuthModal extends Modal {
 	state: 'enabled' | 'disabled' = 'disabled';
@@ -13,6 +12,10 @@ export class TwoFactorAuthModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
+		if (state.currentModal && state.currentModal !== this) {
+			state.currentModal.destroy();
+		}
+		state.currentModal = this;
 
 		// Using init function to allow async/await
 		this.init();
@@ -94,5 +97,17 @@ export class TwoFactorAuthModal extends Modal {
 			console.info('2FA successfully disabled');
 		}
 		this.destroy();
+	}
+
+	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
+
+		// // Clean up event listener
+		// if (this.keydownHandler && this.inputField) {
+		// 	this.inputField.removeEventListener('keydown', this.keydownHandler);
+		// }
+		super.destroy();
 	}
 }

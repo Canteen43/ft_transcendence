@@ -10,8 +10,11 @@ import '@babylonjs/loaders';
 import './style.css';
 
 // Global exposure for debugging
-(window as any).state = state;
-(window as any).webSocket = webSocket;
+if (import.meta.env.DEV) {
+	(window as any).state = state;
+	(window as any).webSocket = webSocket;
+	console.log('✅ App initialized');
+}
 
 window.addEventListener('error', event => {
 	console.error('Unhandled error', event.error);
@@ -26,33 +29,23 @@ app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
 
+
 async function initApp() {
 	try {
 		await getEndpoints();
-
 		router.init();
-
 		new AuthComponent(app);
-		new ChatManager(app); 
-
+		new ChatManager(app);
 		console.log('App initialized');
-	} catch (error) {
-		console.error('Failed to initialize app:', error);
+	} catch (err) {
+		console.error('Failed to initialize app:', err);
 	}
 }
 
-async function requestFullscreen() {
-	const elem = document.documentElement;
-	if (elem.requestFullscreen && window.innerWidth < 768) {
-		try {
-			await elem.requestFullscreen();
-		} catch (error) {
-			console.warn('Fullscreen request failed:', error);
-		}
+function setupMobile() {
+	if (window.innerWidth < 768) {
+		sessionStorage.setItem('mobile', 'true');
 	}
 }
 
-// Request fullscreen on mobile
-initApp().then(() => {
-	requestFullscreen();
-});
+initApp().then(setupMobile);

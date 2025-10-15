@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { MESSAGE_REPLAY } from '../../../shared/constants';
 import { Button } from '../buttons/Button';
 import { GameScreen } from '../screens/GameScreen';
-import { clearRemoteData } from '../utils/clearSessionStorage';
 import { router } from '../utils/Router';
+import { state } from '../utils/State';
 import { replayTournament } from '../utils/tournamentJoin';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { Modal } from './Modal';
@@ -19,13 +19,18 @@ export class ReplayModal extends Modal {
 	private remoteReplayHandler = () => this.handleRemoteReplay();
 	private timeoutId: ReturnType<typeof setTimeout> | null = null;
 	private gameScreen?: GameScreen;
-
+	
 	constructor(
 		parent: HTMLElement,
 		gameMode: string,
 		gameScreen?: GameScreen
 	) {
 		super(parent);
+		
+		if (state.currentModal && state.currentModal !== this) {
+			state.currentModal.destroy();
+		}
+		state.currentModal = this;
 
 		if (gameScreen) this.gameScreen = gameScreen;
 		this.overlay.className =
@@ -141,6 +146,9 @@ export class ReplayModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		if (this.timeoutId !== null) {
 			clearTimeout(this.timeoutId);
 			this.timeoutId = null;

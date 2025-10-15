@@ -92,6 +92,8 @@ export class WebSocketWrapper {
 		sessionStorage.setItem('wsOpen', 'true');
 		console.info('WebSocket opened');
 
+		document.dispatchEvent(new CustomEvent('websocket-opened'));
+
 		setInterval(() => {
 			this.ws?.send(JSON.stringify({ t: MESSAGE_PONG }));
 			console.debug('PONG sent');

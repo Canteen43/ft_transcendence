@@ -6,6 +6,7 @@ import {
 } from '../../../shared/schemas/user.ts';
 import { Button } from '../buttons/Button.ts';
 import { apiCall } from '../utils/apiCall';
+import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper.ts';
 import { Modal } from './Modal.ts';
 import { RegisterModal } from './RegisterModal';
@@ -18,6 +19,11 @@ export class LoginModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
+
+		if (state.currentModal && state.currentModal !== this) {
+			state.currentModal.destroy();
+		}
+		state.currentModal = this;
 
 		// Create form
 		const form = document.createElement('form');
@@ -113,7 +119,12 @@ export class LoginModal extends Modal {
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
+
+		this.destroy();
+		
 		webSocket.open();
+
+
 		document.dispatchEvent(new CustomEvent('login-success'));
 		console.debug('Dispatching LOGIN SUCCESS');
 		console.info('Login successful');
@@ -232,6 +243,9 @@ export class LoginModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();

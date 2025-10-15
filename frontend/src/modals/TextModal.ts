@@ -1,5 +1,6 @@
 import { Button } from '../buttons/Button';
 import { Modal } from '../modals/Modal';
+import { state } from '../utils/State';
 
 export class TextModal extends Modal {
 	private okayButton: Button;
@@ -13,6 +14,11 @@ export class TextModal extends Modal {
 	) {
 		super(parent);
 
+		if (state.currentModal && state.currentModal !== this) {
+			state.currentModal.destroy();
+		}
+		state.currentModal = this;
+
 		this.overlay.classList.remove('z-20');
 		this.overlay.classList.add('z-30');
 
@@ -20,13 +26,14 @@ export class TextModal extends Modal {
 		if (notification) {
 			const textElmt = document.createElement('p');
 			textElmt.textContent = notification;
-			textElmt.className = 'text-center text-sm sm:text-base  text-[var(--color3)]';
+			textElmt.className =
+				'text-center text-sm sm:text-base  text-[var(--color3)]';
 			this.box.appendChild(textElmt);
 		}
 
 		if (low) {
 			this.overlay.className =
-			'fixed inset-0 flex items-center justify-end flex-col pb-[25vh] bg-black/40 z-20';
+				'fixed inset-0 flex items-center justify-end flex-col pb-[25vh] bg-black/40 z-20';
 		}
 
 		this.okayButton = new Button(
@@ -39,9 +46,13 @@ export class TextModal extends Modal {
 		);
 
 		this.okayButton.element.focus();
+
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		super.destroy();
 	}
 }

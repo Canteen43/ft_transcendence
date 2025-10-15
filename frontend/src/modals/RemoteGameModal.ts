@@ -13,12 +13,18 @@ export class RemoteGameModal extends Modal {
 	private btnTourn: Button;
 	private btnTournPwr: Button;
 	private keydownHandlers = new Map<
-		HTMLElement,
-		(e: KeyboardEvent) => void
+	HTMLElement,
+	(e: KeyboardEvent) => void
 	>();
-
+	
 	constructor(parent: HTMLElement) {
 		super(parent);
+		
+		if (state.currentModal && state.currentModal !== this) {
+			state.currentModal.destroy();
+		}
+		state.currentModal = this;
+		
 		this.box.classList.add('remote-modal');
 
 		const img2 = document.createElement('img');
@@ -89,6 +95,7 @@ export class RemoteGameModal extends Modal {
 		this.btn2plyrPwr.element.tabIndex = 0;
 		this.btnTourn.element.tabIndex = 0;
 		this.btnTournPwr.element.tabIndex = 0;
+
 	}
 
 	private addEnterListener() {
@@ -166,8 +173,6 @@ export class RemoteGameModal extends Modal {
 
 		console.debug('Set sessionStorage');
 
-		state.currentModal = null;
-
 		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
 		state.tournamentOngoing = tournamentSize === 4;
@@ -197,6 +202,9 @@ export class RemoteGameModal extends Modal {
 	}
 
 	public destroy(): void {
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		this.keydownHandlers.forEach((handler, element) => {
 			element.removeEventListener('keydown', handler);
 		});
