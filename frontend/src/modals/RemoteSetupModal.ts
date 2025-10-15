@@ -14,9 +14,10 @@ export class RemoteSetupModal extends Modal {
 
 	constructor(parent: HTMLElement, type: TournamentType) {
 		super(parent);
-		if (state.currentModal) {
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 		this.box.classList.add('remote-alias-modal');
 
 		const defaultValue = this.getDefaultAlias();
@@ -30,7 +31,6 @@ export class RemoteSetupModal extends Modal {
 
 		this.aliasField.focus();
 		new Button('Continue', () => this.submit(type), this.box);
-		state.currentModal = this;
 	}
 
 	private getDefaultAlias(): string {

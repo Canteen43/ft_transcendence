@@ -15,13 +15,13 @@ export class WaitingModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		if (state.currentModal) {
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		document.addEventListener('2plyrsGameReady', this.gameReadyHandler);
 		this.printMessageLoader();
-		state.currentModal = this;
 	}
 
 	private async nextStep(): Promise<void> {

@@ -17,27 +17,28 @@ export class LocalSetupModal extends Modal {
 	private powerupCheckboxes: Record<
 		'split' | 'stretch' | 'shrink',
 		HTMLInputElement
-	> | null = null;
-
-	// Store references to all added listeners
-	private documentClickHandlers: ((e: Event) => void)[] = [];
-	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
+		> | null = null;
+		
+		// Store references to all added listeners
+		private documentClickHandlers: ((e: Event) => void)[] = [];
+		private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
 		new Map();
-	private buttonClickHandlers: Map<
+		private buttonClickHandlers: Map<
 		HTMLButtonElement,
 		(e: MouseEvent) => void
-	> = new Map();
-	private optionClickHandlers: Map<
+		> = new Map();
+		private optionClickHandlers: Map<
 		HTMLButtonElement,
 		(e: MouseEvent) => void
-	> = new Map();
-
-	constructor(parent: HTMLElement, n: number, type: TournamentType) {
-		super(parent);
-
-		if (state.currentModal) {
-			state.currentModal.destroy();
-		}
+		> = new Map();
+		
+		constructor(parent: HTMLElement, n: number, type: TournamentType) {
+			super(parent);
+			
+			if (state.currentModal && state.currentModal !== this) {
+				state.currentModal.destroy();
+			}
+			state.currentModal = this;
 
 		if (n < 1 || n > 4) {
 			throw new Error('Number of players must be between 1 and 4');
@@ -81,7 +82,6 @@ export class LocalSetupModal extends Modal {
 
 		new Button('Continue', () => this.handleAlias(type), this.box);
 
-		state.currentModal = this;
 	}
 
 	private createPowerupSection(): Record<

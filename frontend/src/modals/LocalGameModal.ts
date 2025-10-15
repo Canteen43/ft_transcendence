@@ -10,17 +10,18 @@ export class LocalGameModal extends Modal {
 	private btn4: Button;
 	private btnT: Button;
 	private keydownHandlers = new Map<
-		HTMLElement,
-		(e: KeyboardEvent) => void
+	HTMLElement,
+	(e: KeyboardEvent) => void
 	>();
-
+	
 	constructor(parent: HTMLElement) {
 		super(parent);
-
-		if (state.currentModal) {
+		
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
-
+		state.currentModal = this;
+		
 		const img2 = document.createElement('img');
 		img2.src = '2p.png';
 		img2.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
@@ -86,7 +87,6 @@ export class LocalGameModal extends Modal {
 		this.btn4.element.tabIndex = 0;
 		this.btnT.element.tabIndex = 0;
 
-		state.currentModal = this;
 	}
 
 	private addEnterListener() {

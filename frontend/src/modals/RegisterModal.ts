@@ -15,13 +15,14 @@ export class RegisterModal extends Modal {
 	private EmailField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
 	private PasswordRepeatField: HTMLInputElement;
-
+	
 	constructor(parent: HTMLElement) {
 		super(parent);
-
-		if (state.currentModal) {
+		
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		const form = document.createElement('form');
 		form.className = 'flex flex-col gap-4';
@@ -85,7 +86,6 @@ export class RegisterModal extends Modal {
 		};
 		this.addEnterListener();
 
-		state.currentModal = this;
 	}
 
 	private errorModal(message: string) {

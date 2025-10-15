@@ -13,16 +13,18 @@ export class RemoteGameModal extends Modal {
 	private btnTourn: Button;
 	private btnTournPwr: Button;
 	private keydownHandlers = new Map<
-		HTMLElement,
-		(e: KeyboardEvent) => void
+	HTMLElement,
+	(e: KeyboardEvent) => void
 	>();
-
+	
 	constructor(parent: HTMLElement) {
 		super(parent);
-
-		if (state.currentModal) {
+		
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
+		
 		this.box.classList.add('remote-modal');
 
 		const img2 = document.createElement('img');
@@ -94,7 +96,6 @@ export class RemoteGameModal extends Modal {
 		this.btnTourn.element.tabIndex = 0;
 		this.btnTournPwr.element.tabIndex = 0;
 
-		state.currentModal = this;
 	}
 
 	private addEnterListener() {

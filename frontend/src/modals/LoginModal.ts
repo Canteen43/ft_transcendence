@@ -20,9 +20,10 @@ export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		if (state.currentModal) {
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		// Create form
 		const form = document.createElement('form');
@@ -57,8 +58,6 @@ export class LoginModal extends Modal {
 		};
 
 		this.addEnterListener();
-
-		state.currentModal = this;
 	}
 
 	private addEnterListener() {
@@ -120,7 +119,12 @@ export class LoginModal extends Modal {
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
+
+		this.destroy();
+		
 		webSocket.open();
+
+
 		document.dispatchEvent(new CustomEvent('login-success'));
 		console.debug('Dispatching LOGIN SUCCESS');
 		console.info('Login successful');

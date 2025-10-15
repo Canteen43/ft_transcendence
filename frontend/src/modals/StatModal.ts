@@ -27,10 +27,11 @@ export class StatModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-
-		if (state.currentModal) {
+		
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		this.element = document.createElement('div');
 		this.element.className =
@@ -59,7 +60,6 @@ export class StatModal extends Modal {
 		}
 		this.createOutput();
 
-		state.currentModal = this;
 	}
 
 	private showErrorModal(message: string) {

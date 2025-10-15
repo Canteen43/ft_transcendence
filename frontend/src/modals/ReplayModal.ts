@@ -19,17 +19,18 @@ export class ReplayModal extends Modal {
 	private remoteReplayHandler = () => this.handleRemoteReplay();
 	private timeoutId: ReturnType<typeof setTimeout> | null = null;
 	private gameScreen?: GameScreen;
-
+	
 	constructor(
 		parent: HTMLElement,
 		gameMode: string,
 		gameScreen?: GameScreen
 	) {
 		super(parent);
-
-		if (state.currentModal) {
+		
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		if (gameScreen) this.gameScreen = gameScreen;
 		this.overlay.className =
@@ -64,7 +65,6 @@ export class ReplayModal extends Modal {
 					'RemoteReplay',
 					this.remoteReplayHandler
 				);
-				state.currentModal = this;
 			}
 		} catch (e: any) {
 			console.error(e);

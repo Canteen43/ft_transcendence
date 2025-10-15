@@ -12,13 +12,13 @@ export class TwoFactorAuthModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		if (state.currentModal) {
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		// Using init function to allow async/await
 		this.init();
-		state.currentModal = this;
 	}
 
 	private async init(): Promise<void> {

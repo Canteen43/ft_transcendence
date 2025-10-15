@@ -10,16 +10,16 @@ export class QRModal extends Modal {
 	constructor(parent: HTMLElement, code: string) {
 		super(parent);
 
-		if (state.currentModal) {
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		this.addMessage();
 		this.addQRCode(code);
 		this.addInputField();
 		this.addEnableButton();
 
-		state.currentModal = this;
 	}
 
 	private addMessage() {

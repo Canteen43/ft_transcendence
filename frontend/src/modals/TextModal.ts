@@ -2,7 +2,6 @@ import { Button } from '../buttons/Button';
 import { Modal } from '../modals/Modal';
 import { state } from '../utils/State';
 
-
 export class TextModal extends Modal {
 	private okayButton: Button;
 
@@ -15,9 +14,10 @@ export class TextModal extends Modal {
 	) {
 		super(parent);
 
-		if (state.currentModal) {
+		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
+		state.currentModal = this;
 
 		this.overlay.classList.remove('z-20');
 		this.overlay.classList.add('z-30');
@@ -47,7 +47,6 @@ export class TextModal extends Modal {
 
 		this.okayButton.element.focus();
 
-		state.currentModal = this;
 	}
 
 	public destroy(): void {
