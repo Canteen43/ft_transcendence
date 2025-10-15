@@ -103,6 +103,11 @@ export class TwoFactorAuthModal extends Modal {
 		if (state.currentModal === this) {
 			state.currentModal = null;
 		}
+
+		// // Clean up event listener
+		// if (this.keydownHandler && this.inputField) {
+		// 	this.inputField.removeEventListener('keydown', this.keydownHandler);
+		// }
 		super.destroy();
 	}
 }

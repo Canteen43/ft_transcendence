@@ -10,7 +10,6 @@ import { TextModal } from './TextModal';
 export class RegisterModal extends Modal {
 	private handleEnter: (e: KeyboardEvent) => void;
 	private UsernameField: HTMLInputElement;
-	private AliasField: HTMLInputElement;
 	private FirstNameField: HTMLInputElement;
 	private LastNameField: HTMLInputElement;
 	private EmailField: HTMLInputElement;
@@ -34,15 +33,9 @@ export class RegisterModal extends Modal {
 		this.UsernameField = this.myCreateInput(
 			'text',
 			'username',
-			'username',
+			'username*',
 			form,
 			'username'
-		);
-		this.AliasField = this.myCreateInput(
-			'text',
-			'alias',
-			'game alias',
-			form
 		);
 		this.FirstNameField = this.myCreateInput(
 			'text',
@@ -68,14 +61,14 @@ export class RegisterModal extends Modal {
 		this.PasswordField = this.myCreateInput(
 			'password',
 			'password',
-			'password',
+			'password*',
 			form,
 			'new-password'
 		);
 		this.PasswordRepeatField = this.myCreateInput(
 			'password',
 			'passwordrepeat',
-			'password repeat',
+			'password repeat*',
 			form,
 			'new-password'
 		);
@@ -108,7 +101,6 @@ export class RegisterModal extends Modal {
 
 	private addEnterListener() {
 		this.UsernameField.addEventListener('keydown', this.handleEnter);
-		this.AliasField.addEventListener('keydown', this.handleEnter);
 		this.FirstNameField.addEventListener('keydown', this.handleEnter);
 		this.LastNameField.addEventListener('keydown', this.handleEnter);
 		this.EmailField.addEventListener('keydown', this.handleEnter);
@@ -127,7 +119,6 @@ export class RegisterModal extends Modal {
 
 	private async handleRegister() {
 		const username = this.UsernameField.value.trim();
-		const alias = this.AliasField.value.trim();
 		const firstName = this.FirstNameField.value.trim();
 		const lastName = this.LastNameField.value.trim();
 		const email = this.EmailField.value.trim();
@@ -169,7 +160,7 @@ export class RegisterModal extends Modal {
 
 		const requestData = {
 			login: username,
-			alias: alias || null,
+			alias: username || null,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
@@ -249,7 +240,6 @@ export class RegisterModal extends Modal {
 		}
 		// Remove all keydown listeners
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
-		this.AliasField.removeEventListener('keydown', this.handleEnter);
 		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
 		this.LastNameField.removeEventListener('keydown', this.handleEnter);
 		this.EmailField.removeEventListener('keydown', this.handleEnter);

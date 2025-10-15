@@ -241,7 +241,7 @@ export class LoginModal extends Modal {
 	public destroy(): void {
 		if (state.currentModal === this) {
 			state.currentModal = null;
-		}	
+		}
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();
