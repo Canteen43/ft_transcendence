@@ -157,7 +157,7 @@ export class StatModal extends Modal {
 			container.appendChild(left);
 		}
 
-		if (this.rankData) {
+		if (this.rankData && this.rankData.length > 0) {
 			console.debug('Creating right side with leaderboard');
 			const right = this.creatRightSide();
 			container.appendChild(right);
