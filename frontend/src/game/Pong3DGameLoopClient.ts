@@ -17,6 +17,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	private renderObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> =
 		null;
 	private thisPlayerId: number;
+	private predictedPaddleIndex: number;
 	private onInputSend?: (inputCommand: { k: number }) => void;
 	private pong3DInstance: any; // Reference to main Pong3D instance for paddle access
 	private handleRemoteGameState: (event: any) => void;
@@ -25,6 +26,20 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	> = null;
 	private splitBallMesh: BABYLON.Mesh | null = null;
 	private mobileControls?: MobileControlsOverlay;
+	private localPaddleMesh: BABYLON.Mesh | null = null;
+	private localPaddleOrigin: BABYLON.Vector3 | null = null;
+	private localPaddleAxis: BABYLON.Vector3 = new BABYLON.Vector3(1, 0, 0);
+	private localPaddleHeight = 0;
+	private predictedPosition: BABYLON.Vector3 | null = null;
+	private localVelocityAlongAxis = 0;
+	private localInputDirection = 0;
+	private pendingAuthoritativePosition: BABYLON.Vector3 | null = null;
+	private latestAuthoritativePosition: BABYLON.Vector3 | null = null;
+	private predictionMaxSpeed = GameConfig.getPaddleMaxVelocity();
+	private predictionBrakeFactor = GameConfig.getPaddleBrakingFactor();
+	private predictionRange = GameConfig.getPaddleRange();
+	private readonly predictionResponseRate = 30;
+	private readonly reconciliationSnapEpsilon = 0.005;
 
 	// Track current input state to only send changes
 	private currentInputState = 0; // 0=none, 1=left/up, 2=right/down
@@ -40,6 +55,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	) {
 		super(scene);
 		this.thisPlayerId = thisPlayerId;
+		this.predictedPaddleIndex = Math.max(0, thisPlayerId - 1);
 		this.onInputSend = onInputSend;
 		this.pong3DInstance = pong3DInstance;
 
@@ -74,7 +90,7 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 
 		// Simple render loop - no physics, just smooth rendering
 		this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
-			// Client just renders - all positions come from network
+			this.stepPrediction();
 		});
 
 		// Set up keyboard input for sending input commands to master
@@ -219,6 +235,14 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		}
 		this.splitBallMesh = null;
 
+		this.localPaddleMesh = null;
+		this.localPaddleOrigin = null;
+		this.predictedPosition = null;
+		this.pendingAuthoritativePosition = null;
+		this.latestAuthoritativePosition = null;
+		this.localVelocityAlongAxis = 0;
+		this.localInputDirection = 0;
+
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(`🎮 Client stopped for Player ${this.thisPlayerId}`);
 		}
@@ -296,6 +320,14 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 				if (paddle) {
 					const oldPos = paddle.position.clone();
 					const paddleY = paddle.position.y; // Preserve Y from GLB
+					if (index === this.predictedPaddleIndex) {
+						this.handleLocalPaddleAuthoritativeUpdate(
+							paddlePos,
+							paddleY,
+							shouldLogDetails
+						);
+						return;
+					}
 					const newPosition = new BABYLON.Vector3(
 						paddlePos[0], // X from network
 						paddleY, // Y preserved
@@ -330,11 +362,252 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		this.handlePowerupState(gameStateMessage.pu);
 	}
 
+	private stepPrediction(): void {
+		const engine = this.scene.getEngine();
+		const deltaMs = engine ? engine.getDeltaTime() : 0;
+		if (!Number.isFinite(deltaMs) || deltaMs <= 0) {
+			this.applyAuthoritativeSnapIfNeeded();
+			return;
+		}
+		const deltaSeconds = Math.min(deltaMs / 1000, 0.05);
+		this.resolveLocalPaddle();
+		this.updateLocalPrediction(deltaSeconds);
+	}
+
+	private resolveLocalPaddle(): BABYLON.Mesh | null {
+		if (this.localPaddleMesh && !this.localPaddleMesh.isDisposed()) {
+			return this.localPaddleMesh;
+		}
+
+		const paddles = this.pong3DInstance?.paddles;
+		if (!Array.isArray(paddles)) {
+			return null;
+		}
+
+		const paddle = paddles[this.predictedPaddleIndex] ?? null;
+		if (!paddle) {
+			return null;
+		}
+
+		this.localPaddleMesh = paddle;
+		this.localPaddleHeight = paddle.position.y;
+
+		if (!this.localPaddleOrigin) {
+			this.localPaddleOrigin = paddle.position.clone();
+		}
+
+		if (!this.predictedPosition) {
+			this.predictedPosition = paddle.position.clone();
+		}
+
+		this.localPaddleAxis = this.computeMovementAxis(this.predictedPaddleIndex);
+		if (this.localPaddleAxis.lengthSquared() < 1e-6) {
+			this.localPaddleAxis = new BABYLON.Vector3(1, 0, 0);
+		} else {
+			this.localPaddleAxis.normalize();
+		}
+
+		if (this.pendingAuthoritativePosition) {
+			this.predictedPosition = this.pendingAuthoritativePosition.clone();
+			paddle.position.copyFrom(this.predictedPosition);
+			this.latestAuthoritativePosition =
+				this.pendingAuthoritativePosition.clone();
+			this.pendingAuthoritativePosition = null;
+			if (!this.localPaddleOrigin) {
+				this.localPaddleOrigin = this.predictedPosition.clone();
+			}
+		}
+
+		return this.localPaddleMesh;
+	}
+
+	private computeMovementAxis(playerIndex: number): BABYLON.Vector3 {
+		const playerCount = this.pong3DInstance?.playerCount ?? 2;
+		if (playerCount === 3) {
+			const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+			const safeIndex = Math.max(0, Math.min(angles.length - 1, playerIndex));
+			const angle = angles[safeIndex] ?? 0;
+			return new BABYLON.Vector3(Math.cos(angle), 0, Math.sin(angle));
+		}
+		if (playerCount === 4 && playerIndex >= 2) {
+			return new BABYLON.Vector3(0, 0, 1);
+		}
+		return new BABYLON.Vector3(1, 0, 0);
+	}
+
+	private updateLocalPrediction(deltaSeconds: number): void {
+		const paddle = this.resolveLocalPaddle();
+		if (!paddle || !this.predictedPosition) {
+			return;
+		}
+
+		this.predictedPosition.y = this.localPaddleHeight;
+
+		const targetSpeed =
+			this.localInputDirection * this.predictionMaxSpeed;
+		if (this.localInputDirection !== 0) {
+			const response = Math.min(1, deltaSeconds * this.predictionResponseRate);
+			this.localVelocityAlongAxis =
+				this.localVelocityAlongAxis +
+				(targetSpeed - this.localVelocityAlongAxis) * response;
+		} else {
+			const frames = deltaSeconds * 60;
+			const damping = Math.pow(this.predictionBrakeFactor, frames);
+			this.localVelocityAlongAxis *= damping;
+			if (Math.abs(this.localVelocityAlongAxis) < 0.01) {
+				this.localVelocityAlongAxis = 0;
+			}
+		}
+
+		const maxSpeed = this.predictionMaxSpeed;
+		if (Math.abs(this.localVelocityAlongAxis) > maxSpeed) {
+			this.localVelocityAlongAxis =
+				maxSpeed * Math.sign(this.localVelocityAlongAxis);
+		}
+
+		const displacement = this.localPaddleAxis
+			.scale(this.localVelocityAlongAxis * deltaSeconds);
+		this.predictedPosition.addInPlace(displacement);
+
+		this.applyAuthoritativeCorrection(deltaSeconds);
+		this.clampPredictedPosition();
+
+		paddle.position.copyFrom(this.predictedPosition);
+	}
+
+	private applyAuthoritativeCorrection(deltaSeconds: number): void {
+		if (!this.predictedPosition || !this.latestAuthoritativePosition) {
+			return;
+		}
+
+		const errorVec = this.latestAuthoritativePosition.subtract(
+			this.predictedPosition
+		);
+		const errorMag = errorVec.length();
+		if (!Number.isFinite(errorMag) || errorMag <= 0) {
+			return;
+		}
+
+		if (errorMag <= this.reconciliationSnapEpsilon) {
+			this.predictedPosition.copyFrom(this.latestAuthoritativePosition);
+			return;
+		}
+
+		const targetFrames = this.computeReconciliationFrames(errorMag);
+		const factor = Math.min(1, (deltaSeconds * 60) / targetFrames);
+		this.predictedPosition.addInPlace(errorVec.scale(factor));
+		this.predictedPosition.y = this.localPaddleHeight;
+	}
+
+	private computeReconciliationFrames(errorMagnitude: number): number {
+		if (errorMagnitude > 0.3) return 10;
+		if (errorMagnitude > 0.15) return 6;
+		if (errorMagnitude > 0.07) return 4;
+		return 3;
+	}
+
+	private clampPredictedPosition(): void {
+		if (!this.predictedPosition || !this.localPaddleAxis) {
+			return;
+		}
+
+		if (!this.localPaddleOrigin) {
+			this.localPaddleOrigin = this.predictedPosition.clone();
+		}
+
+		const origin = this.localPaddleOrigin;
+		const rel = this.predictedPosition.subtract(origin);
+		const along = BABYLON.Vector3.Dot(rel, this.localPaddleAxis);
+		const clampedAlong = BABYLON.Scalar.Clamp(
+			along,
+			-this.predictionRange,
+			this.predictionRange
+		);
+		const corrected = origin.add(
+			this.localPaddleAxis.scale(clampedAlong)
+		);
+		this.predictedPosition.copyFrom(corrected);
+		this.predictedPosition.y = this.localPaddleHeight;
+	}
+
+	private updateLocalInputStateFromCommand(keyInput: number): void {
+		switch (keyInput) {
+			case 1:
+				this.localInputDirection = -1;
+				break;
+			case 2:
+				this.localInputDirection = 1;
+				break;
+			default:
+				this.localInputDirection = 0;
+				break;
+		}
+	}
+
+	private handleLocalPaddleAuthoritativeUpdate(
+		paddlePos: [number, number],
+		paddleY: number,
+		shouldLog: boolean
+	): void {
+		this.localPaddleHeight = paddleY;
+		const target = new BABYLON.Vector3(
+			paddlePos[0],
+			paddleY,
+			paddlePos[1]
+		);
+
+		this.latestAuthoritativePosition = target.clone();
+		if (!this.localPaddleOrigin) {
+			this.localPaddleOrigin = target.clone();
+		}
+		if (!this.predictedPosition) {
+			this.predictedPosition = target.clone();
+		}
+
+		const paddle = this.resolveLocalPaddle();
+		if (!paddle) {
+			this.pendingAuthoritativePosition = target.clone();
+			return;
+		}
+
+		if (shouldLog) {
+			conditionalLog(
+				`Client target paddle ${this.predictedPaddleIndex}: [${target.x.toFixed(
+					3
+				)}, ${target.z.toFixed(3)}]`
+			);
+		}
+
+		if (this.predictedPosition) {
+			const error = target.subtract(this.predictedPosition);
+			if (error.length() <= this.reconciliationSnapEpsilon) {
+				this.predictedPosition.copyFrom(target);
+				paddle.position.copyFrom(target);
+			}
+		}
+	}
+
+	private applyAuthoritativeSnapIfNeeded(): void {
+		if (!this.predictedPosition || !this.latestAuthoritativePosition) {
+			return;
+		}
+
+		const error = this.latestAuthoritativePosition.subtract(
+			this.predictedPosition
+		);
+		if (error.length() <= this.reconciliationSnapEpsilon) {
+			this.predictedPosition.copyFrom(this.latestAuthoritativePosition);
+			this.predictedPosition.y = this.localPaddleHeight;
+		}
+	}
+
 	/**
 	 * Send input to master (only on input changes)
 	 * Input encoding: 0=none, 1=left/up, 2=right/down
 	 */
 	sendInput(keyInput: number): void {
+		this.updateLocalInputStateFromCommand(keyInput);
+
 		// Only send if input changed (bandwidth optimization)
 		if (keyInput !== this.currentInputState) {
 			this.currentInputState = keyInput;
