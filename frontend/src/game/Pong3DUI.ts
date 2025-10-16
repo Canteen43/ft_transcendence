@@ -411,7 +411,7 @@ export function createPong3DUI(
 	const winnerMessage = new GUI.TextBlock();
 	winnerMessage.text = '';
 	winnerMessage.color = 'white';
-	winnerMessage.fontSize = '80px';
+	winnerMessage.fontSize = isMobile ? '40px' : '80px';
 	winnerMessage.fontFamily = `${MESH_UI_FONT_FAMILY}, Arial, sans-serif`;
 	winnerMessage.fontWeight = 'bold';
 	winnerMessage.textHorizontalAlignment =
