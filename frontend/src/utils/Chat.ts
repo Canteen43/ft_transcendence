@@ -54,7 +54,7 @@ export class Chat {
 	private toggleButton: HTMLButtonElement;
 	private isExpanded: boolean = true;
 	private username: string;
-	private notconnected: boolean = isConnected();
+	private connected: boolean = isConnected();
 
 	constructor(parent: HTMLElement) {
 		this.username = sessionStorage.getItem('username') || 'Anonymous';

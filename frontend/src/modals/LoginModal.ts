@@ -117,11 +117,12 @@ export class LoginModal extends Modal {
 	}
 
 	private login(token: string, id: string) {
+		webSocket.close();
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
 		this.destroy();
 		webSocket.open();
-		console.info('Login successful - auth valid');
+		console.info('Auth valid - opening ws');
 	}
 
 	private myCreateInput(

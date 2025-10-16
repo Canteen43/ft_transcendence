@@ -21,6 +21,7 @@ export class AuthComponent {
 	private logoutBtn?: HTMLButtonElement;
 	private closeTimeout?: ReturnType<typeof setTimeout>;
 	private loginModal?: LoginModal;
+	private twoFAModal?: TwoFactorAuthModal;
 	private parent: HTMLElement;
 	private selectedIndex: number = -1; // -1 = button, 0 = 2FA, 1 = logout
 	private dropdownOpen: boolean = false;
@@ -49,6 +50,7 @@ export class AuthComponent {
 	private render() {
 		// Clean up old UI before creating new
 		this.destroyUI();
+		console.debug('in render');
 
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
@@ -218,7 +220,12 @@ export class AuthComponent {
 	}
 
 	private show2FAModal() {
-		new TwoFactorAuthModal(this.parent);
+		// Clean up existing modal if any
+		if (this.twoFAModal) {
+			this.twoFAModal.destroy();
+			this.twoFAModal = undefined;
+		}
+		this.twoFAModal = new TwoFactorAuthModal(this.parent);
 	}
 
 	private handleEnter() {
@@ -341,9 +348,16 @@ export class AuthComponent {
 			this.loginModal.destroy();
 			this.loginModal = undefined;
 		}
+		if (this.twoFAModal) {
+			this.twoFAModal.destroy();
+			this.twoFAModal = undefined;
+		}
 
 		// Remove document event listeners
-		document.removeEventListener('login-success ws-open', this.renderHandler);
+		document.removeEventListener(
+			'login-success ws-open',
+			this.renderHandler
+		);
 		document.removeEventListener('logout-success', this.renderHandler);
 		document.removeEventListener('login-failed', this.renderHandler);
 		document.removeEventListener('chat-toggled', this.renderHandler);
