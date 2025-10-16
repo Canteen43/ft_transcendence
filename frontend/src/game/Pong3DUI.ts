@@ -10,6 +10,29 @@ const MESH_UI_FONT_URL: string = OutfitUrl;
 
 let meshUIFontPromise: Promise<void> | null = null;
 
+function getMeshAspectRatio(mesh: BABYLON.AbstractMesh): number | null {
+	try {
+		const boundingInfo = mesh.getBoundingInfo();
+		if (!boundingInfo) return null;
+		const localHalfExtents = boundingInfo.boundingBox.extendSize;
+		if (!localHalfExtents) return null;
+		const size = localHalfExtents.scale(2);
+		const dims = [
+			Math.abs(size.x),
+			Math.abs(size.y),
+			Math.abs(size.z),
+		].sort((a, b) => b - a);
+		const width = dims[0];
+		const height = dims[1];
+		const EPS = 1e-3;
+		if (width < EPS || height < EPS) return null;
+		return width / height;
+	} catch (err) {
+		conditionalWarn('Failed to compute mesh aspect ratio', err);
+		return null;
+	}
+}
+
 function ensureMeshUIFontLoaded(): void {
 	if (typeof document === 'undefined' || typeof FontFace === 'undefined')
 		return;
@@ -137,6 +160,9 @@ export function createPong3DUI(
 			containerPaddingBottom?: string;
 			lineSpacing?: string;
 			normalizeBaseline?: boolean;
+			mobileScaleX?: number;
+			mobileScaleY?: number;
+			portraitWidthScale?: number;
 			underline?: {
 				color?: string;
 				thickness?: number;
@@ -146,8 +172,33 @@ export function createPong3DUI(
 		}
 	): MeshTextBinding | null => {
 		if (!mesh) return null;
-		const width = options?.width ?? 1024;
-		const height = options?.height ?? 256;
+		const baseWidth = options?.width ?? 1024;
+		const baseHeight = options?.height ?? 512;
+		const isPortraitScreen =
+			typeof window !== 'undefined'
+				? window.innerHeight >= window.innerWidth
+				: false;
+		let width = baseWidth;
+		let height = baseHeight;
+		const meshAspect = getMeshAspectRatio(mesh);
+		if (meshAspect && Number.isFinite(meshAspect)) {
+			const area = baseWidth * baseHeight;
+			if (area > 0) {
+				const computedWidth = Math.sqrt(area * meshAspect);
+				const computedHeight = computedWidth / meshAspect;
+				const quantize = (value: number) =>
+					Math.min(4096, Math.max(64, Math.round(value)));
+				width = quantize(computedWidth);
+				height = quantize(computedHeight);
+			}
+		}
+		if (isPortraitScreen && options?.portraitWidthScale) {
+			const scale = Math.max(
+				0.2,
+				Math.min(1, options.portraitWidthScale)
+			);
+			width = Math.max(64, Math.round(width * scale));
+		}
 		const texture = GUI.AdvancedDynamicTexture.CreateForMesh(
 			mesh,
 			width,
@@ -158,6 +209,10 @@ export function createPong3DUI(
 		texture.name = `${controlName}-adt`;
 		texture.renderAtIdealSize = true;
 		texturesToDispose.add(texture);
+
+		const idealAspect = width / Math.max(height, 1);
+		const mobileScaleX = isMobile ? (options?.mobileScaleX ?? 1) : 1;
+		const mobileScaleY = isMobile ? (options?.mobileScaleY ?? 1) : 1;
 
 		const container = new GUI.Rectangle(`${controlName}-rect`);
 		container.background = options?.background ?? 'transparent';
@@ -171,6 +226,32 @@ export function createPong3DUI(
 		if (options?.containerPaddingBottom)
 			container.paddingBottom = options.containerPaddingBottom;
 		texture.addControl(container);
+
+		const applyMeshAspectCorrection = () => {
+			const meshAspect = getMeshAspectRatio(mesh);
+			if (
+				!meshAspect ||
+				!Number.isFinite(meshAspect) ||
+				meshAspect <= 0
+			) {
+				container.scaleY = 1 * mobileScaleY;
+				container.scaleX = mobileScaleX;
+				return;
+			}
+			const correction = meshAspect / idealAspect;
+			const bounded = Math.min(4, Math.max(0.25, correction));
+			container.scaleY = bounded * mobileScaleY;
+			container.scaleX = mobileScaleX;
+		};
+		applyMeshAspectCorrection();
+		const aspectObserver = mesh.onAfterWorldMatrixUpdateObservable.add(
+			applyMeshAspectCorrection
+		);
+		texture.onDisposeObservable.add(() => {
+			if (aspectObserver) {
+				mesh.onAfterWorldMatrixUpdateObservable.remove(aspectObserver);
+			}
+		});
 
 		const textBlock = new GUI.TextBlock(`${controlName}-text`, initialText);
 		textBlock.color = options?.color ?? 'white';
@@ -248,6 +329,18 @@ export function createPong3DUI(
 			underline.horizontalAlignment =
 				GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
 			underline.top = options.underline.offset ?? '-40px';
+			if (
+				isMobile &&
+				typeof underline.width === 'string' &&
+				underline.width.endsWith('%') &&
+				mobileScaleX > 0
+			) {
+				const numeric = parseFloat(underline.width);
+				if (!Number.isNaN(numeric)) {
+					const adjusted = Math.min(100, numeric / mobileScaleX);
+					underline.width = `${adjusted}%`;
+				}
+			}
 			container.addControl(underline);
 		}
 
@@ -325,10 +418,12 @@ export function createPong3DUI(
 					shadowBlur: 10,
 					shadowOffsetX: 4,
 					shadowOffsetY: 4,
-					width: 768,
+					width: 512,
 					height: 256,
 					textVerticalAlignment:
 						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+					mobileScaleX: 0.5,
+					portraitWidthScale: 0.5,
 				}
 			);
 			if (meshBindings.alias) {
@@ -348,11 +443,13 @@ export function createPong3DUI(
 					shadowBlur: 12,
 					shadowOffsetX: 4,
 					shadowOffsetY: 4,
-					width: 960,
+					width: 640,
 					height: 320,
 					textVerticalAlignment:
 						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
 					normalizeBaseline: true,
+					mobileScaleX: 0.6,
+					portraitWidthScale: 0.6,
 					underline: {
 						color: 'white',
 						thickness: 70,
