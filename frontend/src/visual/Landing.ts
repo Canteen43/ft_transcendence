@@ -19,11 +19,7 @@ export class Landing {
 	private renderLoopCallback?: () => void;
 	private contextMenuHandler = (e: MouseEvent) => e.preventDefault();
 	private mouseMoveHandler?: (event: MouseEvent) => void;
-	private keyboardHandler?: (event: KeyboardEvent) => void;
-	private mutationObserver?: MutationObserver;
-	private animationGroups: BABYLON.AnimationGroup[] = [];
 	private backgroundRoot?: BABYLON.TransformNode;
-	private focusedGroupIndex: number = 0; // 0=local, 1=remote, 2=stats
 
 	// Clickable mesh references
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
@@ -218,125 +214,9 @@ export class Landing {
 
 		this.canvas.addEventListener('mousemove', this.mouseMoveHandler);
 		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
-		this.setupKeyboardControls();
-		// Listen for modal open/close events to manage camera controls
-		this.setupModalListeners();
+
 	}
 
-	private setupKeyboardControls(): void {
-		this.keyboardHandler = (event: KeyboardEvent) => {
-			// Ignore if user is typing in an input field
-			const target = event.target as HTMLElement;
-			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-				return;
-			}
-
-			// Ignore if a modal is open (check for common modal selectors)
-			if (
-				document.querySelector('.modal') ||
-				document.querySelector('[role="dialog"]') ||
-				document.querySelector('.fixed.inset-0')
-			) {
-				return;
-			}
-
-			const groups = [
-				this.localGameMeshes,
-				this.remoteGameMeshes,
-				this.statsMeshes,
-			];
-
-			switch (event.key) {
-				case 'Tab':
-					event.preventDefault();
-					// Stop glow on current group
-					if (groups[this.focusedGroupIndex].length > 0) {
-						this.stopHoverGlow(groups[this.focusedGroupIndex][0]);
-					}
-					// Cycle focus (Shift+Tab goes backwards)
-					if (event.shiftKey) {
-						this.focusedGroupIndex =
-							(this.focusedGroupIndex - 1 + 3) % 3;
-					} else {
-						this.focusedGroupIndex =
-							(this.focusedGroupIndex + 1) % 3;
-					}
-					// Start glow on new group
-					if (groups[this.focusedGroupIndex].length > 0) {
-						this.startHoverGlow(groups[this.focusedGroupIndex][0]);
-					}
-					break;
-
-				case 'Enter':
-				case ' ':
-					event.preventDefault();
-					// Trigger click on focused group
-					if (groups[this.focusedGroupIndex].length > 0) {
-						this.handleMeshClick(groups[this.focusedGroupIndex][0]);
-					}
-					break;
-			}
-		};
-
-		window.addEventListener('keydown', this.keyboardHandler);
-		console.log('✅ Keyboard controls enabled (Tab, Enter/Space)');
-	}
-
-	private setupModalListeners(): void {
-		// Listen for modals opening (when any modal gets created)
-		this.mutationObserver = new MutationObserver(mutations => {
-			mutations.forEach(mutation => {
-				mutation.addedNodes.forEach(node => {
-					if (node.nodeType === Node.ELEMENT_NODE) {
-						const element = node as HTMLElement;
-						// Check if a modal was added (common modal classes/attributes)
-						if (
-							element.classList.contains('modal') ||
-							element.classList.contains('fixed') ||
-							element.querySelector('.modal')
-						) {
-							this.onModalOpen();
-						}
-					}
-				});
-
-				mutation.removedNodes.forEach(node => {
-					if (node.nodeType === Node.ELEMENT_NODE) {
-						const element = node as HTMLElement;
-						// Check if a modal was removed
-						if (
-							element.classList.contains('modal') ||
-							element.classList.contains('fixed') ||
-							element.querySelector('.modal')
-						) {
-							this.onModalClose();
-						}
-					}
-				});
-			});
-		});
-
-		// Observe changes to document body
-		this.mutationObserver.observe(document.body, {
-			childList: true,
-			subtree: true,
-		});
-	}
-
-	private onModalOpen(): void {
-		if (this.camera) {
-			this.camera.detachControl();
-		}
-	}
-
-	private onModalClose(): void {
-		// Small delay to ensure modal cleanup is complete
-		setTimeout(() => {
-			if (this.camera && this.canvas) {
-				this.camera.attachControl(this.canvas, true);
-			}
-		}, 100);
-	}
 
 	private async loadModel(modelPath: string): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -623,12 +503,6 @@ export class Landing {
 	// Improved dispose method:
 	public dispose(): void {
 		try {
-			// Disconnect mutation observer first
-			if (this.mutationObserver) {
-				this.mutationObserver.disconnect();
-				this.mutationObserver = undefined;
-			}
-
 			// Clear observables BEFORE disposing scene
 			if (this.scene && !this.scene.isDisposed) {
 				this.scene.onPointerObservable.clear();
@@ -638,12 +512,6 @@ export class Landing {
 				this.engine.stopRenderLoop(this.renderLoopCallback);
 			}
 
-			// Stop and dispose animation groups
-			this.animationGroups.forEach(animGroup => {
-				animGroup.stop();
-				animGroup.dispose();
-			});
-			this.animationGroups = [];
 
 			// Stop all animations
 			if (this.scene && !this.scene.isDisposed) {
@@ -700,12 +568,6 @@ export class Landing {
 				);
 				this.mouseMoveHandler = undefined;
 			}
-
-			if (this.keyboardHandler) {
-				window.removeEventListener('keydown', this.keyboardHandler);
-				this.keyboardHandler = undefined;
-			}
-
 			if (this.camera) {
 				this.camera.detachControl();
 			}
@@ -726,17 +588,17 @@ export class Landing {
 				console.log('Engine disposed');
 			}
 
-			// Force WebGL context loss
-			const gl =
-				this.canvas.getContext('webgl2') ||
-				this.canvas.getContext('webgl');
-			if (gl) {
-				const loseContext = gl.getExtension('WEBGL_lose_context');
-				if (loseContext) {
-					loseContext.loseContext();
-					console.log('Forced WebGL context loss');
-				}
-			}
+			// Force WebGL context loss only useful for GPU resource leak debugging.
+			// const gl =
+			// 	this.canvas.getContext('webgl2') ||
+			// 	this.canvas.getContext('webgl');
+			// if (gl) {
+			// 	const loseContext = gl.getExtension('WEBGL_lose_context');
+			// 	if (loseContext) {
+			// 		loseContext.loseContext();
+			// 		console.log('Forced WebGL context loss');
+			// 	}
+			// }
 
 			// Remove canvas
 			if (this.canvas && this.canvas.parentNode) {
