@@ -21,6 +21,7 @@ FROM nginx:latest
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY build/frontend/config.json /usr/share/nginx/html/config.json
 COPY build/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY build/frontend/launch.sh /etc/nginx/launch.sh
 
 
 EXPOSE 80
