@@ -28,7 +28,13 @@ import { router } from './Router';
 // WebSocket.CLOSING	2	Connection is in the process of closing
 // WebSocket.CLOSED		3	Connection is closed or couldn’t open
 
-export class WebSocketWrapper {
+// The BROWSER will automatically dispatch:
+// - 'open' event when connection establishes
+// - 'close' event when connection closes
+// - 'message' event when server sends data
+// - 'error' event when errors occur
+
+class WebSocketWrapper {
 	public ws: WebSocket | null = null;
 	public shouldReconnect: boolean = false;
 	private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -44,7 +50,9 @@ export class WebSocketWrapper {
 		}
 	}
 
+	/////////////
 	// Public methods
+
 	public open(): void {
 		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
 		const token = sessionStorage.getItem('token');
@@ -74,6 +82,10 @@ export class WebSocketWrapper {
 		this.ws.addEventListener('error', this.boundOnError);
 	}
 
+	public isOpen(): boolean {
+		return this.ws?.readyState === WebSocket.OPEN;
+	}
+
 	public close(): void {
 		console.log('Manually closing WebSocket');
 		this.shouldReconnect = false;
@@ -87,13 +99,22 @@ export class WebSocketWrapper {
 		this.ws = null;
 	}
 
+	public send(message: Message): void {
+		if (this.ws?.readyState !== WebSocket.OPEN) {
+			console.warn('Websocket not opened, message not sent.');
+			return;
+		}
+		console.debug('Sending:', message);
+		this.ws.send(JSON.stringify(message));
+	}
+
+	//////////
+	// Private method
+
 	// Event handlers
 	private onOpen(): void {
-		sessionStorage.setItem('wsOpen', 'true');
 		console.info('WebSocket opened');
-
-		document.dispatchEvent(new CustomEvent('websocket-opened'));
-
+		document.dispatchEvent(new CustomEvent('login-success ws-open'));
 		setInterval(() => {
 			this.ws?.send(JSON.stringify({ t: MESSAGE_PONG }));
 			console.debug('PONG sent');
@@ -107,7 +128,6 @@ export class WebSocketWrapper {
 			reason: event.reason,
 		});
 		this.removeListeners();
-		sessionStorage.setItem('wsOpen', 'false');
 		this.ws = null;
 
 		// Clear any existing reconnect timeout
@@ -198,15 +218,6 @@ export class WebSocketWrapper {
 		this.ws.removeEventListener('close', this.boundOnClose);
 		this.ws.removeEventListener('message', this.boundOnMessage);
 		this.ws.removeEventListener('error', this.boundOnError);
-	}
-
-	public send(message: Message): void {
-		if (this.ws?.readyState !== WebSocket.OPEN) {
-			console.warn('Websocket not opened, message not sent.');
-			return;
-		}
-		console.debug('Sending:', message);
-		this.ws.send(JSON.stringify(message));
 	}
 }
 

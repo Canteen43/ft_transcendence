@@ -119,15 +119,9 @@ export class LoginModal extends Modal {
 	private login(token: string, id: string) {
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
-
 		this.destroy();
-		
 		webSocket.open();
-
-
-		document.dispatchEvent(new CustomEvent('login-success'));
-		console.debug('Dispatching LOGIN SUCCESS');
-		console.info('Login successful');
+		console.info('Login successful - auth valid');
 	}
 
 	private myCreateInput(

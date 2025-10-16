@@ -1,5 +1,5 @@
 import { MESSAGE_CHAT } from '../../../shared/constants.js';
-import { isLoggedIn } from '../buttons/AuthButton';
+import { isConnected, isLoggedIn } from '../buttons/AuthButton';
 import { state } from './State.js';
 import { webSocket } from './WebSocketWrapper.js';
 
@@ -13,7 +13,7 @@ export class ChatManager {
 		this.parent = parent;
 
 		// Listen for login state changes
-		document.addEventListener('login-success', this.bndInitChat);
+		document.addEventListener('login-success ws-open', this.bndInitChat);
 		document.addEventListener('login-failed', this.bndDestroyChat);
 		document.addEventListener('logout-success', this.bndDestroyChat);
 
@@ -41,7 +41,7 @@ export class ChatManager {
 
 	destroy() {
 		this.destroyChat();
-		document.removeEventListener('login-success', this.bndInitChat);
+		document.removeEventListener('login-success ws-open', this.bndInitChat);
 		document.removeEventListener('login-failed', this.bndDestroyChat);
 		document.removeEventListener('logout-success', this.bndDestroyChat);
 	}
@@ -54,6 +54,7 @@ export class Chat {
 	private toggleButton: HTMLButtonElement;
 	private isExpanded: boolean = true;
 	private username: string;
+	private notconnected: boolean = isConnected();
 
 	constructor(parent: HTMLElement) {
 		this.username = sessionStorage.getItem('username') || 'Anonymous';
@@ -63,19 +64,19 @@ export class Chat {
 		// main container - no background, just a positioning wrapper
 		this.container = document.createElement('div');
 		this.container.className =
-			'fixed right-0 bottom-[2.5rem] flex flex-col z-20';
+			'fixed right-0 bottom-8 flex flex-col z-20';
 
 		// Messages container (hides when collapsed)
 		this.messagesContainer = document.createElement('div');
 		this.messagesContainer.className =
-			'w-80 h-[calc(100vh-7.5rem)] overflow-y-auto p-2 space-y-1 bg-white/10 ' +
+			'w-80 h-[calc(100vh-5rem)] overflow-y-auto p-2 space-y-1 bg-white/10 ' +
 			'backdrop-blur-sm shadow-lg transition-all duration-300';
 		this.container.appendChild(this.messagesContainer);
 
 		// Input container (always visible, fixed at bottom)
 		const inputContainer = document.createElement('div');
 		inputContainer.className =
-			'w-80 p-4 flex gap-2 bg-white/10 backdrop-blur-sm shadow-lg ';
+			'w-80 p-2 h-12 flex gap-2 bg-white/10 backdrop-blur-sm shadow-lg ';
 
 		// Input
 		this.input = document.createElement('input');
@@ -139,10 +140,6 @@ export class Chat {
 		}
 	};
 
-	private handleIncomingMessage = (e: Event) => {
-		this.addMessage((e as CustomEvent).detail);
-	};
-
 	private handleGlobalKeydown = (e: Event) => {
 		const ke = e as KeyboardEvent;
 		if (ke.code === 'Space' && document.activeElement !== this.input) {
@@ -151,20 +148,23 @@ export class Chat {
 		}
 	};
 
-	private addMessage(message: string): void {
-		const messageEl = document.createElement('div');
-		messageEl.className =
-			'px-1 py-1 rounded-md text-sm text-white bg-gray-400/30 max-w-full break-words';
-		messageEl.textContent = message;
+	private handleIncomingMessage = (e: Event) => {
+		this.addMessage((e as CustomEvent).detail);
+	};
 
-		this.messagesContainer.appendChild(messageEl);
+	private addMessage(message: string): void {
+		const messageElmt = document.createElement('div');
+		messageElmt.className =
+			'px-1 py-1 rounded-md text-sm text-white bg-gray-400/30 max-w-full break-words';
+		messageElmt.textContent = message;
+
+		this.messagesContainer.appendChild(messageElmt);
 		// Auto-scroll to bottom
 		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
 	}
 
 	private sendMessage(message: string): void {
 		const fullMessage = `${this.username}: ${message}`;
-
 		// Send to server
 		webSocket.send({ t: MESSAGE_CHAT, d: fullMessage });
 		// add to message board
@@ -172,11 +172,13 @@ export class Chat {
 	}
 
 	public destroy(): void {
-		document.removeEventListener('chat-message',this.handleIncomingMessage);
+		document.removeEventListener(
+			'chat-message',
+			this.handleIncomingMessage
+		);
 		document.removeEventListener('keydown', this.handleGlobalKeydown);
 		this.input.removeEventListener('keypress', this.handleKeypress);
 		this.toggleButton.removeEventListener('click', this.handleToggle);
-
 		this.container.remove();
 	}
 }

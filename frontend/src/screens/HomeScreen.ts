@@ -1,4 +1,4 @@
-import { isLoggedIn } from '../buttons/AuthButton';
+import { isLoggedIn, isConnected } from '../buttons/AuthButton';
 import { LocalGameModal } from '../modals/LocalGameModal';
 import { LoginModal } from '../modals/LoginModal';
 import { RemoteGameModal } from '../modals/RemoteGameModal';
@@ -44,8 +44,7 @@ export class HomeScreen extends Screen {
 			this.setupModalCloseHandler(modal);
 			return;
 		}
-		const ws = sessionStorage.getItem('wsOpen');
-		if (ws !== 'true') {
+		if (!isConnected()) {
 			const modal = new TextModal(
 				this.element,
 				'WebSocket is not connected. Please refresh the page or try again later.',
@@ -79,8 +78,7 @@ export class HomeScreen extends Screen {
 			this.setupModalCloseHandler(modal);
 			return;
 		}
-		const ws = sessionStorage.getItem('wsOpen');
-		if (ws !== 'true') {
+		if (!isConnected()) {
 			const modal = new TextModal(
 				this.element,
 				'WebSocket is not connected. Please refresh the page or try again later.',

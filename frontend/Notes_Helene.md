@@ -112,7 +112,7 @@ z-index:
 AUTHBUTTON
 
 If we did:
-**document.addEventListener('login-success', this.render);**
+**document.addEventListener('login-success ws-open', this.render);**
 then when the event fires, the browser calls this.render without binding this. Inside render(), this would be undefined (in strict mode) or the global object (in sloppy mode). Either way, your code would crash when it tries to access this.button or this.destroyButton().
 
 Why private renderHandler = …? By defining:
@@ -120,7 +120,7 @@ Why private renderHandler = …? By defining:
 you create a bound arrow function that always calls this.render() with the right this (your AuthComponent instance). This way, when you later pass this.renderHandler to addEventListener, the context is preserved.
 
 Why not bind directly? You could do:
-**document.addEventListener('login-success', this.render.bind(this));**
+**document.addEventListener('login-success ws-open', this.render.bind(this));**
 But then you’d need to keep track of the bound function if you want to removeEventListener later. *With .bind, every call creates a new function object*, so removeEventListener won’t work unless you save it somewhere. That’s why people store it in a property (renderHandler), so you can remove it in destroy().
 
 So the point of private renderHandler = () => this.render(); is:
