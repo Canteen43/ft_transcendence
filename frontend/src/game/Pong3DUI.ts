@@ -1,12 +1,12 @@
 // UI helper for Pong3D: builds GUI controls and returns references so the main scene can wire them
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
-import montserratBoldUrl from '../../fonts/montserrat/Montserrat-Bold.ttf';
-import { isMobileInputEnabled } from './MobileControlsOverlay';
+import OutfitUrl from '../../fonts/Outfit/Outfit-VariableFont_wght.ttf';
 import { conditionalWarn } from './Logger';
+import { isMobileInputEnabled } from './MobileControlsOverlay';
 
-const MESH_UI_FONT_FAMILY = 'MontserratBold';
-const MESH_UI_FONT_URL: string = montserratBoldUrl;
+const MESH_UI_FONT_FAMILY = 'Outfit';
+const MESH_UI_FONT_URL: string = OutfitUrl;
 
 let meshUIFontPromise: Promise<void> | null = null;
 
@@ -244,8 +244,7 @@ export function createPong3DUI(
 			underline.background = underlineColor;
 			underline.color = underlineColor;
 			underline.thickness = 0;
-			underline.verticalAlignment =
-				GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+			underline.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
 			underline.horizontalAlignment =
 				GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
 			underline.top = options.underline.offset ?? '-40px';
@@ -413,7 +412,7 @@ export function createPong3DUI(
 	winnerMessage.text = '';
 	winnerMessage.color = 'white';
 	winnerMessage.fontSize = '80px';
-	winnerMessage.fontFamily = 'Arial';
+	winnerMessage.fontFamily = `${MESH_UI_FONT_FAMILY}, Arial, sans-serif`;
 	winnerMessage.fontWeight = 'bold';
 	winnerMessage.textHorizontalAlignment =
 		GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
@@ -432,7 +431,7 @@ export function createPong3DUI(
 
 	// Function to show winner
 	const showWinner = (playerIndex: number, playerName: string) => {
-		const colors = ['red', '#5bc8ff', 'lightgreen', 'cyan'];
+		const colors = ['red', '#4d4dffff', 'lightgreen', 'cyan'];
 		const color = colors[playerIndex] || 'white';
 		winnerMessage.text = `${playerName} WINS!`;
 		winnerMessage.color = color;
