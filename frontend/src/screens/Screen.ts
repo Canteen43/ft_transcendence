@@ -1,6 +1,7 @@
 import { isLoggedIn } from '../buttons/AuthButton';
 import { HomeButton } from '../buttons/HomeButton';
 import { Banner } from '../utils/Banner';
+import { state } from '../utils/State';
 
 export class Screen {
 	public element: HTMLDivElement;
@@ -26,7 +27,7 @@ export class Screen {
 		if (showHomeButton) {
 			this.homeButton = new HomeButton(app);
 		}
-		if (isLoggedIn()) {
+		if (isLoggedIn() && !state.isMobile) {
 			this.banner = new Banner(app);
 		}
 		document.addEventListener('login-success', this.handleLogin);
@@ -35,8 +36,8 @@ export class Screen {
 	}
 
 	private handleLogin = () => {
-		// Create banner on login if this screen wants one
-		if (!this.banner) {
+		// Create banner on login if this screen wants one and not on mobile
+		if (!this.banner && !state.isMobile) {
 			const app = document.getElementById('app') as HTMLDivElement;
 			this.banner = new Banner(app);
 		}
