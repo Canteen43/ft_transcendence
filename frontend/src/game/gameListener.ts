@@ -151,11 +151,15 @@ export async function gameListener(event: MessageEvent) {
 					moveData = movePayload;
 				}
 
-				// Expect format: { playerId: number, input: { k: number } }
+				// Expect format: { playerId: number, paddle: { pos: [x,z], vel: [x,z] } }
 				if (
 					moveData &&
 					typeof moveData.playerId === 'number' &&
-					moveData.input
+					moveData.paddle &&
+					Array.isArray(moveData.paddle.pos) &&
+					moveData.paddle.pos.length >= 2 &&
+					Array.isArray(moveData.paddle.vel) &&
+					moveData.paddle.vel.length >= 2
 				) {
 					conditionalLog('Move received:', moveData);
 					document.dispatchEvent(

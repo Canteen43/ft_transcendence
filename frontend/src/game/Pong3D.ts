@@ -33,7 +33,10 @@ import { Pong3DAudio } from './Pong3DAudio';
 import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import type { NetworkPowerupState } from './Pong3DGameLoopBase';
-import { Pong3DGameLoopClient } from './Pong3DGameLoopClient';
+import {
+	Pong3DGameLoopClient,
+	type ClientPaddleStatePayload,
+} from './Pong3DGameLoopClient';
 import { Pong3DGameLoopMaster } from './Pong3DGameLoopMaster';
 import { Pong3DInput } from './Pong3DInput';
 import {
@@ -7079,18 +7082,28 @@ export class Pong3D {
 	}
 
 	/**
-	 * Send input to master (Client mode only)
+	 * Send paddle state to master (Client mode only)
 	 */
-	private sendInputToMaster(input: { k: number }): void {
-		// Reduced logging for input - only log occasionally
-		// this.conditionalLog(`📡 Player ${this.thisPlayer} sending input to master:`, input);
+	private sendInputToMaster(state: ClientPaddleStatePayload): void {
+		const networkNumber = (value: number) =>
+			Math.abs(value) < 0.0001
+				? 0
+				: Math.round(value * 1000) / 1000;
 
 		try {
-			// Send via WebSocket using team's message format
-			// Format expected by gameListener: { playerId: number, input: { k: number } }
 			const moveData = {
 				playerId: this.thisPlayer,
-				input: input,
+				paddle: {
+					pos: [
+						networkNumber(state.pos.x),
+						networkNumber(state.pos.z),
+					] as [number, number],
+					vel: [
+						networkNumber(state.vel.x),
+						networkNumber(state.vel.z),
+					] as [number, number],
+				},
+				serve: state.serve === true ? true : undefined,
 			};
 			const payloadString = JSON.stringify(moveData);
 			const message: Message = {
@@ -7098,13 +7111,10 @@ export class Pong3D {
 				d: payloadString,
 			} as unknown as Message;
 			webSocket.send(message);
-
-			// Only log the WebSocket message structure occasionally for debugging
-			// this.conditionalLog('📡 WebSocket message (MOVE):', message);
 		} catch (err) {
 			if (GameConfig.isDebugLoggingEnabled()) {
 				this.conditionalWarn(
-					'Failed to send input to master over websocket',
+					'Failed to send paddle state to master over websocket',
 					err
 				);
 			}
@@ -7470,7 +7480,10 @@ export class Pong3D {
 	 */
 	public testSendInput(): void {
 		if (this.gameMode === 'client') {
-			const testInput = { k: 1 }; // Move left/up
+			const testInput: ClientPaddleStatePayload = {
+				pos: { x: 0, z: 0 },
+				vel: { x: -1, z: 0 },
+			};
 			this.sendInputToMaster(testInput);
 		}
 	}
