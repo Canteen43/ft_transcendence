@@ -20,7 +20,7 @@ export class HomeButton {
 		this.img = document.createElement('img');
 		this.img.src = imgSrc;
 		this.img.alt = 'Home';
-		this.img.className = 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18';
+		this.img.className = 'w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16';
 		this.button.appendChild(this.img);
 
 		this.onEnter = () => (this.img.src = hoverImgSrc);

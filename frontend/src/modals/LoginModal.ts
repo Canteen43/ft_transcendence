@@ -103,6 +103,8 @@ export class LoginModal extends Modal {
 		}
 		console.log('Login successful for: ', authData.login);
 		sessionStorage.setItem('username', username);
+		sessionStorage.setItem('username', username);
+
 		this.login(authData.token, authData.user_id);
 
 		this.destroy();
@@ -117,12 +119,40 @@ export class LoginModal extends Modal {
 	}
 
 	private login(token: string, id: string) {
-		webSocket.close();
+
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
-		this.destroy();
+		sessionStorage.setItem('username', this.UsernameField.value.trim());
+
+		// Close existing connection
+		webSocket.close();
+
+		// wait for ws-open - one-time listener for successful ws
+		const handleWSOpen = () => {
+			document.removeEventListener('ws-open', handleWSOpen);
+			document.removeEventListener('login-failed', handleWSFailed);
+			document.dispatchEvent(new CustomEvent('login-success'));
+			// this.destroy();
+		};
+
+		const handleWSFailed = () => {
+
+			document.removeEventListener('ws-open', handleWSOpen);
+			document.removeEventListener('login-failed', handleWSFailed);
+			// Clear credentials since connection failed
+			sessionStorage.removeItem('token');
+			sessionStorage.removeItem('userID');
+			sessionStorage.removeItem('username');
+			new TextModal(this.parent, 'Connection failed. Please try again.');
+		};
+
+		document.addEventListener('ws-open', handleWSOpen, { once: true });
+		document.addEventListener('login-failed', handleWSFailed, {
+			once: true,
+		});
+
+		// Try to open connection
 		webSocket.open();
-		console.info('Auth valid - opening ws');
 	}
 
 	private myCreateInput(
@@ -244,5 +274,6 @@ export class LoginModal extends Modal {
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();
+		console.log('LoginModal.destroy() COMPLETE');
 	}
 }

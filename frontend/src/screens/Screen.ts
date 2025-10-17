@@ -26,7 +26,7 @@ export class Screen {
 			this.homeButton = new HomeButton(app);
 		}
 		this.banner = new Banner(app);
-		document.addEventListener('login-success ws-open', this.handleLogin);
+		document.addEventListener('login-success', this.handleLogin);
 		document.addEventListener('logout-success', this.handleLogout);
 		document.addEventListener('login-failed', this.handleLogout);
 	}
@@ -49,7 +49,7 @@ export class Screen {
 
 	public destroy(): void {
 		// Remove event listeners
-		document.removeEventListener('login-success ws-open', this.handleLogin);
+		document.removeEventListener('login-success', this.handleLogin);
 		document.removeEventListener('logout-success', this.handleLogout);
 		document.removeEventListener('login-failed', this.handleLogout);
 
@@ -71,4 +71,3 @@ export class Screen {
 		this.element = null as any;
 	}
 }
-

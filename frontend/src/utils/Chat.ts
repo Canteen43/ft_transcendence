@@ -8,21 +8,17 @@ export class ChatManager {
 	private parent: HTMLElement;
 	private bndInitChat = () => this.initChat();
 	private bndDestroyChat = () => this.destroyChat();
-
 	constructor(parent: HTMLElement) {
 		this.parent = parent;
-
 		// Listen for login state changes
-		document.addEventListener('login-success ws-open', this.bndInitChat);
+		document.addEventListener('login-success', this.bndInitChat);
 		document.addEventListener('login-failed', this.bndDestroyChat);
 		document.addEventListener('logout-success', this.bndDestroyChat);
-
 		// Initialize on load if already logged in
 		if (isLoggedIn()) {
 			this.initChat();
 		}
 	}
-
 	private initChat() {
 		if (!isLoggedIn() || !this.parent) return;
 		console.debug('Initializing chat');
@@ -30,23 +26,20 @@ export class ChatManager {
 			this.chat = new Chat(this.parent);
 		}
 	}
-
 	private destroyChat() {
-		console.debug('Destroy Chat banner called');
+		console.debug('Destroy Chat called');
 		if (this.chat) {
 			this.chat.destroy();
 			this.chat = null;
 		}
 	}
-
 	destroy() {
 		this.destroyChat();
-		document.removeEventListener('login-success ws-open', this.bndInitChat);
+		document.removeEventListener('login-success', this.bndInitChat);
 		document.removeEventListener('login-failed', this.bndDestroyChat);
 		document.removeEventListener('logout-success', this.bndDestroyChat);
 	}
 }
-
 export class Chat {
 	private container: HTMLElement;
 	private messagesContainer: HTMLElement;
@@ -55,6 +48,8 @@ export class Chat {
 	private isExpanded: boolean = true;
 	private username: string;
 	private connected: boolean = isConnected();
+	private bndHandleWSClose = () => this.handleWSClose();
+	private bndHandleWSOpen = () => this.handleWSOpen();
 
 	constructor(parent: HTMLElement) {
 		this.username = sessionStorage.getItem('username') || 'Anonymous';
@@ -63,8 +58,7 @@ export class Chat {
 
 		// main container - no background, just a positioning wrapper
 		this.container = document.createElement('div');
-		this.container.className =
-			'fixed right-0 bottom-8 flex flex-col z-20';
+		this.container.className = 'fixed right-0 bottom-8 flex flex-col z-20';
 
 		// Messages container (hides when collapsed)
 		this.messagesContainer = document.createElement('div');
@@ -110,10 +104,35 @@ export class Chat {
 		document.addEventListener('chat-message', this.handleIncomingMessage);
 		// Listen for incoming messages via document event
 		document.addEventListener('keydown', this.handleGlobalKeydown);
+
+		// Listen for connection state changes
+		document.addEventListener('ws-close', this.bndHandleWSClose);
+		document.addEventListener('ws-open', this.bndHandleWSOpen);
+
+		// Show connection error if not connected on initialization
+		if (!this.connected) {
+			this.addSystemMessage(
+				'⚠️ Connection error - trying to reconnect...'
+			);
+		}
 	}
+
+	private handleWSClose = () => {
+		this.connected = false;
+		this.addSystemMessage('⚠️ Connection lost - trying to reconnect...');
+	};
+
+	private handleWSOpen = () => {
+		this.connected = true;
+		this.addSystemMessage('✓ Connected');
+	};
 
 	private handleKeypress = (e: KeyboardEvent) => {
 		if (e.key === 'Enter' && this.input.value.trim()) {
+			if (!this.connected) {
+				this.addSystemMessage('⚠️ Cannot send message - not connected');
+				return;
+			}
 			this.sendMessage(this.input.value.trim());
 			this.input.value = '';
 		}
@@ -125,9 +144,7 @@ export class Chat {
 		console.debug('Dispatching CHAT TOGGLED');
 		console.debug('this.isExpanded ' + this.isExpanded);
 		console.debug('state.chatExpanded' + this.isExpanded);
-
 		document.dispatchEvent(new CustomEvent('chat-toggled'));
-
 		if (this.isExpanded) {
 			// Show messages
 			this.input.focus();
@@ -157,7 +174,16 @@ export class Chat {
 		messageElmt.className =
 			'px-1 py-1 rounded-md text-sm text-white bg-gray-400/30 max-w-full break-words';
 		messageElmt.textContent = message;
+		this.messagesContainer.appendChild(messageElmt);
+		// Auto-scroll to bottom
+		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+	}
 
+	private addSystemMessage(message: string): void {
+		const messageElmt = document.createElement('div');
+		messageElmt.className =
+			'px-1 py-1 rounded-md text-sm text-[var(--color3)] bg-gray-600/50 max-w-full break-words bold';
+		messageElmt.textContent = message;
 		this.messagesContainer.appendChild(messageElmt);
 		// Auto-scroll to bottom
 		this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
@@ -177,6 +203,8 @@ export class Chat {
 			this.handleIncomingMessage
 		);
 		document.removeEventListener('keydown', this.handleGlobalKeydown);
+		document.removeEventListener('ws-close', this.bndHandleWSClose);
+		document.removeEventListener('ws-open', this.bndHandleWSOpen);
 		this.input.removeEventListener('keypress', this.handleKeypress);
 		this.toggleButton.removeEventListener('click', this.handleToggle);
 		this.container.remove();

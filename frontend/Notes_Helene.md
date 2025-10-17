@@ -89,18 +89,14 @@ functions: getItem, setItem, removeItem
 
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9
 
-
-- tournament variable in session data: 1 when the tournament button is selected - 
-for local: put back to 0 when we have a winner  (and when we quit -> todo)
-
-
+- tournament variable in session data: 1 when the tournament button is selected -
+  for local: put back to 0 when we have a winner (and when we quit -> todo)
 
 buttonText ?? 'Okay'
 buttonText? buttonText : 'Okay'
 
-
-
 z-index:
+
 - authButton 'z-10'
 - home button 'z-10'
 - alias AI toggle down background: 'z-10'
@@ -108,11 +104,10 @@ z-index:
 - banner chat 'z-20'
 - textModal 'z-30'
 
-
 AUTHBUTTON
 
 If we did:
-**document.addEventListener('login-success ws-open', this.render);**
+**document.addEventListener('login-success', this.render);**
 then when the event fires, the browser calls this.render without binding this. Inside render(), this would be undefined (in strict mode) or the global object (in sloppy mode). Either way, your code would crash when it tries to access this.button or this.destroyButton().
 
 Why private renderHandler = …? By defining:
@@ -120,17 +115,22 @@ Why private renderHandler = …? By defining:
 you create a bound arrow function that always calls this.render() with the right this (your AuthComponent instance). This way, when you later pass this.renderHandler to addEventListener, the context is preserved.
 
 Why not bind directly? You could do:
-**document.addEventListener('login-success ws-open', this.render.bind(this));**
-But then you’d need to keep track of the bound function if you want to removeEventListener later. *With .bind, every call creates a new function object*, so removeEventListener won’t work unless you save it somewhere. That’s why people store it in a property (renderHandler), so you can remove it in destroy().
+**document.addEventListener('login-success', this.render.bind(this));**
+But then you’d need to keep track of the bound function if you want to removeEventListener later. _With .bind, every call creates a new function object_, so removeEventListener won’t work unless you save it somewhere. That’s why people store it in a property (renderHandler), so you can remove it in destroy().
 
 So the point of private renderHandler = () => this.render(); is:
 Keep this bound correctly.
 Store a single reference so you can removeEventListener later.
 
-
 <a href="https://www.flaticon.com/free-icons/leadership" title="leadership icons">Leadership icons created by Parzival’ 1997 - Flaticon</a>
 
 <a href="https://www.flaticon.com/free-icons/best" title="best icons">Best icons created by Freepik - Flaticon</a>
 
-
 you can't use await in a constructor
+
+addEventListener('event', handler, {
+once: true, // Remove after first trigger
+passive: true, // Won't call preventDefault() (performance hint)
+capture: true, // Use capture phase instead of bubble phase
+signal: abortSignal // Remove listener when AbortSignal fires
+});

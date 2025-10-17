@@ -10,7 +10,7 @@ import type { Message } from '../../../shared/schemas/message';
 import { isLoggedIn } from '../buttons/AuthButton';
 import { gameListener } from '../game/gameListener';
 import { TextModal } from '../modals/TextModal';
-import { GameScreen } from '../screens/GameScreen';
+import { state } from '../utils/State';
 import { leaveTournament } from '../utils/tournamentJoin';
 import { clearRemoteData } from './clearSessionStorage';
 import { wsURL } from './endpoints';
@@ -49,7 +49,6 @@ class WebSocketWrapper {
 	private boundOnClose = (event: Event) => this.onClose(event as CloseEvent);
 	private boundOnMessage = (event: MessageEvent) => this.onMessage(event);
 	private boundOnError = (error: Event) => this.onError(error);
-	private reconnectModal?: TextModal;
 
 	constructor() {
 		if (isLoggedIn()) {
@@ -61,7 +60,7 @@ class WebSocketWrapper {
 	// Public methods
 
 	public open(): void {
-		// Checking token A) because WS needs it, B) to avoid login attempts when logged out
+
 		const token = sessionStorage.getItem('token');
 		if (!token) {
 			console.warn('No token - cannot open WebSocket');
@@ -69,28 +68,28 @@ class WebSocketWrapper {
 			return;
 		}
 		if (this.ws?.readyState === WebSocket.OPEN) {
-			console.log('WebSocket already open');
+			console.log('WebSocket already open - returning');
 			return;
 		}
 		if (this.ws?.readyState === WebSocket.CONNECTING) {
-			console.log('WebSocket already connecting');
+			console.log('WebSocket already connecting - returning');
 			return;
 		}
 
 		if (this.ws) {
-			console.log(
-				'Cleaning up existing WebSocket before opening new one'
-			);
 			this.removeListeners();
 			this.ws.close(1000, 'Reopening');
 			this.ws = null;
 		}
 
-		console.info('Opening WebSocket');
 		this.shouldReconnect = true;
 
 		const wsUrlWithToken = `${wsURL}?token=${token}`;
 		this.ws = new WebSocket(wsUrlWithToken);
+		console.log(
+			'WebSocket object created, readyState:',
+			this.ws.readyState
+		);
 
 		this.ws.addEventListener('open', this.boundOnOpen);
 		this.ws.addEventListener('close', this.boundOnClose);
@@ -103,7 +102,7 @@ class WebSocketWrapper {
 	}
 
 	public close(): void {
-		console.log('Manually closing WebSocket');
+
 		this.shouldReconnect = false;
 
 		if (this.reconnectTimeoutId) {
@@ -111,15 +110,12 @@ class WebSocketWrapper {
 			this.reconnectTimeoutId = null;
 		}
 
-		if (this.reconnectModal) {
-			this.reconnectModal.destroy();
-			this.reconnectModal = undefined;
-		}
-
 		this.removeListeners();
+		console.log('Calling ws.close(1000)...');
 		this.ws?.close(1000, 'Manual close');
 		this.ws = null;
 	}
+
 
 	public send(message: Message): void {
 		if (this.ws?.readyState !== WebSocket.OPEN) {
@@ -138,12 +134,21 @@ class WebSocketWrapper {
 		console.info('WebSocket opened');
 		this.reconnectAttempts = 0;
 
-		if (this.reconnectModal) {
-			this.reconnectModal.destroy();
-			this.reconnectModal = undefined;
-		}
+		// Wait briefly to ensure backend doesn't immediately reject the connection
+		setTimeout(() => {
+			// Only dispatch if connection is still open
+			if (this.ws?.readyState === WebSocket.OPEN) {
+				console.debug(
+					'WebSocket.onOpen() - connection stable, dispatching ws-open'
+				);
+				document.dispatchEvent(new CustomEvent('ws-open'));
+			} else {
+				console.debug(
+					'WebSocket.onOpen() - connection closed before stable, not dispatching ws-open'
+				);
+			}
+		}, 100); // 100ms should be enough for backend to send rejection
 
-		document.dispatchEvent(new CustomEvent('login-success ws-open'));
 		if (this.pingIntervalId) {
 			clearInterval(this.pingIntervalId);
 		}
@@ -158,17 +163,6 @@ class WebSocketWrapper {
 
 	private onClose(event: CloseEvent): void {
 		leaveTournament();
-
-		// Clean up any existing reconnect modal
-		if (this.reconnectModal) {
-			this.reconnectModal.destroy();
-			this.reconnectModal = undefined;
-		}
-
-		console.info('WebSocket closed', {
-			code: event.code,
-			reason: event.reason,
-		});
 		this.removeListeners();
 		this.ws = null;
 
@@ -228,12 +222,6 @@ class WebSocketWrapper {
 			this.reconnectTimeoutId = setTimeout(() => {
 				this.reconnectTimeoutId = null;
 				this.open();
-				if (router.currentScreen?.element) {
-					this.reconnectModal = new TextModal(
-						router.currentScreen.element,
-						`Disconnected. Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} in ${this.RECONNECT_DELAY / 1000} seconds...`
-					);
-				}
 			}, this.RECONNECT_DELAY);
 		} else if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
 			console.error(
@@ -249,13 +237,9 @@ class WebSocketWrapper {
 		this.shouldReconnect = false;
 		this.reconnectAttempts = 0;
 
-		if (this.reconnectModal) {
-			this.reconnectModal.destroy();
-			this.reconnectModal = undefined;
-		}
-
 		sessionStorage.removeItem('token');
 		sessionStorage.removeItem('userID');
+		sessionStorage.removeItem('username');
 		const gameMode = sessionStorage.getItem('gameMode');
 
 		if (location.hash === '#game' && gameMode === 'remote') {
@@ -263,14 +247,16 @@ class WebSocketWrapper {
 			location.hash = '#home';
 		}
 
-		// console.debug('Dispatching login-failed event - removing token');
-		// sessionStorage.removeItem('token');
+		if (state.currentModal) {
+			state.currentModal.destroy();
+			state.currentModal = null;
+		}
+
+		document.dispatchEvent(new CustomEvent('login-failed'));
+
 		if (router.currentScreen?.element) {
 			void new TextModal(router.currentScreen.element, message);
-		} else {
-			console.warn('Cannot show auth failure modal - no current screen');
 		}
-		document.dispatchEvent(new CustomEvent('login-failed'));
 	}
 
 	private async onMessage(event: MessageEvent): Promise<void> {
@@ -297,7 +283,7 @@ class WebSocketWrapper {
 
 	// always folllowed by onClose - no special action
 	private onError(error: Event): void {
-		console.error('WebSocket error:', error);
+		console.error('WebSocket.onError():', error);
 	}
 
 	private removeListeners(): void {

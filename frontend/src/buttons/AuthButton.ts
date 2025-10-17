@@ -39,8 +39,15 @@ export class AuthComponent {
 		console.debug('Rendering the Auth button');
 		this.render();
 
+		if (isLoggedIn() && !isConnected()) {
+			console.warn(
+				'Logged in but not connected - attempting reconnection'
+			);
+			webSocket.open();
+		}
+
 		// Add document event listeners
-		document.addEventListener('login-success ws-open', this.renderHandler);
+		document.addEventListener('login-success', this.renderHandler);
 		document.addEventListener('logout-success', this.renderHandler);
 		document.addEventListener('login-failed', this.renderHandler);
 		document.addEventListener('chat-toggled', this.renderHandler);
@@ -291,6 +298,9 @@ export class AuthComponent {
 		console.debug('Dispatching logout-success event');
 		document.dispatchEvent(new CustomEvent('logout-success'));
 		console.info('Logout successful');
+		if (location.hash === '#game') {
+			location.hash = '#home';
+		}
 	}
 
 	private destroyUI(): void {
@@ -354,10 +364,7 @@ export class AuthComponent {
 		}
 
 		// Remove document event listeners
-		document.removeEventListener(
-			'login-success ws-open',
-			this.renderHandler
-		);
+		document.removeEventListener('login-success', this.renderHandler);
 		document.removeEventListener('logout-success', this.renderHandler);
 		document.removeEventListener('login-failed', this.renderHandler);
 		document.removeEventListener('chat-toggled', this.renderHandler);
