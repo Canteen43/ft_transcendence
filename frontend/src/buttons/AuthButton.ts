@@ -61,7 +61,7 @@ export class AuthComponent {
 
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
-		const moveButtonLeft = userIsLoggedIn && state.chatExpanded;
+		const moveButtonLeft = userIsLoggedIn && state.chatExpanded  && !state.isMobile; 
 
 		console.debug('Rendering auth button, moveButtonLeft:', moveButtonLeft);
 

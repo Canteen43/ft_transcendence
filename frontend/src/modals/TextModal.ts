@@ -19,6 +19,10 @@ export class TextModal extends Modal {
 		}
 		state.currentModal = this;
 
+		// Set max-width for text wrapping
+		this.box.className +=
+			' max-w-[280px] sm:max-w-[320px] md:max-w-[400px]';
+
 		this.overlay.classList.remove('z-20');
 		this.overlay.classList.add('z-30');
 
@@ -27,7 +31,7 @@ export class TextModal extends Modal {
 			const textElmt = document.createElement('p');
 			textElmt.textContent = notification;
 			textElmt.className =
-				'text-center text-sm sm:text-base  text-[var(--color3)]';
+				'text-center text-sm sm:text-base text-[var(--color3)]';
 			this.box.appendChild(textElmt);
 		}
 
@@ -46,7 +50,6 @@ export class TextModal extends Modal {
 		);
 
 		this.okayButton.element.focus();
-
 	}
 
 	public destroy(): void {

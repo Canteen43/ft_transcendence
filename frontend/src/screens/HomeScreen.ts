@@ -44,7 +44,24 @@ export class HomeScreen extends Screen {
 			clearTimeout(this.loadingTimeout);
 			this.loadingTimeout = null;
 		}
-		console.log('Landing page loaded successfully, no fallback needed');
+
+		// Destroy fallback hero if it was shown
+		if (this.fallbackHero) {
+			this.fallbackHero.remove();
+			this.fallbackHero = null;
+			// Also remove background styling
+			this.element.style.backgroundImage = '';
+			this.element.classList.remove(
+				'bg-cover',
+				'bg-center',
+				'bg-no-repeat',
+				'bg-fixed',
+				'relative',
+				'overflow-hidden'
+			);
+		}
+
+		console.log('Landing page loaded successfully, fallback destroyed');
 	}
 
 	private showFallbackHero() {

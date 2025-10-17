@@ -7,8 +7,23 @@ export class Banner {
 	private bannerContainer: HTMLElement;
 	private onlinePlayersContainer: HTMLElement;
 	private updateInterval: number | null = null;
+	private isWebSocketConnected: boolean = false;
+
+	// Bound methods for event listeners
+	private bndShowPlayer = () => {
+		this.isWebSocketConnected = true;
+		this.loadOnlinePlayers();
+	};
+
+	private bndShowError = () => {
+		this.isWebSocketConnected = false;
+		this.updateDisplay([], true);
+	};
 
 	constructor(parent: HTMLElement) {
+		// Listen for WebSocket state changes
+		document.addEventListener('ws-open', this.bndShowPlayer);
+		document.addEventListener('ws-close', this.bndShowError);
 		// banner container
 		this.bannerContainer = document.createElement('div');
 		this.bannerContainer.className =
@@ -47,7 +62,7 @@ export class Banner {
 	}
 
 	private async loadOnlinePlayers(): Promise<void> {
-		if (!isConnected()) {
+		if (!this.isWebSocketConnected) {
 			this.updateDisplay([], true);
 			return;
 		}
@@ -136,6 +151,10 @@ export class Banner {
 			clearInterval(this.updateInterval);
 			this.updateInterval = null;
 		}
+
+		// Remove event listeners
+		document.removeEventListener('ws-open', this.bndShowPlayer);
+		document.removeEventListener('ws-close', this.bndShowError);
 
 		// Remove from DOM
 		this.bannerContainer.remove();
