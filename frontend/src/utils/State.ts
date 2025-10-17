@@ -9,6 +9,7 @@ class State {
 	public replayCounter: number = 0;
 	public chatExpanded: boolean = true;
 	public currentModal: Modal | null = null;
-	}
+	public isMobile: boolean = false;
+}
 
 export const state = new State();

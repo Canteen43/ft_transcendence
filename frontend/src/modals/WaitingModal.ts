@@ -20,6 +20,10 @@ export class WaitingModal extends Modal {
 		}
 		state.currentModal = this;
 
+		// Set max-width for text wrapping
+		this.box.className +=
+			' max-w-[280px] sm:max-w-[320px] md:max-w-[400px]';
+
 		document.addEventListener('2plyrsGameReady', this.gameReadyHandler);
 		this.printMessageLoader();
 	}
@@ -49,7 +53,7 @@ export class WaitingModal extends Modal {
 		const message = document.createElement('p');
 		message.textContent = 'Waiting for other player(s)...';
 		message.className =
-			"font-outfit [font-variation-settings:'wght'_900] text-3xl font-bold text-center mb-5 text-[var(--color3)]";
+			"font-outfit [font-variation-settings:'wght'_900] text-lg font-bold text-center mb-5 text-[var(--color3)]";
 		container.appendChild(message);
 
 		const loader = document.createElement('l-jelly');

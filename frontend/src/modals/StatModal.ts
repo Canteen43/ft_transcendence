@@ -27,7 +27,7 @@ export class StatModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
+
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
@@ -35,8 +35,8 @@ export class StatModal extends Modal {
 
 		this.element = document.createElement('div');
 		this.element.className =
-			'mx-auto my-auto max-w-4xl max-h-[90vh] overflow-y-auto ' +
-			'flex flex-col items-center justify-start p-3 sm:p-6';
+			'mx-auto my-auto max-w-[320px] sm:max-w-[400px] md:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto ' +
+			'flex flex-col items-center justify-start p-1 sm:p-3 md:p-6';
 		this.box.appendChild(this.element);
 
 		if (isLoggedIn()) this.initialize();
@@ -59,7 +59,6 @@ export class StatModal extends Modal {
 			return;
 		}
 		this.createOutput();
-
 	}
 
 	private showErrorModal(message: string) {
@@ -201,7 +200,7 @@ export class StatModal extends Modal {
 		// Add LEADERBOARD title
 		const leaderboardTitle = document.createElement('h3');
 		leaderboardTitle.className =
-			'text-3xl sm:text-4xl font-nabla text-gray-800 text-center mb-4';
+			'text-xl sm:text-3xl md:text-4xl font-nabla text-gray-800 text-center mb-2 sm:mb-4';
 		leaderboardTitle.textContent = 'LEADERBOARD';
 		rightContainer.appendChild(leaderboardTitle);
 
@@ -220,7 +219,7 @@ export class StatModal extends Modal {
 
 		// header
 		const header = document.createElement('div');
-		header.className = `${baseGrid} px-2 sm:px-3 py-1 text-gray-600 sticky top-2 bg-white text-xs sm:text-sm`;
+		header.className = `${baseGrid} px-1 sm:px-2 md:px-3 py-1 text-gray-600 sticky top-2 bg-white text-xs sm:text-sm`;
 
 		// header cells
 		const emptyCell1 = document.createElement('span');
@@ -248,7 +247,7 @@ export class StatModal extends Modal {
 				const isCurrentUser = currentUsername === playerUsername;
 
 				const row = document.createElement('div');
-				row.className = `${baseGrid} px-3 sm:px-4 py-2 sm:py-3 text-gray-500   transition-colors `;
+				row.className = `${baseGrid} px-1 sm:px-3 md:px-4 py-1 sm:py-2 md:py-3 text-gray-500   transition-colors `;
 				//  ${  isCurrentUser ? 'text-[var(--color6)] username-glow  font-bold' : ''
 
 				// Rank

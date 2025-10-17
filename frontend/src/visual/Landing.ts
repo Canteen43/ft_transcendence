@@ -67,26 +67,24 @@ export class Landing {
 			this.setupHDR();
 			this.setupControls();
 
-			// added by rufus for background game animation
-			await this.loadModel(modelPath);
-			await this.loadBackgroundAnimation();
-
-			// Store render loop callback reference
+			// Start render loop early for faster visual feedback
 			this.renderLoopCallback = () => {
 				if (!this.scene || this.scene.isDisposed) return;
 				this.scene.render();
 			};
-
-			// Start render loop
 			this.engine.runRenderLoop(this.renderLoopCallback);
 
-			// Setup resize handler
+			// Setup resize handler early
 			this.resizeHandler = () => {
 				if (this.engine && !this.engine.isDisposed) {
 					this.engine.resize();
 				}
 			};
 			window.addEventListener('resize', this.resizeHandler);
+
+			// Load assets after render loop is running
+			await this.loadModel(modelPath);
+			await this.loadBackgroundAnimation();
 
 			console.log('✅ Scene fully initialized!');
 		} catch (err) {
@@ -214,9 +212,7 @@ export class Landing {
 
 		this.canvas.addEventListener('mousemove', this.mouseMoveHandler);
 		this.canvas.addEventListener('contextmenu', this.contextMenuHandler);
-
 	}
-
 
 	private async loadModel(modelPath: string): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -227,15 +223,14 @@ export class Landing {
 				this.scene,
 				meshes => {
 					this.onModelLoaded(meshes);
-					this.callbacks.onLoadComplete?.();
-					console.log('Model loaded and ready');
+					console.log('Main model loaded');
 					resolve();
 				},
 				event => {
 					if (event.lengthComputable) {
-						const progress = (event.loaded / event.total) * 100;
+						const progress = (event.loaded / event.total) * 50; // First 50% for main model
 						this.callbacks.onLoadProgress?.(progress);
-						console.log(`Loading: ${progress.toFixed(0)}%`);
+						console.log(`Loading model: ${progress.toFixed(0)}%`);
 					}
 				},
 				(_, message) => reject(new Error(message))
@@ -285,9 +280,19 @@ export class Landing {
 					}
 
 					console.log('Background animation loaded');
+					this.callbacks.onLoadProgress?.(100); // Complete loading
+					this.callbacks.onLoadComplete?.(); // All assets loaded
 					resolve();
 				},
-				undefined, // onProgress
+				event => {
+					if (event && event.lengthComputable) {
+						const progress = 50 + (event.loaded / event.total) * 50; // Second 50% for background
+						this.callbacks.onLoadProgress?.(progress);
+						console.log(
+							`Loading background: ${(progress - 50).toFixed(0)}%`
+						);
+					}
+				},
 				(_, message) => reject(new Error(message))
 			);
 		});
@@ -511,7 +516,6 @@ export class Landing {
 			if (this.engine && !this.engine.isDisposed) {
 				this.engine.stopRenderLoop(this.renderLoopCallback);
 			}
-
 
 			// Stop all animations
 			if (this.scene && !this.scene.isDisposed) {

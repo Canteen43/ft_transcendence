@@ -30,22 +30,26 @@ app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
 
 
+
+function setupMobile() {
+	state.isMobile = window.innerWidth < 480;
+	sessionStorage.setItem('mobile', 'true');
+}
+
 async function initApp() {
 	try {
+		setupMobile();
 		await getEndpoints();
 		router.init();
 		new AuthComponent(app);
-		new ChatManager(app);
-		console.log('App initialized');
+		if (!state.isMobile) {
+			new ChatManager(app);
+		}
+		
+		console.log('App initialized', state.isMobile ? '(mobile mode)' : '(desktop mode)');
 	} catch (err) {
 		console.error('Failed to initialize app:', err);
 	}
 }
 
-function setupMobile() {
-	if (window.innerWidth < 768) {
-		sessionStorage.setItem('mobile', 'true');
-	}
-}
-
-initApp().then(setupMobile);
+initApp();

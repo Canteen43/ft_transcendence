@@ -10,33 +10,33 @@ export class LocalGameModal extends Modal {
 	private btn4: Button;
 	private btnT: Button;
 	private keydownHandlers = new Map<
-	HTMLElement,
-	(e: KeyboardEvent) => void
+		HTMLElement,
+		(e: KeyboardEvent) => void
 	>();
-	
+
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
+
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
 		state.currentModal = this;
-		
+
 		const img2 = document.createElement('img');
 		img2.src = '2p.png';
-		img2.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
+		img2.className = 'h-10 sm:h-14 md:h-18 w-auto object-contain';
 
 		const img3 = document.createElement('img');
 		img3.src = '3p.png';
-		img3.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
+		img3.className = 'h-10 sm:h-14 md:h-18 w-auto object-contain';
 
 		const img4 = document.createElement('img');
 		img4.src = '4p.png';
-		img4.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
+		img4.className = 'h-10 sm:h-14 md:h-18 w-auto object-contain';
 
 		const imgt = document.createElement('img');
 		imgt.src = 'trophy.png';
-		imgt.className = 'h-12 sm:h-16 md:h-20 w-auto object-contain';
+		imgt.className = 'h-10 sm:h-14 md:h-18 w-auto object-contain';
 
 		// Create buttons with images inside
 		this.btn2 = new Button(
@@ -64,7 +64,7 @@ export class LocalGameModal extends Modal {
 		[this.btn2, this.btn3, this.btn4, this.btnT].forEach(btn => {
 			btn.element.className +=
 				' w-full' +
-				' min-h-[60px] sm:min-h-[80px] md:min-h-[100px]' +
+				' min-h-[30px] sm:min-h-[80px] md:min-h-[100px]' +
 				' flex items-center justify-center' +
 				' p-1 sm:p-2 md:p-3' +
 				' hover:bg-[var(--color1bis)] transition-colors duration-300' +
@@ -76,9 +76,9 @@ export class LocalGameModal extends Modal {
 		this.box.style.backgroundColor = 'var(--color3)';
 		this.box.classList.remove('shadow-lg');
 		this.box.className +=
-			' bg-[var(--color3)] p-1 sm:p-3 md:p-5' +
+			' bg-[var(--color3)]' +
 			' relative grid place-items-center' +
-			' gap-1 w-[90vw] sm:w-auto max-w-[400] rounded-sm' + // Increased max-w
+			' w-[160px] sm:w-auto max-w-[160px] sm:max-w-[400px] rounded-sm' +
 			' grid-cols-1 sm:grid-cols-2';
 
 		this.btn2.element.focus();
@@ -86,7 +86,6 @@ export class LocalGameModal extends Modal {
 		this.btn3.element.tabIndex = 0;
 		this.btn4.element.tabIndex = 0;
 		this.btnT.element.tabIndex = 0;
-
 	}
 
 	private addEnterListener() {
