@@ -10,12 +10,6 @@ volumes:
             type: none
             device: ./database
             o: bind
-    shared_volume:
-        driver: local
-        driver_opts:
-            type: none
-            device: ./shared_volume
-            o: bind
 
 services:
     frontend:
@@ -24,11 +18,9 @@ services:
             context: ..
             dockerfile: build/frontend/Dockerfile
         restart: unless-stopped
-        command: /bin/sh /etc/nginx/launch.sh
+        command: nginx -g 'daemon off;'
         ports:
             - 8000:80
-        volumes:
-            - shared_volume:/shared
         networks:
             - my_network
 
@@ -49,10 +41,8 @@ services:
 
     tunnel:
         container_name: tunnel
-        image: debian:bookworm-slim
+        image: cloudflare/cloudflared:latest
         restart: unless-stopped
-        command: bash -c "apt-get update && apt-get install -y wget && wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared && cloudflared tunnel --url http://frontend:80 2>&1 | tee /shared/tunnel.log"
-        volumes:
-            - shared_volume:/shared
+        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_API_TOKEN}
         networks:
             - my_network
