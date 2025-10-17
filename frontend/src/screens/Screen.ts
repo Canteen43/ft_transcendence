@@ -1,3 +1,4 @@
+import { isLoggedIn } from '../buttons/AuthButton';
 import { HomeButton } from '../buttons/HomeButton';
 import { Banner } from '../utils/Banner';
 
@@ -25,7 +26,9 @@ export class Screen {
 		if (showHomeButton) {
 			this.homeButton = new HomeButton(app);
 		}
-		this.banner = new Banner(app);
+		if (isLoggedIn()) {
+			this.banner = new Banner(app);
+		}
 		document.addEventListener('login-success', this.handleLogin);
 		document.addEventListener('logout-success', this.handleLogout);
 		document.addEventListener('login-failed', this.handleLogout);
