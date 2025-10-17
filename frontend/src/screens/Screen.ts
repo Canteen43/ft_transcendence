@@ -71,4 +71,3 @@ export class Screen {
 		this.element = null as any;
 	}
 }
-

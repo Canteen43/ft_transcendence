@@ -9,6 +9,10 @@ export function isLoggedIn(): boolean {
 	return token != null && token != '';
 }
 
+export function isConnected(): boolean {
+	return isLoggedIn() && webSocket.isOpen();
+}
+
 export class AuthComponent {
 	private button?: Button;
 	private wrapper?: HTMLDivElement;
@@ -17,6 +21,7 @@ export class AuthComponent {
 	private logoutBtn?: HTMLButtonElement;
 	private closeTimeout?: ReturnType<typeof setTimeout>;
 	private loginModal?: LoginModal;
+	private twoFAModal?: TwoFactorAuthModal;
 	private parent: HTMLElement;
 	private selectedIndex: number = -1; // -1 = button, 0 = 2FA, 1 = logout
 	private dropdownOpen: boolean = false;
@@ -34,6 +39,13 @@ export class AuthComponent {
 		console.debug('Rendering the Auth button');
 		this.render();
 
+		if (isLoggedIn() && !isConnected()) {
+			console.warn(
+				'Logged in but not connected - attempting reconnection'
+			);
+			webSocket.open();
+		}
+
 		// Add document event listeners
 		document.addEventListener('login-success', this.renderHandler);
 		document.addEventListener('logout-success', this.renderHandler);
@@ -45,6 +57,7 @@ export class AuthComponent {
 	private render() {
 		// Clean up old UI before creating new
 		this.destroyUI();
+		console.debug('in render');
 
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
@@ -214,7 +227,12 @@ export class AuthComponent {
 	}
 
 	private show2FAModal() {
-		new TwoFactorAuthModal(this.parent);
+		// Clean up existing modal if any
+		if (this.twoFAModal) {
+			this.twoFAModal.destroy();
+			this.twoFAModal = undefined;
+		}
+		this.twoFAModal = new TwoFactorAuthModal(this.parent);
 	}
 
 	private handleEnter() {
@@ -280,6 +298,9 @@ export class AuthComponent {
 		console.debug('Dispatching logout-success event');
 		document.dispatchEvent(new CustomEvent('logout-success'));
 		console.info('Logout successful');
+		if (location.hash === '#game') {
+			location.hash = '#home';
+		}
 	}
 
 	private destroyUI(): void {
@@ -336,6 +357,10 @@ export class AuthComponent {
 		if (this.loginModal) {
 			this.loginModal.destroy();
 			this.loginModal = undefined;
+		}
+		if (this.twoFAModal) {
+			this.twoFAModal.destroy();
+			this.twoFAModal = undefined;
 		}
 
 		// Remove document event listeners

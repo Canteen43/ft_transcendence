@@ -89,25 +89,20 @@ functions: getItem, setItem, removeItem
 
 https://www.shutterstock.com/g/Wibisono+Adi+Kirana?page=9
 
-
-- tournament variable in session data: 1 when the tournament button is selected - 
-for local: put back to 0 when we have a winner  (and when we quit -> todo)
-
-
+- tournament variable in session data: 1 when the tournament button is selected -
+  for local: put back to 0 when we have a winner (and when we quit -> todo)
 
 buttonText ?? 'Okay'
 buttonText? buttonText : 'Okay'
 
-
-
 z-index:
+
 - authButton 'z-10'
 - home button 'z-10'
 - alias AI toggle down background: 'z-10'
 - modal 'z-20'
 - banner chat 'z-20'
 - textModal 'z-30'
-
 
 AUTHBUTTON
 
@@ -121,16 +116,21 @@ you create a bound arrow function that always calls this.render() with the right
 
 Why not bind directly? You could do:
 **document.addEventListener('login-success', this.render.bind(this));**
-But then you’d need to keep track of the bound function if you want to removeEventListener later. *With .bind, every call creates a new function object*, so removeEventListener won’t work unless you save it somewhere. That’s why people store it in a property (renderHandler), so you can remove it in destroy().
+But then you’d need to keep track of the bound function if you want to removeEventListener later. _With .bind, every call creates a new function object_, so removeEventListener won’t work unless you save it somewhere. That’s why people store it in a property (renderHandler), so you can remove it in destroy().
 
 So the point of private renderHandler = () => this.render(); is:
 Keep this bound correctly.
 Store a single reference so you can removeEventListener later.
 
-
 <a href="https://www.flaticon.com/free-icons/leadership" title="leadership icons">Leadership icons created by Parzival’ 1997 - Flaticon</a>
 
 <a href="https://www.flaticon.com/free-icons/best" title="best icons">Best icons created by Freepik - Flaticon</a>
 
-
 you can't use await in a constructor
+
+addEventListener('event', handler, {
+once: true, // Remove after first trigger
+passive: true, // Won't call preventDefault() (performance hint)
+capture: true, // Use capture phase instead of bubble phase
+signal: abortSignal // Remove listener when AbortSignal fires
+});
