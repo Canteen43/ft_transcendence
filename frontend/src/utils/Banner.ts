@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { UserSchema } from '../../../shared/schemas/user';
-import { isLoggedIn } from '../buttons/AuthButton';
+import { isConnected } from '../buttons/AuthButton';
 import { apiCall } from './apiCall';
 
 export class Banner {
@@ -47,8 +47,8 @@ export class Banner {
 	}
 
 	private async loadOnlinePlayers(): Promise<void> {
-		if (!isLoggedIn()) {
-			this.updateDisplay([]);
+		if (!isConnected()) {
+			this.updateDisplay([], true);
 			return;
 		}
 
@@ -60,19 +60,19 @@ export class Banner {
 		);
 		if (error) {
 			console.error('Error loading online players:', error);
-			this.updateDisplay([]);
+			this.updateDisplay([], true);
 			return;
 		}
 		if (!userArray) {
 			console.error('Empty online players array');
-			this.updateDisplay([]);
+			this.updateDisplay([], false);
 			return;
 		}
 
-		this.updateDisplay(userArray);
+		this.updateDisplay(userArray, false);
 	}
 
-	private updateDisplay(users: any[]): void {
+	private updateDisplay(users: any[], error: boolean): void {
 		const scrollWrapper = this.onlinePlayersContainer.parentElement;
 		if (!scrollWrapper) return;
 
@@ -88,9 +88,15 @@ export class Banner {
 			"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base  mr-8";
 		newContainer.appendChild(title);
 
-		if (users.length === 0) {
+		if (error === true) {
 			const noPlayers = document.createElement('span');
-			noPlayers.textContent = 'No players online';
+			noPlayers.textContent = 'CONNEXION ERROR';
+			noPlayers.className =
+				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base opacity-75";
+			newContainer.appendChild(noPlayers);
+		} else if (users.length === 0) {
+			const noPlayers = document.createElement('span');
+			noPlayers.textContent = 'CONNEXION ERROR';
 			noPlayers.className =
 				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base opacity-75";
 			newContainer.appendChild(noPlayers);
