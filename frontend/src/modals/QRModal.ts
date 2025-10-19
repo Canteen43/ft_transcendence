@@ -4,8 +4,9 @@ import { state } from '../utils/State';
 import { Modal } from './Modal';
 
 export class QRModal extends Modal {
-	private inputField!: HTMLInputElement; // keep reference to input
-	private keydownHandler?: (e: KeyboardEvent) => void; // Store handler reference
+	private inputField!: HTMLInputElement; 
+	private keydownHandler?: (e: KeyboardEvent) => void; 
+	private enableButton?: Button;
 
 	constructor(parent: HTMLElement, code: string) {
 		super(parent);
@@ -19,7 +20,6 @@ export class QRModal extends Modal {
 		this.addQRCode(code);
 		this.addInputField();
 		this.addEnableButton();
-
 	}
 
 	private addMessage() {
@@ -60,7 +60,7 @@ export class QRModal extends Modal {
 	}
 
 	private addEnableButton() {
-		new Button('Enable 2FA', () => this.handleSubmit(), this.box);
+		this.enableButton = new Button('Enable 2FA', () => this.handleSubmit(), this.box);
 	}
 
 	private async handleSubmit() {
@@ -88,7 +88,11 @@ export class QRModal extends Modal {
 		if (state.currentModal === this) {
 			state.currentModal = null;
 		}
-		// Clean up event listener
+
+		if (this.enableButton) {
+			this.enableButton.destroy();
+		}
+
 		if (this.keydownHandler && this.inputField) {
 			this.inputField.removeEventListener('keydown', this.keydownHandler);
 		}

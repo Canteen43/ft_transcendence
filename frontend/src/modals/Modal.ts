@@ -21,7 +21,7 @@ export class Modal {
 
 		this.box = document.createElement('div');
 		this.box.className =
-			'bg-white/70 shadow-lg p-2 sm:p-6 md:p-10 relative flex flex-col items-center justify-center gap-2 sm:gap-4 rounded-sm';
+			'bg-white/70 shadow-lg p-4 sm:p-6 md:p-10 relative flex flex-col items-center justify-center gap-2 sm:gap-4 rounded-sm';
 
 		this.overlay.appendChild(this.box);
 		parent.appendChild(this.overlay);

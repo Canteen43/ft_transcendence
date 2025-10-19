@@ -147,7 +147,6 @@ export class LocalGameModal extends Modal {
 		clearAllGameData();
 
 		state.gameMode = 'local';
-		state.playerCount = n;
 		sessionStorage.setItem('gameMode', 'local');
 		sessionStorage.setItem('playerCount', n.toString());
 		sessionStorage.setItem('thisPlayer', '1');

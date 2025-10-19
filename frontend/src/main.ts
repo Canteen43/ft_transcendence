@@ -29,10 +29,13 @@ app.style.backgroundSize = 'cover';
 app.style.backgroundPosition = 'center';
 app.style.backgroundRepeat = 'no-repeat';
 
-
-
 function setupMobile() {
-	state.isMobile = window.innerWidth < 480;
+	const checkMobile = () => window.innerWidth < 480;
+	state.isMobile = checkMobile();
+
+	window.addEventListener('resize', () => {
+		state.isMobile = checkMobile();
+	});
 }
 
 async function initApp() {
@@ -44,8 +47,11 @@ async function initApp() {
 		if (!state.isMobile) {
 			new ChatManager(app);
 		}
-		
-		console.log('App initialized', state.isMobile ? '(mobile mode)' : '(desktop mode)');
+
+		console.log(
+			'App initialized',
+			state.isMobile ? '(mobile mode)' : '(desktop mode)'
+		);
 	} catch (err) {
 		console.error('Failed to initialize app:', err);
 	}

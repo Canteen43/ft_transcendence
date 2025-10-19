@@ -28,9 +28,6 @@ export class RegisterModal extends Modal {
 		form.className = 'flex flex-col gap-4';
 		this.box.appendChild(form);
 
-		this.box.className +=
-			'flex flex-col items-center justify-center gap-2 p-4';
-
 		this.UsernameField = this.myCreateInput(
 			'text',
 			'username',
@@ -128,34 +125,6 @@ export class RegisterModal extends Modal {
 			this.errorModal('Passwords do not match');
 			return;
 		}
-
-		// export const CreateUserSchema = z.object({
-		// 	login: z.string().pipe(loginSchema),
-		// 	alias: z.string().pipe(loginSchema).nullable(),
-		// 	first_name: z.string().pipe(nameSchema).nullable(),
-		// 	last_name: z.string().pipe(nameSchema).nullable(),
-		// 	email: z.email().nullable(),
-		// 	password: z.string().pipe(passwordSchema),
-		// 	two_factor_enabled: z.preprocess(val => {
-		// 		if (typeof val === 'boolean') return val;
-		// 		const validated = z.number().min(0).max(1).parse(val);
-		// 		return validated === 1;
-		// 	}, z.boolean()),
-		// });
-
-		// export const AuthRequestSchema = z.object({
-		// 	login: z.string(),
-		// 	password: z.string(),
-		// });
-
-		// export const AuthResponseSchema = z
-		// 	.object({
-		// 		login: z.string(),
-		// 		user_id: zUUID,
-		// 		token: z.string(),
-		// 		two_factor_enabled: z.boolean(),
-		// 	})
-		// 	.refine(data => data.two_factor_enabled || data.token !== undefined);
 
 		const requestData = {
 			login: username,

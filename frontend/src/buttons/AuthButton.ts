@@ -61,7 +61,8 @@ export class AuthComponent {
 
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
-		const moveButtonLeft = userIsLoggedIn && state.chatExpanded  && !state.isMobile; 
+		const moveButtonLeft =
+			userIsLoggedIn && state.chatExpanded && !state.isMobile;
 
 		console.debug('Rendering auth button, moveButtonLeft:', moveButtonLeft);
 
@@ -69,7 +70,7 @@ export class AuthComponent {
 		this.wrapper = document.createElement('div');
 		this.wrapper.className =
 			`fixed top-4 z-10 w-24 sm:w-36 md:w-48 transition-all duration-300` +
-			` ${moveButtonLeft ? 'right-[21rem]' : 'right-4'}`;
+			` ${moveButtonLeft ? 'right-52 sm:right-[21rem]' : 'right-4'}`;
 
 		this.button = new Button(
 			userIsLoggedIn ? username : 'sign in',
