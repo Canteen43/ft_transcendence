@@ -116,9 +116,7 @@ export class TwoFactorAuthModal extends Modal {
 			state.currentModal = null;
 		}
 
-		if (this.currentButton) {
-			this.currentButton.destroy();
-		}
+			this.currentButton?.destroy();
 
 		if (this.keydownHandler) {
 			document.removeEventListener('keydown', this.keydownHandler);

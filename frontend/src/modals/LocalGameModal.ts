@@ -1,7 +1,9 @@
 import { Button } from '../buttons/Button';
 import { state } from '../utils/State';
 import { clearAllGameData } from '../utils/clearSessionStorage';
+import { LocalMobileSetupModal } from './LocalMobileSetupModal';
 import { LocalSetupModal } from './LocalSetupModal';
+
 import { Modal } from './Modal';
 
 export class LocalGameModal extends Modal {
@@ -152,7 +154,11 @@ export class LocalGameModal extends Modal {
 		sessionStorage.setItem('thisPlayer', '1');
 		sessionStorage.setItem('tournament', tourn ? '1' : '0');
 
-		new LocalSetupModal(this.parent, n, 0);
+		if (state.isMobile === true) {
+			new LocalMobileSetupModal(this.parent, n, 0);
+		} else {
+			new LocalSetupModal(this.parent, n, 0);
+		}
 		this.destroy();
 	}
 
