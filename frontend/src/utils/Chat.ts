@@ -77,7 +77,7 @@ export class Chat {
 		this.input.type = 'text';
 		this.input.placeholder = 'Type a message...';
 		this.input.className =
-			'flex-1 px-2 sm:px-4 py-1 sm:py-2 border border-gray-300 bg-[var(--color1)] rounded-sm ' +
+			'flex-1 px-1 sm:px-4 py-1 sm:py-2 border border-gray-300 bg-[var(--color1)] rounded-sm ' +
 			'focus:outline-none focus:ring-2 focus:ring-grey text-[var(--color3)] text-xs sm:text-sm';
 		this.input.addEventListener('keypress', this.handleKeypress);
 		this.input.focus();
@@ -85,7 +85,7 @@ export class Chat {
 		// Toggle button
 		this.toggleButton = document.createElement('button');
 		this.toggleButton.className =
-			'px-2 sm:px-4 py-1 sm:py-2 bg-[var(--color1)] text-[var(--color3)] rounded-sm text-xs sm:text-base ' +
+			'px-1 sm:px-4 py-1 sm:py-2 bg-[var(--color1)] text-[var(--color3)] rounded-sm text-xs sm:text-base ' +
 			'hover:bg-[var(--color5)] transition-colors focus:outline-none';
 		this.toggleButton.textContent = '▼'; // Down arrow when expanded
 		this.toggleButton.addEventListener('click', this.handleToggle);
