@@ -1,4 +1,4 @@
 {
-	"apiBase": "https://mekhi-uncondoning-elisa.ngrok-free.dev/api",
-	"wsURL": "wss://mekhi-uncondoning-elisa.ngrok-free.dev/ws/websocket"
+	"apiBase": "https://nopongintended.com/api",
+	"wsURL": "wss://nopongintended.com/ws/websocket"
 }
