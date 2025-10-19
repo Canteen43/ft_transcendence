@@ -15,10 +15,10 @@ export class RegisterModal extends Modal {
 	private EmailField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
 	private PasswordRepeatField: HTMLInputElement;
-	
+
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
+
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
@@ -85,7 +85,6 @@ export class RegisterModal extends Modal {
 			}
 		};
 		this.addEnterListener();
-
 	}
 
 	private errorModal(message: string) {
@@ -215,7 +214,8 @@ export class RegisterModal extends Modal {
 		input.id = id;
 		input.placeholder = placeholder;
 		if (autocomplete) input.autocomplete = autocomplete;
-		input.className = 'border border-[var(--color3)] p-2';
+		input.className =
+			'border border-[var(--color3)] p-1.5 sm:p-2 text-xs sm:text-sm md:text-base';
 		parent.appendChild(input);
 		return input;
 	}
@@ -224,7 +224,7 @@ export class RegisterModal extends Modal {
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'Back to log-in';
 		RegisterLink.className =
-			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-xs sm:text-sm m-0';
 		RegisterLink.onclick = () => this.handleGoBack(parent);
 		this.box.appendChild(RegisterLink);
 	}

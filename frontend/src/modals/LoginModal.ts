@@ -119,7 +119,6 @@ export class LoginModal extends Modal {
 	}
 
 	private login(token: string, id: string) {
-
 		sessionStorage.setItem('token', token);
 		sessionStorage.setItem('userID', id);
 		sessionStorage.setItem('username', this.UsernameField.value.trim());
@@ -136,7 +135,6 @@ export class LoginModal extends Modal {
 		};
 
 		const handleWSFailed = () => {
-
 			document.removeEventListener('ws-open', handleWSOpen);
 			document.removeEventListener('login-failed', handleWSFailed);
 			// Clear credentials since connection failed
@@ -172,7 +170,8 @@ export class LoginModal extends Modal {
 		input.id = id;
 		input.placeholder = placeholder;
 		if (autocomplete) input.autocomplete = autocomplete;
-		input.className = 'border border-[var(--color3)] p-2';
+		input.className =
+			'border border-[var(--color3)] p-1.5 sm:p-2 text-xs sm:text-sm md:text-base';
 		parent.appendChild(input);
 		return input;
 	}
@@ -185,14 +184,14 @@ export class LoginModal extends Modal {
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'No account yet? Register here';
 		RegisterLink.className =
-			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm m-0';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-xs sm:text-sm m-0';
 		RegisterLink.onclick = () => this.handleRegister(parent);
 		LinkContainer.appendChild(RegisterLink);
 
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className =
-			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm m-0';
+			 'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-xs sm:text-sm m-0';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		LinkContainer.appendChild(ForgotPasswordLink);
 

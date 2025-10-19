@@ -33,7 +33,6 @@ app.style.backgroundRepeat = 'no-repeat';
 
 function setupMobile() {
 	state.isMobile = window.innerWidth < 480;
-	sessionStorage.setItem('mobile', 'true');
 }
 
 async function initApp() {

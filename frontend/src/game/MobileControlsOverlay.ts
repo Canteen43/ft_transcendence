@@ -1,3 +1,5 @@
+import { state } from '../utils/State';
+
 export type MobileControlSide = 'left' | 'right';
 
 export interface MobileControlsOptions {
@@ -36,7 +38,10 @@ export class MobileControlsOverlay {
 		document.body.appendChild(this.root);
 	}
 
-	private createButton(label: string, side: MobileControlSide): HTMLButtonElement {
+	private createButton(
+		label: string,
+		side: MobileControlSide
+	): HTMLButtonElement {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.textContent = label;
@@ -45,8 +50,7 @@ export class MobileControlsOverlay {
 		button.style.aspectRatio = '1 / 1';
 		button.style.borderRadius = '50%';
 		button.style.border = 'none';
-		button.style.background =
-			'rgba(0, 0, 0, 0.35)';
+		button.style.background = 'rgba(0, 0, 0, 0.35)';
 		button.style.color = '#fff';
 		button.style.fontSize = 'clamp(24px, 6vw, 36px)';
 		button.style.fontWeight = '600';
@@ -117,7 +121,7 @@ export class MobileControlsOverlay {
 
 export function isMobileInputEnabled(): boolean {
 	try {
-		return window.sessionStorage?.getItem('mobile') === 'true';
+		return state.isMobile === true;
 	} catch (_err) {
 		return false;
 	}
