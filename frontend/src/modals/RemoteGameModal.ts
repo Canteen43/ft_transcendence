@@ -12,19 +12,15 @@ export class RemoteGameModal extends Modal {
 	private btn2plyrPwr: Button;
 	private btnTourn: Button;
 	private btnTournPwr: Button;
-	private keydownHandlers = new Map<
-	HTMLElement,
-	(e: KeyboardEvent) => void
-	>();
-	
+
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
+
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
 		state.currentModal = this;
-		
+
 		this.box.classList.add('remote-modal');
 
 		const img2 = document.createElement('img');
@@ -64,7 +60,7 @@ export class RemoteGameModal extends Modal {
 			this.box
 		);
 
-		// Fixed button size with proper aspect ratio
+		// Fixed button size
 		[
 			this.btn2plyr,
 			this.btn2plyrPwr,
@@ -81,90 +77,12 @@ export class RemoteGameModal extends Modal {
 		});
 
 		// Modal box background
-		this.addEnterListener();
-		this.box.style.backgroundColor = 'var(--color3)';
-		this.box.classList.remove('shadow-lg');
+		this.box.classList.remove('shadow-lg', 'bg-white/70');
 		this.box.className +=
 			' bg-[var(--color3)]' +
 			' relative grid place-items-center' +
 			' w-[160px] sm:w-auto max-w-[160px] sm:max-w-[400px] rounded-sm' +
 			' grid-cols-1 sm:grid-cols-2';
-
-		this.btn2plyr.element.focus();
-		this.btn2plyr.element.tabIndex = 0;
-		this.btn2plyrPwr.element.tabIndex = 0;
-		this.btnTourn.element.tabIndex = 0;
-		this.btnTournPwr.element.tabIndex = 0;
-
-	}
-
-	private addEnterListener() {
-		const buttonConfigs = [
-			{
-				button: this.btn2plyr,
-				player: 2,
-				powerUp: TournamentType.Regular,
-			},
-			{
-				button: this.btn2plyrPwr,
-				player: 2,
-				powerUp: TournamentType.Powerup,
-			},
-			{
-				button: this.btnTourn,
-				player: 4,
-				powerUp: TournamentType.Regular,
-			},
-			{
-				button: this.btnTournPwr,
-				player: 4,
-				powerUp: TournamentType.Powerup,
-			},
-		];
-
-		buttonConfigs.forEach(({ button, player, powerUp }) => {
-			const handler = (e: KeyboardEvent) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault();
-					this.logicRemote(player, powerUp);
-					return;
-				}
-
-				// Arrow key navigation
-				if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-					e.preventDefault();
-					const buttons = [
-						this.btn2plyr,
-						this.btn2plyrPwr,
-						this.btnTourn,
-						this.btnTournPwr,
-					];
-					const currentIndex = buttons.indexOf(button);
-					const nextIndex = (currentIndex + 1) % buttons.length;
-					buttons[nextIndex].element.focus();
-					return;
-				}
-
-				if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-					e.preventDefault();
-					const buttons = [
-						this.btn2plyr,
-						this.btn2plyrPwr,
-						this.btnTourn,
-						this.btnTournPwr,
-					];
-					const currentIndex = buttons.indexOf(button);
-					const prevIndex =
-						(currentIndex - 1 + buttons.length) % buttons.length;
-					buttons[prevIndex].element.focus();
-				}
-			};
-			// Store handler for cleanup
-			this.keydownHandlers.set(button.element, handler);
-
-			// Add event listener
-			button.element.addEventListener('keydown', handler);
-		});
 	}
 
 	private async logicRemote(tournamentSize: number, type: TournamentType) {
@@ -205,11 +123,6 @@ export class RemoteGameModal extends Modal {
 		if (state.currentModal === this) {
 			state.currentModal = null;
 		}
-		this.keydownHandlers.forEach((handler, element) => {
-			element.removeEventListener('keydown', handler);
-		});
-		this.keydownHandlers.clear();
-
 		this.btn2plyr?.destroy();
 		this.btn2plyrPwr?.destroy();
 		this.btnTourn?.destroy();

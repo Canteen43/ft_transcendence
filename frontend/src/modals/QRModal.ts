@@ -11,10 +11,10 @@ export class QRModal extends Modal {
 	constructor(parent: HTMLElement, code: string) {
 		super(parent);
 
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		this.addMessage();
 		this.addQRCode(code);
@@ -56,7 +56,6 @@ export class QRModal extends Modal {
 		this.inputField.addEventListener('keydown', this.keydownHandler);
 
 		this.box.appendChild(this.inputField);
-		this.inputField.focus();
 	}
 
 	private addEnableButton() {
@@ -85,10 +84,6 @@ export class QRModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
-
 		if (this.enableButton) {
 			this.enableButton.destroy();
 		}

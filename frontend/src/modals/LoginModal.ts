@@ -20,10 +20,10 @@ export class LoginModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		// Create form
 		const form = document.createElement('form');
@@ -47,7 +47,7 @@ export class LoginModal extends Modal {
 		new Button('Login', () => this.handleLogin(), this.box);
 		this.createLinks(parent);
 
-		this.UsernameField.focus();
+		this.activateFocusTrap();
 		this.UsernameField.select();
 
 		this.handleEnter = (e: KeyboardEvent) => {
@@ -131,7 +131,6 @@ export class LoginModal extends Modal {
 			document.removeEventListener('ws-open', handleWSOpen);
 			document.removeEventListener('login-failed', handleWSFailed);
 			document.dispatchEvent(new CustomEvent('login-success'));
-			// this.destroy();
 		};
 
 		const handleWSFailed = () => {
@@ -191,7 +190,7 @@ export class LoginModal extends Modal {
 		const ForgotPasswordLink = document.createElement('button');
 		ForgotPasswordLink.textContent = 'I forgot my password';
 		ForgotPasswordLink.className =
-			 'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-xs sm:text-sm m-0';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-xs sm:text-sm m-0';
 		ForgotPasswordLink.onclick = () => this.handleForgot(parent);
 		LinkContainer.appendChild(ForgotPasswordLink);
 
@@ -204,9 +203,7 @@ export class LoginModal extends Modal {
 	}
 
 	private handleForgot(parent: HTMLElement) {
-		const modal = new TextModal(parent, undefined, 'TOO BAD!', () =>
-			this.UsernameField.focus()
-		);
+		const modal = new TextModal(parent, undefined, 'TOO BAD!');
 		modal.onClose = () => {
 			this.UsernameField.focus();
 			this.UsernameField.select();
@@ -214,6 +211,10 @@ export class LoginModal extends Modal {
 	}
 
 	private showCodeInputView(authData: AuthResponse) {
+		if (this.focusTrap) {
+			this.focusTrap.deactivate();
+			this.focusTrap = null;
+		}
 		while (this.box.firstChild) {
 			this.box.removeChild(this.box.firstChild);
 		}
@@ -224,12 +225,13 @@ export class LoginModal extends Modal {
 			'Enter 2FA code',
 			this.box
 		);
-		codeInput.focus();
 		new Button(
 			'Submit 2FA code',
 			() => this.submit2FA(codeInput, authData),
 			this.box
 		);
+		this.activateFocusTrap();
+		codeInput.focus();
 	}
 
 	private async submit2FA(
@@ -267,9 +269,6 @@ export class LoginModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();

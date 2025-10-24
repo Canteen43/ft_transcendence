@@ -14,8 +14,8 @@ export class ReadyModal extends Modal {
 		
 		this.box.classList.add('ready-modal'); // for removal of the modal on Quit
 
-		const readyButton = new ReadyButton(this.box);
-		readyButton.element.focus();
+		new ReadyButton(this.box);
+
 	}
 
 	public quit(): void {

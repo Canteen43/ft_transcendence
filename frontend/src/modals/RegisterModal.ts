@@ -19,10 +19,10 @@ export class RegisterModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		const form = document.createElement('form');
 		form.className = 'flex flex-col gap-4';
@@ -72,9 +72,7 @@ export class RegisterModal extends Modal {
 		);
 		new Button('Register', () => this.handleRegister(), this.box);
 		this.createLinks(parent);
-
-		this.UsernameField.focus();
-
+		
 		this.handleEnter = (e: KeyboardEvent) => {
 			if (e.key == 'Enter') {
 				e.preventDefault();
@@ -82,13 +80,13 @@ export class RegisterModal extends Modal {
 			}
 		};
 		this.addEnterListener();
+		
+		this.activateFocusTrap();
+		this.UsernameField.select();
 	}
 
 	private errorModal(message: string) {
-		const modal = new TextModal(this.parent, message, undefined, () => {
-			this.UsernameField.focus();
-			this.UsernameField.select();
-		});
+		const modal = new TextModal(this.parent, message);
 		modal.onClose = () => {
 			this.UsernameField.focus();
 			this.UsernameField.select();
@@ -204,10 +202,6 @@ export class RegisterModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
-		// Remove all keydown listeners
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.FirstNameField.removeEventListener('keydown', this.handleEnter);
 		this.LastNameField.removeEventListener('keydown', this.handleEnter);

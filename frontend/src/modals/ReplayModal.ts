@@ -49,7 +49,6 @@ export class ReplayModal extends Modal {
 					},
 					this.box
 				);
-				button.element.focus();
 			} else {
 				console.debug('replay remote');
 				const button = new Button(
@@ -57,7 +56,6 @@ export class ReplayModal extends Modal {
 					() => this.replayClicked(),
 					this.box
 				);
-				button.element.focus();
 				// Start 10 second timer- redirected to home after
 				this.startTimer();
 				// both players sent R -> activate RemoteReplay
