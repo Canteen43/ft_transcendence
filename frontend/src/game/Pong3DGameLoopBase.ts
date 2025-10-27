@@ -28,9 +28,10 @@ export interface NetworkPowerupState {
 
 export interface NetworkGameState {
 	b: [number, number];
-	pd: [number, number][];
+	pd: Array<[number, number] | null>;
 	sb?: [number, number] | null;
 	pu?: NetworkPowerupState | null;
+	seq?: number;
 }
 
 /**

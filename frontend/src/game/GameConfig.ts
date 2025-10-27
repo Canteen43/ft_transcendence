@@ -50,11 +50,11 @@ export class GameConfig {
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (30 * Math.PI) / 180,
-		serveOffset: 0.5,
+		serveOffset: 0.45,
 		paddleMass: 2.8,
-		paddleForce: 15,
+		paddleForce: 16,
 		paddleRange: 5,
-		paddleMaxVelocity: 13,
+		paddleMaxVelocity: 15,
 		paddleBrakingFactor: 0.8,
 		wallSpinFriction: 0.6,
 		wallFriction: 0,
@@ -77,6 +77,12 @@ export class GameConfig {
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
 	private static readonly DEFAULT_SPIN_DELAY_MS = 250; // a bit long?
 	private static spinDelayMs = GameConfig.DEFAULT_SPIN_DELAY_MS;
+	private static readonly DEFAULT_NETWORK_RENDER_DELAY_MS = 53;
+	private static readonly DEFAULT_NETWORK_BUFFER_RETENTION_MS = 300;
+	private static networkRenderDelayMs =
+		GameConfig.DEFAULT_NETWORK_RENDER_DELAY_MS;
+	private static networkBufferRetentionMs =
+		GameConfig.DEFAULT_NETWORK_BUFFER_RETENTION_MS;
 
 	// Debug/Logging controls
 	private static readonly DEFAULT_DEBUG_LOGGING = false; // Master switch for all debug logging
@@ -203,6 +209,30 @@ export class GameConfig {
 		this.spinDelayMs = clamped;
 	}
 
+	static getNetworkRenderDelayMs(): number {
+		return this.networkRenderDelayMs;
+	}
+
+	static setNetworkRenderDelayMs(value: number): void {
+		const clamped = Math.max(0, Math.min(500, Math.floor(value)));
+		this.networkRenderDelayMs = clamped;
+		if (this.networkBufferRetentionMs < clamped) {
+			this.networkBufferRetentionMs = clamped;
+		}
+	}
+
+	static getNetworkBufferRetentionMs(): number {
+		return this.networkBufferRetentionMs;
+	}
+
+	static setNetworkBufferRetentionMs(value: number): void {
+		const clamped = Math.max(0, Math.min(2000, Math.floor(value)));
+		this.networkBufferRetentionMs = Math.max(
+			clamped,
+			this.getNetworkRenderDelayMs()
+		);
+	}
+
 	/**
 	 * Check if game mode is local (convenience method for backward compatibility)
 	 */
@@ -269,6 +299,8 @@ export class GameConfig {
 			collisionDebounceMs: this.getCollisionDebounceMs(),
 			minRallyIncrementIntervalMs: this.getMinRallyIncrementIntervalMs(),
 			minRallyIncrementDistance: this.getMinRallyIncrementDistance(),
+			networkRenderDelayMs: this.getNetworkRenderDelayMs(),
+			networkBufferRetentionMs: this.getNetworkBufferRetentionMs(),
 		};
 	}
 

@@ -5,8 +5,11 @@ import { webSocket } from '../utils/WebSocketWrapper';
 import { GameConfig } from './GameConfig';
 import { conditionalLog, conditionalWarn } from './Logger';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
-import type { NetworkGameState } from './Pong3DGameLoopBase';
-import type { NetworkPowerupState } from './Pong3DGameLoopBase';
+import type {
+	NetworkGameState,
+	NetworkPowerupState,
+} from './Pong3DGameLoopBase';
+import type { PowerupNetworkSnapshot } from './Pong3Dpowerups';
 import { POWERUP_TYPE_TO_ID } from './Pong3Dpowerups';
 
 /**
@@ -17,10 +20,12 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	private networkUpdateCallback: (gameState: any) => void;
 	private networkUpdateInterval: NodeJS.Timeout | null = null;
 	private gamestateLogInterval: NodeJS.Timeout | null = null;
+	private networkSequence = 0;
 	private readonly NETWORK_UPDATE_RATE = 60; // 60Hz network updates
 	private readonly GAMESTATE_LOG_RATE = 1; // 1Hz gamestate logging
 	private pong3DInstance: any; // Reference to get paddle positions
 	private handleRemoteMove: (event: any) => void;
+	private clientAuthoritativePaddles: boolean[] = new Array(4).fill(false);
 
 	constructor(
 		scene: BABYLON.Scene,
@@ -35,8 +40,16 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		// Set up listener for remote player input
 		this.handleRemoteMove = (event: any) => {
 			const moveData = event.detail;
-			if (moveData.playerId && moveData.input) {
-				this.processClientInput(moveData.playerId, moveData.input);
+			if (
+				moveData &&
+				typeof moveData.playerId === 'number' &&
+				moveData.paddle
+			) {
+				this.processClientInput(
+					moveData.playerId,
+					moveData.paddle,
+					moveData.serve === true
+				);
 			}
 		};
 		document.addEventListener('remoteMove', this.handleRemoteMove);
@@ -48,6 +61,19 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	start(): void {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog('🌐 Master Mode: Local Game + Network');
+		}
+
+		this.networkSequence = 0;
+		this.clientAuthoritativePaddles.fill(false);
+		if (GameConfig.isRemoteMode()) {
+			const playerCount = this.pong3DInstance?.playerCount ?? 0;
+			for (
+				let i = 1;
+				i < playerCount && i < this.clientAuthoritativePaddles.length;
+				i++
+			) {
+				this.clientAuthoritativePaddles[i] = true;
+			}
 		}
 
 		// Start EXACTLY the same as local mode
@@ -68,6 +94,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 
 		// Remove event listener
 		document.removeEventListener('remoteMove', this.handleRemoteMove);
+		this.clientAuthoritativePaddles.fill(false);
 
 		// Stop EXACTLY the same as local mode
 		super.stop();
@@ -93,30 +120,48 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 		];
 
 		// Paddle positions [[x1,z1], [x2,z2], ...] - network optimized
-		const paddlePositions: [number, number][] = [];
+		const playerCount = this.pong3DInstance?.playerCount ?? 0;
+		const paddlePositions: Array<[number, number] | null> = new Array(
+			Math.max(0, playerCount)
+		).fill(null);
 
 		const paddles = this.pong3DInstance?.paddles;
 		if (Array.isArray(paddles) && paddles.length > 0) {
 			conditionalLog('Master pong3DInstance.paddles:', paddles);
-			for (let i = 0; i < this.pong3DInstance.playerCount; i++) {
+			for (let i = 0; i < playerCount; i++) {
 				const paddle = paddles[i];
 				conditionalLog(
 					`Master paddle ${i}:`,
 					paddle ? 'EXISTS' : 'NULL'
 				);
-				if (paddle) {
-					const pos: [number, number] = [
-						networkNumber(paddle.position.x),
-						networkNumber(paddle.position.z),
-					];
-					paddlePositions.push(pos);
-					conditionalLog(
-						`Master paddle ${i} position: [${paddle.position.x.toFixed(3)}, ${paddle.position.z.toFixed(3)}] -> network [${pos[0]}, ${pos[1]}]`
-					);
+				if (!paddle) {
+					continue;
 				}
+
+				if (this.clientAuthoritativePaddles[i]) {
+					paddlePositions[i] = null;
+					continue;
+				}
+
+				const pos: [number, number] = [
+					networkNumber(paddle.position.x),
+					networkNumber(paddle.position.z),
+				];
+				paddlePositions[i] = pos;
+				conditionalLog(
+					`Master paddle ${i} position: [${paddle.position.x.toFixed(3)}, ${paddle.position.z.toFixed(3)}] -> network [${pos[0]}, ${pos[1]}]`
+				);
 			}
 		} else {
 			conditionalLog('Master pong3DInstance or paddles unavailable');
+		}
+
+		// Trim trailing null entries (no need to send paddles controlled by clients)
+		while (
+			paddlePositions.length > 0 &&
+			paddlePositions[paddlePositions.length - 1] === null
+		) {
+			paddlePositions.pop();
 		}
 
 		conditionalLog('📡 Master sending pd:', paddlePositions);
@@ -133,7 +178,10 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 			];
 		}
 		const powerupSnapshot =
-			this.pong3DInstance?.getPowerupNetworkSnapshot?.();
+			this.pong3DInstance?.getPowerupNetworkSnapshot?.() as
+				| PowerupNetworkSnapshot
+				| null
+				| undefined;
 		if (powerupSnapshot) {
 			const powerupState: NetworkPowerupState = {
 				t: POWERUP_TYPE_TO_ID[powerupSnapshot.type],
@@ -164,6 +212,8 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 				// Convert to network format as per design document
 				const networkGameState = this.convertToNetworkFormat();
 
+				// Attach sequence before publishing so all consumers share numbering
+				networkGameState.seq = this.networkSequence++;
 				// Existing callback used by local networking logic / server logic
 				this.networkUpdateCallback(networkGameState);
 
@@ -248,61 +298,98 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	}
 
 	/**
-	 * Process input from remote client
+	 * Process paddle state from remote client
 	 */
-	processClientInput(playerId: number, input: { k: number }): void {
-		// Validate input
-		if (input.k < 0 || input.k > 2) {
+	processClientInput(
+		playerId: number,
+		paddleState: { pos: [number, number]; vel: [number, number] },
+		requestServe: boolean
+	): void {
+		if (
+			!paddleState ||
+			!Array.isArray(paddleState.pos) ||
+			paddleState.pos.length < 2 ||
+			!Array.isArray(paddleState.vel) ||
+			paddleState.vel.length < 2
+		) {
 			if (GameConfig.isDebugLoggingEnabled()) {
 				conditionalWarn(
-					`⚠️ Invalid input from player ${playerId}: ${input.k}`
+					`⚠️ Invalid paddle state from player ${playerId}:`,
+					paddleState
 				);
 			}
 			return;
 		}
 
-		if (GameConfig.isDebugLoggingEnabled()) {
-			conditionalLog(
-				`🎮 Processing input from player ${playerId}: ${input.k}`
+		const paddleIndex = playerId - 1;
+		const paddles = this.pong3DInstance?.paddles;
+		if (
+			!Array.isArray(paddles) ||
+			paddleIndex < 0 ||
+			paddleIndex >= paddles.length
+		) {
+			return;
+		}
+
+		const paddleMesh = paddles[paddleIndex] as BABYLON.Mesh | null;
+		if (!paddleMesh) {
+			return;
+		}
+
+		this.clientAuthoritativePaddles[paddleIndex] = true;
+
+		const currentY = paddleMesh.position.y;
+		const nextPosition = new BABYLON.Vector3(
+			paddleState.pos[0],
+			currentY,
+			paddleState.pos[1]
+		);
+		paddleMesh.position.copyFrom(nextPosition);
+
+		const impostor = paddleMesh.physicsImpostor;
+		if (impostor) {
+			try {
+				impostor.setLinearVelocity(
+					new BABYLON.Vector3(
+						paddleState.vel[0],
+						0,
+						paddleState.vel[1]
+					)
+				);
+				const body = impostor.physicsBody;
+				if (body) {
+					body.position.x = nextPosition.x;
+					body.position.y = nextPosition.y;
+					body.position.z = nextPosition.z;
+				}
+			} catch (err) {
+				if (GameConfig.isDebugLoggingEnabled()) {
+					conditionalWarn('Failed to sync paddle impostor', err);
+				}
+			}
+		}
+
+		// Neutralise network key state so master physics does not reapply impulses
+		if (this.pong3DInstance?.inputHandler) {
+			this.pong3DInstance.inputHandler.setNetworkKeyState(
+				paddleIndex,
+				false,
+				false
 			);
 		}
 
-		// Apply input to appropriate paddle by setting network key state
-		// This allows the input to be processed by updatePaddles() like local input
-		if (this.pong3DInstance && this.pong3DInstance.inputHandler) {
-			const paddleIndex = playerId - 1; // Convert player ID (1-4) to array index (0-3)
-
-			// Convert input command to key state
-			let leftPressed = false;
-			let rightPressed = false;
-
-			switch (input.k) {
-				case 0: // Stop - no movement
-					leftPressed = false;
-					rightPressed = false;
-					break;
-				case 1: // Move left/up
-					leftPressed = true;
-					rightPressed = false;
-					break;
-				case 2: // Move right/down
-					leftPressed = false;
-					rightPressed = true;
-					break;
-			}
-
-			// Set the network key state - this will be processed by updatePaddles()
-			this.pong3DInstance.inputHandler.setNetworkKeyState(
-				paddleIndex,
-				leftPressed,
-				rightPressed
+		if (GameConfig.isDebugLoggingEnabled()) {
+			conditionalLog(
+				`🎮 Player ${playerId} paddle sync: pos=${paddleState.pos
+					.map(v => v.toFixed(3))
+					.join(',')}, vel=${paddleState.vel
+					.map(v => v.toFixed(3))
+					.join(',')}`
 			);
+		}
 
-			if (GameConfig.isDebugLoggingEnabled()) {
-				conditionalLog(
-					`🎮 Player ${playerId} network input: left=${leftPressed}, right=${rightPressed}`
-				);
-			}
+		if (requestServe && typeof (this as any).launchServe === 'function') {
+			this.launchServe();
 		}
 	}
 }
