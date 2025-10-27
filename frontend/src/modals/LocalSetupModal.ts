@@ -46,8 +46,6 @@ export class LocalSetupModal extends Modal {
 
 		this.box.classList.add('alias-modal');
 
-		const username = sessionStorage.getItem('username') ?? '';
-		const alias = sessionStorage.getItem('alias') ?? '';
 		const aliases = [
 			sessionStorage.getItem('alias1') ?? '',
 			sessionStorage.getItem('alias2') ?? '',
@@ -63,8 +61,7 @@ export class LocalSetupModal extends Modal {
 
 			// Add tiny title
 			const title = document.createElement('label');
-			title.className =
-				'player-input-title text-[var(--color4)] text-xs m-0';
+			title.className = 'text-[var(--color4)] text-xs m-0';
 			title.textContent = `${aliasHints[i]}`;
 
 			const defaultValue = aliases[i] || `player${i + 1}`;

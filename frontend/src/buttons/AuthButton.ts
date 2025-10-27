@@ -61,7 +61,8 @@ export class AuthComponent {
 
 		const userIsLoggedIn = isLoggedIn();
 		const username = sessionStorage.getItem('username') ?? '';
-		const moveButtonLeft = userIsLoggedIn && state.chatExpanded  && !state.isMobile; 
+		const moveButtonLeft =
+			userIsLoggedIn && state.chatExpanded && !state.isMobile;
 
 		console.debug('Rendering auth button, moveButtonLeft:', moveButtonLeft);
 
@@ -69,7 +70,7 @@ export class AuthComponent {
 		this.wrapper = document.createElement('div');
 		this.wrapper.className =
 			`fixed top-4 z-10 w-24 sm:w-36 md:w-48 transition-all duration-300` +
-			` ${moveButtonLeft ? 'right-[21rem]' : 'right-4'}`;
+			` ${moveButtonLeft ? 'right-52 sm:right-[21rem]' : 'right-4'}`;
 
 		this.button = new Button(
 			userIsLoggedIn ? username : 'sign in',
@@ -251,7 +252,7 @@ export class AuthComponent {
 			'absolute top-full right-0 mt-1 ' +
 			'bg-white divide-y divide-[var(--color1)] text-gray-800 ' +
 			'opacity-0 pointer-events-none transition-all duration-200 ease-in-out ' +
-			'transform z-10 flex flex-col w-full scale-95';
+			'transform z-10 flex flex-col w-full scale-95 overflow-hidden';
 
 		this.dropdown.addEventListener('mouseenter', this.onEnter);
 		this.dropdown.addEventListener('mouseleave', this.onLeave);
@@ -263,7 +264,8 @@ export class AuthComponent {
 			"font-outfit [font-variation-settings:'wght'_900] text-sm sm:text-base " +
 			'px-3 sm:px-6 py-1.5 sm:py-2 transition-colors ' +
 			'bg-[var(--color1)] text-[var(--color3)] ' +
-			'hover:bg-[var(--color5)]';
+			'hover:bg-[var(--color5)]' +
+			'focus:outline-none focus:ring-inset focus:ring-[var(--color3)]';
 		this.twoFABtn.addEventListener('click', this.handle2FA);
 		this.dropdown.appendChild(this.twoFABtn);
 
@@ -274,7 +276,8 @@ export class AuthComponent {
 			"font-outfit [font-variation-settings:'wght'_900] text-sm sm:text-base " +
 			'px-3 sm:px-6 py-1.5 sm:py-2 transition-colors ' +
 			'bg-[var(--color1)] text-[var(--color3)] ' +
-			'hover:bg-[var(--color5)]';
+			'hover:bg-[var(--color5)]' +
+			'focus:outline-none focus:ring-inset focus:ring-[var(--color3)]';
 		this.logoutBtn.addEventListener('click', this.handleLogout);
 		this.dropdown.appendChild(this.logoutBtn);
 

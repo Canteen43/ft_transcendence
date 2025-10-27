@@ -60,7 +60,6 @@ class WebSocketWrapper {
 	// Public methods
 
 	public open(): void {
-
 		const token = sessionStorage.getItem('token');
 		if (!token) {
 			console.warn('No token - cannot open WebSocket');
@@ -102,7 +101,6 @@ class WebSocketWrapper {
 	}
 
 	public close(): void {
-
 		this.shouldReconnect = false;
 
 		if (this.reconnectTimeoutId) {
@@ -115,7 +113,6 @@ class WebSocketWrapper {
 		this.ws?.close(1000, 'Manual close');
 		this.ws = null;
 	}
-
 
 	public send(message: Message): void {
 		if (this.ws?.readyState !== WebSocket.OPEN) {
@@ -188,7 +185,7 @@ class WebSocketWrapper {
 		// Handle auth failures - don't reconnect
 		if (event.code === WS_AUTHENTICATION_FAILED) {
 			console.warn(
-				'Authentication failed: 4001 auth failed - dispatching LOGOUT'
+				'Authentication failed: 4001 auth failed - dispatching login-failed'
 			);
 			this.handleAuthFailure(
 				'Authentication failed. Please log in again.'
@@ -196,14 +193,16 @@ class WebSocketWrapper {
 			return;
 		} else if (event.code === WS_TOKEN_EXPIRED) {
 			console.warn(
-				'Authentication failed: 4002 token expired- dispatching LOGOUT'
+				'Authentication failed: 4002 token expired - dispatching login-failed'
 			);
 			this.handleAuthFailure(
 				'Your session has expired. Please log in again.'
 			);
 			return;
 		} else if (event.code === WS_ALREADY_CONNECTED) {
-			console.warn('Already connected elsewhere - dispatching LOGOUT');
+			console.warn(
+				'Already connected elsewhere - dispatching login-failed'
+			);
 			this.handleAuthFailure(
 				'You are already logged in from another location.'
 			);

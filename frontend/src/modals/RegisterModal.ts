@@ -15,10 +15,10 @@ export class RegisterModal extends Modal {
 	private EmailField: HTMLInputElement;
 	private PasswordField: HTMLInputElement;
 	private PasswordRepeatField: HTMLInputElement;
-	
+
 	constructor(parent: HTMLElement) {
 		super(parent);
-		
+
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
@@ -27,9 +27,6 @@ export class RegisterModal extends Modal {
 		const form = document.createElement('form');
 		form.className = 'flex flex-col gap-4';
 		this.box.appendChild(form);
-
-		this.box.className +=
-			'flex flex-col items-center justify-center gap-2 p-4';
 
 		this.UsernameField = this.myCreateInput(
 			'text',
@@ -85,7 +82,6 @@ export class RegisterModal extends Modal {
 			}
 		};
 		this.addEnterListener();
-
 	}
 
 	private errorModal(message: string) {
@@ -129,34 +125,6 @@ export class RegisterModal extends Modal {
 			this.errorModal('Passwords do not match');
 			return;
 		}
-
-		// export const CreateUserSchema = z.object({
-		// 	login: z.string().pipe(loginSchema),
-		// 	alias: z.string().pipe(loginSchema).nullable(),
-		// 	first_name: z.string().pipe(nameSchema).nullable(),
-		// 	last_name: z.string().pipe(nameSchema).nullable(),
-		// 	email: z.email().nullable(),
-		// 	password: z.string().pipe(passwordSchema),
-		// 	two_factor_enabled: z.preprocess(val => {
-		// 		if (typeof val === 'boolean') return val;
-		// 		const validated = z.number().min(0).max(1).parse(val);
-		// 		return validated === 1;
-		// 	}, z.boolean()),
-		// });
-
-		// export const AuthRequestSchema = z.object({
-		// 	login: z.string(),
-		// 	password: z.string(),
-		// });
-
-		// export const AuthResponseSchema = z
-		// 	.object({
-		// 		login: z.string(),
-		// 		user_id: zUUID,
-		// 		token: z.string(),
-		// 		two_factor_enabled: z.boolean(),
-		// 	})
-		// 	.refine(data => data.two_factor_enabled || data.token !== undefined);
 
 		const requestData = {
 			login: username,
@@ -215,7 +183,8 @@ export class RegisterModal extends Modal {
 		input.id = id;
 		input.placeholder = placeholder;
 		if (autocomplete) input.autocomplete = autocomplete;
-		input.className = 'border border-[var(--color3)] p-2';
+		input.className =
+			'border border-[var(--color3)] p-1.5 sm:p-2 text-xs sm:text-sm md:text-base';
 		parent.appendChild(input);
 		return input;
 	}
@@ -224,7 +193,7 @@ export class RegisterModal extends Modal {
 		const RegisterLink = document.createElement('button');
 		RegisterLink.textContent = 'Back to log-in';
 		RegisterLink.className =
-			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-sm';
+			'text-[var(--color3)] hover:text-[var(--color4)] underline cursor-pointer text-xs sm:text-sm m-0';
 		RegisterLink.onclick = () => this.handleGoBack(parent);
 		this.box.appendChild(RegisterLink);
 	}

@@ -9,6 +9,8 @@ import { QRModal } from './QRModal';
 export class TwoFactorAuthModal extends Modal {
 	state: 'enabled' | 'disabled' = 'disabled';
 	username: string | null = null;
+	private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+	private currentButton?: Button;
 
 	constructor(parent: HTMLElement) {
 		super(parent);
@@ -47,26 +49,36 @@ export class TwoFactorAuthModal extends Modal {
 
 		// Option to manually set state for testing;
 		// this.state = 'enabled';
-
-		// Create text element
-		let textElement = document.createElement('p');
-		textElement.textContent = `Two-Factor Authentication is currently ${this.state}.`;
-		textElement.className = 'text-center text-lg text-gray-800';
-		this.box.appendChild(textElement);
+		const statusText = document.createElement('p');
+		statusText.className =
+			'text-center text-sm sm:text-base text-[var(--color3)] mb-4';
+		statusText.textContent = `Two-Factor Authentication is currently ${this.state}.`;
+		this.box.appendChild(statusText);
 
 		if (this.state === 'disabled') {
-			void new Button(
+			this.currentButton = new Button(
 				'Generate QR',
 				this.getTwoFactorAuthCode.bind(this),
 				this.box
 			);
 		} else {
-			void new Button(
+			this.currentButton = new Button(
 				'Disable 2FA',
 				this.disable2FA.bind(this),
 				this.box
 			);
 		}
+
+		this.keydownHandler = (e: KeyboardEvent) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				e.stopPropagation();
+				this.currentButton?.element.click();
+			}
+		};
+		document.addEventListener('keydown', this.keydownHandler);
+
+		this.currentButton.element.focus();
 	}
 
 	private async getTwoFactorAuthCode(): Promise<void> {
@@ -104,10 +116,12 @@ export class TwoFactorAuthModal extends Modal {
 			state.currentModal = null;
 		}
 
-		// // Clean up event listener
-		// if (this.keydownHandler && this.inputField) {
-		// 	this.inputField.removeEventListener('keydown', this.keydownHandler);
-		// }
+			this.currentButton?.destroy();
+
+		if (this.keydownHandler) {
+			document.removeEventListener('keydown', this.keydownHandler);
+		}
+
 		super.destroy();
 	}
 }

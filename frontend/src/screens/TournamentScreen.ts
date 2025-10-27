@@ -25,19 +25,11 @@ export class TournamentScreen extends Screen {
 	}
 
 	private background(): void {
-		this.element.style.backgroundImage = 'url(tournBG.png)';
-		this.element.classList.add(
-			'bg-cover',
-			'bg-center',
-			'bg-no-repeat',
-			'bg-fixed',
-			'relative',
-			'overflow-hidden'
-		);
-
 		const overlay = document.createElement('div');
 		overlay.className = 'absolute inset-0 bg-black/40 -z-10';
-
+		this.element.style.backgroundImage = 'url(tournBG.png)';
+		this.element.className =
+			'bg-cover bg-center bg-no-repeat bg-fixed relative overflow-hidden';
 		this.element.appendChild(overlay);
 	}
 
@@ -94,13 +86,13 @@ export class TournamentScreen extends Screen {
 	private render() {
 		this.element.textContent = '';
 		this.element.className =
-			'bg-transparent min-h-screen flex flex-col items-center justify-center p-8';
+			'bg-transparent min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 md:p-8';
 		this.renderTitle();
 		// Tournament bracket container
 		const bracketGrid = this.createElement(
 			this.element,
 			'div',
-			'bracket-grid grid grid-cols-7 gap-6 items-center max-w-7xl mx-auto mb-8'
+			'bracket-grid grid grid-cols-7 gap-1 sm:gap-2 md:gap-3 items-center max-w-full mx-auto mb-2 sm:mb-4 md:mb-6'
 		);
 		this.renderBracket(bracketGrid);
 		this.renderReadyButton();
@@ -226,10 +218,11 @@ export class TournamentScreen extends Screen {
 			'col-span-1 flex items-center justify-center'
 		);
 
+		// Create properly anchored horizontal line
 		const line = this.createElement(
 			connector,
 			'div',
-			`w-full h-0.5 bg-[var(--color1)] ${side === 'left' ? 'ml-4' : 'mr-4'}`
+			`w-full h-0.5 bg-[var(--color1)]`
 		);
 	}
 
@@ -237,7 +230,7 @@ export class TournamentScreen extends Screen {
 		const title = this.createElement(
 			this.element,
 			'h1',
-			"font-outfit [font-variation-settings:'wght'_900] text-6xl text-center mb-12 text-[var(--color1)]"
+			"font-outfit [font-variation-settings:'wght'_900] text-2xl sm:text-4xl md:text-6xl text-center mb-4 sm:mb-8 md:mb-12 text-[var(--color1)]"
 		);
 		title.textContent = 'TOURNAMENT';
 	}
@@ -256,7 +249,12 @@ export class TournamentScreen extends Screen {
 			statusClass = 'loser';
 		}
 
-		slot.className = `player-slot px-6 py-4 text-center font-semibold text-xl min-h-[60px] min-w-[160px] flex items-center justify-center truncate max-w-[200px] border-2 border-transparent ${statusClass}`;
+		slot.className = `player-slot px-1 sm:px-2 md:px-4 py-1 sm:py-2 md:py-3` +
+						` text-center font-semibold text-[8px] sm:text-xs md:text-lg ` +
+						`min-h-[30px] sm:min-h-[40px] md:min-h-[50px] min-w-[50px] ` +
+						` sm:min-w-[80px] md:min-w-[120px] flex items-center ` +
+						` justify-center truncate max-w-[70px] sm:max-w-[100px] ` +
+						` md:max-w-[140px] border-2 border-transparent ${statusClass}`;
 
 		if (score !== undefined && score !== '-1') {
 			slot.textContent = `${name} - ${score}`;

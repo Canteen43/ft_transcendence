@@ -7179,7 +7179,6 @@ export class Pong3D {
 			remainingPlayers = currentCount - 1;
 			sessionStorage.setItem('playerCount', `${remainingPlayers}`);
 			this.playerCount = remainingPlayers;
-			state.playerCount = remainingPlayers;
 		} else {
 			// Keep player count at minimum 2 for the final match display
 			remainingPlayers = Math.max(currentCount, 2);
