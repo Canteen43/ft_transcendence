@@ -77,7 +77,7 @@ export class GameConfig {
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
 	private static readonly DEFAULT_SPIN_DELAY_MS = 250; // a bit long?
 	private static spinDelayMs = GameConfig.DEFAULT_SPIN_DELAY_MS;
-	private static readonly DEFAULT_NETWORK_RENDER_DELAY_MS = 53;
+	private static readonly DEFAULT_NETWORK_RENDER_DELAY_MS = 20; //20 ms is about 1 frame buffer, 53 is about 3 frames buffer
 	private static readonly DEFAULT_NETWORK_BUFFER_RETENTION_MS = 300;
 	private static networkRenderDelayMs =
 		GameConfig.DEFAULT_NETWORK_RENDER_DELAY_MS;
