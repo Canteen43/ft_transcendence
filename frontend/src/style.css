@@ -2,11 +2,6 @@
 @import 'tailwindcss';
 
 @theme {
-	/* --font-ps2p: 'Press Start 2P', monospace; */
-	/* --font-ignazio: 'Ignazio', sans-serif; */
-	/* --font-justsans: 'JustSans', sans-serif; */
-	/* --font-rubik: 'Rubik Microbe', sans-serif; */
-	/* --font-sigmar: 'Sigmar', sans-serif; */
 	--font-azeret: 'Azeret Mono', sans-serif;
 	--font-outfit: 'Outfit', sans-serif;
 	--font-nabla: 'Nabla', sans-serif;

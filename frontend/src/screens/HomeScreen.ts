@@ -6,6 +6,8 @@ import { RemoteGameModal } from '../modals/RemoteGameModal';
 import { StatModal } from '../modals/StatModal';
 import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
+import { state } from '../utils/State';
+
 import { Landing } from '../visual/Landing';
 import { Screen } from './Screen';
 
@@ -18,24 +20,8 @@ export class HomeScreen extends Screen {
 	constructor() {
 		super(false);
 		this.element.className = 'flex flex-row min-h-screen bg-transparent';
-		try {
-			this.initThreeD();
-			this.startLoadingTimer();
-		} catch (err) {
-			console.error('Error initializing HomeScreen:', err);
-			this.showFallbackHero();
-		}
-	}
-
-	private startLoadingTimer() {
-		this.loadingTimeout = window.setTimeout(() => {
-			if (!this.isLandingLoaded) {
-				console.warn(
-					'Landing page took too long to load, showing fallback'
-				);
-				this.showFallbackHero();
-			}
-		}, 2000);
+		if (state.isMobile == true) this.showFallbackHero();
+		else this.initThreeD();
 	}
 
 	private onLandingLoaded() {

@@ -7,28 +7,14 @@ export class Banner {
 	private bannerContainer: HTMLElement;
 	private onlinePlayersContainer: HTMLElement;
 	private updateInterval: number | null = null;
-	private isWebSocketConnected: boolean = false;
-
-	// Bound methods for event listeners
-	private bndShowPlayer = () => {
-		this.isWebSocketConnected = true;
-		this.loadOnlinePlayers();
-	};
-
-	private bndShowError = () => {
-		this.isWebSocketConnected = false;
-		this.updateDisplay([], true);
-	};
+	private isWebSocketConnected: boolean = true;
 
 	constructor(parent: HTMLElement) {
-		// Listen for WebSocket state changes
-		document.addEventListener('ws-open', this.bndShowPlayer);
-		document.addEventListener('ws-close', this.bndShowError);
 		// banner container
 		this.bannerContainer = document.createElement('div');
 		this.bannerContainer.className =
 			'fixed bottom-0 left-0 w-full bg-[var(--color1)] bg-opacity-90 backdrop-blur-sm ' +
-			'border-t-2 border-[var(--color5)] py-1 h-8 z-20 overflow-hidden text-xs sm:text-sm';
+			' border-t-2 border-[var(--color5)] py-1 h-8 z-20 overflow-hidden text-xs sm:text-sm';
 		// online players container
 		this.onlinePlayersContainer = document.createElement('div');
 		this.onlinePlayersContainer.className =
@@ -38,7 +24,7 @@ export class Banner {
 		const title = document.createElement('span');
 		title.textContent = 'ONLINE PLAYERS:';
 		title.className =
-			"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base  font-bold mr-8";
+			"font-outfit [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base font-bold mr-8";
 		this.onlinePlayersContainer.appendChild(title);
 
 		// scrollWrapper
@@ -55,14 +41,15 @@ export class Banner {
 		// Initial load
 		this.loadOnlinePlayers();
 
-		// updates every 30 seconds
+		// updates every 5 seconds
 		this.updateInterval = window.setInterval(() => {
 			this.loadOnlinePlayers();
 		}, 5000);
 	}
 
 	private async loadOnlinePlayers(): Promise<void> {
-		if (!this.isWebSocketConnected) {
+		if (isConnected() === false) {
+			console.log('WebSocket not connected, skipping API call');
 			this.updateDisplay([], true);
 			return;
 		}
@@ -105,13 +92,13 @@ export class Banner {
 
 		if (error === true) {
 			const noPlayers = document.createElement('span');
-			noPlayers.textContent = 'CONNEXION ERROR';
+			noPlayers.textContent = 'CONNECTION ERROR';
 			noPlayers.className =
 				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base opacity-75";
 			newContainer.appendChild(noPlayers);
 		} else if (users.length === 0) {
 			const noPlayers = document.createElement('span');
-			noPlayers.textContent = 'CONNEXION ERROR';
+			noPlayers.textContent = 'CONNECTION ERROR';
 			noPlayers.className =
 				"font-azeret [font-variation-settings:'wght'_900] text-[var(--color3)] text-sm sm:text-base opacity-75";
 			newContainer.appendChild(noPlayers);
@@ -151,12 +138,6 @@ export class Banner {
 			clearInterval(this.updateInterval);
 			this.updateInterval = null;
 		}
-
-		// Remove event listeners
-		document.removeEventListener('ws-open', this.bndShowPlayer);
-		document.removeEventListener('ws-close', this.bndShowError);
-
-		// Remove from DOM
 		this.bannerContainer.remove();
 	}
 }
