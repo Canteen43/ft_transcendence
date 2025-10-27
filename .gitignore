@@ -48,6 +48,7 @@ graphics/powerups.blend1
 
 # Build outputs
 frontend/dist
-build/backend/code
+build/app
 
-/notes
+# Production database
+build/database

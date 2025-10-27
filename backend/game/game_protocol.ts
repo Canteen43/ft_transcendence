@@ -30,6 +30,7 @@ import {
 	ProtocolError,
 	SettingsNotFoundError,
 	TournamentNotFoundError,
+	UserNotFoundError,
 } from '../../shared/exceptions.js';
 import { logger } from '../../shared/logger.js';
 import {
@@ -39,16 +40,18 @@ import {
 import { Message } from '../../shared/schemas/message.js';
 import { Participant } from '../../shared/schemas/participant.js';
 import { Tournament } from '../../shared/schemas/tournament.js';
+import { User } from '../../shared/schemas/user.js';
 import { UUID } from '../../shared/types.js';
 import {
 	getConnection,
 	getConnectionByUserId,
-	sendToOthers,
+	sendToOnlineUsers,
 } from '../connection_manager/connection_manager.js';
 import MatchRepository from '../repositories/match_repository.js';
 import ParticipantRepository from '../repositories/participant_repository.js';
 import SettingsRepository from '../repositories/settings_repository.js';
 import TournamentRepository from '../repositories/tournament_repository.js';
+import UserRepository from '../repositories/user_repository.js';
 import MatchService from '../services/match_service.js';
 import TournamentService from '../services/tournament_service.js';
 import { GameSocket, Player } from '../types/interfaces.js';
@@ -239,7 +242,9 @@ export class GameProtocol {
 	private handleChat(connectionId: UUID, message: Message) {
 		logger.debug('websocket: chat message received.');
 		const socket = this.getSocket(connectionId);
-		sendToOthers(socket.userId, message);
+		const user = this.getUser(socket.userId);
+		message.d = user.login + ': ' + message.d;
+		sendToOnlineUsers(message, socket.userId);
 	}
 
 	private quitAll(connectionId: UUID, reason: QuitReason) {
@@ -405,6 +410,12 @@ export class GameProtocol {
 		const socket = getConnectionByUserId(userId);
 		if (!socket) throw new ConnectionError(ERROR_USER_CONNECTION_NOT_FOUND);
 		return socket;
+	}
+
+	private getUser(userId: UUID): User {
+		const result = UserRepository.getUser(userId);
+		if (!result) throw new UserNotFoundError(userId);
+		return result;
 	}
 
 	private getMatchObject(connectionId: UUID): Match {

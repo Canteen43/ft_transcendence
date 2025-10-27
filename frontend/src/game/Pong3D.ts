@@ -3595,6 +3595,14 @@ export class Pong3D {
 								)
 							);
 							if (orientation === 0) orientation = 1;
+							const dominantAxis: 'x' | 'z' =
+								Math.abs(normalizedVelocity.x) >=
+								Math.abs(normalizedVelocity.z)
+									? 'x'
+									: 'z';
+							const dominantSign = Math.sign(
+								normalizedVelocity[dominantAxis]
+							);
 
 							const reducedDelta = Math.max(
 								0,
@@ -3615,16 +3623,68 @@ export class Pong3D {
 
 							const cosTarget = Math.cos(targetAngle);
 							const sinTarget = Math.sin(targetAngle);
-							const adjustedDir = normal
-								.scale(cosTarget)
-								.add(
-									tangentNormalized.scale(
-										sinTarget * orientation
-									)
+							const buildAdjustedDirection = (
+								orient: number
+							): BABYLON.Vector3 => {
+								const candidate = normal
+									.scale(cosTarget)
+									.add(
+										tangentNormalized.scale(
+											sinTarget * orient
+										)
+									);
+								return candidate.lengthSquared() > 1e-6
+									? candidate.normalize()
+									: normalizedVelocity;
+							};
+							const preservesDominantSign = (
+								dir: BABYLON.Vector3
+							): boolean => {
+								if (dominantSign === 0) return true;
+								const axisSign = Math.sign(
+									dir[dominantAxis]
 								);
-							const adjusted = adjustedDir
-								.normalize()
-								.scale(speed);
+								return axisSign === 0 || axisSign === dominantSign;
+							};
+
+							let adjustedDir = buildAdjustedDirection(
+								orientation
+							);
+
+							if (!preservesDominantSign(adjustedDir)) {
+								const flipped = buildAdjustedDirection(
+									-orientation
+								);
+								if (preservesDominantSign(flipped)) {
+									orientation *= -1;
+									adjustedDir = flipped;
+								}
+							}
+
+							if (
+								BABYLON.Vector3.Dot(
+									adjustedDir,
+									normalizedVelocity
+								) < 0
+							) {
+								const flipped = buildAdjustedDirection(
+									-orientation
+								);
+								if (
+									BABYLON.Vector3.Dot(
+										flipped,
+										normalizedVelocity
+									) >= 0 &&
+									preservesDominantSign(flipped)
+								) {
+									orientation *= -1;
+									adjustedDir = flipped;
+								} else {
+									adjustedDir = normalizedVelocity;
+								}
+							}
+
+							const adjusted = adjustedDir.scale(speed);
 							this.conditionalLog(
 								`⬅️ Wall angle nudged: current=${((angle * 180) / Math.PI).toFixed(2)}°, target=${((targetAngle * 180) / Math.PI).toFixed(2)}°`
 							);
