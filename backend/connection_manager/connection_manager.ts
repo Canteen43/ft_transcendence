@@ -64,8 +64,8 @@ export function getOnlineUsers(): UUID[] {
 	return Array.from(userIdToConnectionMap.keys());
 }
 
-export function sendToOthers(userId: UUID, message: Message) {
+export function sendToOnlineUsers(message: Message, excludeUserId?: UUID) {
 	for (const c of connections.values()) {
-		if (c.userId != userId) c.send(JSON.stringify(message));
+		if (c.userId != excludeUserId) c.send(JSON.stringify(message));
 	}
 }
