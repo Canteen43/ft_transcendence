@@ -9,17 +9,6 @@ export class Banner {
 	private updateInterval: number | null = null;
 	private isWebSocketConnected: boolean = true;
 
-	// Bound methods for event listeners
-	private bndShowPlayer = () => {
-		this.isWebSocketConnected = true;
-		this.loadOnlinePlayers();
-	};
-
-	private bndShowError = () => {
-		this.isWebSocketConnected = false;
-		this.updateDisplay([], true);
-	};
-
 	constructor(parent: HTMLElement) {
 		// banner container
 		this.bannerContainer = document.createElement('div');
