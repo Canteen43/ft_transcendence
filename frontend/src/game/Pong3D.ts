@@ -34,8 +34,8 @@ import { Pong3DBallEffects } from './Pong3DBallEffects';
 import { Pong3DGameLoop } from './Pong3DGameLoop';
 import type { NetworkPowerupState } from './Pong3DGameLoopBase';
 import {
-	Pong3DGameLoopClient,
 	type ClientPaddleStatePayload,
+	Pong3DGameLoopClient,
 } from './Pong3DGameLoopClient';
 import { Pong3DGameLoopMaster } from './Pong3DGameLoopMaster';
 import { Pong3DInput } from './Pong3DInput';
@@ -137,6 +137,7 @@ export class Pong3D {
 	private static readonly SOUND_POWERUP_WALL = 3;
 	private remoteScoreUpdateHandler?: (event: Event) => void;
 	private remoteGameStateHandler?: (event: Event) => void;
+	private outboundGameStateSeq = 0;
 
 	private static babylonWarnFilterInstalled = false;
 	// Debug flag - set to false to disable all debug logging for better performance
@@ -1993,7 +1994,7 @@ export class Pong3D {
 			// Set the first server - prefer human players over AI
 			const humanPlayers: number[] = [];
 			const aiPlayers: number[] = [];
-			
+
 			for (let i = 0; i < this.playerCount; i++) {
 				const playerName = this.playerNames[i];
 				if (playerName && playerName.startsWith('*')) {
@@ -2002,24 +2003,28 @@ export class Pong3D {
 					humanPlayers.push(i);
 				}
 			}
-			
+
 			// Choose a human player if any exist, otherwise choose an AI
 			if (humanPlayers.length > 0) {
-				this.currentServer = humanPlayers[Math.floor(Math.random() * humanPlayers.length)];
+				this.currentServer =
+					humanPlayers[
+						Math.floor(Math.random() * humanPlayers.length)
+					];
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
 						`🚀 Auto-starting game loop with human server: Player ${this.currentServer + 1}...`
 					);
 				}
 			} else {
-				this.currentServer = aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
+				this.currentServer =
+					aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
 						`🚀 Auto-starting game loop with AI server: Player ${this.currentServer + 1}...`
 					);
 				}
 			}
-			
+
 			if (GameConfig.isDebugLoggingEnabled()) {
 				if (GameConfig.isDebugLoggingEnabled()) {
 					this.conditionalLog(
@@ -3644,20 +3649,18 @@ export class Pong3D {
 								dir: BABYLON.Vector3
 							): boolean => {
 								if (dominantSign === 0) return true;
-								const axisSign = Math.sign(
-									dir[dominantAxis]
+								const axisSign = Math.sign(dir[dominantAxis]);
+								return (
+									axisSign === 0 || axisSign === dominantSign
 								);
-								return axisSign === 0 || axisSign === dominantSign;
 							};
 
-							let adjustedDir = buildAdjustedDirection(
-								orientation
-							);
+							let adjustedDir =
+								buildAdjustedDirection(orientation);
 
 							if (!preservesDominantSign(adjustedDir)) {
-								const flipped = buildAdjustedDirection(
-									-orientation
-								);
+								const flipped =
+									buildAdjustedDirection(-orientation);
 								if (preservesDominantSign(flipped)) {
 									orientation *= -1;
 									adjustedDir = flipped;
@@ -3670,9 +3673,8 @@ export class Pong3D {
 									normalizedVelocity
 								) < 0
 							) {
-								const flipped = buildAdjustedDirection(
-									-orientation
-								);
+								const flipped =
+									buildAdjustedDirection(-orientation);
 								if (
 									BABYLON.Vector3.Dot(
 										flipped,
@@ -5582,8 +5584,10 @@ export class Pong3D {
 		if (this.gameLoop && 'getGameState' in this.gameLoop) {
 			const gameLoopState = (this.gameLoop as any).getGameState();
 			if (gameLoopState) {
-				this.gameState.waitingForServe = gameLoopState.waitingForServe || false;
-				this.gameState.servingPlayer = gameLoopState.servingPlayer ?? -1;
+				this.gameState.waitingForServe =
+					gameLoopState.waitingForServe || false;
+				this.gameState.servingPlayer =
+					gameLoopState.servingPlayer ?? -1;
 			}
 		}
 
@@ -5608,8 +5612,12 @@ export class Pong3D {
 				{ left: keyState.p3Left, right: keyState.p3Right },
 				{ left: keyState.p4Left, right: keyState.p4Right },
 			];
-			
-			if (servingPlayer !== undefined && servingPlayer >= 0 && servingPlayer < playerKeys.length) {
+
+			if (
+				servingPlayer !== undefined &&
+				servingPlayer >= 0 &&
+				servingPlayer < playerKeys.length
+			) {
 				const keys = playerKeys[servingPlayer];
 				if (keys.left || keys.right) {
 					// Serving player pressed a movement key - launch the serve!
@@ -6888,6 +6896,14 @@ export class Pong3D {
 		// this.conditionalLog('📡 Master sending game state to clients:', gameState);
 
 		try {
+			if (typeof gameState.seq === 'number') {
+				this.outboundGameStateSeq = Math.max(
+					this.outboundGameStateSeq,
+					gameState.seq + 1
+				);
+			} else {
+				gameState.seq = this.outboundGameStateSeq++;
+			}
 			// Send via WebSocket using team's message format
 			const payloadString = JSON.stringify(gameState);
 			const message: Message = {
@@ -7044,15 +7060,10 @@ export class Pong3D {
 		// Direct mapping: player1 UID -> index 0, player2 UID -> index 1, etc.
 		// This matches the master's sending logic (scoringPlayerIndex 0 -> player1 UID)
 		let scoringPlayerIndex = -1;
-		
+
 		for (let i = 0; i < this.playerCount; i++) {
-			const playerUID = GameConfig.getPlayerUID(
-				(i + 1) as 1 | 2 | 3 | 4
-			);
-			this.conditionalLog(
-				`🎮 Checking player ${i + 1} UID:`,
-				playerUID
-			);
+			const playerUID = GameConfig.getPlayerUID((i + 1) as 1 | 2 | 3 | 4);
+			this.conditionalLog(`🎮 Checking player ${i + 1} UID:`, playerUID);
 			if (playerUID === scoringPlayerUID) {
 				scoringPlayerIndex = i;
 				this.conditionalLog(
@@ -7146,9 +7157,7 @@ export class Pong3D {
 	 */
 	private sendInputToMaster(state: ClientPaddleStatePayload): void {
 		const networkNumber = (value: number) =>
-			Math.abs(value) < 0.0001
-				? 0
-				: Math.round(value * 1000) / 1000;
+			Math.abs(value) < 0.0001 ? 0 : Math.round(value * 1000) / 1000;
 
 		try {
 			const moveData = {

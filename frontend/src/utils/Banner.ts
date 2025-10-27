@@ -7,7 +7,7 @@ export class Banner {
 	private bannerContainer: HTMLElement;
 	private onlinePlayersContainer: HTMLElement;
 	private updateInterval: number | null = null;
-	private isWebSocketConnected: boolean = false;
+	private isWebSocketConnected: boolean = true;
 
 	// Bound methods for event listeners
 	private bndShowPlayer = () => {

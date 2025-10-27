@@ -6,7 +6,10 @@ import {
 	MobileControlSide,
 	MobileControlsOverlay,
 } from './MobileControlsOverlay';
-import type { NetworkPowerupState } from './Pong3DGameLoopBase';
+import type {
+	NetworkGameState,
+	NetworkPowerupState,
+} from './Pong3DGameLoopBase';
 import { Pong3DGameLoopBase } from './Pong3DGameLoopBase';
 
 export interface ClientPaddleStatePayload {
@@ -50,6 +53,15 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	private timeSinceLastSend = 0;
 	private pendingServeMessage = false;
 	private hasSentServeMessage = false;
+	private renderDelayMs = GameConfig.getNetworkRenderDelayMs();
+	private maxBufferRetentionMs = GameConfig.getNetworkBufferRetentionMs();
+	private stateBuffer: Array<{
+		timestamp: number;
+		seq: number;
+		state: NetworkGameState;
+	}> = [];
+	private nextSyntheticSequence = 0;
+	private lastAppliedSeq = -1;
 
 	// Track current input state to only send changes
 	private currentInputState = 0; // 0=none, 1=left/up, 2=right/down
@@ -95,11 +107,18 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			return;
 		}
 
+		this.stateBuffer = [];
+		this.nextSyntheticSequence = 0;
+		this.lastAppliedSeq = -1;
+		this.renderDelayMs = GameConfig.getNetworkRenderDelayMs();
+		this.maxBufferRetentionMs = GameConfig.getNetworkBufferRetentionMs();
+
 		this.gameState.isRunning = true;
 
 		// Drive local client-side simulation each render frame
 		this.renderObserver = this.scene.onBeforeRenderObservable.add(() => {
 			this.stepLocalSimulation();
+			this.renderFromBuffer();
 		});
 
 		// Set up keyboard input for sending input commands to master
@@ -529,6 +548,9 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 			this.renderObserver = null;
 		}
 
+		this.stateBuffer = [];
+		this.lastAppliedSeq = -1;
+
 		// Remove keyboard observer
 		if (this.keyboardObserver) {
 			this.scene.onKeyboardObservable.remove(this.keyboardObserver);
@@ -571,107 +593,223 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	 * Receive gamestate from master and update positions directly
 	 * Format: { "b": [x, z], "pd": [[x1,z1] | null, ...] }
 	 */
-	receiveGameState(gameStateMessage?: {
-		b: [number, number];
-		pd: Array<[number, number] | null>;
-		sb?: [number, number] | null;
-		pu?: NetworkPowerupState | null;
-	}): void {
+	receiveGameState(gameStateMessage?: NetworkGameState | null): void {
 		if (
 			!gameStateMessage ||
 			!Array.isArray(gameStateMessage.b) ||
-			gameStateMessage.b.length < 2 ||
-			!Array.isArray(gameStateMessage.pd)
+			gameStateMessage.b.length < 2
 		) {
 			return;
 		}
-		conditionalLog('📡 Client received pd:', gameStateMessage.pd);
+		if (!Array.isArray(gameStateMessage.pd)) {
+			gameStateMessage.pd = [];
+		}
+		this.enqueueNetworkState(gameStateMessage);
+	}
 
-		if (GameConfig.isGamestateLoggingEnabled()) {
-			conditionalLog(
-				`📡 Player ${this.thisPlayerId} received:`,
-				gameStateMessage
-			);
+	private enqueueNetworkState(message: NetworkGameState): void {
+		const now =
+			typeof performance !== 'undefined' ? performance.now() : Date.now();
+		const seq =
+			typeof message.seq === 'number'
+				? message.seq
+				: this.nextSyntheticSequence++;
+		this.nextSyntheticSequence = Math.max(
+			this.nextSyntheticSequence,
+			seq + 1
+		);
+		const sanitized: NetworkGameState = {
+			b: [message.b[0], message.b[1]],
+			pd: message.pd.map(p =>
+				Array.isArray(p) && p.length >= 2
+					? ([p[0], p[1]] as [number, number])
+					: null
+			),
+			seq,
+		};
+		if (Array.isArray(message.sb) && message.sb.length >= 2) {
+			sanitized.sb = [message.sb[0], message.sb[1]];
+		}
+		if (message.pu) {
+			sanitized.pu = { ...message.pu };
+		}
+		this.stateBuffer.push({ timestamp: now, seq, state: sanitized });
+
+		const cutoff = now - this.maxBufferRetentionMs;
+		while (
+			this.stateBuffer.length > 0 &&
+			this.stateBuffer[0].timestamp < cutoff
+		) {
+			this.stateBuffer.shift();
+		}
+		const MAX_FRAMES = 180;
+		if (this.stateBuffer.length > MAX_FRAMES) {
+			this.stateBuffer.splice(0, this.stateBuffer.length - MAX_FRAMES);
 		}
 
-		// Throttle detailed logging to 1Hz (every 30 messages at 30Hz)
 		this.logCounter = (this.logCounter + 1) % 30;
-		const shouldLogDetails = this.logCounter === 0;
-
-		// Update ball position directly (no physics)
-		if (this.ballMesh) {
-			const ballY = this.ballMesh.position.y; // Preserve Y position from GLB
-			this.ballMesh.position.set(
-				gameStateMessage.b[0] * -1, // X from network
-				ballY, // Y preserved
-				gameStateMessage.b[1] // Z from network
-			);
-
-			// Update internal game state
-			this.gameState.ball.position.set(
-				gameStateMessage.b[0] * -1,
-				ballY,
-				gameStateMessage.b[1]
+		if (this.logCounter === 0) {
+			conditionalLog(
+				`📡 Buffered game state seq=${seq}, buffer depth=${this.stateBuffer.length}`
 			);
 		}
+	}
 
-		// Update all paddle positions from network
+	private renderFromBuffer(): void {
+		if (!this.gameState.isRunning || this.stateBuffer.length === 0) {
+			return;
+		}
+		const now =
+			typeof performance !== 'undefined' ? performance.now() : Date.now();
+		const targetTime = now - this.renderDelayMs;
+		const frames = this.stateBuffer;
+		let previous = frames[0];
+		let next = frames[frames.length - 1];
+
+		for (let i = 0; i < frames.length; i++) {
+			const frame = frames[i];
+			if (frame.timestamp <= targetTime) {
+				previous = frame;
+			}
+			if (frame.timestamp >= targetTime) {
+				next = frame;
+				break;
+			}
+		}
+
+		if (targetTime <= frames[0].timestamp) {
+			previous = frames[0];
+			next = frames[0];
+		} else if (targetTime >= frames[frames.length - 1].timestamp) {
+			previous = frames[frames.length - 1];
+			next = previous;
+		}
+
+		const denom = next.timestamp - previous.timestamp;
+		const blend =
+			denom <= 0
+				? 0
+				: this.clamp01((targetTime - previous.timestamp) / denom);
+		this.applyNetworkState(previous.state, next.state, blend);
+	}
+
+	private applyNetworkState(
+		previous: NetworkGameState,
+		next: NetworkGameState,
+		blend: number
+	): void {
+		const lerp = (a: number, b: number, t: number): number =>
+			a + (b - a) * t;
+
+		const ballX = lerp(previous.b[0], next.b[0], blend);
+		const ballZ = lerp(previous.b[1], next.b[1], blend);
+		if (this.ballMesh) {
+			const ballY = this.ballMesh.position.y;
+			this.ballMesh.position.set(ballX * -1, ballY, ballZ);
+			this.gameState.ball.position.set(ballX * -1, ballY, ballZ);
+		}
+
 		const paddles = this.pong3DInstance?.paddles;
 		if (Array.isArray(paddles)) {
-			if (shouldLogDetails) {
-				conditionalLog('Client pong3DInstance.paddles:', paddles);
-			}
 			const localIndex = Math.max(0, this.thisPlayerId - 1);
-			gameStateMessage.pd.forEach((paddlePos, index) => {
-				if (index === localIndex) {
-					return; // Ignore authoritative local paddle updates from master
+			const count = Math.max(previous.pd.length, next.pd.length);
+			for (let i = 0; i < count; i++) {
+				if (i === localIndex) {
+					continue;
 				}
-				if (!Array.isArray(paddlePos) || paddlePos.length < 2) {
-					return;
+				const prevPos = i < previous.pd.length ? previous.pd[i] : null;
+				const nextPos = i < next.pd.length ? next.pd[i] : prevPos;
+				if (!Array.isArray(prevPos) && !Array.isArray(nextPos)) {
+					continue;
 				}
-				const paddle = paddles[index];
-				if (shouldLogDetails) {
-					conditionalLog(
-						`Client paddle ${index}:`,
-						paddle ? 'EXISTS' : 'NULL',
-						paddlePos
-					);
+				const from = Array.isArray(prevPos)
+					? prevPos
+					: (nextPos as [number, number]);
+				const to = Array.isArray(nextPos) ? nextPos : from;
+				if (!from || !to) {
+					continue;
 				}
-				if (paddle) {
-					const oldPos = paddle.position.clone();
-					const paddleY = paddle.position.y; // Preserve Y from GLB
-					const newPosition = new BABYLON.Vector3(
-						paddlePos[0], // X from network
-						paddleY, // Y preserved
-						paddlePos[1] // Z from network
-					);
-
-					// Update mesh position only (client is viewer, no physics needed)
-					paddle.position.copyFrom(newPosition);
-					if (shouldLogDetails) {
-						conditionalLog(
-							`Client updated paddle ${index} from [${oldPos.x.toFixed(3)}, ${oldPos.z.toFixed(3)}] to [${paddlePos[0].toFixed(3)}, ${paddlePos[1].toFixed(3)}]`
-						);
-					}
-
-					if (GameConfig.isDebugLoggingEnabled()) {
-						conditionalLog(
-							`🎮 Client updated paddle ${index + 1} position: [${paddlePos[0]}, ${paddlePos[1]}]`
-						);
-					}
+				const paddleMesh = paddles[i];
+				if (!paddleMesh) {
+					continue;
 				}
-			});
-		} else {
-			if (shouldLogDetails) {
-				conditionalLog(
-					'Client pong3DInstance or paddles is null:',
-					this.pong3DInstance
-				);
+				const paddleY = paddleMesh.position.y;
+				const x = lerp(from[0], to[0], blend);
+				const z = lerp(from[1], to[1], blend);
+				paddleMesh.position.set(x, paddleY, z);
 			}
 		}
 
-		this.updateSplitBall(gameStateMessage.sb);
-		this.handlePowerupState(gameStateMessage.pu);
+		const sb = this.interpolatePair(previous.sb, next.sb, blend);
+		this.updateSplitBall(sb);
+
+		const powerup = this.interpolatePowerup(previous.pu, next.pu, blend);
+		this.handlePowerupState(powerup);
+
+		const seq = Math.max(
+			typeof previous.seq === 'number' ? previous.seq : -1,
+			typeof next.seq === 'number' ? next.seq : -1
+		);
+		if (seq >= 0) {
+			this.lastAppliedSeq = seq;
+		}
+	}
+
+	private interpolatePair(
+		previous: [number, number] | null | undefined,
+		next: [number, number] | null | undefined,
+		blend: number
+	): [number, number] | null {
+		if (!previous && !next) {
+			return null;
+		}
+		if (!previous) {
+			return next ? [next[0], next[1]] : null;
+		}
+		if (!next) {
+			return [previous[0], previous[1]];
+		}
+		const lerp = (a: number, b: number, t: number): number =>
+			a + (b - a) * t;
+		return [
+			lerp(previous[0], next[0], blend),
+			lerp(previous[1], next[1], blend),
+		];
+	}
+
+	private interpolatePowerup(
+		previous: NetworkPowerupState | null | undefined,
+		next: NetworkPowerupState | null | undefined,
+		blend: number
+	): NetworkPowerupState | null {
+		if (!previous && !next) {
+			return null;
+		}
+		if (!previous) {
+			return next ? { ...next } : null;
+		}
+		if (!next) {
+			return { ...previous };
+		}
+		const lerp = (a: number, b: number, t: number): number =>
+			a + (b - a) * t;
+		return {
+			t: blend >= 0.5 ? next.t : previous.t,
+			s: blend >= 0.5 ? next.s : previous.s,
+			p: blend >= 0.5 ? next.p : previous.p,
+			x: lerp(previous.x, next.x, blend),
+			z: lerp(previous.z, next.z, blend),
+		};
+	}
+
+	private clamp01(value: number): number {
+		if (value <= 0) {
+			return 0;
+		}
+		if (value >= 1) {
+			return 1;
+		}
+		return value;
 	}
 
 	/**

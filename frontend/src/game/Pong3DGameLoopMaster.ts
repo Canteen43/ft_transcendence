@@ -20,6 +20,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 	private networkUpdateCallback: (gameState: any) => void;
 	private networkUpdateInterval: NodeJS.Timeout | null = null;
 	private gamestateLogInterval: NodeJS.Timeout | null = null;
+	private networkSequence = 0;
 	private readonly NETWORK_UPDATE_RATE = 60; // 60Hz network updates
 	private readonly GAMESTATE_LOG_RATE = 1; // 1Hz gamestate logging
 	private pong3DInstance: any; // Reference to get paddle positions
@@ -62,6 +63,7 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 			conditionalLog('🌐 Master Mode: Local Game + Network');
 		}
 
+		this.networkSequence = 0;
 		this.clientAuthoritativePaddles.fill(false);
 		if (GameConfig.isRemoteMode()) {
 			const playerCount = this.pong3DInstance?.playerCount ?? 0;
@@ -210,6 +212,8 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 				// Convert to network format as per design document
 				const networkGameState = this.convertToNetworkFormat();
 
+				// Attach sequence before publishing so all consumers share numbering
+				networkGameState.seq = this.networkSequence++;
 				// Existing callback used by local networking logic / server logic
 				this.networkUpdateCallback(networkGameState);
 

@@ -1,5 +1,5 @@
 COMPOSE_DIR=./build
-TERMINAL=x-terminal-emulator
+TERMINAL=/usr/bin/gnome-terminal
 SHELL=zsh
 SHELLRC=~/.zshrc
 
