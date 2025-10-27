@@ -63,6 +63,7 @@ project-root/
 │ ├─ repositories/ # Database access
 │ ├─ routes/ # Fastify api routes
 │ ├─ services/ # Services
+│ └─ tsconfig.json
 │
 ├─ shared/ # Shared code (used by frontend & backend)
 │ └─ schemas/ # TypeScript schemas, constants, utils

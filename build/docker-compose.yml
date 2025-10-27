@@ -33,7 +33,7 @@ services:
         command: npm run start:backend
         env_file: ./backend/.env
         volumes:
-            - db_volume:/app/database
+            - db_volume:/database
         ports:
             - 8080:8080
         networks:
