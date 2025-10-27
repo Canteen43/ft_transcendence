@@ -9,7 +9,7 @@ export class ReadyButton extends Button {
 		super('Ready', () => this.readyClicked(), parent);
 	}
 
-	private readyClicked() {
+	private readyClicked(): void {
 		const matchID = sessionStorage.getItem('matchID');
 		if (!matchID) {
 			new TextModal(router.currentScreen!.element, 'No match ID found');
@@ -21,7 +21,7 @@ export class ReadyButton extends Button {
 		this.showLoader();
 	}
 
-	private showLoader() {
+	private showLoader(): void {
 		// Clear the button content but keep button styling
 		this.element.textContent = '';
 		this.element.disabled = true;

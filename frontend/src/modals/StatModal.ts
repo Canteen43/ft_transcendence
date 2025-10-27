@@ -42,7 +42,7 @@ export class StatModal extends Modal {
 		if (isLoggedIn()) this.initialize();
 	}
 
-	private async initialize() {
+	private async initialize(): Promise<void> {
 		await this.getRankData();
 		await this.getHistData();
 		await this.getMatchData();
@@ -61,11 +61,7 @@ export class StatModal extends Modal {
 		this.createOutput();
 	}
 
-	private showErrorModal(message: string) {
-		new TextModal(this.element, message);
-	}
-
-	private async getRankData() {
+	private async getRankData(): Promise<void> {
 		const { data: rankData, error: rankError } = await apiCall(
 			'GET',
 			'/stats/ranking',
@@ -83,7 +79,7 @@ export class StatModal extends Modal {
 		this.rankData = rankData;
 	}
 
-	private async getHistData() {
+	private async getHistData(): Promise<void> {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
 			console.error('No user ID found');
@@ -106,7 +102,7 @@ export class StatModal extends Modal {
 		this.histData = histData;
 	}
 
-	private async getMatchData() {
+	private async getMatchData(): Promise<void> {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
 			console.error('No user ID found');
@@ -129,7 +125,7 @@ export class StatModal extends Modal {
 		this.matchData = matchData;
 	}
 
-	private async getTournData() {
+	private async getTournData(): Promise<void> {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
 			console.error('No user ID found - please login');

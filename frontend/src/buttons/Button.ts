@@ -28,10 +28,8 @@ export class Button {
 	}
 
 	destroy(): void {
-		// Remove event listener to prevent memory leaks
 		this.element.removeEventListener('click', this.onClick);
 
-		// Remove from parent if it exists
 		if (this.element.parentElement) {
 			this.element.parentElement.removeChild(this.element);
 		}

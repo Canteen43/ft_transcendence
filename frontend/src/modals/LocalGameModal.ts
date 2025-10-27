@@ -75,11 +75,9 @@ export class LocalGameModal extends Modal {
 			' relative grid place-items-center' +
 			' w-[160px] sm:w-auto max-w-[160px] sm:max-w-[400px] rounded-sm' +
 			' grid-cols-1 sm:grid-cols-2';
-
 	}
 
-
-	private setupLocalGame(n: number, tourn: boolean) {
+	private setupLocalGame(n: number, tourn: boolean): void {
 		clearAllGameData();
 
 		state.gameMode = 'local';

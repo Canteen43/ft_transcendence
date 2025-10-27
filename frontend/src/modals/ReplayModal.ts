@@ -153,6 +153,5 @@ export class ReplayModal extends Modal {
 		}
 		document.removeEventListener('RemoteReplay', this.remoteReplayHandler);
 		super.destroy();
-		// location.hash = '#home';
 	}
 }

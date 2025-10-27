@@ -58,7 +58,7 @@ export class Banner {
 		// updates every 30 seconds
 		this.updateInterval = window.setInterval(() => {
 			this.loadOnlinePlayers();
-		}, 30000);
+		}, 5000);
 	}
 
 	private async loadOnlinePlayers(): Promise<void> {
