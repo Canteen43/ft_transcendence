@@ -20,17 +20,7 @@ export class LocalSetupModal extends Modal {
 	> | null = null;
 
 	// Store references to all added listeners
-	private documentClickHandlers: ((e: Event) => void)[] = [];
-	private fieldHandlers: Map<HTMLInputElement, (e: KeyboardEvent) => void> =
-		new Map();
-	private buttonClickHandlers: Map<
-		HTMLButtonElement,
-		(e: MouseEvent) => void
-	> = new Map();
-	private optionClickHandlers: Map<
-		HTMLButtonElement,
-		(e: MouseEvent) => void
-	> = new Map();
+	private documentClickHandler: ((e: Event) => void) | null = null;
 
 	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
@@ -73,11 +63,31 @@ export class LocalSetupModal extends Modal {
 		}
 
 		this.powerupCheckboxes = this.createPowerupSection();
-		this.addKeyboardListeners(type);
-		this.aliasFields[0].focus();
-		this.aliasFields[0].select();
-
 		new Button('Continue', () => this.handleAlias(type), this.box);
+
+		this.documentClickHandler = (e: Event) => {
+			const target = e.target as Node;
+			// Check if click is outside all dropdowns and their buttons
+			const clickedOutside = !this.dropdownContainers.some(
+				(dropdown, i) => {
+					const button =
+						dropdown.previousElementSibling as HTMLElement;
+					return (
+						dropdown.contains(target) || button?.contains(target)
+					);
+				}
+			);
+
+			if (clickedOutside) {
+				this.closeAllDropdowns();
+			}
+		};
+		document.addEventListener('click', this.documentClickHandler);
+
+		this.addEnterListener(type);
+
+		this.activateFocusTrap();
+		this.aliasFields[0].select();
 	}
 
 	private createPowerupSection(): Record<
@@ -194,7 +204,6 @@ export class LocalSetupModal extends Modal {
 		dropdown.className =
 			'hidden absolute left-0 top-full mt-1 bg-white border border-[var(--color3)] shadow-lg z-10 overflow-hidden w-full';
 
-		// Add option buttons and store handlers
 		this.aiOptions.forEach(option => {
 			const optionButton = document.createElement('button');
 			optionButton.type = 'button';
@@ -202,54 +211,32 @@ export class LocalSetupModal extends Modal {
 			optionButton.className =
 				'w-full px-2 py-0 text-left bg-white hover:bg-[var(--color3)]/10 transition-colors border-none text-[var(--color4)]';
 
-			const clickHandler = (e: MouseEvent) => {
-				e.stopPropagation();
+			optionButton.onclick = () => {
 				input.value = option.value;
 				this.closeAllDropdowns();
 				input.focus();
 			};
-			optionButton.addEventListener('click', clickHandler);
-			this.optionClickHandlers.set(optionButton, clickHandler);
 
 			dropdown.appendChild(optionButton);
 		});
 
-		const toggleHandler = (e: MouseEvent) => {
+		button.onclick = e => {
 			e.preventDefault();
 			e.stopPropagation();
 			this.toggleDropdown(index);
 		};
-		button.addEventListener('click', toggleHandler);
-		this.buttonClickHandlers.set(button, toggleHandler);
-
-		const docClickHandler = (e: Event) => {
-			if (
-				!button.contains(e.target as Node) &&
-				!dropdown.contains(e.target as Node)
-			) {
-				this.closeDropdown(index);
-			}
-		};
-		document.addEventListener('click', docClickHandler);
-		this.documentClickHandlers.push(docClickHandler);
 
 		return { button, dropdown };
 	}
 
-	private addKeyboardListeners(type: TournamentType): void {
+	private addEnterListener(type: TournamentType): void {
 		this.aliasFields.forEach(field => {
-			const handler = (e: KeyboardEvent) => {
+			field.onkeydown = (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
 					this.handleAlias(type);
 				}
-				if (e.key === 'Escape') {
-					e.stopPropagation();
-					this.closeAllDropdowns();
-				}
 			};
-			this.fieldHandlers.set(field, handler);
-			field.addEventListener('keydown', handler);
 		});
 	}
 
@@ -336,29 +323,10 @@ export class LocalSetupModal extends Modal {
 		}
 		this.closeAllDropdowns();
 
-		// Remove all document click listeners
-		this.documentClickHandlers.forEach(handler =>
-			document.removeEventListener('click', handler)
-		);
-		this.documentClickHandlers = [];
-
-		// Remove all button click listeners
-		this.buttonClickHandlers.forEach((handler, button) =>
-			button.removeEventListener('click', handler)
-		);
-		this.buttonClickHandlers.clear();
-
-		// Remove all option click listeners
-		this.optionClickHandlers.forEach((handler, button) =>
-			button.removeEventListener('click', handler)
-		);
-		this.optionClickHandlers.clear();
-
-		// Remove all keyboard handlers
-		this.fieldHandlers.forEach((handler, field) =>
-			field.removeEventListener('keydown', handler)
-		);
-		this.fieldHandlers.clear();
+		if (this.documentClickHandler) {
+			document.removeEventListener('click', this.documentClickHandler);
+			this.documentClickHandler = null;
+		}
 
 		// Clear DOM references
 		this.aliasFields = [];

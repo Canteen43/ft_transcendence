@@ -10,11 +10,11 @@ export class ChatManager {
 	private bndDestroyChat = () => this.destroyChat();
 	constructor(parent: HTMLElement) {
 		this.parent = parent;
-		// Listen for login state changes
+		// listen for login state changes
 		document.addEventListener('login-success', this.bndInitChat);
 		document.addEventListener('login-failed', this.bndDestroyChat);
 		document.addEventListener('logout-success', this.bndDestroyChat);
-		// Initialize on load if already logged in
+		// init on load if already logged in
 		if (isLoggedIn()) {
 			this.initChat();
 		}

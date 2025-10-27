@@ -18,9 +18,6 @@ export class LocalMobileSetupModal extends Modal {
 		HTMLInputElement
 	> | null = null;
 
-	private fieldHandlers: Map<HTMLElement, (e: KeyboardEvent) => void> =
-		new Map();
-
 	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
 
@@ -32,27 +29,19 @@ export class LocalMobileSetupModal extends Modal {
 		if (n < 1 || n > 4) {
 			throw new Error('Number of players must be between 1 and 4');
 		}
-
 		this.box.classList.add('alias-modal');
 
-		// Player 1 name input
 		this.playerNameInput = this.createPlayerInput();
-
-		// AI opponent selectors (n-1 dropdowns)
 		this.createAIOpponentsSection(n);
-
-		// PowerUps
 		this.powerupCheckboxes = this.createPowerupSection();
 
-		// Keyboard listeners
-		this.addKeyboardListeners(n);
+		new Button('Continue', () => this.handleContinue(n), this.box);
+
+		this.addEnterListener(n);
 
 		// Focus player name input
-		this.playerNameInput.focus();
+		this.activateFocusTrap();
 		this.playerNameInput.select();
-
-		// Continue button
-		new Button('Continue', () => this.handleContinue(n), this.box);
 	}
 
 	private createPlayerInput(): HTMLInputElement {
@@ -161,20 +150,21 @@ export class LocalMobileSetupModal extends Modal {
 		return checkboxMap;
 	}
 
-	private addKeyboardListeners(n: number): void {
-		const handler = (e: KeyboardEvent) => {
+	private addEnterListener(n: number): void {
+		this.playerNameInput.onkeydown = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();
 				this.handleContinue(n);
 			}
 		};
 
-		this.fieldHandlers.set(this.playerNameInput, handler);
-		this.playerNameInput.addEventListener('keydown', handler);
-
 		this.aiSelects.forEach(select => {
-			this.fieldHandlers.set(select, handler);
-			select.addEventListener('keydown', handler);
+			select.onkeydown = (e: KeyboardEvent) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					this.handleContinue(n);
+				}
+			};
 		});
 	}
 
@@ -245,13 +235,6 @@ export class LocalMobileSetupModal extends Modal {
 			state.currentModal = null;
 		}
 
-		// Remove keyboard handlers
-		this.fieldHandlers.forEach((handler, field) =>
-			field.removeEventListener('keydown', handler)
-		);
-		this.fieldHandlers.clear();
-
-		// Clear references
 		this.aiSelects = [];
 		this.powerupCheckboxes = null;
 

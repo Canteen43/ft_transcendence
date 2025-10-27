@@ -17,11 +17,6 @@ import { FullTournamentSchema } from '../../../shared/schemas/tournament';
 import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { apiCall } from '../utils/apiCall';
-import {
-	clearRemoteData,
-	clearOtherGameData,
-	clearTournData,
-} from '../utils/clearSessionStorage';
 import { router } from '../utils/Router';
 import { state } from '../utils/State';
 import { updateTournData } from '../utils/updateTurnMatchData';

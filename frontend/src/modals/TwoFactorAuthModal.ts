@@ -14,10 +14,10 @@ export class TwoFactorAuthModal extends Modal {
 
 	constructor(parent: HTMLElement) {
 		super(parent);
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		// Using init function to allow async/await
 		this.init();
@@ -77,8 +77,6 @@ export class TwoFactorAuthModal extends Modal {
 			}
 		};
 		document.addEventListener('keydown', this.keydownHandler);
-
-		this.currentButton.element.focus();
 	}
 
 	private async getTwoFactorAuthCode(): Promise<void> {
@@ -112,11 +110,7 @@ export class TwoFactorAuthModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
-
-			this.currentButton?.destroy();
+		this.currentButton?.destroy();
 
 		if (this.keydownHandler) {
 			document.removeEventListener('keydown', this.keydownHandler);

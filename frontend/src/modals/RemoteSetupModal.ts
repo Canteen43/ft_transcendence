@@ -29,8 +29,10 @@ export class RemoteSetupModal extends Modal {
 		};
 		this.aliasField.addEventListener('keydown', this.keydownHandler);
 
-		this.aliasField.focus();
 		new Button('Continue', () => this.submit(type), this.box);
+
+		this.activateFocusTrap();
+		this.aliasField.select();
 	}
 
 	private getDefaultAlias(): string {

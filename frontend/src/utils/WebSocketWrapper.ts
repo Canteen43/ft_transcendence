@@ -159,6 +159,14 @@ class WebSocketWrapper {
 	}
 
 	private onClose(event: CloseEvent): void {
+		console.debug('🔌 WebSocket.onClose() called', {
+			code: event.code,
+			reason: event.reason,
+			shouldReconnect: this.shouldReconnect,
+			reconnectAttempts: this.reconnectAttempts,
+			maxAttempts: this.MAX_RECONNECT_ATTEMPTS,
+		});
+
 		leaveTournament();
 		this.removeListeners();
 		this.ws = null;
@@ -176,6 +184,7 @@ class WebSocketWrapper {
 		}
 
 		// Events for frontend components
+		console.debug('📢 Dispatching ws-close event');
 		document.dispatchEvent(
 			new CustomEvent('ws-close', {
 				detail: { code: event.code, reason: event.reason },
@@ -219,6 +228,7 @@ class WebSocketWrapper {
 				`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} in ${this.RECONNECT_DELAY / 1000} seconds...`
 			);
 			this.reconnectTimeoutId = setTimeout(() => {
+				console.debug('⏰ Reconnect timeout fired, calling open()');
 				this.reconnectTimeoutId = null;
 				this.open();
 			}, this.RECONNECT_DELAY);
@@ -229,6 +239,8 @@ class WebSocketWrapper {
 			this.handleAuthFailure(
 				'Unable to connect to server. Please refresh the page and log in again.'
 			);
+		} else {
+			console.debug('⏹️ Not reconnecting (shouldReconnect is false)');
 		}
 	}
 

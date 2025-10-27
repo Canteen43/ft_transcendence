@@ -170,7 +170,7 @@ export class AuthComponent {
 		}
 	}
 
-	private updateSelection() {
+	private updateSelection(): void  {
 		if (!this.twoFABtn || !this.logoutBtn) return;
 
 		// Remove highlight from both
@@ -187,7 +187,7 @@ export class AuthComponent {
 		}
 	}
 
-	private openDropdown() {
+	private openDropdown(): void  {
 		if (!this.dropdown) return;
 		this.dropdownOpen = true;
 		this.dropdown.classList.remove(
@@ -218,7 +218,7 @@ export class AuthComponent {
 		);
 	}
 
-	private showLoginModal() {
+	private showLoginModal(): void  {
 		// Clean up existing modal if any
 		if (this.loginModal) {
 			this.loginModal.destroy();
@@ -227,7 +227,7 @@ export class AuthComponent {
 		this.loginModal = new LoginModal(this.parent);
 	}
 
-	private show2FAModal() {
+	private show2FAModal(): void  {
 		// Clean up existing modal if any
 		if (this.twoFAModal) {
 			this.twoFAModal.destroy();
@@ -236,7 +236,7 @@ export class AuthComponent {
 		this.twoFAModal = new TwoFactorAuthModal(this.parent);
 	}
 
-	private handleEnter() {
+	private handleEnter(): void  {
 		if (this.closeTimeout) {
 			clearTimeout(this.closeTimeout);
 			this.closeTimeout = undefined;
@@ -246,7 +246,7 @@ export class AuthComponent {
 		}
 	}
 
-	private createDropdown() {
+	private createDropdown(): void  {
 		this.dropdown = document.createElement('div');
 		this.dropdown.className =
 			'absolute top-full right-0 mt-1 ' +
@@ -287,7 +287,7 @@ export class AuthComponent {
 		}
 	}
 
-	private handleLeave() {
+	private handleLeave(): void  {
 		this.closeTimeout = setTimeout(() => {
 			if (this.dropdown) {
 				this.closeDropdown();
@@ -295,7 +295,7 @@ export class AuthComponent {
 		}, 150);
 	}
 
-	private logout() {
+	private logout(): void  {
 		sessionStorage.clear();
 		webSocket.close();
 		console.debug('Dispatching logout-success event');

@@ -26,7 +26,6 @@ export class TextModal extends Modal {
 		this.overlay.classList.remove('z-20');
 		this.overlay.classList.add('z-30');
 
-		console.debug('TextModal called');
 		if (notification) {
 			const textElmt = document.createElement('p');
 			textElmt.textContent = notification;
@@ -49,7 +48,6 @@ export class TextModal extends Modal {
 			this.box
 		);
 
-		this.okayButton.element.focus();
 	}
 
 	public destroy(): void {

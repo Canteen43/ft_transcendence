@@ -86,7 +86,6 @@ export class Landing {
 			await this.loadModel(modelPath);
 			await this.loadBackgroundAnimation();
 
-			console.log('✅ Scene fully initialized!');
 		} catch (err) {
 			console.error('Error initializing scene:', err);
 			this.callbacks.onLoadComplete?.();
@@ -355,7 +354,6 @@ export class Landing {
 		setTimeout(() => {
 			if (this.camera && this.canvas) {
 				this.camera.attachControl(this.canvas, true);
-				console.log('✅ Camera controls attached after model load');
 			}
 		}, 100);
 	}
@@ -375,18 +373,9 @@ export class Landing {
 
 		this.camera.setTarget(target);
 		this.camera.radius = maxSize * 0.25;
-
-		console.debug(
-			'Camera fitted:',
-			target.toString(),
-			'radius:',
-			this.camera.radius
-		);
 	}
 
 	private handleMeshClick(mesh: BABYLON.AbstractMesh): void {
-		console.debug(`Clicked mesh: ${mesh.name}`);
-
 		const name = mesh.name.toLowerCase();
 
 		if (name.includes('local')) {
@@ -507,113 +496,70 @@ export class Landing {
 
 	// Improved dispose method:
 	public dispose(): void {
-		try {
-			// Clear observables BEFORE disposing scene
-			if (this.scene && !this.scene.isDisposed) {
-				this.scene.onPointerObservable.clear();
-			}
-
-			if (this.engine && !this.engine.isDisposed) {
-				this.engine.stopRenderLoop(this.renderLoopCallback);
-			}
-
-			// Stop all animations
-			if (this.scene && !this.scene.isDisposed) {
-				this.scene.stopAllAnimations();
-			}
-
-			// Clean up hover glow
-			if (this.hoveredMesh) {
-				this.stopHoverGlow(this.hoveredMesh);
-				this.hoveredMesh = null;
-			}
-			this.originalMaterials.clear();
-
-			// Clear mesh arrays
-			this.localGameMeshes = [];
-			this.remoteGameMeshes = [];
-			this.statsMeshes = [];
-
-			// Dispose background root
-			if (this.backgroundRoot) {
-				this.backgroundRoot.dispose();
-				this.backgroundRoot = undefined;
-			}
-
-			// Dispose shadow generator
-			if (this.shadowGenerator) {
-				this.shadowGenerator.dispose();
-				this.shadowGenerator = undefined;
-			}
-
-			// Dispose HDR texture
-			if (this.envTexture) {
-				this.envTexture.dispose();
-				this.envTexture = undefined;
-			}
-
-			// Remove event listeners
-			if (this.resizeHandler) {
-				window.removeEventListener('resize', this.resizeHandler);
-				this.resizeHandler = undefined;
-			}
-
-			if (this.contextMenuHandler) {
-				this.canvas.removeEventListener(
-					'contextmenu',
-					this.contextMenuHandler
-				);
-			}
-
-			if (this.mouseMoveHandler) {
-				this.canvas.removeEventListener(
-					'mousemove',
-					this.mouseMoveHandler
-				);
-				this.mouseMoveHandler = undefined;
-			}
-			if (this.camera) {
-				this.camera.detachControl();
-			}
-
-			// Exit pointer lock
-			if (document.pointerLockElement) {
-				document.exitPointerLock();
-			}
-
-			// Dispose scene
-			if (this.scene && !this.scene.isDisposed) {
-				this.scene.dispose();
-			}
-
-			// Dispose engine
-			if (this.engine && !this.engine.isDisposed) {
-				this.engine.dispose();
-				console.log('Engine disposed');
-			}
-
-			// Force WebGL context loss only useful for GPU resource leak debugging.
-			// const gl =
-			// 	this.canvas.getContext('webgl2') ||
-			// 	this.canvas.getContext('webgl');
-			// if (gl) {
-			// 	const loseContext = gl.getExtension('WEBGL_lose_context');
-			// 	if (loseContext) {
-			// 		loseContext.loseContext();
-			// 		console.log('Forced WebGL context loss');
-			// 	}
-			// }
-
-			// Remove canvas
-			if (this.canvas && this.canvas.parentNode) {
-				this.canvas.parentNode.removeChild(this.canvas);
-			}
-
-			this.renderLoopCallback = undefined;
-
-			console.log('Landing scene disposed');
-		} catch (err) {
-			console.error('Error during disposal:', err);
+		// Clear observables BEFORE disposing scene
+		if (this.scene && !this.scene.isDisposed) {
+			this.scene.onPointerObservable.clear();
 		}
+		if (this.engine && !this.engine.isDisposed) {
+			this.engine.stopRenderLoop(this.renderLoopCallback);
+		}
+		// Stop all animations
+		if (this.scene && !this.scene.isDisposed) {
+			this.scene.stopAllAnimations();
+		}
+		// Clean up hover glow
+		if (this.hoveredMesh) {
+			this.stopHoverGlow(this.hoveredMesh);
+			this.hoveredMesh = null;
+		}
+		this.originalMaterials.clear();
+
+		this.localGameMeshes = [];
+		this.remoteGameMeshes = [];
+		this.statsMeshes = [];
+
+		if (this.backgroundRoot) {
+			this.backgroundRoot.dispose();
+			this.backgroundRoot = undefined;
+		}
+		if (this.shadowGenerator) {
+			this.shadowGenerator.dispose();
+			this.shadowGenerator = undefined;
+		}
+		if (this.envTexture) {
+			this.envTexture.dispose();
+			this.envTexture = undefined;
+		}
+		if (this.resizeHandler) {
+			window.removeEventListener('resize', this.resizeHandler);
+			this.resizeHandler = undefined;
+		}
+		if (this.contextMenuHandler) {
+			this.canvas.removeEventListener(
+				'contextmenu',
+				this.contextMenuHandler
+			);
+		}
+		if (this.mouseMoveHandler) {
+			this.canvas.removeEventListener('mousemove', this.mouseMoveHandler);
+			this.mouseMoveHandler = undefined;
+		}
+		if (this.camera) {
+			this.camera.detachControl();
+		}
+
+		if (document.pointerLockElement) {
+			document.exitPointerLock();
+		}
+		if (this.scene && !this.scene.isDisposed) {
+			this.scene.dispose();
+		}
+		if (this.engine && !this.engine.isDisposed) {
+			this.engine.dispose();		}
+		if (this.canvas && this.canvas.parentNode) {
+			this.canvas.parentNode.removeChild(this.canvas);
+		}
+		this.renderLoopCallback = undefined;
+		console.log('Landing scene disposed');
 	}
 }

@@ -48,7 +48,7 @@ export class HomeButton {
 		} else location.hash = '#home';
 	};
 
-	destroy() {
+	public destroy() {
 		this.textModal?.destroy();
 		this.button.removeEventListener('mouseenter', this.onEnter);
 		this.button.removeEventListener('mouseleave', this.onLeave);

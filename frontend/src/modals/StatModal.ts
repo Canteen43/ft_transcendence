@@ -28,10 +28,10 @@ export class StatModal extends Modal {
 	constructor(parent: HTMLElement) {
 		super(parent);
 
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		this.element = document.createElement('div');
 		this.element.className =
@@ -42,7 +42,7 @@ export class StatModal extends Modal {
 		if (isLoggedIn()) this.initialize();
 	}
 
-	private async initialize() {
+	private async initialize(): Promise<void> {
 		await this.getRankData();
 		await this.getHistData();
 		await this.getMatchData();
@@ -61,33 +61,28 @@ export class StatModal extends Modal {
 		this.createOutput();
 	}
 
-	private showErrorModal(message: string) {
-		new TextModal(this.element, message);
-	}
-
-	private async getRankData() {
+	private async getRankData(): Promise<void> {
 		const { data: rankData, error: rankError } = await apiCall(
 			'GET',
 			'/stats/ranking',
 			RankingSchema
 		);
 		if (rankError) {
-			console.error('Error getting ranking:', rankError);
-			this.showErrorModal(`Failed to get ranking: ${rankError.message}`);
+			console.log('Error getting ranking:', rankError);
 			return;
 		}
 		if (!rankData) {
-			this.showErrorModal('No ranking data available');
+			console.log('No ranking data available');
 			return;
 		}
 		console.debug(rankData);
 		this.rankData = rankData;
 	}
 
-	private async getHistData() {
+	private async getHistData(): Promise<void> {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
-			this.showErrorModal('No user ID found - please login');
+			console.error('No user ID found');
 			return;
 		}
 		const { data: histData, error: histError } = await apiCall(
@@ -96,20 +91,21 @@ export class StatModal extends Modal {
 			PercentageWinsHistorySchema
 		);
 		if (histError) {
-			console.error('Error getting wins history: ', histError);
-			this.showErrorModal(
-				`Failed to get historical data: ${histError.message}`
-			);
+			console.log('Error getting historical data: ', histError);
+			return;
+		}
+		if (!histData) {
+			console.log('No historical data available');
 			return;
 		}
 		console.debug(histData);
 		this.histData = histData;
 	}
 
-	private async getMatchData() {
+	private async getMatchData(): Promise<void> {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
-			this.showErrorModal('No user ID found - please login');
+			console.error('No user ID found');
 			return;
 		}
 		const { data: matchData, error: matchError } = await apiCall(
@@ -118,20 +114,21 @@ export class StatModal extends Modal {
 			RankingItemSchema
 		);
 		if (matchError) {
-			console.error('Error getting match history: ', matchError);
-			this.showErrorModal(
-				`Failed to get match data: ${matchError.message}`
-			);
+			console.log('Error getting match history: ', matchError);
+			return;
+		}
+		if (!matchData) {
+			console.log('No match data available');
 			return;
 		}
 		console.debug(matchData);
 		this.matchData = matchData;
 	}
 
-	private async getTournData() {
+	private async getTournData(): Promise<void> {
 		const userID = sessionStorage.getItem('userID');
 		if (!userID) {
-			this.showErrorModal('No user ID found - please login');
+			console.error('No user ID found - please login');
 			return;
 		}
 		const { data: tournData, error: tournError } = await apiCall(
@@ -140,10 +137,11 @@ export class StatModal extends Modal {
 			TournamentStatsSchema
 		);
 		if (tournError) {
-			console.error('Error getting match history: ', tournError);
-			this.showErrorModal(
-				`Failed to get match data: ${tournError.message}`
-			);
+			console.log('Error getting tournament history: ', tournError);
+			return;
+		}
+		if (!tournData) {
+			console.log('No tournament data available');
 			return;
 		}
 		console.debug(tournData);
@@ -591,9 +589,6 @@ export class StatModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
 		if (this.chartInstance) {
 			this.chartInstance.destroy();
 			this.chartInstance = null;
