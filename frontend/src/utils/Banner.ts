@@ -7,7 +7,6 @@ export class Banner {
 	private bannerContainer: HTMLElement;
 	private onlinePlayersContainer: HTMLElement;
 	private updateInterval: number | null = null;
-	private isWebSocketConnected: boolean = true;
 
 	constructor(parent: HTMLElement) {
 		// banner container

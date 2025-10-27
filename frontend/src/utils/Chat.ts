@@ -8,38 +8,46 @@ export class ChatManager {
 	private parent: HTMLElement;
 	private bndInitChat = () => this.initChat();
 	private bndDestroyChat = () => this.destroyChat();
+
 	constructor(parent: HTMLElement) {
 		this.parent = parent;
+
 		// listen for login state changes
 		document.addEventListener('login-success', this.bndInitChat);
 		document.addEventListener('login-failed', this.bndDestroyChat);
 		document.addEventListener('logout-success', this.bndDestroyChat);
+
 		// init on load if already logged in
 		if (isLoggedIn()) {
 			this.initChat();
 		}
 	}
-	private initChat() {
+
+	private initChat(): void {
 		if (!isLoggedIn() || !this.parent) return;
 		console.debug('Initializing chat');
 		if (!this.chat) {
 			this.chat = new Chat(this.parent);
 		}
 	}
-	private destroyChat() {
+
+	private destroyChat(): void {
 		console.debug('Destroy Chat called');
 		if (this.chat) {
 			this.chat.destroy();
 			this.chat = null;
 		}
 	}
-	destroy() {
+
+	public destroy(): void {
 		this.destroyChat();
 		document.removeEventListener('login-success', this.bndInitChat);
 		document.removeEventListener('login-failed', this.bndDestroyChat);
 		document.removeEventListener('logout-success', this.bndDestroyChat);
 	}
 }
+
+
 export class Chat {
 	private container: HTMLElement;
 	private messagesContainer: HTMLElement;
@@ -141,7 +149,7 @@ export class Chat {
 	private handleToggle = () => {
 		this.isExpanded = !this.isExpanded;
 		state.chatExpanded = this.isExpanded;
-		console.debug('Dispatching CHAT TOGGLED');
+		console.debug('Dispatching chat-toggled');
 		document.dispatchEvent(new CustomEvent('chat-toggled'));
 		if (this.isExpanded) {
 			// Show messages
@@ -190,7 +198,7 @@ export class Chat {
 	private sendMessage(message: string): void {
 		const fullMessage = `${this.username}: ${message}`;
 		// Send to server
-		webSocket.send({ t: MESSAGE_CHAT, d: fullMessage });
+		webSocket.send({ t: MESSAGE_CHAT, d: message });
 		// add to message board
 		this.addMessage(fullMessage);
 	}

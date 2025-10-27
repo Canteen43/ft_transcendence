@@ -90,6 +90,7 @@ export class LoginModal extends Modal {
 		if (error) {
 			console.error('Registration error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
+
 			this.errorModal(message);
 			return;
 		}
