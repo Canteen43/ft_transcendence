@@ -51,7 +51,7 @@ export class GameConfig {
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (30 * Math.PI) / 180,
-		serveOffset: 0.45,
+		serveOffset: 0.5,
 		paddleMass: 2.8,
 		paddleForce: 16,
 		paddleRange: 5,
