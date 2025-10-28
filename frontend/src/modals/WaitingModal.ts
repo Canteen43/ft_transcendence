@@ -14,7 +14,7 @@ export class WaitingModal extends Modal {
 	private gameReadyHandler = () => this.nextStep();
 
 	constructor(parent: HTMLElement) {
-		super(parent);
+		super(parent, false);
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}

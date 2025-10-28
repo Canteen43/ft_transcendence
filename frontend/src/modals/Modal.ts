@@ -1,4 +1,5 @@
 import { createFocusTrap, FocusTrap } from 'focus-trap';
+import { state } from '../utils/State';
 
 export class Modal {
 	protected parent: HTMLElement;
@@ -14,7 +15,7 @@ export class Modal {
 
 	public onClose?: () => void;
 
-	constructor(parent: HTMLElement) {
+	constructor(parent: HTMLElement, enableFocusTrap: boolean = true) {
 		this.parent = parent;
 
 		this.overlay = document.createElement('div');
@@ -29,11 +30,15 @@ export class Modal {
 		this.overlay.appendChild(this.box);
 		parent.appendChild(this.overlay);
 
-		setTimeout(() => {
-			if (!this.focusTrap) {
-				this.activateFocusTrap();
-			}
-		}, 0);
+		state.modalOpen = true;
+
+		if (enableFocusTrap) {
+			setTimeout(() => {
+				if (!this.focusTrap) {
+					this.activateFocusTrap();
+				}
+			}, 0);
+		}
 
 		// not handled by focus-trap because of the ws QUIT custom behavior
 		this.escHandler = (e: KeyboardEvent) => {
@@ -90,6 +95,7 @@ export class Modal {
 		this.overlay.removeEventListener('mousedown', this.mouseDownHandler);
 		document.removeEventListener('mouseup', this.mouseUpHandler);
 
+		state.modalOpen = false;
 		this.overlay.remove();
 		this.onClose?.();
 	}

@@ -8,6 +8,7 @@ class State {
 	public replayCounter: number = 0;
 	public chatExpanded: boolean = true;
 	public currentModal: Modal | null = null;
+	public modalOpen: boolean = false;
 	public isMobile: boolean = false;
 }
 

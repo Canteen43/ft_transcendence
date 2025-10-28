@@ -62,7 +62,10 @@ export class RemoteSetupModal extends Modal {
 		const result = await joinTournament(state.tournamentSize, type);
 
 		if (!result.success) {
-			new TextModal(this.parent, result.error);
+			const errorModal = new TextModal(this.parent, result.error);
+			errorModal.onClose = () => {
+				new RemoteSetupModal(this.parent, type);
+			};
 			if (result.zodError) {
 				console.error(
 					'Validation failed:',
@@ -73,7 +76,7 @@ export class RemoteSetupModal extends Modal {
 		}
 
 		this.destroy();
-		const waitingModal = new WaitingModal(this.parent);
+		new WaitingModal(this.parent);
 	}
 
 	public destroy(): void {

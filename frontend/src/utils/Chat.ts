@@ -171,11 +171,17 @@ export class Chat {
 	};
 
 	private handleGlobalKeydown = (e: Event) => {
+		const target = e.target as HTMLElement;
+		const isInteractive = target.matches(
+			'input, button, textarea, [contenteditable="true"]'
+		);
 		const ke = e as KeyboardEvent;
 		if (
 			ke.code === 'Space' &&
 			document.activeElement !== this.input &&
-			location.hash !== '#game' 
+			location.hash !== '#game' &&
+			state.modalOpen === false &&
+			isInteractive === false
 		) {
 			ke.preventDefault();
 			this.handleToggle();

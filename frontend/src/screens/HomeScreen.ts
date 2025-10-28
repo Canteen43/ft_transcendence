@@ -14,40 +14,12 @@ import { Screen } from './Screen';
 export class HomeScreen extends Screen {
 	private landing: Landing | null = null;
 	private fallbackHero: HTMLElement | null = null;
-	private loadingTimeout: number | null = null;
-	private isLandingLoaded: boolean = false;
 
 	constructor() {
 		super(false);
 		this.element.className = 'flex flex-row min-h-screen bg-transparent';
 		if (state.isMobile == true) this.showFallbackHero();
 		else this.initThreeD();
-	}
-
-	private onLandingLoaded() {
-		this.isLandingLoaded = true;
-		if (this.loadingTimeout) {
-			clearTimeout(this.loadingTimeout);
-			this.loadingTimeout = null;
-		}
-
-		// Destroy fallback hero if it was shown
-		if (this.fallbackHero) {
-			this.fallbackHero.remove();
-			this.fallbackHero = null;
-			// Also remove background styling
-			this.element.style.backgroundImage = '';
-			this.element.classList.remove(
-				'bg-cover',
-				'bg-center',
-				'bg-no-repeat',
-				'bg-fixed',
-				'relative',
-				'overflow-hidden'
-			);
-		}
-
-		console.log('Landing page loaded successfully, fallback destroyed');
 	}
 
 	private showFallbackHero() {
@@ -102,7 +74,6 @@ export class HomeScreen extends Screen {
 			onLocalGameClick: () => this.localLogic(),
 			onRemoteGameClick: () => this.remoteLogic(),
 			onStatsClick: () => this.statLogic(),
-			onLoadComplete: () => this.onLandingLoaded(), // Hook into the Landing callback
 		});
 	}
 
@@ -177,12 +148,7 @@ export class HomeScreen extends Screen {
 	}
 
 	public destroy(): void {
-		if (this.loadingTimeout) {
-			clearTimeout(this.loadingTimeout);
-			this.loadingTimeout = null;
-		}
-
-		if (this.fallbackHero) {
+	if (this.fallbackHero) {
 			this.fallbackHero.remove();
 			this.fallbackHero = null;
 		}
