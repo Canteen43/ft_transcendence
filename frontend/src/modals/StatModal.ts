@@ -48,6 +48,7 @@ export class StatModal extends Modal {
 		await this.getMatchData();
 		await this.getTournData();
 
+		console.debug(this.histData, this.rankData, this.matchData, this.tournData);
 		if (
 			!this.histData &&
 			!this.rankData &&
