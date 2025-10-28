@@ -385,13 +385,18 @@ export class Trophy {
 			this.resizeHandler = null;
 		}
 
+		// Stop render loop first
+		if (this.engine) {
+			this.engine.stopRenderLoop();
+		}
+
 		if (this.scene) {
 			this.scene.dispose();
 		}
 
-		// if (this.engine) {
-		// 	this.engine.dispose();
-		// }
+		if (this.engine) {
+			this.engine.dispose();
+		}
 
 		if (this.canvas && this.canvas.parentNode) {
 			this.canvas.parentNode.removeChild(this.canvas);
@@ -401,7 +406,7 @@ export class Trophy {
 	/** Set the trophy model URL and reload */
 	public setModelUrl(modelUrl: string): void {
 		// Stop current render loop
-		// this.engine.stopRenderLoop();
+		this.engine.stopRenderLoop();
 
 		// Clear current scene
 		this.scene.dispose();

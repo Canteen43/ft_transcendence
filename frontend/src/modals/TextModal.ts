@@ -54,6 +54,7 @@ export class TextModal extends Modal {
 		if (state.currentModal === this) {
 			state.currentModal = null;
 		}
+		this.okayButton.destroy();
 		super.destroy();
 	}
 }

@@ -80,7 +80,7 @@ export async function gameListener(event: MessageEvent) {
 						router.currentScreen!.element,
 						'Error: Received data for more than a match'
 					);
-					location.hash = '#home';
+					if (location.hash !== '#home') location.hash = '#home';
 				}
 				break;
 
@@ -108,7 +108,7 @@ export async function gameListener(event: MessageEvent) {
 				// clearRemoteData();
 				// clearTournData();
 				// clearOtherGameData();
-				location.hash = '#home';
+				if (location.hash !== '#home') location.hash = '#home';
 				
 				setTimeout(() => {
 					void new TextModal(

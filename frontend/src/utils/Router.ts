@@ -1,4 +1,3 @@
-import { TextModal } from '../modals/TextModal';
 import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Screen } from '../screens/Screen';
