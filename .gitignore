@@ -50,6 +50,9 @@ graphics/powerups.blend1
 frontend/dist
 build/app
 
+# SSL certificates
+build/cert
+
 # Production database
 build/database
 
