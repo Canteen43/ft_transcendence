@@ -9,17 +9,20 @@ export interface LandingCallbacks {
 }
 
 export class Landing {
+	
 	private engine!: BABYLON.Engine;
 	private scene!: BABYLON.Scene;
 	private camera!: BABYLON.ArcRotateCamera;
 	private canvas!: HTMLCanvasElement;
-	private resizeHandler?: () => void;
+
 	private shadowGenerator?: BABYLON.ShadowGenerator;
 	private envTexture?: BABYLON.HDRCubeTexture;
+	private backgroundRoot?: BABYLON.TransformNode;
+
+	private resizeHandler?: () => void;
 	private renderLoopCallback?: () => void;
 	private contextMenuHandler = (e: MouseEvent) => e.preventDefault();
-	private mouseMoveHandler?: (event: MouseEvent) => void;
-	private backgroundRoot?: BABYLON.TransformNode;
+	private mouseMoveHandler?: (e: MouseEvent) => void;
 
 	// Clickable mesh references
 	private localGameMeshes: BABYLON.AbstractMesh[] = [];
