@@ -1,9 +1,29 @@
+include build/.env
+export $(shell sed 's/=.*//' build/.env)
+
 COMPOSE_DIR=./build
 TERMINAL=/usr/bin/gnome-terminal
 SHELL=zsh
 SHELLRC=~/.zshrc
 
-all: up
+CERT_DIR := $(CERT_DIR)
+CERT_FILE := $(CERT_FILE)
+CERT_KEY_FILE := $(CERT_KEY_FILE)
+DAYS := 365
+SANS := "DNS:$(HOSTNAME),DNS:$(COMPUTERNAME),DNS:localhost"
+
+all: $(CERT_DIR)/$(CERT_KEY_FILE) $(CERT_DIR)/$(CERT_FILE) up
+
+$(CERT_DIR):
+	mkdir -p $(CERT_DIR)
+
+$(CERT_DIR)/$(CERT_KEY_FILE) $(CERT_DIR)/$(CERT_FILE): | $(CERT_DIR)
+	@echo "Certificate not found, generating self-signed HTTPS certificate..."
+	openssl req -x509 -nodes -days $(DAYS) -newkey rsa:2048 \
+		-keyout $(CERT_DIR)/$(CERT_KEY_FILE) \
+		-out $(CERT_DIR)/$(CERT_FILE) \
+		-subj "/C=DE/ST=Berlin/L=Berlin/O=42/OU=Transcendence/CN=nopongintended.de" \
+		-addext "subjectAltName=DNS:nopongintended.de"
 
 up:
 	@docker compose -f $(COMPOSE_DIR)/docker-compose.yml up -d

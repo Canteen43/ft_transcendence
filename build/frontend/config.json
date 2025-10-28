@@ -1,4 +1,4 @@
 {
-	"apiBase": "https://nopongintended.com/api",
-	"wsURL": "wss://nopongintended.com/ws/websocket"
+	"apiBase": "https://nopongintended.de/api",
+	"wsURL": "wss://nopongintended.de/ws/websocket"
 }
