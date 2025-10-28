@@ -22,6 +22,9 @@ COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY build/frontend/config.json /usr/share/nginx/html/config.json
 COPY build/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+# Added for HTTPS
+COPY build/cert/certificate.crt /etc/ssl/certs
+COPY build/cert/certificate.key /etc/ssl/private
+EXPOSE 443
 
 CMD ["nginx", "-g", "daemon off;"]
