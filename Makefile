@@ -1,7 +1,12 @@
+include build/.env
+export $(shell sed 's/=.*//' build/.env)
+
 COMPOSE_DIR=./build
 TERMINAL=/usr/bin/gnome-terminal
 SHELL=zsh
 SHELLRC=~/.zshrc
+
+SANS := "DNS:$(HOSTNAME),DNS:$(COMPUTERNAME),DNS:localhost"
 
 all: up
 
@@ -11,8 +16,19 @@ up:
 down:
 	@docker compose -f $(COMPOSE_DIR)/docker-compose.yml down
 
-build:
+build: $(CERT_DIR)/$(CERT_KEY_FILE) $(CERT_DIR)/$(CERT_FILE)
 	@docker compose -f $(COMPOSE_DIR)/docker-compose.yml build
+
+$(CERT_DIR):
+	mkdir -p $(CERT_DIR)
+
+$(CERT_DIR)/$(CERT_KEY_FILE) $(CERT_DIR)/$(CERT_FILE): | $(CERT_DIR)
+	@echo "\033[0;32mCertificate not found, generating self-signed HTTPS certificate...\033[0m"
+	openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+		-keyout $(CERT_DIR)/$(CERT_KEY_FILE) \
+		-out $(CERT_DIR)/$(CERT_FILE) \
+		-subj "/C=DE/ST=Berlin/L=Berlin/O=42/OU=Transcendence/CN=$(HOSTNAME)" \
+		-addext "subjectAltName=$(SANS)"
 
 local:
 	@echo "🚀 Starting app locally..."
