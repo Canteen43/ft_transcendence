@@ -56,14 +56,14 @@ export function getCameraPosition(
 				return {
 					alpha: Math.PI/2,
 					beta: Math.PI / 7, // More overhead angle for better view of both sides
-					radius: defaultRadius + 15, // Pulled back further for wider view
+					radius: defaultRadius + 20,// Pulled back further for wider view
 					target: createTarget(defaultTargetY - 1),
 				};
 			case 3:
 				return {
 					alpha: Math.PI/2,
 					beta: Math.PI / 9,// More overhead angle for better view of both sides
-					radius: defaultRadius + 22,//Pulled back further for wider view
+					radius: defaultRadius + 27,//Pulled back further for wider view
 					target: createTarget(defaultTargetY),
 				};
 			case 4:
@@ -71,7 +71,7 @@ export function getCameraPosition(
 				return {
 					alpha: Math.PI/2,
 					beta: Math.PI / 9,// More overhead angle for better view of both sides
-					radius: defaultRadius + 32,//Pulled back further for wider view
+					radius: defaultRadius + 42,//Pulled back further for wider view
 					target: createTarget(defaultTargetY),
 				};
 		}
@@ -102,16 +102,16 @@ export function getCameraPosition(
 				return {
 					alpha: Math.PI / 2,
 					beta: Math.PI / 6,
-					radius: defaultRadius + 4.6,
+					radius: defaultRadius + 5.5,
 					target: createTarget(defaultTargetY),
 				};
 			} else {
 				// 4-player
 				return {
 					alpha: Math.PI / 2,
-					beta: defaultBeta - 0.6,
-					radius: defaultRadius + 10.4,
-					target: createTarget(defaultTargetY - 1.3),
+					beta: defaultBeta - 0.8,
+					radius: defaultRadius + 15,
+					target: createTarget(defaultTargetY - 2),
 				};
 			}
 
