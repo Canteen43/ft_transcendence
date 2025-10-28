@@ -1,3 +1,4 @@
+import { hash } from 'crypto';
 import { MESSAGE_CHAT } from '../../../shared/constants.js';
 import { isConnected, isLoggedIn } from '../buttons/AuthButton';
 import { state } from './State.js';
@@ -47,7 +48,6 @@ export class ChatManager {
 	}
 }
 
-
 export class Chat {
 	private container: HTMLElement;
 	private messagesContainer: HTMLElement;
@@ -88,7 +88,7 @@ export class Chat {
 			'flex-1 px-1 sm:px-4 py-1 sm:py-2 border border-gray-300 bg-[var(--color1)] rounded-sm ' +
 			'focus:outline-none focus:ring-2 focus:ring-grey text-[var(--color3)] text-xs sm:text-sm';
 		this.input.addEventListener('keypress', this.handleKeypress);
-		this.input.focus();
+		// this.input.focus();
 
 		// Toggle button
 		this.toggleButton = document.createElement('button');
@@ -137,6 +137,13 @@ export class Chat {
 
 	private handleKeypress = (e: KeyboardEvent) => {
 		if (e.key === 'Enter' && this.input.value.trim()) {
+			if (this.input.value.trim().length > 200) {
+				this.addSystemMessage(
+					'⚠️ Message too long - maximum 200 characters'
+				);
+				this.input.value = '';
+				return;
+			}
 			if (!this.connected) {
 				this.addSystemMessage('⚠️ Cannot send message - not connected');
 				return;
@@ -153,7 +160,7 @@ export class Chat {
 		document.dispatchEvent(new CustomEvent('chat-toggled'));
 		if (this.isExpanded) {
 			// Show messages
-			this.input.focus();
+			// this.input.focus();
 			this.messagesContainer.style.display = 'block';
 			this.toggleButton.textContent = '▼';
 		} else {
@@ -164,8 +171,18 @@ export class Chat {
 	};
 
 	private handleGlobalKeydown = (e: Event) => {
+		const target = e.target as HTMLElement;
+		const isInteractive = target.matches(
+			'input, button, textarea, [contenteditable="true"]'
+		);
 		const ke = e as KeyboardEvent;
-		if (ke.code === 'Space' && document.activeElement !== this.input) {
+		if (
+			ke.code === 'Space' &&
+			document.activeElement !== this.input &&
+			location.hash !== '#game' &&
+			state.modalOpen === false &&
+			isInteractive === false
+		) {
 			ke.preventDefault();
 			this.handleToggle();
 		}

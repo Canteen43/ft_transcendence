@@ -7,6 +7,7 @@ import {
 	TournamentSchema,
 } from '../../../shared/schemas/tournament';
 import { apiCall } from './apiCall';
+import { join } from 'path';
 
 type TournamentJoinResult =
 	| { success: true; waiting?: boolean; tournament?: any }
@@ -26,7 +27,7 @@ export async function joinTournament(
 	if (!parseInput.success) {
 		return {
 			success: false,
-			error: 'Invalid tournament format',
+			error: 'Invalid alias. Must be 3-20 characters.',
 			zodError: parseInput.error,
 		};
 	}

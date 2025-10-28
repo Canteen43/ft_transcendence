@@ -39,9 +39,11 @@ import { router } from './Router';
 class WebSocketWrapper {
 	public ws: WebSocket | null = null;
 	public shouldReconnect: boolean = false;
+	// private connectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	private pingIntervalId: ReturnType<typeof setInterval> | null = null;
 	private readonly PING_DELAY = 25000;
+	// private readonly CONNECTION_TIMEOUT = 10000; // 10 seconds
 	private readonly RECONNECT_DELAY = 3000;
 	private readonly MAX_RECONNECT_ATTEMPTS = 8; // total delay = 3*8=24s
 	private reconnectAttempts = 0;
@@ -66,6 +68,12 @@ class WebSocketWrapper {
 			this.shouldReconnect = false;
 			return;
 		}
+		// when main imports the ws, the endpoints are not created yet - safeguard
+		if (!wsURL) {
+			console.warn('wsURL not loaded yet - cannot open WebSocket');
+			this.shouldReconnect = false;
+			return;
+		}
 		if (this.ws?.readyState === WebSocket.OPEN) {
 			console.log('WebSocket already open - returning');
 			return;
@@ -74,6 +82,12 @@ class WebSocketWrapper {
 			console.log('WebSocket already connecting - returning');
 			return;
 		}
+		// this.connectionTimeoutId = setTimeout(() => {
+		// 	if (this.ws?.readyState === WebSocket.CONNECTING) {
+		// 		console.warn('Connection timeout - closing');
+		// 		this.ws.close(1000, 'Connection timeout');
+		// 	}
+		// }, this.CONNECTION_TIMEOUT);
 
 		if (this.ws) {
 			this.removeListeners();
@@ -129,6 +143,11 @@ class WebSocketWrapper {
 	// Event handlers
 	private onOpen(): void {
 		console.info('WebSocket opened');
+		// if (this.connectionTimeoutId) {
+		// 	clearTimeout(this.connectionTimeoutId);
+		// 	this.connectionTimeoutId = null;
+		// }
+
 		this.reconnectAttempts = 0;
 
 		// Wait briefly to ensure backend doesn't immediately reject the connection

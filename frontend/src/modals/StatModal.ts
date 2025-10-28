@@ -48,10 +48,9 @@ export class StatModal extends Modal {
 		await this.getMatchData();
 		await this.getTournData();
 
-		console.debug(this.histData, this.rankData, this.matchData, this.tournData);
 		if (
-			!this.histData &&
-			!this.rankData &&
+			(!this.histData || this.histData.length == 0) &&
+			(!this.rankData || this.rankData.length == 0) &&
 			!this.matchData &&
 			!this.tournData
 		) {
@@ -80,7 +79,7 @@ export class StatModal extends Modal {
 			console.log('No ranking data available');
 			return;
 		}
-		console.debug(rankData);
+		console.debug('rankData: ', rankData);
 		this.rankData = rankData;
 	}
 
@@ -103,7 +102,7 @@ export class StatModal extends Modal {
 			console.log('No historical data available');
 			return;
 		}
-		console.debug(histData);
+		console.debug('histData: ', histData);
 		this.histData = histData;
 	}
 
@@ -126,7 +125,7 @@ export class StatModal extends Modal {
 			console.log('No match data available');
 			return;
 		}
-		console.debug(matchData);
+		console.debug('matchData: ', matchData);
 		this.matchData = matchData;
 	}
 
@@ -149,7 +148,7 @@ export class StatModal extends Modal {
 			console.log('No tournament data available');
 			return;
 		}
-		console.debug(tournData);
+		console.debug('tournData: ', tournData);
 		this.tournData = tournData;
 	}
 

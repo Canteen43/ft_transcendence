@@ -149,7 +149,6 @@ export class LoginModal extends Modal {
 			once: true,
 		});
 
-		// Try to open connection
 		webSocket.open();
 	}
 
