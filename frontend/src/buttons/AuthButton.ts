@@ -301,7 +301,8 @@ export class AuthComponent {
 		console.debug('Dispatching logout-success event');
 		document.dispatchEvent(new CustomEvent('logout-success'));
 		console.info('Logout successful');
-		if (location.hash === '#game') {
+		const gameMode = sessionStorage.getItem('gameMode');
+		if (location.hash === '#game' && gameMode === 'remote') {
 			location.hash = '#home';
 		}
 	}

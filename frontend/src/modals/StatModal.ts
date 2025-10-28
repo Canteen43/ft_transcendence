@@ -55,6 +55,10 @@ export class StatModal extends Modal {
 			!this.tournData
 		) {
 			console.debug('No stat, closing modal');
+			new TextModal(
+				this.parent,
+				'No statistics available. Play some matches to generate stats!'
+			);
 			this.destroy();
 			return;
 		}
@@ -553,15 +557,14 @@ export class StatModal extends Modal {
 					? 'bg-pink-300 text-white'
 					: 'bg-gray-200 text-gray-700 hover:bg-gray-300');
 
-			// store handler to remove later
+			(button as any).limitValue = limit;
+
 			const handler = () => {
 				currentLimit = limit;
 				this.graphButtonContainer
 					?.querySelectorAll('button')
 					.forEach(btn => {
-						const btnLimit = parseInt(
-							btn.textContent?.match(/\d+/)?.[0] || '0'
-						);
+						const btnLimit = (btn as any).limitValue as number;
 						btn.className =
 							'px-4 py-1 rounded transition-colors ' +
 							(btnLimit === limit
