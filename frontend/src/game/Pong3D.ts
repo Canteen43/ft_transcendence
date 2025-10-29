@@ -1659,6 +1659,8 @@ export class Pong3D {
 		);
 		this.camera.attachControl(this.canvas, true);
 		this.camera.wheelPrecision = 50;
+		// Ensure zoom limits and other POV settings are enforced
+		applyCameraPosition(this.camera, cameraPos, this.thisPlayer);
 
 		// Disable camera keyboard controls so arrow keys can be used for gameplay
 		this.camera.keysUp = [];
