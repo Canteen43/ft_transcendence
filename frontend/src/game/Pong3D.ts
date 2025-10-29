@@ -957,13 +957,18 @@ export class Pong3D {
 		const mainVelocity = mainDirection.scale(mainSpeed);
 		mainImpostor.setLinearVelocity(mainVelocity);
 
-		// Position the clone one diameter behind the main ball along travel direction to avoid overlap
+		// Position the clone well behind the main ball along travel direction to avoid overlap/physics jitter
+		const separationDistance = Pong3D.BALL_RADIUS * 4 + 0.05; // 2x the diameter + small buffer
 		const separation = mainDirection
 			.clone()
 			.normalize()
-			.scale(Pong3D.BALL_RADIUS * 2 + 0.01);
-		if (isFinite(separation.x)) {
+			.scale(separationDistance);
+		if (isFinite(separation.x) && isFinite(separation.z)) {
 			clone.position = clone.position.subtract(separation);
+		} else {
+			clone.position = clone.position.subtract(
+				new BABYLON.Vector3(separationDistance, 0, 0)
+			);
 		}
 
 		const splitVelocity = mainDirection.scale(-targetSpeed);

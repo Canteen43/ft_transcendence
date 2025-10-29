@@ -46,7 +46,7 @@ export class GameConfig {
 	> = {
 		ballRadius: 0.3,
 		outOfBoundsDistance: 20,
-		physicsTimeStep: 1 / 120,
+		physicsTimeStep: 1 / 240,
 		physicsSolverIterations: 10,
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
