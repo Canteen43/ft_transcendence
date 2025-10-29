@@ -1,7 +1,6 @@
-// UI helper for Pong3D: builds GUI controls and returns references so the main scene can wire them
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
-import OutfitUrl from '../../fonts/Outfit-VariableFont_wght.ttf';
+import OutfitUrl from '../../fonts/Outfit/Outfit-VariableFont_wght.ttf';
 import { conditionalWarn } from './Logger';
 import { isMobileInputEnabled } from './MobileControlsOverlay';
 
