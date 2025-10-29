@@ -1,9 +1,9 @@
-import { Button } from '../buttons/Button';
-import { Modal } from './Modal';
-import { state } from '../utils/State';
 import { TournamentType } from '../../../shared/enums';
-import { leaveTournament } from '../utils/tournamentJoin';
+import { Button } from '../buttons/Button';
 import { clearAllGameData } from '../utils/clearSessionStorage';
+import { state } from '../utils/State';
+import { leaveTournament } from '../utils/tournamentJoin';
+import { Modal } from './Modal';
 import { RemoteSetupModal } from './RemoteSetupModal';
 
 export class RemoteGameModal extends Modal {
@@ -43,21 +43,26 @@ export class RemoteGameModal extends Modal {
 			() => this.logicRemote(2, TournamentType.Regular),
 			this.box
 		);
+		this.btn2plyr.element.title = '2-player match';
 		this.btn2plyrPwr = new Button(
 			img2_pu,
 			() => this.logicRemote(2, TournamentType.Powerup),
 			this.box
 		);
+		this.btn2plyrPwr.element.title = '2-player match with power-ups';
+
 		this.btnTourn = new Button(
 			imgt,
 			() => this.logicRemote(4, TournamentType.Regular),
 			this.box
 		);
+		this.btnTourn.element.title = 'tournament (4 persons)';
 		this.btnTournPwr = new Button(
 			imgt_pu,
 			() => this.logicRemote(4, TournamentType.Powerup),
 			this.box
 		);
+		this.btnTournPwr.element.title = 'tournament with power-ups (4 persons)';
 
 		// Fixed button size
 		[
