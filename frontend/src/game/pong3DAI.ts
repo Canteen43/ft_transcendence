@@ -1172,42 +1172,6 @@ private traceWizardTrajectory(
  * Default AI configurations for different difficulty levels
  */
 export const AI_DIFFICULTY_PRESETS = {
-	EASY: {
-		sampleRate: 1.0, // Slow target updates - predictable but easy to beat
-		impulseFrequency: 30,
-		impulseDuration: 20,
-		centralLimit: 0.5,
-		xLimit: 3.5,
-		style: 'standard',
-	} as AIConfig,
-
-	MEDIUM: {
-		sampleRate: 4.0,
-		impulseFrequency: 30,
-		impulseDuration: 20,
-		centralLimit: 0.4,
-		xLimit: 3.5,
-		style: 'standard',
-	} as AIConfig,
-
-	HARD: {
-		sampleRate: 8.0, // Fast target updates - more responsive
-		impulseFrequency: 30,
-		impulseDuration: 20,
-		centralLimit: 0.3,
-		xLimit: 3.5,
-		style: 'standard',
-	} as AIConfig,
-
-	EXPERT: {
-		sampleRate: 16.0,
-		impulseFrequency: 30,
-		impulseDuration: 20,
-		centralLimit: 0.3,
-		xLimit: 3.5,
-		style: 'standard',
-	} as AIConfig,
-
 	CIRCE: {
 		sampleRate: 1.0,
 		impulseFrequency: 20,
@@ -1249,11 +1213,14 @@ export const AI_DIFFICULTY_PRESETS = {
 	} as AIConfig,
 } as const;
 
+const ALLOWED_AI_NAMES = new Set(['*CIRCE', '*MERLIN', '*MORGANA', '*GANDALF']);
+
 /**
  * Utility function to check if a player name indicates AI control
  */
 export function isAIPlayer(playerName: string): boolean {
-	return playerName.startsWith('*');
+	const normalized = playerName.trim().toUpperCase();
+	return ALLOWED_AI_NAMES.has(normalized);
 }
 
 /**
@@ -1267,7 +1234,8 @@ export function getAIDifficultyFromName(
 		return 'MEDIUM'; // Default for non-AI players
 	}
 
-	const difficultyPart = playerName.substring(1);
+	const trimmedName = playerName.trim();
+	const difficultyPart = trimmedName.substring(1).trim();
 	const availableKeys = Object.keys(AI_DIFFICULTY_PRESETS);
 	const match = availableKeys.find(
 		key => key.toUpperCase() === difficultyPart.toUpperCase()

@@ -116,8 +116,8 @@ export class RegisterModal extends Modal {
 		const firstName = this.FirstNameField.value.trim();
 		const lastName = this.LastNameField.value.trim();
 		const email = this.EmailField.value.trim();
-		const password = this.PasswordField.value.trim();
-		const repeatPassword = this.PasswordRepeatField.value.trim();
+		const password = this.PasswordField.value;
+		const repeatPassword = this.PasswordRepeatField.value;
 
 		if (password !== repeatPassword) {
 			this.errorModal('Passwords do not match');
@@ -126,7 +126,7 @@ export class RegisterModal extends Modal {
 
 		const requestData = {
 			login: username,
-			alias: username || null,
+			alias: null,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,

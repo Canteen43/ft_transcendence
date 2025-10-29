@@ -3,15 +3,16 @@ import { Button } from '../buttons/Button';
 import { GameConfig } from '../game/GameConfig';
 import { state } from '../utils/State';
 import { Modal } from './Modal';
+import { TextModal } from './TextModal';
 
 export class LocalMobileSetupModal extends Modal {
 	private playerNameInput: HTMLInputElement;
 	private aiSelects: HTMLSelectElement[] = [];
 	private readonly aiOptions: { label: string; value: string }[] = [
-		{ label: 'Circe', value: '*Circe' },
-		{ label: 'Merlin', value: '*Merlin' },
-		{ label: 'Morgana', value: '*Morgana' },
-		{ label: 'Gandalf', value: '*Gandalf' },
+		{ label: 'Circe [AI 1 Hz]', value: '*Circe' },
+		{ label: 'Merlin [AI 1.5 Hz]', value: '*Merlin' },
+		{ label: 'Morgana [AI 1.9 Hz]', value: '*Morgana' },
+		{ label: 'Gandalf [AI 2.5 Hz]', value: '*Gandalf' },
 	];
 	private powerupCheckboxes: Record<
 		'split' | 'stretch' | 'shrink',
@@ -21,10 +22,10 @@ export class LocalMobileSetupModal extends Modal {
 	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
 
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		if (n < 1 || n > 4) {
 			throw new Error('Number of players must be between 1 and 4');
@@ -169,10 +170,13 @@ export class LocalMobileSetupModal extends Modal {
 	}
 
 	private handleContinue(n: number): void {
-		const isTournament = sessionStorage.getItem('tournament') === '1';
-
-		// Save player 1 name
 		const playerName = this.playerNameInput.value.trim() || 'Player1';
+		if (playerName.length > 20) {
+			new TextModal(this.parent, 'Aliases cannot be > 20 characters.');
+			return;
+		}
+
+		const isTournament = sessionStorage.getItem('tournament') === '1';
 		sessionStorage.setItem('alias1', playerName);
 
 		if (isTournament) {
@@ -231,10 +235,6 @@ export class LocalMobileSetupModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
-
 		this.aiSelects = [];
 		this.powerupCheckboxes = null;
 

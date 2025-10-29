@@ -2,6 +2,8 @@ import { Button } from '../buttons/Button';
 import { apiCall } from '../utils/apiCall';
 import { state } from '../utils/State';
 import { Modal } from './Modal';
+import { TextModal } from './TextModal';
+
 
 export class QRModal extends Modal {
 	private inputField!: HTMLInputElement; 
@@ -75,7 +77,8 @@ export class QRModal extends Modal {
 		);
 		if (error) {
 			console.warn('Enable 2FA failed:', error);
-			this.destroy();
+			new TextModal(this.parent, 'Failed to enable 2FA. Please try again.');
+			// this.destroy();
 			return;
 		} else {
 			console.info('2FA successfully enabled');

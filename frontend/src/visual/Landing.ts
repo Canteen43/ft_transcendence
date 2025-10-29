@@ -9,7 +9,6 @@ export interface LandingCallbacks {
 }
 
 export class Landing {
-	
 	private engine!: BABYLON.Engine;
 	private scene!: BABYLON.Scene;
 	private camera!: BABYLON.ArcRotateCamera;
@@ -18,6 +17,9 @@ export class Landing {
 	private shadowGenerator?: BABYLON.ShadowGenerator;
 	private envTexture?: BABYLON.HDRCubeTexture;
 	private backgroundRoot?: BABYLON.TransformNode;
+	private glowLayer?: BABYLON.GlowLayer;
+	private glowAnimations: Map<BABYLON.AbstractMesh, BABYLON.Animation> =
+		new Map();
 
 	private resizeHandler?: () => void;
 	private renderLoopCallback?: () => void;
@@ -69,6 +71,7 @@ export class Landing {
 			this.setupLighting();
 			this.setupHDR();
 			this.setupControls();
+			this.setupGlowLayer();
 
 			// Start render loop early for faster visual feedback
 			this.renderLoopCallback = () => {
@@ -88,11 +91,15 @@ export class Landing {
 			// Load assets after render loop is running
 			await this.loadModel(modelPath);
 			await this.loadBackgroundAnimation();
-
 		} catch (err) {
 			console.error('Error initializing scene:', err);
 			this.callbacks.onLoadComplete?.();
 		}
+	}
+
+	private setupGlowLayer(): void {
+		this.glowLayer = new BABYLON.GlowLayer('glow', this.scene);
+		this.glowLayer.intensity = 0.5; // Adjust to taste
 	}
 
 	private setupCamera(): void {
@@ -424,59 +431,46 @@ export class Landing {
 	private startHoverGlow(mesh: BABYLON.AbstractMesh): void {
 		if (!this.isClickableMesh(mesh)) return;
 
-		// Determine which group this mesh belongs to and get all related meshes
 		const meshName = mesh.name.toLowerCase();
 		let targetMeshes: BABYLON.AbstractMesh[] = [];
-		let glowColor: { diffuse: BABYLON.Color3; emissive: BABYLON.Color3 };
+		let glowColor: BABYLON.Color3;
 
 		if (meshName.includes('local')) {
 			targetMeshes = this.localGameMeshes;
-			// Darker yellow/orange glow
-			glowColor = {
-				diffuse: new BABYLON.Color3(0.9, 0.8, 0.2),
-				emissive: new BABYLON.Color3(0.5, 0.45, 0.1),
-			};
+			glowColor = new BABYLON.Color3(0.6, 0.5, 0.2); // Yellow
 		} else if (meshName.includes('remote')) {
 			targetMeshes = this.remoteGameMeshes;
-			// Darker green glow
-			glowColor = {
-				diffuse: new BABYLON.Color3(0.1, 0.5, 0.1),
-				emissive: new BABYLON.Color3(0.05, 0.3, 0.05),
-			};
+			glowColor = new BABYLON.Color3(0.1, 0.4, 0.1); // Green
 		} else if (meshName.includes('stats')) {
 			targetMeshes = this.statsMeshes;
-			// Blue glow
-			glowColor = {
-				diffuse: new BABYLON.Color3(0.3, 0.3, 1.0),
-				emissive: new BABYLON.Color3(0.15, 0.15, 0.6),
-			};
+			glowColor = new BABYLON.Color3(0.2, 0.2, 0.6); // Blue
 		}
 
-		// Apply glow to all meshes in the group
 		targetMeshes.forEach(targetMesh => {
 			// Store original material if not already stored
 			if (!this.originalMaterials.has(targetMesh)) {
 				this.originalMaterials.set(targetMesh, targetMesh.material);
 			}
 
-			// Create glow material
-			const glowMaterial = new BABYLON.StandardMaterial(
-				`${targetMesh.name}_glow`,
-				this.scene
-			);
-			glowMaterial.diffuseColor = glowColor.diffuse;
-			glowMaterial.emissiveColor = glowColor.emissive;
-			glowMaterial.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
-			glowMaterial.specularPower = 64;
-			glowMaterial.backFaceCulling = false;
+			// Clone the material so we don't affect the original
+			if (targetMesh.material) {
+				const clonedMaterial = targetMesh.material.clone(
+					targetMesh.name + '_hover'
+				);
 
-			// Apply glow material
-			targetMesh.material = glowMaterial;
+				if (clonedMaterial instanceof BABYLON.StandardMaterial) {
+					clonedMaterial.emissiveColor = glowColor;
+				} else if (clonedMaterial instanceof BABYLON.PBRMaterial) {
+					clonedMaterial.emissiveColor = glowColor;
+					clonedMaterial.emissiveIntensity = 0.8;
+				}
+
+				targetMesh.material = clonedMaterial;
+			}
 		});
 	}
 
 	private stopHoverGlow(mesh: BABYLON.AbstractMesh): void {
-		// Determine which group this mesh belongs to and get all related meshes
 		const meshName = mesh.name.toLowerCase();
 		let targetMeshes: BABYLON.AbstractMesh[] = [];
 
@@ -488,16 +482,19 @@ export class Landing {
 			targetMeshes = this.statsMeshes;
 		}
 
-		// Restore original materials for all meshes in the group
 		targetMeshes.forEach(targetMesh => {
 			const originalMaterial = this.originalMaterials.get(targetMesh);
 			if (originalMaterial !== undefined) {
+				// Dispose the cloned hover material
+				if (targetMesh.material) {
+					targetMesh.material.dispose();
+				}
+				// Restore original
 				targetMesh.material = originalMaterial;
 			}
 		});
 	}
 
-	// Improved dispose method:
 	public dispose(): void {
 		// Clear observables BEFORE disposing scene
 		if (this.scene && !this.scene.isDisposed) {
@@ -510,7 +507,11 @@ export class Landing {
 		if (this.scene && !this.scene.isDisposed) {
 			this.scene.stopAllAnimations();
 		}
-		// Clean up hover glow
+		if (this.glowLayer) {
+			this.glowLayer.dispose();
+			this.glowLayer = undefined;
+		}
+		this.glowAnimations.clear();
 		if (this.hoveredMesh) {
 			this.stopHoverGlow(this.hoveredMesh);
 			this.hoveredMesh = null;
@@ -550,7 +551,6 @@ export class Landing {
 		if (this.camera) {
 			this.camera.detachControl();
 		}
-
 		if (document.pointerLockElement) {
 			document.exitPointerLock();
 		}
@@ -558,7 +558,8 @@ export class Landing {
 			this.scene.dispose();
 		}
 		if (this.engine && !this.engine.isDisposed) {
-			this.engine.dispose();		}
+			this.engine.dispose();
+		}
 		if (this.canvas && this.canvas.parentNode) {
 			this.canvas.parentNode.removeChild(this.canvas);
 		}
