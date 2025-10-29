@@ -198,8 +198,8 @@ export function applyCameraPosition(
 	camera.beta = cameraPos.beta;
 	camera.radius = cameraPos.radius;
 	// Lock zoom range so players can't move closer/further than the configured radius
-	camera.lowerRadiusLimit = 0.7*cameraPos.radius;
-	camera.upperRadiusLimit = 2*cameraPos.radius;
+	camera.lowerRadiusLimit = 13;
+	camera.upperRadiusLimit = 60;
 
 	conditionalLog(
 		`Camera POV switched to Player ${playerPOV}: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}, radius=${cameraPos.radius.toFixed(2)}, target=(${cameraPos.target.x.toFixed(2)}, ${cameraPos.target.y.toFixed(2)}, ${cameraPos.target.z.toFixed(2)})`
