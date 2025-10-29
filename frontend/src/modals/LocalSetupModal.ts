@@ -253,14 +253,6 @@ export class LocalSetupModal extends Modal {
 		}
 	}
 
-	private closeDropdown(index: number): void {
-		const dropdown = this.dropdownContainers[index];
-		if (dropdown && this.openDropdownIndex === index) {
-			dropdown.classList.add('hidden');
-			this.openDropdownIndex = null;
-		}
-	}
-
 	private closeAllDropdowns(): void {
 		this.dropdownContainers.forEach(container => {
 			container.classList.add('hidden');

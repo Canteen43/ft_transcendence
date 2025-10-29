@@ -67,7 +67,7 @@ export class LoginModal extends Modal {
 
 	private async handleLogin() {
 		const username = this.UsernameField.value.trim();
-		const password = this.PasswordField.value.trim();
+		const password = this.PasswordField.value;
 
 		const requestData = { login: username, password: password };
 
