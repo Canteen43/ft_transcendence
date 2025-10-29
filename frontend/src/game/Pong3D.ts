@@ -3098,26 +3098,35 @@ private handleBallPaddleCollision(
 
 		// Apply the new velocity with rally-adjusted speed
 		const directionForVelocity = finalDirection ?? basisNormal.clone();
-		const newVelocity = directionForVelocity.scale(
-			this.ballEffects.getCurrentBallSpeed()
+		const normalizedDirection =
+			directionForVelocity.lengthSquared() > 1e-6
+				? directionForVelocity.normalize()
+				: basisNormal.clone();
+		const clampResult = this.enforceAngularLimitXZ(
+			paddleNormal,
+			normalizedDirection,
+			this.ANGULAR_RETURN_LIMIT
 		);
+		const clampedDirection = clampResult.direction;
+		const targetSpeed = this.ballEffects.getCurrentBallSpeed();
+		const newVelocity = clampedDirection.scale(targetSpeed);
 
-		// Ensure Y component stays zero (2D movement only)
-		newVelocity.y = 0;
-
-		// Re-normalize after zeroing Y component to maintain correct angle
-		if (newVelocity.length() > 0) {
-			newVelocity
-				.normalize()
-				.scaleInPlace(this.ballEffects.getCurrentBallSpeed());
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🎯 Clamp result -> requested=${(
+					(clampResult.requestedAngle * 180) /
+					Math.PI
+				).toFixed(1)}°, applied=${(
+					(clampResult.signedAngle * 180) /
+					Math.PI
+				).toFixed(1)}°, clamped=${clampResult.clamped}`
+			);
 		}
 
-		this.conditionalLog(
-			`🎯 Velocity after Y-zero: (${newVelocity.x.toFixed(3)}, ${newVelocity.y.toFixed(3)}, ${newVelocity.z.toFixed(3)})`
+		// Apply the modified velocity (lock Y to plane)
+		ballImpostor.setLinearVelocity(
+			new BABYLON.Vector3(newVelocity.x, 0, newVelocity.z)
 		);
-
-		// Apply the modified velocity
-		ballImpostor.setLinearVelocity(newVelocity);
 
 		// Position correction: ensure ball is outside paddle to prevent pass-through
 		// Move ball slightly away from paddle surface along the paddle normal
