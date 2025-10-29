@@ -957,13 +957,18 @@ export class Pong3D {
 		const mainVelocity = mainDirection.scale(mainSpeed);
 		mainImpostor.setLinearVelocity(mainVelocity);
 
-		// Position the clone one diameter behind the main ball along travel direction to avoid overlap
+		// Position the clone well behind the main ball along travel direction to avoid overlap/physics jitter
+		const separationDistance = Pong3D.BALL_RADIUS * 4 + 0.05; // 2x the diameter + small buffer
 		const separation = mainDirection
 			.clone()
 			.normalize()
-			.scale(Pong3D.BALL_RADIUS * 2 + 0.01);
-		if (isFinite(separation.x)) {
+			.scale(separationDistance);
+		if (isFinite(separation.x) && isFinite(separation.z)) {
 			clone.position = clone.position.subtract(separation);
+		} else {
+			clone.position = clone.position.subtract(
+				new BABYLON.Vector3(separationDistance, 0, 0)
+			);
 		}
 
 		const splitVelocity = mainDirection.scale(-targetSpeed);
@@ -2480,10 +2485,10 @@ export class Pong3D {
 	 * Handle ball-paddle collision to implement velocity-based ball control
 	 * The paddle's velocity influences the ball's reflection angle
 	 */
-	private handleBallPaddleCollision(
-		ballImpostor: BABYLON.PhysicsImpostor,
-		paddleImpostor: BABYLON.PhysicsImpostor
-	): void {
+private handleBallPaddleCollision(
+	ballImpostor: BABYLON.PhysicsImpostor,
+	paddleImpostor: BABYLON.PhysicsImpostor
+): void {
 		// TEMPORARILY DISABLED: Collision debouncing to test stability
 		// const currentTime = Date.now();
 		// if (currentTime - this.lastCollisionTime < this.COLLISION_DEBOUNCE_MS) {
@@ -2491,7 +2496,17 @@ export class Pong3D {
 		// 	return;
 		// }
 		// this.lastCollisionTime = currentTime;
-		if (!this.ballMesh || !ballImpostor.physicsBody) return;
+	if (!ballImpostor.physicsBody) return;
+
+	const splitBall = this.splitBalls.find(
+		ball => ball.impostor === ballImpostor
+	);
+	const collisionMesh =
+		splitBall?.mesh && !splitBall.mesh.isDisposed()
+			? splitBall.mesh
+			: this.ballMesh;
+
+	if (!collisionMesh) return;
 
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -2536,7 +2551,7 @@ export class Pong3D {
 		}
 		this.lastPlayerToHitBall = paddleIndex;
 		// Update per-ball hit history
-		if (this.isSplitBallImpostor(ballImpostor)) {
+		if (splitBall) {
 			this.ballManager.recordHit(ballImpostor, paddleIndex);
 		} else if (this.mainBallEntity) {
 			this.mainBallEntity.recordHit(paddleIndex);
@@ -2638,7 +2653,7 @@ export class Pong3D {
 		);
 
 		// Validate collision point to avoid edge collisions
-		const ballPosition = this.ballMesh.position;
+		const ballPosition = collisionMesh.position;
 		const paddlePosition = paddle.position;
 		const paddleBounds = paddle.getBoundingInfo().boundingBox;
 
@@ -3083,26 +3098,35 @@ export class Pong3D {
 
 		// Apply the new velocity with rally-adjusted speed
 		const directionForVelocity = finalDirection ?? basisNormal.clone();
-		const newVelocity = directionForVelocity.scale(
-			this.ballEffects.getCurrentBallSpeed()
+		const normalizedDirection =
+			directionForVelocity.lengthSquared() > 1e-6
+				? directionForVelocity.normalize()
+				: basisNormal.clone();
+		const clampResult = this.enforceAngularLimitXZ(
+			paddleNormal,
+			normalizedDirection,
+			this.ANGULAR_RETURN_LIMIT
 		);
+		const clampedDirection = clampResult.direction;
+		const targetSpeed = this.ballEffects.getCurrentBallSpeed();
+		const newVelocity = clampedDirection.scale(targetSpeed);
 
-		// Ensure Y component stays zero (2D movement only)
-		newVelocity.y = 0;
-
-		// Re-normalize after zeroing Y component to maintain correct angle
-		if (newVelocity.length() > 0) {
-			newVelocity
-				.normalize()
-				.scaleInPlace(this.ballEffects.getCurrentBallSpeed());
+		if (GameConfig.isDebugLoggingEnabled()) {
+			this.conditionalLog(
+				`🎯 Clamp result -> requested=${(
+					(clampResult.requestedAngle * 180) /
+					Math.PI
+				).toFixed(1)}°, applied=${(
+					(clampResult.signedAngle * 180) /
+					Math.PI
+				).toFixed(1)}°, clamped=${clampResult.clamped}`
+			);
 		}
 
-		this.conditionalLog(
-			`🎯 Velocity after Y-zero: (${newVelocity.x.toFixed(3)}, ${newVelocity.y.toFixed(3)}, ${newVelocity.z.toFixed(3)})`
+		// Apply the modified velocity (lock Y to plane)
+		ballImpostor.setLinearVelocity(
+			new BABYLON.Vector3(newVelocity.x, 0, newVelocity.z)
 		);
-
-		// Apply the modified velocity
-		ballImpostor.setLinearVelocity(newVelocity);
 
 		// Position correction: ensure ball is outside paddle to prevent pass-through
 		// Move ball slightly away from paddle surface along the paddle normal
@@ -3129,13 +3153,7 @@ export class Pong3D {
 			const correctionDistance = minSeparation - currentDistance + 0.02; // Small additional buffer
 			const correction = paddleNormal.scale(correctionDistance);
 			// Determine which mesh this impostor belongs to (main or split)
-			let targetMesh: BABYLON.Mesh | null = this.ballMesh;
-			if (this.isSplitBallImpostor(ballImpostor)) {
-				const found = this.splitBalls.find(
-					b => b.impostor === ballImpostor
-				);
-				if (found) targetMesh = found.mesh;
-			}
+			let targetMesh: BABYLON.Mesh | null = collisionMesh;
 			if (targetMesh) {
 				targetMesh.position = ballPosition.add(correction);
 				// Also update physics impostor position to sync with visual position
@@ -3163,7 +3181,7 @@ export class Pong3D {
 		}
 		if (hasPaddleVelocity) {
 			// Apply spin to the correct ball instance
-			if (this.isSplitBallImpostor(ballImpostor)) {
+			if (splitBall) {
 				this.ballManager.applySpinToBall(ballImpostor, paddleVelocity);
 			} else if (this.mainBallEntity) {
 				this.mainBallEntity.applySpinFromPaddle(paddleVelocity);

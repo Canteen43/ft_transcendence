@@ -52,7 +52,7 @@ export class TwoFactorAuthModal extends Modal {
 		const statusText = document.createElement('p');
 		statusText.className =
 			'text-center text-sm sm:text-base text-[var(--color3)] mb-4';
-		statusText.textContent = `Two-Factor Authentication is currently ${this.state}.`;
+		statusText.textContent = `Your Two-Factor Authentication is currently ${this.state}.`;
 		this.box.appendChild(statusText);
 
 		if (this.state === 'disabled') {

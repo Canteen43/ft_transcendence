@@ -2,6 +2,7 @@ include build/.env
 export $(shell sed 's/=.*//' build/.env)
 
 COMPOSE_DIR=./build
+DB_DIR=${COMPOSE_DIR}/database
 TERMINAL=/usr/bin/gnome-terminal
 SHELL=zsh
 SHELLRC=~/.zshrc
@@ -10,14 +11,17 @@ SANS := "DNS:$(HOSTNAME),DNS:$(COMPUTERNAME),DNS:localhost"
 
 all: up
 
-up:
+up: ${DB_DIR}
 	@docker compose -f $(COMPOSE_DIR)/docker-compose.yml up -d
 
 down:
 	@docker compose -f $(COMPOSE_DIR)/docker-compose.yml down
 
-build: $(CERT_DIR)/$(CERT_KEY_FILE) $(CERT_DIR)/$(CERT_FILE)
+build: ${DB_DIR} $(CERT_DIR)/$(CERT_KEY_FILE) $(CERT_DIR)/$(CERT_FILE)
 	@docker compose -f $(COMPOSE_DIR)/docker-compose.yml build
+
+${DB_DIR}:
+	mkdir -p ${DB_DIR}
 
 $(CERT_DIR):
 	mkdir -p $(CERT_DIR)
