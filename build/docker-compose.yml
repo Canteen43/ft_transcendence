@@ -34,15 +34,13 @@ services:
         env_file: ./backend/.env
         volumes:
             - db_volume:/database
-        ports:
-            - 8080:8080
         networks:
             - my_network
 
-    # tunnel:
-    #     container_name: tunnel
-    #     image: cloudflare/cloudflared:latest
-    #     restart: unless-stopped
-    #     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_API_TOKEN}
-    #     networks:
-    #         - my_network
+    tunnel:
+        container_name: tunnel
+        image: cloudflare/cloudflared:latest
+        restart: unless-stopped
+        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_API_TOKEN}
+        networks:
+            - my_network
