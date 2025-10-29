@@ -8,10 +8,10 @@ export class LocalMobileSetupModal extends Modal {
 	private playerNameInput: HTMLInputElement;
 	private aiSelects: HTMLSelectElement[] = [];
 	private readonly aiOptions: { label: string; value: string }[] = [
-		{ label: 'Circe', value: '*Circe' },
-		{ label: 'Merlin', value: '*Merlin' },
-		{ label: 'Morgana', value: '*Morgana' },
-		{ label: 'Gandalf', value: '*Gandalf' },
+		{ label: 'Circe [AI 1 Hz]', value: '*Circe' },
+		{ label: 'Merlin [AI 1.5 Hz]', value: '*Merlin' },
+		{ label: 'Morgana [AI 1.9 Hz]', value: '*Morgana' },
+		{ label: 'Gandalf [AI 2.5 Hz]', value: '*Gandalf' },
 	];
 	private powerupCheckboxes: Record<
 		'split' | 'stretch' | 'shrink',
