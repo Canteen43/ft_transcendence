@@ -2480,10 +2480,10 @@ export class Pong3D {
 	 * Handle ball-paddle collision to implement velocity-based ball control
 	 * The paddle's velocity influences the ball's reflection angle
 	 */
-	private handleBallPaddleCollision(
-		ballImpostor: BABYLON.PhysicsImpostor,
-		paddleImpostor: BABYLON.PhysicsImpostor
-	): void {
+private handleBallPaddleCollision(
+	ballImpostor: BABYLON.PhysicsImpostor,
+	paddleImpostor: BABYLON.PhysicsImpostor
+): void {
 		// TEMPORARILY DISABLED: Collision debouncing to test stability
 		// const currentTime = Date.now();
 		// if (currentTime - this.lastCollisionTime < this.COLLISION_DEBOUNCE_MS) {
@@ -2491,7 +2491,17 @@ export class Pong3D {
 		// 	return;
 		// }
 		// this.lastCollisionTime = currentTime;
-		if (!this.ballMesh || !ballImpostor.physicsBody) return;
+	if (!ballImpostor.physicsBody) return;
+
+	const splitBall = this.splitBalls.find(
+		ball => ball.impostor === ballImpostor
+	);
+	const collisionMesh =
+		splitBall?.mesh && !splitBall.mesh.isDisposed()
+			? splitBall.mesh
+			: this.ballMesh;
+
+	if (!collisionMesh) return;
 
 		const now =
 			typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -2536,7 +2546,7 @@ export class Pong3D {
 		}
 		this.lastPlayerToHitBall = paddleIndex;
 		// Update per-ball hit history
-		if (this.isSplitBallImpostor(ballImpostor)) {
+		if (splitBall) {
 			this.ballManager.recordHit(ballImpostor, paddleIndex);
 		} else if (this.mainBallEntity) {
 			this.mainBallEntity.recordHit(paddleIndex);
@@ -2638,7 +2648,7 @@ export class Pong3D {
 		);
 
 		// Validate collision point to avoid edge collisions
-		const ballPosition = this.ballMesh.position;
+		const ballPosition = collisionMesh.position;
 		const paddlePosition = paddle.position;
 		const paddleBounds = paddle.getBoundingInfo().boundingBox;
 
@@ -3129,13 +3139,7 @@ export class Pong3D {
 			const correctionDistance = minSeparation - currentDistance + 0.02; // Small additional buffer
 			const correction = paddleNormal.scale(correctionDistance);
 			// Determine which mesh this impostor belongs to (main or split)
-			let targetMesh: BABYLON.Mesh | null = this.ballMesh;
-			if (this.isSplitBallImpostor(ballImpostor)) {
-				const found = this.splitBalls.find(
-					b => b.impostor === ballImpostor
-				);
-				if (found) targetMesh = found.mesh;
-			}
+			let targetMesh: BABYLON.Mesh | null = collisionMesh;
 			if (targetMesh) {
 				targetMesh.position = ballPosition.add(correction);
 				// Also update physics impostor position to sync with visual position
@@ -3163,7 +3167,7 @@ export class Pong3D {
 		}
 		if (hasPaddleVelocity) {
 			// Apply spin to the correct ball instance
-			if (this.isSplitBallImpostor(ballImpostor)) {
+			if (splitBall) {
 				this.ballManager.applySpinToBall(ballImpostor, paddleVelocity);
 			} else if (this.mainBallEntity) {
 				this.mainBallEntity.applySpinFromPaddle(paddleVelocity);
