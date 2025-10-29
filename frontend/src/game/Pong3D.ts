@@ -59,6 +59,7 @@ import {
 	type AIConfig,
 	type GameStateForAI,
 	getAIDifficultyFromName,
+	isAIPlayer,
 	Pong3DAI,
 } from './pong3DAI';
 
@@ -2018,7 +2019,7 @@ export class Pong3D {
 
 			for (let i = 0; i < this.playerCount; i++) {
 				const playerName = this.playerNames[i];
-				if (playerName && playerName.startsWith('*')) {
+				if (playerName && isAIPlayer(playerName)) {
 					aiPlayers.push(i);
 				} else {
 					humanPlayers.push(i);
@@ -5123,15 +5124,15 @@ export class Pong3D {
 		}
 	}
 
-	/**
-	 * Set up AI controllers for players with names starting with "*"
-	 */
+		/**
+		 * Set up AI controllers for players whose names match the AI roster (e.g. "*Merlin")
+		 */
 	private setupAIControllers(): void {
 		this.conditionalLog('🤖 Setting up AI controllers...');
 
 		for (let i = 0; i < this.playerCount; i++) {
 			const playerName = this.playerNames[i];
-			if (playerName && playerName.startsWith('*')) {
+			if (playerName && isAIPlayer(playerName)) {
 				this.conditionalLog(
 					`🤖 Found AI player: ${playerName} (Player ${i + 1})`
 				);

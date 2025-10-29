@@ -3,6 +3,7 @@ import { state } from '../utils/State';
 import { GameConfig } from './GameConfig';
 import { conditionalLog } from './Logger';
 import type { GameState } from './Pong3DGameLoopBase';
+import { isAIPlayer } from './pong3DAI';
 
 export class Pong3DGameLoop {
 	protected scene: BABYLON.Scene;
@@ -76,8 +77,9 @@ export class Pong3DGameLoop {
 		// During auto-start in onModelLoaded, currentServer is -1, so don't reset ball
 		if (initialServingPlayer !== undefined) {
 			// Check if the serving player is an AI
-			const isServingPlayerAI = 
-				this.pong3D?.playerNames?.[initialServingPlayer]?.startsWith('*') || false;
+			const servingName = this.pong3D?.playerNames?.[initialServingPlayer];
+			const isServingPlayerAI =
+				typeof servingName === 'string' ? isAIPlayer(servingName) : false;
 
 			if (isServingPlayerAI) {
 				// AI server: Position ball and wait 4 seconds, then auto-serve
