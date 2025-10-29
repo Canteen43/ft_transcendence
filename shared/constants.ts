@@ -45,6 +45,10 @@ export const ERROR_NO_2FA_IN_PROGRESS =
 	'No two factor authentication setup in progress';
 export const ERROR_2FA_NOT_CONFIGURED =
 	'Two factor authentication has not been setup for this account';
+export const DATABASE_PATH_NOT_SET =
+	'DATABASE_PATH environment variable is not set';
+export const UNABLE_TO_CREATE_DATABASE = 'Unable to create new database';
+export const UNABLE_TO_OPEN_DATABASE = 'Unable to open database';
 
 export const WS_AUTHENTICATION_FAILED = 4001;
 export const WS_TOKEN_EXPIRED = 4002;
@@ -78,11 +82,10 @@ export const FIELD_HEIGTH = 1000;
 export const PADDLE_WIDTH = 100;
 
 export const EMPTY_UUID = '00000000-0000-0000-0000-000000000000' as UUID;
+export const CREATE_DB_SCRIPT = './database/baseline.sql';
 
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
-
-export const DEFAULT_DATABASE_PATH = 'database/storage/transcendence.db';
 
 export const DEFAULT_MAX_SCORE = 5;
 export const MAX_RANKING_ITEMS = 10;

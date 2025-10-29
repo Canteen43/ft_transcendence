@@ -1,16 +1,44 @@
 import type { Database as DBType } from 'better-sqlite3';
 import Database, { RunResult } from 'better-sqlite3';
+import fs from 'fs';
 import path from 'path';
-import { DEFAULT_DATABASE_PATH } from '../../shared/constants.js';
+import {
+	CREATE_DB_SCRIPT,
+	DATABASE_PATH_NOT_SET,
+	UNABLE_TO_CREATE_DATABASE,
+	UNABLE_TO_OPEN_DATABASE,
+} from '../../shared/constants.js';
 import { logger } from '../../shared/logger.js';
 
-const dbPath = path.resolve(process.env.DATABASE_PATH || DEFAULT_DATABASE_PATH);
+function createDb(path: string) {
+	const db = new Database(dbPath);
+	const sql = fs.readFileSync(CREATE_DB_SCRIPT, 'utf8');
+	db.exec(sql);
+	db.close();
+}
+
+if (!process.env.DATABASE_PATH) {
+	logger.error(DATABASE_PATH_NOT_SET);
+	process.exit(1);
+}
+
+const dbPath = path.resolve(process.env.DATABASE_PATH);
+
+if (!fs.existsSync(dbPath)) {
+	try {
+		createDb(dbPath);
+	} catch (error) {
+		logger.error(`${UNABLE_TO_CREATE_DATABASE} ${dbPath}`);
+		logger.debug(error);
+		process.exit(1);
+	}
+}
 
 let db: DBType;
 try {
 	db = new Database(dbPath);
 } catch (error) {
-	logger.error(`Unable to open database: ${dbPath}`);
+	logger.error(`${UNABLE_TO_OPEN_DATABASE} ${dbPath}`);
 	throw error;
 }
 

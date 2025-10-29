@@ -21,6 +21,8 @@ WORKDIR /app
 
 COPY ./package.json ./
 COPY ./package-lock.json ./
+RUN mkdir -p ./database
+COPY ./database/baseline.sql ./database
 COPY --from=builder /app/build/app/backend ./backend
 COPY --from=builder /app/build/app/shared ./shared
 
