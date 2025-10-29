@@ -195,7 +195,7 @@ export class LocalSetupModal extends Modal {
 			'flex items-center justify-center border border-[var(--color3)] px-2 py-1 text-sm text-[var(--color4)] hover:bg-[var(--color3)]/10 transition-colors h-10 w-10';
 
 		const aiIcon = document.createElement('img');
-		aiIcon.src = '/ai.png';
+		aiIcon.src = 'ai.png';
 		aiIcon.alt = 'AI options';
 		aiIcon.className = 'w-5 h-5';
 
