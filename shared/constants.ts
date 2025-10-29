@@ -87,5 +87,5 @@ export const CREATE_DB_SCRIPT = './database/baseline.sql';
 export const MATCH_START_MESSAGE: Message = { t: MESSAGE_START };
 export const TOURNAMENT_QUIT_MESSAGE: Message = { t: MESSAGE_QUIT };
 
-export const DEFAULT_MAX_SCORE = 5;
+export const DEFAULT_MAX_SCORE = 8;
 export const MAX_RANKING_ITEMS = 10;

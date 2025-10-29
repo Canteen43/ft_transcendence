@@ -44,14 +44,14 @@ export class GameConfig {
 		PhysicsSettingKey,
 		number
 	> = {
-		ballRadius: 0.32,
+		ballRadius: 0.3,
 		outOfBoundsDistance: 20,
-		physicsTimeStep: 1 / 120,
+		physicsTimeStep: 1 / 240,
 		physicsSolverIterations: 10,
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (30 * Math.PI) / 180,
-		serveOffset: 0.5,
+		serveOffset: 0.46,
 		paddleMass: 2.8,
 		paddleForce: 16,
 		paddleRange: 5,
@@ -62,9 +62,9 @@ export class GameConfig {
 		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
 		wallNearParallelAngleAdjustment: 0,
 		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
-		ballBaseSpeed: 12,
+		ballBaseSpeed: 14,
 		maxBallSpeed: 28,
-		rallySpeedIncrementPercent: 8,
+		rallySpeedIncrementPercent: 9,
 	};
 	private static physicsOverrides: Partial<
 		Record<PhysicsSettingKey, number>
