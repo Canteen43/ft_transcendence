@@ -41,12 +41,12 @@ function setupMobile() {
 async function initApp() {
 	try {
 		setupMobile();
-		await getEndpoints();
-		router.init();
-		new AuthComponent(app);
 		if (!state.isMobile) {
+			await getEndpoints();
+			new AuthComponent(app);
 			new ChatManager(app);
 		}
+		router.init();
 
 		console.log(
 			'App initialized',

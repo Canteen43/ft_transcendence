@@ -56,9 +56,10 @@ export class HomeScreen extends Screen {
 		buttonContainer.className =
 			'flex flex-col md:flex-row gap-4 justify-center items-center mt-12';
 
-		new Button('Local Game', () => this.localLogic(), buttonContainer);
-		new Button('Remote Game', () => this.remoteLogic(), buttonContainer);
-		new Button('Statistics', () => this.statLogic(), buttonContainer);
+		new Button('PLAY', () => this.localLogic(), buttonContainer);
+		// new Button('Local Game', () => this.localLogic(), buttonContainer);
+		// new Button('Remote Game', () => this.remoteLogic(), buttonContainer);
+		// new Button('Statistics', () => this.statLogic(), buttonContainer);
 
 		content.appendChild(buttonContainer);
 		this.fallbackHero.appendChild(content);
@@ -148,7 +149,7 @@ export class HomeScreen extends Screen {
 	}
 
 	public destroy(): void {
-	if (this.fallbackHero) {
+		if (this.fallbackHero) {
 			this.fallbackHero.remove();
 			this.fallbackHero = null;
 		}
