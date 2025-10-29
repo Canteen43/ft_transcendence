@@ -37,6 +37,12 @@ if (!fs.existsSync(dbPath)) {
 let db: DBType;
 try {
 	db = new Database(dbPath);
+
+	// Let de backend get an exlusive lock on the database file
+	db.pragma('locking_mode = EXCLUSIVE');
+
+	// Force sqlite to read directly from the file instead of creating a memory map
+	db.pragma('mmap_size = 0');
 } catch (error) {
 	logger.error(`${UNABLE_TO_OPEN_DATABASE} ${dbPath}`);
 	throw error;
