@@ -1,10 +1,9 @@
-import { TournamentType } from '../../../shared/enums';
 import { Button } from '../buttons/Button';
-import { clearAllGameData } from '../utils/clearSessionStorage';
-import { state } from '../utils/State';
-import { leaveTournament } from '../utils/tournamentJoin';
 import { Modal } from './Modal';
-
+import { state } from '../utils/State';
+import { TournamentType } from '../../../shared/enums';
+import { leaveTournament } from '../utils/tournamentJoin';
+import { clearAllGameData } from '../utils/clearSessionStorage';
 import { RemoteSetupModal } from './RemoteSetupModal';
 
 export class RemoteGameModal extends Modal {
