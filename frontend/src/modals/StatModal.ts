@@ -181,7 +181,6 @@ export class StatModal extends Modal {
 		const leftContainer = document.createElement('div');
 		leftContainer.className = 'bg-white p-6 rounded-2xl';
 
-		// Remove image and create sections with more space between them
 		if (this.matchData) {
 			leftContainer.appendChild(this.createMatchData());
 			leftContainer.appendChild(this.createScoreData());
@@ -199,7 +198,7 @@ export class StatModal extends Modal {
 		const rightContainer = document.createElement('div');
 		rightContainer.className = 'bg-white p-6 rounded-2xl';
 
-		// Add LEADERBOARD title
+		// title
 		const leaderboardTitle = document.createElement('h3');
 		leaderboardTitle.className =
 			'text-xl sm:text-3xl md:text-4xl font-nabla text-gray-800 text-center mb-2 sm:mb-4';
@@ -284,6 +283,7 @@ export class StatModal extends Modal {
 		}
 		return leaderBoard;
 	}
+
 	/////////////////
 	// individual data
 	private createMatchData(): HTMLDivElement {
@@ -560,6 +560,9 @@ export class StatModal extends Modal {
 			(button as any).limitValue = limit;
 
 			const handler = () => {
+				if (currentLimit === limit) {
+					return;
+				}
 				currentLimit = limit;
 				this.graphButtonContainer
 					?.querySelectorAll('button')
@@ -587,6 +590,7 @@ export class StatModal extends Modal {
 
 		if (this.histData) {
 			createChart(currentLimit);
+			setTimeout(() => createChart(currentLimit), 0);
 		}
 		return graph;
 	}
