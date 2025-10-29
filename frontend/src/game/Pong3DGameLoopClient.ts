@@ -543,6 +543,8 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 	stop(): void {
 		this.gameState.isRunning = false;
 
+		this.freezeDynamicBodies();
+
 		if (this.renderObserver) {
 			this.scene.onBeforeRenderObservable.remove(this.renderObserver);
 			this.renderObserver = null;
@@ -586,6 +588,35 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(`🎮 Client stopped for Player ${this.thisPlayerId}`);
+		}
+	}
+
+	private freezeDynamicBodies(): void {
+		if (this.ballMesh?.physicsImpostor) {
+			try {
+				this.ballMesh.physicsImpostor.setLinearVelocity(
+					BABYLON.Vector3.Zero()
+				);
+				this.ballMesh.physicsImpostor.setAngularVelocity(
+					BABYLON.Vector3.Zero()
+				);
+			} catch (_) {
+				// ignore
+			}
+		}
+
+		const paddles = this.pong3DInstance?.paddles;
+		if (Array.isArray(paddles)) {
+			for (const paddle of paddles) {
+				const impostor = paddle?.physicsImpostor;
+				if (!impostor) continue;
+				try {
+					impostor.setLinearVelocity(BABYLON.Vector3.Zero());
+					impostor.setAngularVelocity(BABYLON.Vector3.Zero());
+				} catch (_) {
+					// ignore
+				}
+			}
 		}
 	}
 

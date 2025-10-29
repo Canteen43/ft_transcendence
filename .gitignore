@@ -55,3 +55,6 @@ build/cert
 
 # Production database
 build/database
+
+# Certificates
+build/cert

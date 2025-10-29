@@ -20,7 +20,7 @@ services:
         restart: unless-stopped
         command: nginx -g 'daemon off;'
         ports:
-            - 8000:80
+            - 8000:443
         networks:
             - my_network
 
@@ -39,10 +39,10 @@ services:
         networks:
             - my_network
 
-    tunnel:
-        container_name: tunnel
-        image: cloudflare/cloudflared:latest
-        restart: unless-stopped
-        command: tunnel --no-autoupdate run --token ${CLOUDFLARE_API_TOKEN}
-        networks:
-            - my_network
+    # tunnel:
+    #     container_name: tunnel
+    #     image: cloudflare/cloudflared:latest
+    #     restart: unless-stopped
+    #     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_API_TOKEN}
+    #     networks:
+    #         - my_network

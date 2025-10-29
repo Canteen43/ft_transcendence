@@ -22,7 +22,9 @@ export let apiBase: string | null = null;
 export let wsURL: string | null = null;
 
 export async function getEndpoints() {
-	const res = await fetch('/config.json');
+	const res = await fetch('/config.json', {
+		cache: 'no-store',
+	});
 	if (!res.ok) {
 		console.error(
 			`Failed to load config.json: ${res.status} ${res.statusText}`

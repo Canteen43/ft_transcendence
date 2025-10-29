@@ -447,14 +447,15 @@ export function createPong3DUI(
 					height: 320,
 					textVerticalAlignment:
 						GUI.Control.VERTICAL_ALIGNMENT_CENTER,
+					containerPaddingTop: isMobile ? '-400px' : '-200px',
 					normalizeBaseline: true,
 					mobileScaleX: 0.6,
 					portraitWidthScale: 0.6,
 					underline: {
 						color: 'white',
-						thickness: 70,
+						thickness: isMobile ? 40 : 70,
 						width: '15%',
-						offset: '-60px',
+						offset:  isMobile ? '-315' : '-200px',
 					},
 				}
 			);

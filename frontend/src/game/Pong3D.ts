@@ -665,6 +665,9 @@ export class Pong3D {
 		const original = this.paddleOriginalScaleX.get(paddleIndex)!;
 		const target = original * 1.5; // 3 -> 4.5
 
+		// Ensure the physics impostor reaches the stretched size before the visual animation begins
+		this.recreatePaddleImpostor(paddleIndex, target);
+
 		this.animatePaddleScale(
 			paddle,
 			original,
@@ -789,9 +792,17 @@ export class Pong3D {
 	}
 
 	/** Recreate a paddle's BoxImpostor with the current mesh scaling and reapply constraints */
-	private recreatePaddleImpostor(paddleIndex: number): void {
+	private recreatePaddleImpostor(
+		paddleIndex: number,
+		forcedScaleX?: number
+	): void {
 		const paddle = this.paddles[paddleIndex];
 		if (!paddle) return;
+		let previousScaleX: number | undefined;
+		if (typeof forcedScaleX === 'number') {
+			previousScaleX = paddle.scaling.x;
+			paddle.scaling.x = forcedScaleX;
+		}
 		try {
 			paddle.physicsImpostor?.dispose();
 		} catch (_) {}
@@ -830,6 +841,14 @@ export class Pong3D {
 		}
 
 		this.bindPaddleToExistingBalls(paddleIndex);
+
+		if (previousScaleX !== undefined) {
+			paddle.scaling.x = previousScaleX;
+			try {
+				paddle.computeWorldMatrix(true);
+				paddle.refreshBoundingInfo();
+			} catch (_) {}
+		}
 	}
 
 	/** Ensure a (re)created paddle impostor notifies all active balls on collision */
@@ -1640,6 +1659,8 @@ export class Pong3D {
 		);
 		this.camera.attachControl(this.canvas, true);
 		this.camera.wheelPrecision = 50;
+		// Ensure zoom limits and other POV settings are enforced
+		applyCameraPosition(this.camera, cameraPos, this.thisPlayer);
 
 		// Disable camera keyboard controls so arrow keys can be used for gameplay
 		this.camera.keysUp = [];

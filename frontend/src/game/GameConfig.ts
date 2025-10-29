@@ -3,6 +3,7 @@
  * Provides centralized access to sessionStorage game settings
  */
 
+import { state } from '../utils/State';
 import { conditionalLog } from './Logger';
 
 export type ControlScheme = 'arrows' | 'wasd' | 'ijkl' | '8456';
@@ -50,7 +51,7 @@ export class GameConfig {
 		ballAngleMultiplier: 3,
 		angularReturnLimit: Math.PI / 4,
 		serveAngleLimit: (30 * Math.PI) / 180,
-		serveOffset: 0.45,
+		serveOffset: 0.5,
 		paddleMass: 2.8,
 		paddleForce: 16,
 		paddleRange: 5,
@@ -77,8 +78,12 @@ export class GameConfig {
 	private static readonly DEFAULT_MIN_RALLY_INCREMENT_DISTANCE = 0.8;
 	private static readonly DEFAULT_SPIN_DELAY_MS = 250; // a bit long?
 	private static spinDelayMs = GameConfig.DEFAULT_SPIN_DELAY_MS;
-	private static readonly DEFAULT_NETWORK_RENDER_DELAY_MS = 20; //20 ms is about 1 frame buffer, 53 is about 3 frames buffer
-	private static readonly DEFAULT_NETWORK_BUFFER_RETENTION_MS = 300;
+	//below is the buffering for network lag, which i have set to give a 1 frame buffer when running on mobile since that can only run via tunnel
+	// if not mobile we are running on the LAN and buffer is not needed
+	private static readonly DEFAULT_NETWORK_RENDER_DELAY_MS =
+		state.isMobile === true ? 20 : 0; //20 ms is about 1 frame buffer, 53 is about 3 frames buffer
+	private static readonly DEFAULT_NETWORK_BUFFER_RETENTION_MS =
+		state.isMobile === true ? 50 : 300;
 	private static networkRenderDelayMs =
 		GameConfig.DEFAULT_NETWORK_RENDER_DELAY_MS;
 	private static networkBufferRetentionMs =

@@ -1,17 +1,10 @@
 import * as BABYLON from '@babylonjs/core';
-import { GameConfig } from './GameConfig';
+import { state } from '../utils/State';
 import { conditionalLog } from './Logger';
 
 /**
- * Camera configuration for different player POVs in Pong3D
- * This m    camera.setTarget(cameraPos.target);
-    camera.alpha = cameraPos.alpha;
-    camera.beta = cameraPos.beta;
-    camera.radius = cameraPos.radius;
-
-    if (GameConfig.isDebugLoggingEnabled()) {
-        conditionalLog(`Camera POV switched to Player ${playerPOV}: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}, radius=${cameraPos.radius.toFixed(2)}, target=(${cameraPos.target.x.toFixed(2)}, ${cameraPos.target.y.toFixed(2)}, ${cameraPos.target.z.toFixed(2)})`);
-    }handles all camera positioning logic for 2-4 player modes
+ * Camera configuration for different player POVs in Pong3D.
+ * Handles all camera positioning logic for 2-4 player modes.
  */
 
 export interface CameraPosition {
@@ -52,6 +45,38 @@ export function getCameraPosition(
 			: new BABYLON.Vector3(0, targetY, 0);
 	};
 
+	if (state.isMobile === true) {
+		// Mobile uses a single angled view per player count to maximize arena visibility.
+		const mobileAlpha = 0;
+		const adjustBeta = (delta: number) =>
+			Math.max(0.4, defaultBeta - delta);
+
+		switch (activePlayerCount) {
+			case 2:
+				return {
+					alpha: Math.PI/2,
+					beta: Math.PI / 7, // More overhead angle for better view of both sides
+					radius: defaultRadius + 20,// Pulled back further for wider view
+					target: createTarget(defaultTargetY - 1),
+				};
+			case 3:
+				return {
+					alpha: Math.PI/2,
+					beta: Math.PI / 9,// More overhead angle for better view of both sides
+					radius: defaultRadius + 27,//Pulled back further for wider view
+					target: createTarget(defaultTargetY),
+				};
+			case 4:
+			default:
+				return {
+					alpha: Math.PI/2,
+					beta: Math.PI / 9,// More overhead angle for better view of both sides
+					radius: defaultRadius + 42,//Pulled back further for wider view
+					target: createTarget(defaultTargetY),
+				};
+		}
+	}
+
 	switch (playerPOV) {
 		case 1:
 			// Player 1 POV (default - bottom view looking up)
@@ -77,16 +102,16 @@ export function getCameraPosition(
 				return {
 					alpha: Math.PI / 2,
 					beta: Math.PI / 6,
-					radius: defaultRadius + 4.6,
+					radius: defaultRadius + 5.5,
 					target: createTarget(defaultTargetY),
 				};
 			} else {
 				// 4-player
 				return {
 					alpha: Math.PI / 2,
-					beta: defaultBeta - 0.6,
-					radius: defaultRadius + 10.4,
-					target: createTarget(defaultTargetY - 1.3),
+					beta: defaultBeta - 0.8,
+					radius: defaultRadius + 15,
+					target: createTarget(defaultTargetY - 2),
 				};
 			}
 
@@ -172,6 +197,9 @@ export function applyCameraPosition(
 	camera.alpha = cameraPos.alpha;
 	camera.beta = cameraPos.beta;
 	camera.radius = cameraPos.radius;
+	// Lock zoom range so players can't move closer/further than the configured radius
+	camera.lowerRadiusLimit = 0.7*cameraPos.radius;
+	camera.upperRadiusLimit = 2*cameraPos.radius;
 
 	conditionalLog(
 		`Camera POV switched to Player ${playerPOV}: alpha=${cameraPos.alpha.toFixed(2)}, beta=${cameraPos.beta.toFixed(2)}, radius=${cameraPos.radius.toFixed(2)}, target=(${cameraPos.target.x.toFixed(2)}, ${cameraPos.target.y.toFixed(2)}, ${cameraPos.target.z.toFixed(2)})`
