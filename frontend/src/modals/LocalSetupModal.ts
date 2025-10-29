@@ -3,6 +3,7 @@ import { Button } from '../buttons/Button';
 import { GameConfig } from '../game/GameConfig';
 import { state } from '../utils/State';
 import { Modal } from './Modal';
+import { TextModal } from './TextModal.js';
 
 export class LocalSetupModal extends Modal {
 	private aliasFields: HTMLInputElement[] = [];
@@ -25,10 +26,10 @@ export class LocalSetupModal extends Modal {
 	constructor(parent: HTMLElement, n: number, type: TournamentType) {
 		super(parent);
 
-		if (state.currentModal && state.currentModal !== this) {
+		if (state.currentModal) {
 			state.currentModal.destroy();
+			state.currentModal = null;
 		}
-		state.currentModal = this;
 
 		if (n < 1 || n > 4) {
 			throw new Error('Number of players must be between 1 and 4');
@@ -63,7 +64,7 @@ export class LocalSetupModal extends Modal {
 		}
 
 		this.powerupCheckboxes = this.createPowerupSection();
-		new Button('Continue', () => this.handleAlias(type), this.box);
+		new Button('Continue', () => this.handleAlias(), this.box);
 
 		this.documentClickHandler = (e: Event) => {
 			const target = e.target as Node;
@@ -84,7 +85,7 @@ export class LocalSetupModal extends Modal {
 		};
 		document.addEventListener('click', this.documentClickHandler);
 
-		this.addEnterListener(type);
+		this.addEnterListener();
 
 		this.activateFocusTrap();
 		this.aliasFields[0].select();
@@ -229,12 +230,12 @@ export class LocalSetupModal extends Modal {
 		return { button, dropdown };
 	}
 
-	private addEnterListener(type: TournamentType): void {
+	private addEnterListener(): void {
 		this.aliasFields.forEach(field => {
 			field.onkeydown = (e: KeyboardEvent) => {
 				if (e.key === 'Enter') {
 					e.preventDefault();
-					this.handleAlias(type);
+					this.handleAlias();
 				}
 			};
 		});
@@ -260,7 +261,14 @@ export class LocalSetupModal extends Modal {
 		this.openDropdownIndex = null;
 	}
 
-	private handleAlias(type: TournamentType) {
+	private handleAlias() {
+		for (const field of this.aliasFields) {
+			const trimmedValue = field.value.trim();
+			if (trimmedValue && trimmedValue.length > 20) {
+				new TextModal(this.parent, 'Aliases cannot be > 20 characters.');
+				return;
+			}
+		}
 		this.handleLocalGame();
 		this.destroy();
 	}
@@ -310,9 +318,7 @@ export class LocalSetupModal extends Modal {
 	}
 
 	public destroy(): void {
-		if (state.currentModal === this) {
-			state.currentModal = null;
-		}
+
 		this.closeAllDropdowns();
 
 		if (this.documentClickHandler) {

@@ -126,7 +126,7 @@ export class RegisterModal extends Modal {
 
 		const requestData = {
 			login: username,
-			alias: username || null,
+			alias: null,
 			first_name: firstName || null,
 			last_name: lastName || null,
 			email: email || null,
