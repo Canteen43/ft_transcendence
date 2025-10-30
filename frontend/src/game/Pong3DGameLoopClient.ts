@@ -589,8 +589,6 @@ export class Pong3DGameLoopClient extends Pong3DGameLoopBase {
 		if (GameConfig.isDebugLoggingEnabled()) {
 			conditionalLog(`🎮 Client stopped for Player ${this.thisPlayerId}`);
 		}
-		sessionStorage.removeItem('alias1');
-		sessionStorage.removeItem('alias2');
 	}
 
 	private freezeDynamicBodies(): void {
