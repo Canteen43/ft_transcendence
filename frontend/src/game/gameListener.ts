@@ -105,6 +105,8 @@ export async function gameListener(event: MessageEvent) {
 			case MESSAGE_QUIT:
 				conditionalLog('Clearing game data');
 				sessionStorage.removeItem('tournamentID');
+				sessionStorage.removeItem('alias1');
+				sessionStorage.removeItem('alias2');
 				// clearRemoteData();
 				// clearTournData();
 				// clearOtherGameData();
