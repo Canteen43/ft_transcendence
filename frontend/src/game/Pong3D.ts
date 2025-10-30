@@ -4060,9 +4060,9 @@ private handleBallPaddleCollision(
 				}
 			}
 
-			// setTimeout(() => {
-			// 	state.gameOngoing = false;
-			// }, 2000);
+			setTimeout(() => {
+				state.gameOngoing = false;
+			}, 2000);
 
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
@@ -4152,10 +4152,9 @@ private handleBallPaddleCollision(
 				new ReplayModal(this.container, 'remote');
 				// location.hash = '#home';
 			}
-			state.gameOngoing = false;
 			// Wait 7 seconds for victory music to finish, then set game status
 			setTimeout(() => {
-				
+				state.gameOngoing = false;
 				this.conditionalLog(
 					`🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆 Victory music finished (7 seconds), gameOngoing set to false`
 				);
@@ -7147,10 +7146,10 @@ private handleBallPaddleCollision(
 				new ReplayModal(this.container, 'remote');
 				// location.hash = '#home';
 			}
-			state.gameOngoing = false;
+
 			// Wait 2 seconds for victory handling before redirecting when acting as master
 			setTimeout(() => {
-				
+				state.gameOngoing = false;
 				this.conditionalLog(
 					'🏆 Victory handler delay finished, gameOngoing set to false'
 				);
