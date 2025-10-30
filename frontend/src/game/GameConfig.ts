@@ -24,9 +24,7 @@ type PhysicsSettingKey =
 	| 'paddleBrakingFactor'
 	| 'wallSpinFriction'
 	| 'wallFriction'
-	| 'wallNearParallelAngleThreshold'
-	| 'wallNearParallelAngleAdjustment'
-	| 'wallNearParallelMaxAngle'
+	| 'nearWallNormalAngularLimit'
 	| 'ballBaseSpeed'
 	| 'maxBallSpeed'
 	| 'rallySpeedIncrementPercent';
@@ -59,9 +57,7 @@ export class GameConfig {
 		paddleBrakingFactor: 0.8,
 		wallSpinFriction: 0.6,
 		wallFriction: 0,
-		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
-		wallNearParallelAngleAdjustment: 0,
-		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
+		nearWallNormalAngularLimit: (13 * Math.PI) / 180,
 		ballBaseSpeed: 14,
 		maxBallSpeed: 28,
 		rallySpeedIncrementPercent: 9,
@@ -513,31 +509,13 @@ export class GameConfig {
 		this.setPhysicsSetting('wallFriction', clamped);
 	}
 
-	static getWallNearParallelAngleThreshold(): number {
-		return this.getPhysicsSetting('wallNearParallelAngleThreshold');
+	static getNearWallNormalAngularLimit(): number {
+		return this.getPhysicsSetting('nearWallNormalAngularLimit');
 	}
 
-	static setWallNearParallelAngleThreshold(value: number): void {
+	static setNearWallNormalAngularLimit(value: number): void {
 		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
-		this.setPhysicsSetting('wallNearParallelAngleThreshold', clamped);
-	}
-
-	static getWallNearParallelAngleAdjustment(): number {
-		return this.getPhysicsSetting('wallNearParallelAngleAdjustment');
-	}
-
-	static setWallNearParallelAngleAdjustment(value: number): void {
-		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
-		this.setPhysicsSetting('wallNearParallelAngleAdjustment', clamped);
-	}
-
-	static getWallNearParallelMaxAngle(): number {
-		return this.getPhysicsSetting('wallNearParallelMaxAngle');
-	}
-
-	static setWallNearParallelMaxAngle(value: number): void {
-		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
-		this.setPhysicsSetting('wallNearParallelMaxAngle', clamped);
+		this.setPhysicsSetting('nearWallNormalAngularLimit', clamped);
 	}
 
 	static getBallBaseSpeed(): number {
