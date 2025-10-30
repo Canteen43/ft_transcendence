@@ -3602,31 +3602,13 @@ private handleBallPaddleCollision(
 						const normalizedVelocity = velocityXZ.normalize();
 						const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
 						const clampedDot = BABYLON.Scalar.Clamp(dot, -1, 1);
+						const angleFromNormal = Math.acos(clampedDot);
 						const limitRaw = GameConfig.getNearWallNormalAngularLimit();
 						const limit = Math.max(1e-3, Math.min(Math.PI / 2 - 1e-3, limitRaw));
 
-						let baselineDir = normalizedVelocity;
-						if (clampedDot <= 0) {
-							const reflected = normalizedVelocity.subtract(
-								normal.scale(2 * clampedDot)
-							);
-							if (reflected.lengthSquared() >= 1e-6) {
-								baselineDir = reflected.normalize();
-							} else {
-								baselineDir = normal.clone();
-							}
-						}
-
-						const baselineDot = BABYLON.Scalar.Clamp(
-							BABYLON.Vector3.Dot(baselineDir, normal),
-							-1,
-							1
-						);
-						const baselineAngle = Math.acos(baselineDot);
-
-						if (baselineDot > 0 && baselineAngle < limit) {
-							const tangent = baselineDir.subtract(
-								normal.scale(baselineDot)
+						if (dot > 0 && angleFromNormal < limit) {
+							const tangent = normalizedVelocity.subtract(
+								normal.scale(clampedDot)
 							);
 							let tangentDir = tangent;
 							if (tangentDir.lengthSquared() < 1e-6) {
@@ -3644,102 +3626,95 @@ private handleBallPaddleCollision(
 
 							if (tangentDir.lengthSquared() >= 1e-6) {
 								const tangentNormalized = tangentDir.normalize();
-								let orientation = Math.sign(
-									BABYLON.Vector3.Dot(
-										baselineDir,
-										tangentNormalized
+								const cosTarget = Math.cos(limit);
+								const sinTarget = Math.sin(limit);
+								const candidateA = normal
+									.scale(cosTarget)
+									.add(tangentNormalized.scale(sinTarget));
+								const candidateB = normal
+									.scale(cosTarget)
+									.subtract(tangentNormalized.scale(sinTarget));
+
+								const candidates = [candidateA, candidateB]
+									.map((candidate) =>
+										candidate.lengthSquared() > 1e-6
+											? candidate.normalize()
+											: null
 									)
-								);
-								if (orientation === 0) {
-									orientation =
-										Math.abs(normal.x) > Math.abs(normal.z)
-											? Math.sign(baselineDir.z)
-											: Math.sign(baselineDir.x);
-									if (orientation === 0) orientation = 1;
-								}
+									.filter(
+										(candidate): candidate is BABYLON.Vector3 =>
+											candidate !== null
+									);
 
 								const dominantAxis: 'x' | 'z' =
-									Math.abs(baselineDir.x) >=
-									Math.abs(baselineDir.z)
+									Math.abs(normalizedVelocity.x) >=
+									Math.abs(normalizedVelocity.z)
 										? 'x'
 										: 'z';
 								const desiredSign = Math.sign(
-									baselineDir[dominantAxis]
+									normalizedVelocity[dominantAxis]
 								);
 
-								const cosTarget = Math.cos(limit);
-								const sinTarget = Math.sin(limit);
+								let bestCandidate: BABYLON.Vector3 | null = null;
+								let bestAlignment = -Infinity;
 
-								const buildCandidate = (
-									orient: number
-								): BABYLON.Vector3 | null => {
-									const candidate = normal
-										.scale(cosTarget)
-										.add(
-											tangentNormalized.scale(
-												sinTarget * orient
-											)
-										);
-									return candidate.lengthSquared() > 1e-6
-										? candidate.normalize()
-										: null;
-								};
+								const evaluateCandidate = (
+									candidate: BABYLON.Vector3,
+									enforceSign: boolean
+								): boolean => {
+									if (BABYLON.Vector3.Dot(candidate, normal) <= 0) {
+										return false;
+									}
 
-								const isValidCandidate = (
-									candidate: BABYLON.Vector3 | null
-								): candidate is BABYLON.Vector3 => {
-									if (!candidate) return false;
-									if (
-										BABYLON.Vector3.Dot(candidate, normal) <=
-										0
-									)
-										return false;
-									if (
-										BABYLON.Vector3.Dot(
-											candidate,
-											baselineDir
-										) <= 1e-4
-									)
-										return false;
-									if (desiredSign !== 0) {
-										const axisSign = Math.sign(
+									if (enforceSign && desiredSign !== 0) {
+										const candidateSign = Math.sign(
 											candidate[dominantAxis]
 										);
 										if (
-											axisSign !== 0 &&
-											axisSign !== desiredSign
+											candidateSign !== 0 &&
+											candidateSign !== desiredSign
 										) {
 											return false;
 										}
 									}
+
+									const alignment = BABYLON.Vector3.Dot(
+										candidate,
+										normalizedVelocity
+									);
+									if (alignment > bestAlignment) {
+										bestAlignment = alignment;
+										bestCandidate = candidate;
+									}
 									return true;
 								};
 
-								let candidate = buildCandidate(orientation);
-								if (!isValidCandidate(candidate)) {
-									orientation *= -1;
-									candidate = buildCandidate(orientation);
-									if (!isValidCandidate(candidate)) {
-										candidate = null;
+								for (const candidate of candidates) {
+									evaluateCandidate(candidate, true);
+								}
+
+								if (!bestCandidate) {
+									for (const candidate of candidates) {
+										evaluateCandidate(candidate, false);
 									}
 								}
 
-								if (candidate) {
-									const adjusted = candidate.scale(speed);
+								if (bestCandidate) {
+									const adjusted = bestCandidate.scale(speed);
 									this.conditionalLog(
-										`⬅️ Wall angle nudged away from normal: current=${((baselineAngle * 180) / Math.PI).toFixed(2)}°, target=${((limit * 180) / Math.PI).toFixed(2)}°`
+										`⬅️ Wall angle nudged away from normal: current=${((angleFromNormal * 180) / Math.PI).toFixed(2)}°, target=${((limit * 180) / Math.PI).toFixed(2)}°`
 									);
 									ballImpostor.setLinearVelocity(
 										new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
 									);
 								} else {
 									this.conditionalLog(
-										`⛔ Wall angle adjustment skipped (candidate rejected). current=${((baselineAngle * 180) / Math.PI).toFixed(2)}°`
+										`⛔ Wall angle adjustment skipped (candidate rejected). current=${((angleFromNormal * 180) / Math.PI).toFixed(2)}°`
 									);
 								}
 							} else {
 								this.conditionalLog(
-									`⛔ Wall angle adjustment skipped (no tangent basis). current=${((baselineAngle * 180) / Math.PI).toFixed(2)}°`
+									`⛔ Wall angle adjustment skipped (no tangent basis). current=${((angleFromNormal * 180) / Math.PI).toFixed(2)}°`
 								);
 							}
 						}
@@ -4084,6 +4059,10 @@ private handleBallPaddleCollision(
 					);
 				}
 			}
+
+			setTimeout(() => {
+				state.gameOngoing = false;
+			}, 2000);
 
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
