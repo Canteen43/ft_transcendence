@@ -102,6 +102,7 @@ export async function regListener(event: MessageEvent): Promise<void> {
 					router.currentScreen!.element,
 					'The game has been quit.'
 				);
+
 				break;
 
 			case MESSAGE_FINISH:
