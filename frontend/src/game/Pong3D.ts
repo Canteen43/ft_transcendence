@@ -3597,20 +3597,30 @@ private handleBallPaddleCollision(
 			const velocityXZ = new BABYLON.Vector3(velocity.x, 0, velocity.z);
 			const speed = velocityXZ.length();
 			if (speed > 0.0001 && collisionMesh) {
-						const normal = this.computeWallNormal(collisionMesh.position);
-					if (normal) {
-						const normalizedVelocity = velocityXZ.normalize();
-						const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
-						const clampedDot = BABYLON.Scalar.Clamp(dot, -1, 1);
-						const angleFromNormal = Math.acos(clampedDot);
-						const limitRaw = GameConfig.getNearWallNormalAngularLimit();
-						const limit = Math.max(1e-3, Math.min(Math.PI / 2 - 1e-3, limitRaw));
-
-						if (dot > 0 && angleFromNormal < limit) {
-							const tangent = normalizedVelocity.subtract(
-								normal.scale(clampedDot)
+				const normal = this.computeWallNormal(collisionMesh.position);
+				if (normal) {
+					const normalizedVelocity = velocityXZ.normalize();
+					const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
+					const angle = Math.acos(BABYLON.Scalar.Clamp(dot, -1, 1));
+					const ninety = Math.PI / 2;
+					const threshold =
+						GameConfig.getWallNearParallelAngleThreshold();
+					const adjustment =
+						GameConfig.getWallNearParallelAngleAdjustment();
+					const maxAngle = GameConfig.getWallNearParallelMaxAngle();
+					const isObtuse = angle >= ninety;
+					const deltaFromParallel = Math.abs(ninety - angle);
+					if (deltaFromParallel <= threshold) {
+						const rawTangent = normalizedVelocity.subtract(
+							normal.scale(dot)
+						);
+						let tangentDir = rawTangent;
+						if (tangentDir.lengthSquared() < 1e-6) {
+							// Head-on collision: derive a consistent tangent from velocity first, then fall back to axes
+							tangentDir = BABYLON.Vector3.Cross(
+								normal,
+								normalizedVelocity
 							);
-							let tangentDir = tangent;
 							if (tangentDir.lengthSquared() < 1e-6) {
 								tangentDir = BABYLON.Vector3.Cross(
 									normal,
@@ -3623,104 +3633,118 @@ private handleBallPaddleCollision(
 									);
 								}
 							}
+						}
+						if (tangentDir.lengthSquared() >= 1e-6) {
+							const tangentNormalized = tangentDir.normalize();
+							let orientation = Math.sign(
+								BABYLON.Vector3.Dot(
+									normalizedVelocity,
+									tangentNormalized
+								)
+							);
+							if (orientation === 0) orientation = 1;
+							const dominantAxis: 'x' | 'z' =
+								Math.abs(normalizedVelocity.x) >=
+								Math.abs(normalizedVelocity.z)
+									? 'x'
+									: 'z';
+							const dominantSign = Math.sign(
+								normalizedVelocity[dominantAxis]
+							);
 
-							if (tangentDir.lengthSquared() >= 1e-6) {
-								const tangentNormalized = tangentDir.normalize();
-								const cosTarget = Math.cos(limit);
-								const sinTarget = Math.sin(limit);
-								const candidateA = normal
+							const reducedDelta = Math.max(
+								0,
+								deltaFromParallel - adjustment
+							);
+							const cappedAngle = Math.min(
+								maxAngle,
+								ninety - 1e-3
+							);
+							const desiredDeviation = Math.max(
+								reducedDelta,
+								ninety - cappedAngle,
+								1e-3
+							);
+							const targetAngle = isObtuse
+								? ninety + desiredDeviation
+								: ninety - desiredDeviation;
+
+							const cosTarget = Math.cos(targetAngle);
+							const sinTarget = Math.sin(targetAngle);
+							const buildAdjustedDirection = (
+								orient: number
+							): BABYLON.Vector3 => {
+								const candidate = normal
 									.scale(cosTarget)
-									.add(tangentNormalized.scale(sinTarget));
-								const candidateB = normal
-									.scale(cosTarget)
-									.subtract(tangentNormalized.scale(sinTarget));
-
-								const candidates = [candidateA, candidateB]
-									.map((candidate) =>
-										candidate.lengthSquared() > 1e-6
-											? candidate.normalize()
-											: null
-									)
-									.filter(
-										(candidate): candidate is BABYLON.Vector3 =>
-											candidate !== null
+									.add(
+										tangentNormalized.scale(
+											sinTarget * orient
+										)
 									);
-
-								const dominantAxis: 'x' | 'z' =
-									Math.abs(normalizedVelocity.x) >=
-									Math.abs(normalizedVelocity.z)
-										? 'x'
-										: 'z';
-								const desiredSign = Math.sign(
-									normalizedVelocity[dominantAxis]
+								return candidate.lengthSquared() > 1e-6
+									? candidate.normalize()
+									: normalizedVelocity;
+							};
+							const preservesDominantSign = (
+								dir: BABYLON.Vector3
+							): boolean => {
+								if (dominantSign === 0) return true;
+								const axisSign = Math.sign(dir[dominantAxis]);
+								return (
+									axisSign === 0 || axisSign === dominantSign
 								);
+							};
 
-								let bestCandidate: BABYLON.Vector3 | null = null;
-								let bestAlignment = -Infinity;
+							let adjustedDir =
+								buildAdjustedDirection(orientation);
 
-								const evaluateCandidate = (
-									candidate: BABYLON.Vector3,
-									enforceSign: boolean
-								): boolean => {
-									if (BABYLON.Vector3.Dot(candidate, normal) <= 0) {
-										return false;
-									}
-
-									if (enforceSign && desiredSign !== 0) {
-										const candidateSign = Math.sign(
-											candidate[dominantAxis]
-										);
-										if (
-											candidateSign !== 0 &&
-											candidateSign !== desiredSign
-										) {
-											return false;
-										}
-									}
-
-									const alignment = BABYLON.Vector3.Dot(
-										candidate,
-										normalizedVelocity
-									);
-									if (alignment > bestAlignment) {
-										bestAlignment = alignment;
-										bestCandidate = candidate;
-									}
-									return true;
-								};
-
-								for (const candidate of candidates) {
-									evaluateCandidate(candidate, true);
+							if (!preservesDominantSign(adjustedDir)) {
+								const flipped =
+									buildAdjustedDirection(-orientation);
+								if (preservesDominantSign(flipped)) {
+									orientation *= -1;
+									adjustedDir = flipped;
 								}
-
-								if (!bestCandidate) {
-									for (const candidate of candidates) {
-										evaluateCandidate(candidate, false);
-									}
-								}
-
-								if (bestCandidate) {
-									const adjusted = bestCandidate.scale(speed);
-									this.conditionalLog(
-										`⬅️ Wall angle nudged away from normal: current=${((angleFromNormal * 180) / Math.PI).toFixed(2)}°, target=${((limit * 180) / Math.PI).toFixed(2)}°`
-									);
-									ballImpostor.setLinearVelocity(
-										new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
-									);
-								} else {
-									this.conditionalLog(
-										`⛔ Wall angle adjustment skipped (candidate rejected). current=${((angleFromNormal * 180) / Math.PI).toFixed(2)}°`
-									);
-								}
-							} else {
-								this.conditionalLog(
-									`⛔ Wall angle adjustment skipped (no tangent basis). current=${((angleFromNormal * 180) / Math.PI).toFixed(2)}°`
-								);
 							}
+
+							if (
+								BABYLON.Vector3.Dot(
+									adjustedDir,
+									normalizedVelocity
+								) < 0
+							) {
+								const flipped =
+									buildAdjustedDirection(-orientation);
+								if (
+									BABYLON.Vector3.Dot(
+										flipped,
+										normalizedVelocity
+									) >= 0 &&
+									preservesDominantSign(flipped)
+								) {
+									orientation *= -1;
+									adjustedDir = flipped;
+								} else {
+									adjustedDir = normalizedVelocity;
+								}
+							}
+
+							const adjusted = adjustedDir.scale(speed);
+							this.conditionalLog(
+								`⬅️ Wall angle nudged: current=${((angle * 180) / Math.PI).toFixed(2)}°, target=${((targetAngle * 180) / Math.PI).toFixed(2)}°`
+							);
+							ballImpostor.setLinearVelocity(
+								new BABYLON.Vector3(adjusted.x, 0, adjusted.z)
+							);
+						} else {
+							this.conditionalLog(
+								`⛔ Wall angle adjustment skipped (no tangent basis). current=${((angle * 180) / Math.PI).toFixed(2)}°`
+							);
 						}
 					}
 				}
 			}
+		}
 		this.conditionalLog(
 			`🌪️ Wall collision: Spin reduced by friction, new spin: ${this.ballEffects.getBallSpin().y.toFixed(2)}`
 		);
