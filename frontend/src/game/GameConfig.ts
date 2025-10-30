@@ -54,7 +54,7 @@ export class GameConfig {
 		serveOffset: 0.46,
 		paddleMass: 2.8,
 		paddleForce: 16,
-		paddleRange: 5,
+		paddleRange: 4.7,
 		paddleMaxVelocity: 15,
 		paddleBrakingFactor: 0.8,
 		wallSpinFriction: 0.6,

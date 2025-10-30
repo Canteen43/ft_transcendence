@@ -4084,10 +4084,6 @@ private handleBallPaddleCollision(
 				}
 			}
 
-			setTimeout(() => {
-				state.gameOngoing = false;
-			}, 2000);
-
 			// Reset trackers and return
 			this.lastPlayerToHitBall = -1;
 			this.secondLastPlayerToHitBall = -1;
@@ -7549,7 +7545,7 @@ private handleBallPaddleCollision(
 			alignItems: 'center',
 			justifyContent: 'center',
 			pointerEvents: 'none',
-			zIndex: '9',
+			zIndex: '10',
 		});
 		host.appendChild(overlay);
 		this.trophyContainer = overlay;
