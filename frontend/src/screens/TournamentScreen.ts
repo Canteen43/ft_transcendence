@@ -296,7 +296,7 @@ export class TournamentScreen extends Screen {
 				alignItems: 'center',
 				justifyContent: 'center',
 				pointerEvents: 'none',
-				zIndex: '10',
+				zIndex: '9999',
 			});
 			this.trophyInstance = new Trophy(trophyContainer, { winner });
 		}
