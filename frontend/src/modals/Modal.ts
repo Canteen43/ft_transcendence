@@ -21,7 +21,7 @@ export class Modal {
 		this.overlay = document.createElement('div');
 		this.overlay.className =
 			'fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-20 ';
-
+		this.overlay.setAttribute('data-modal-type', this.constructor.name);
 		this.box = document.createElement('div');
 		this.box.className =
 			'bg-white/70 shadow-lg p-4 sm:p-6 md:p-10 relative flex flex-col items-center justify-center gap-2 sm:gap-4 rounded-sm';
@@ -89,12 +89,15 @@ export class Modal {
 	public destroy(): void {
 		if (this.focusTrap) {
 			this.focusTrap.deactivate();
+			this.focusTrap = null;
 		}
 		document.removeEventListener('keydown', this.escHandler);
 		this.overlay.removeEventListener('click', this.clickOutside);
 		this.overlay.removeEventListener('mousedown', this.mouseDownHandler);
 		document.removeEventListener('mouseup', this.mouseUpHandler);
-
+		if (state.currentModal === this) {
+			state.currentModal = null;
+		}
 		state.modalOpen = false;
 		this.overlay.remove();
 		this.onClose?.();

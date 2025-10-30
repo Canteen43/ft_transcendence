@@ -62,6 +62,7 @@ export class RemoteSetupModal extends Modal {
 		const result = await joinTournament(state.tournamentSize, type);
 
 		if (!result.success) {
+			this.destroy();
 			const errorModal = new TextModal(this.parent, result.error);
 			errorModal.onClose = () => {
 				new RemoteSetupModal(this.parent, type);
