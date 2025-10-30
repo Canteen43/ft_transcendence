@@ -3592,23 +3592,43 @@ private handleBallPaddleCollision(
 			GameConfig.getWallSpinFriction()
 		);
 
-		const velocity = ballImpostor.getLinearVelocity();
-		if (velocity) {
-			const velocityXZ = new BABYLON.Vector3(velocity.x, 0, velocity.z);
-			const speed = velocityXZ.length();
-			if (speed > 0.0001 && collisionMesh) {
-						const normal = this.computeWallNormal(collisionMesh.position);
+			const velocity = ballImpostor.getLinearVelocity();
+			if (velocity) {
+				const velocityXZ = new BABYLON.Vector3(velocity.x, 0, velocity.z);
+				const speed = velocityXZ.length();
+				if (speed > 0.0001 && collisionMesh) {
+					const normal = this.computeWallNormal(collisionMesh.position);
 					if (normal) {
-						const normalizedVelocity = velocityXZ.normalize();
-						const dot = BABYLON.Vector3.Dot(normalizedVelocity, normal);
-						const clampedDot = BABYLON.Scalar.Clamp(dot, -1, 1);
-						const angleFromNormal = Math.acos(clampedDot);
-						const limitRaw = GameConfig.getNearWallNormalAngularLimit();
-						const limit = Math.max(1e-3, Math.min(Math.PI / 2 - 1e-3, limitRaw));
+						const currentDir = velocityXZ.normalize();
+						const currentDot = BABYLON.Vector3.Dot(currentDir, normal);
+						let baselineDir = currentDir;
 
-						if (dot > 0 && angleFromNormal < limit) {
-							const tangent = normalizedVelocity.subtract(
-								normal.scale(clampedDot)
+						if (currentDot <= 0) {
+							const reflected = currentDir.subtract(
+								normal.scale(2 * currentDot)
+							);
+							if (reflected.lengthSquared() >= 1e-6) {
+								baselineDir = reflected.normalize();
+							} else {
+								baselineDir = normal.clone();
+							}
+						}
+
+						const baselineDot = BABYLON.Scalar.Clamp(
+							BABYLON.Vector3.Dot(baselineDir, normal),
+							-1,
+							1
+						);
+						const angleFromNormal = Math.acos(baselineDot);
+						const limitRaw = GameConfig.getNearWallNormalAngularLimit();
+						const limit = Math.max(
+							1e-3,
+							Math.min(Math.PI / 2 - 1e-3, limitRaw)
+						);
+
+						if (baselineDot > 0 && angleFromNormal < limit) {
+							const tangent = baselineDir.subtract(
+								normal.scale(baselineDot)
 							);
 							let tangentDir = tangent;
 							if (tangentDir.lengthSquared() < 1e-6) {
@@ -3636,23 +3656,25 @@ private handleBallPaddleCollision(
 									.subtract(tangentNormalized.scale(sinTarget));
 
 								const candidates = [candidateA, candidateB]
-									.map((candidate) =>
+									.map(candidate =>
 										candidate.lengthSquared() > 1e-6
 											? candidate.normalize()
 											: null
 									)
 									.filter(
-										(candidate): candidate is BABYLON.Vector3 =>
+										(
+											candidate
+										): candidate is BABYLON.Vector3 =>
 											candidate !== null
 									);
 
 								const dominantAxis: 'x' | 'z' =
-									Math.abs(normalizedVelocity.x) >=
-									Math.abs(normalizedVelocity.z)
+									Math.abs(baselineDir.x) >=
+									Math.abs(baselineDir.z)
 										? 'x'
 										: 'z';
 								const desiredSign = Math.sign(
-									normalizedVelocity[dominantAxis]
+									baselineDir[dominantAxis]
 								);
 
 								let bestCandidate: BABYLON.Vector3 | null = null;
@@ -3680,8 +3702,11 @@ private handleBallPaddleCollision(
 
 									const alignment = BABYLON.Vector3.Dot(
 										candidate,
-										normalizedVelocity
+										baselineDir
 									);
+									if (alignment <= 0) {
+										return false;
+									}
 									if (alignment > bestAlignment) {
 										bestAlignment = alignment;
 										bestCandidate = candidate;
