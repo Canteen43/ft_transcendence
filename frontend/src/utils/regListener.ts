@@ -91,17 +91,21 @@ export async function regListener(event: MessageEvent): Promise<void> {
 
 			case MESSAGE_QUIT:
 				console.info('Received quit message:', msg);
-				if (location.hash === '#home') {
-					if (state.currentModal) {
-						state.currentModal.destroy();
-						state.currentModal = null;
-					}
+
+				if (state.currentModal) {
+					state.currentModal.destroy();
+					state.currentModal = null;
 				}
-				location.hash = '#home';
-				new TextModal(
-					router.currentScreen!.element,
-					'The game has been quit.'
-				);
+
+				if (location.hash !== '#home') {
+					location.hash = '#home';
+				}
+				setTimeout(() => {
+					new TextModal(
+						router.currentScreen!.element,
+						'The game has been quit.'
+					);
+				}, 50);
 				break;
 
 			case MESSAGE_FINISH:

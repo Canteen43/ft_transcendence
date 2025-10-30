@@ -13,8 +13,8 @@ export class LocalGameModal extends Modal {
 	private btnT: Button;
 
 	constructor(parent: HTMLElement) {
+		
 		super(parent);
-
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
 		}
