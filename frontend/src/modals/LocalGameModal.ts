@@ -13,7 +13,6 @@ export class LocalGameModal extends Modal {
 	private btnT: Button;
 
 	constructor(parent: HTMLElement) {
-		
 		super(parent);
 		if (state.currentModal && state.currentModal !== this) {
 			state.currentModal.destroy();
@@ -78,8 +77,13 @@ export class LocalGameModal extends Modal {
 	}
 
 	private setupLocalGame(n: number, tourn: boolean): void {
-		clearAllGameData();
+		const gameMode = sessionStorage.getItem('gameMode');
+		if (!gameMode || gameMode !== 'local') {
+			sessionStorage.removeItem('alias1');
+			sessionStorage.removeItem('alias2');
+		}
 
+		clearAllGameData();
 		state.gameMode = 'local';
 		sessionStorage.setItem('gameMode', 'local');
 		sessionStorage.setItem('playerCount', n.toString());
