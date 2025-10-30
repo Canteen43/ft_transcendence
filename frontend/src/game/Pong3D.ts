@@ -3729,23 +3729,6 @@ private handleBallPaddleCollision(
 								}
 							}
 
-							if (
-								BABYLON.Vector3.Dot(
-									adjustedDir,
-									normalizedVelocity
-								) < 0
-							) {
-								adjustedDir = normalizedVelocity;
-							}
-
-							if (
-								dominantSign !== 0 &&
-								Math.sign(adjustedDir[dominantAxis]) !==
-									dominantSign
-							) {
-								adjustedDir = normalizedVelocity;
-							}
-
 							const adjusted = adjustedDir.scale(speed);
 							this.conditionalLog(
 								`⬅️ Wall angle nudged: current=${((angle * 180) / Math.PI).toFixed(2)}°, target=${((targetAngle * 180) / Math.PI).toFixed(2)}°`
