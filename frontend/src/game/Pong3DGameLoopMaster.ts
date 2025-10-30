@@ -98,6 +98,8 @@ export class Pong3DGameLoopMaster extends Pong3DGameLoop {
 
 		// Stop EXACTLY the same as local mode
 		super.stop();
+		sessionStorage.removeItem('alias1');
+		sessionStorage.removeItem('alias2');
 	}
 
 	/**

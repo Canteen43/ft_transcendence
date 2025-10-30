@@ -24,7 +24,9 @@ type PhysicsSettingKey =
 	| 'paddleBrakingFactor'
 	| 'wallSpinFriction'
 	| 'wallFriction'
-	| 'nearWallNormalAngularLimit'
+	| 'wallNearParallelAngleThreshold'
+	| 'wallNearParallelAngleAdjustment'
+	| 'wallNearParallelMaxAngle'
 	| 'ballBaseSpeed'
 	| 'maxBallSpeed'
 	| 'rallySpeedIncrementPercent';
@@ -52,12 +54,14 @@ export class GameConfig {
 		serveOffset: 0.46,
 		paddleMass: 2.8,
 		paddleForce: 16,
-		paddleRange: 5,
+		paddleRange: 4.7,
 		paddleMaxVelocity: 15,
 		paddleBrakingFactor: 0.8,
 		wallSpinFriction: 0.6,
 		wallFriction: 0,
-		nearWallNormalAngularLimit: (13 * Math.PI) / 180,
+		wallNearParallelAngleThreshold: (10 * Math.PI) / 180,
+		wallNearParallelAngleAdjustment: 0,
+		wallNearParallelMaxAngle: (77 * Math.PI) / 180,
 		ballBaseSpeed: 14,
 		maxBallSpeed: 28,
 		rallySpeedIncrementPercent: 9,
@@ -509,13 +513,31 @@ export class GameConfig {
 		this.setPhysicsSetting('wallFriction', clamped);
 	}
 
-	static getNearWallNormalAngularLimit(): number {
-		return this.getPhysicsSetting('nearWallNormalAngularLimit');
+	static getWallNearParallelAngleThreshold(): number {
+		return this.getPhysicsSetting('wallNearParallelAngleThreshold');
 	}
 
-	static setNearWallNormalAngularLimit(value: number): void {
+	static setWallNearParallelAngleThreshold(value: number): void {
 		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
-		this.setPhysicsSetting('nearWallNormalAngularLimit', clamped);
+		this.setPhysicsSetting('wallNearParallelAngleThreshold', clamped);
+	}
+
+	static getWallNearParallelAngleAdjustment(): number {
+		return this.getPhysicsSetting('wallNearParallelAngleAdjustment');
+	}
+
+	static setWallNearParallelAngleAdjustment(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelAngleAdjustment', clamped);
+	}
+
+	static getWallNearParallelMaxAngle(): number {
+		return this.getPhysicsSetting('wallNearParallelMaxAngle');
+	}
+
+	static setWallNearParallelMaxAngle(value: number): void {
+		const clamped = Math.max(0, Math.min(Math.PI / 2, value));
+		this.setPhysicsSetting('wallNearParallelMaxAngle', clamped);
 	}
 
 	static getBallBaseSpeed(): number {
