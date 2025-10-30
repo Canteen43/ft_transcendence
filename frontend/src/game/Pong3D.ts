@@ -7525,7 +7525,7 @@ private handleBallPaddleCollision(
 			alignItems: 'center',
 			justifyContent: 'center',
 			pointerEvents: 'none',
-			zIndex: '10',
+			zIndex: '9',
 		});
 		host.appendChild(overlay);
 		this.trophyContainer = overlay;
