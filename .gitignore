@@ -53,6 +53,9 @@ build/app
 # SSL certificates
 build/cert
 
+# Dev database
+database/storage
+
 # Production database
 build/database
 
