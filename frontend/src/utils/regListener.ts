@@ -25,8 +25,8 @@ export async function regListener(event: MessageEvent): Promise<void> {
 				: event.data;
 		const msg: Message = MessageSchema.parse(raw);
 
-		console.log('Validated message:', msg);
-		console.log('Message type:', msg.t);
+		// console.log('Validated message:', msg);
+		// console.log('Message type:', msg.t);
 
 		switch (msg.t) {
 			// st: START TOURNAMENT MESSSAGE with tournament id per WS

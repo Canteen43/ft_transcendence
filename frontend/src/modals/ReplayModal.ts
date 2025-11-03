@@ -85,7 +85,6 @@ export class ReplayModal extends Modal {
 	private startTimer() {
 		this.timeoutId = setTimeout(() => {
 			console.debug('Replay timer expired, returning to home');
-			// clearRemoteData();
 			location.hash = '#home';
 			this.destroy();
 			setTimeout(() => {

@@ -108,15 +108,9 @@ export async function gameListener(event: MessageEvent) {
 				break;
 
 			case MESSAGE_QUIT:
-				conditionalLog('Clearing game data');
+				conditionalLog('Clearing tournamentID ');
 				sessionStorage.removeItem('tournamentID');
-				// sessionStorage.removeItem('alias1');
-				// sessionStorage.removeItem('alias2');
-				// clearRemoteData();
-				// clearTournData();
-				// clearOtherGameData();
 				if (location.hash !== '#home') location.hash = '#home';
-
 				setTimeout(() => {
 					void new TextModal(
 						router.currentScreen!.element,

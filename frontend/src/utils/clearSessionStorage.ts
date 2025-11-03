@@ -5,32 +5,6 @@ export function clearRemoteData() {
 	sessionStorage.removeItem('player2');
 }
 
-export function clearPowerUps() {
-	sessionStorage.removeItem('split');
-	sessionStorage.removeItem('stretch');
-	sessionStorage.removeItem('shrink');
-}
-
-export function clearOtherGameData() {
-	sessionStorage.removeItem('targetSize');
-	sessionStorage.removeItem('tournamentID');
-	sessionStorage.removeItem('gameMode');
-	sessionStorage.removeItem('playerCount');
-	sessionStorage.setItem('tournament', '0');
-}
-
-export function clearLocalGameData() {
-	sessionStorage.removeItem('playerCount');
-	sessionStorage.removeItem('alias1controls');
-	sessionStorage.removeItem('alias2controls');
-	sessionStorage.removeItem('alias3controls');
-	sessionStorage.removeItem('alias4controls');
-	sessionStorage.removeItem('originalAlias1');
-	sessionStorage.removeItem('originalAlias2');
-	sessionStorage.removeItem('originalAlias3');
-	sessionStorage.removeItem('originalAlias4');
-}
-
 export function clearTournData() {
 	sessionStorage.removeItem('p1');
 	sessionStorage.removeItem('p2');

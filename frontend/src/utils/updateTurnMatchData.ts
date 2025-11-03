@@ -1,7 +1,7 @@
 import { DEFAULT_MAX_SCORE } from '../../../shared/constants';
 import { TextModal } from '../modals/TextModal';
 import { router } from '../utils/Router';
-import { clearRemoteData, clearTournData } from './clearSessionStorage';
+import { clearTournData } from './clearSessionStorage';
 
 export function updateTournData(tournData: any): void {
 	console.debug('updating the match details for the ongoing tournament...');
@@ -23,7 +23,6 @@ export function updateTournData(tournData: any): void {
 	console.debug('tournData =', tournData);
 
 	console.debug('Clearing match data before updating tournament');
-	// clearRemoteData();
 	clearTournData();
 
 	// Helper function to get alias from user_id
