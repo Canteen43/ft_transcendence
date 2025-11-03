@@ -273,7 +273,7 @@ export class TournamentScreen extends Screen {
 		const hasActiveMatch = matchID && !winner;
 
 		if (hasActiveMatch && !this.readyButton) {
-			console.log('Creating ReadyButton');
+			console.debug('Creating ReadyButton');
 			this.readyButton = new ReadyButton(this.element);
 		} else if (this.readyButton && !hasActiveMatch) {
 			// Clean up ready button if no longer needed

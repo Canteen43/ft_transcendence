@@ -91,7 +91,7 @@ class WebSocketWrapper {
 
 		const wsUrlWithToken = `${wsURL}?token=${token}`;
 		this.ws = new WebSocket(wsUrlWithToken);
-		console.log(
+		console.debug(
 			'WebSocket object created, readyState:',
 			this.ws.readyState
 		);

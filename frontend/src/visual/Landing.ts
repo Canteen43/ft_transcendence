@@ -55,7 +55,7 @@ export class Landing {
 
 	private async init(modelPath: string): Promise<void> {
 		try {
-			console.log('Starting scene initialization...');
+			console.debug('Starting scene initialization...');
 
 			this.engine = new BABYLON.Engine(this.canvas, true, {
 				preserveDrawingBuffer: true,
@@ -239,7 +239,7 @@ export class Landing {
 					if (event.lengthComputable) {
 						const progress = (event.loaded / event.total) * 50; // First 50% for main model
 						this.callbacks.onLoadProgress?.(progress);
-						console.log(`Loading model: ${progress.toFixed(0)}%`);
+						console.debug(`Loading model: ${progress.toFixed(0)}%`);
 					}
 				},
 				(_, message) => reject(new Error(message))
@@ -297,7 +297,7 @@ export class Landing {
 					if (event && event.lengthComputable) {
 						const progress = 50 + (event.loaded / event.total) * 50; // Second 50% for background
 						this.callbacks.onLoadProgress?.(progress);
-						console.log(
+						console.debug(
 							`Loading background: ${(progress - 50).toFixed(0)}%`
 						);
 					}
@@ -564,6 +564,6 @@ export class Landing {
 			this.canvas.parentNode.removeChild(this.canvas);
 		}
 		this.renderLoopCallback = undefined;
-		console.log('Landing scene disposed');
+		console.debug('Landing scene disposed');
 	}
 }
