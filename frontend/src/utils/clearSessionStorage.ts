@@ -52,7 +52,7 @@ export function clearAllGameData() {
 	sessionStorage.removeItem('matchID');
 
 	sessionStorage.removeItem('gameMode');
-	sessionStorage.setItem('tournament', '0');
+	sessionStorage.removeItem('tournament');
 	sessionStorage.removeItem('targetSize');
 	sessionStorage.removeItem('playerCount');
 

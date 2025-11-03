@@ -1,9 +1,9 @@
 // gameListener.ts
 import {
 	MESSAGE_ACCEPT,
+	MESSAGE_CHAT,
 	MESSAGE_GAME_STATE,
 	MESSAGE_MOVE,
-	MESSAGE_CHAT,
 	MESSAGE_POINT,
 	MESSAGE_QUIT,
 	MESSAGE_REPLAY,
@@ -52,7 +52,9 @@ export async function gameListener(event: MessageEvent) {
 					return;
 				}
 				if (!tournData) {
-					conditionalError('Getting tournament data failed, QUIT sent');
+					conditionalError(
+						'Getting tournament data failed, QUIT sent'
+					);
 					webSocket.send({ t: MESSAGE_QUIT });
 					new TextModal(
 						router.currentScreen!.element,
@@ -69,13 +71,17 @@ export async function gameListener(event: MessageEvent) {
 							router.currentScreen!.element,
 							'No match ID found'
 						);
-						conditionalError('No match ID found in session storage');
+						conditionalError(
+							'No match ID found in session storage'
+						);
 						return;
 					}
 					conditionalLog({ matchID });
 					webSocket.send({ t: MESSAGE_ACCEPT, d: matchID });
 				} else {
-					conditionalWarn('received ST on game screen-> redir to home');
+					conditionalWarn(
+						'received ST on game screen-> redir to home'
+					);
 					new TextModal(
 						router.currentScreen!.element,
 						'Error: Received data for more than a match'
@@ -96,7 +102,6 @@ export async function gameListener(event: MessageEvent) {
 			case MESSAGE_START:
 				conditionalLog('Received start message:', msg);
 				state.gameOngoing = true;
-				state.gameMode = 'remote';
 				location.hash = '#game';
 				conditionalLog('reloading pong.ts');
 				(router.currentScreen as GameScreen)?.reloadPong();
@@ -111,7 +116,7 @@ export async function gameListener(event: MessageEvent) {
 				// clearTournData();
 				// clearOtherGameData();
 				if (location.hash !== '#home') location.hash = '#home';
-				
+
 				setTimeout(() => {
 					void new TextModal(
 						router.currentScreen!.element,

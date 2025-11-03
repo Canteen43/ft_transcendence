@@ -3,7 +3,6 @@ import { Modal } from '../modals/Modal';
 class State {
 	public tournamentOngoing: boolean = false;
 	public gameOngoing: boolean = false;
-	public gameMode: 'local' | 'remote' | null = null;
 	public tournamentSize: number = 0;
 	public replayCounter: number = 0;
 	public chatExpanded: boolean = true;

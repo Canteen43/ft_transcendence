@@ -76,7 +76,6 @@ export async function regListener(event: MessageEvent): Promise<void> {
 			case MESSAGE_START:
 				console.info('Received start message:', msg);
 				state.gameOngoing = true;
-				state.gameMode = 'remote';
 				location.hash = '#game';
 				break;
 

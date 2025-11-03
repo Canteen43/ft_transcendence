@@ -95,7 +95,6 @@ export class RemoteGameModal extends Modal {
 
 		console.debug('Set sessionStorage');
 
-		state.gameMode = 'remote';
 		state.tournamentSize = tournamentSize;
 		state.tournamentOngoing = tournamentSize === 4;
 

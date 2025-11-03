@@ -4,6 +4,9 @@ import { TextModal } from '../modals/TextModal';
 import { state } from '../utils/State';
 import { webSocket } from '../utils/WebSocketWrapper';
 import { Screen } from './Screen';
+import { clearAllGameData } from '../utils/clearSessionStorage';
+
+
 
 export class GameScreen extends Screen {
 	private pong3DInstance?: Pong3D;
@@ -14,10 +17,10 @@ export class GameScreen extends Screen {
 		// Game screen, remote game, no match ID -> redirect to home
 		const matchID = sessionStorage.getItem('matchID');
 		const gameMode = sessionStorage.getItem('gameMode');
-		if (gameMode == 'remote' && !matchID) {
-			const modal = new TextModal(
+		if (gameMode !== 'local' && !matchID) {
+			new TextModal(
 				this.element,
-				'No remote game happening at the moment.',
+				'No match happening at the moment.',
 				undefined,
 				() => {
 					location.hash = '#home';
@@ -41,12 +44,18 @@ export class GameScreen extends Screen {
 			this.pong3DInstance.dispose();
 		}
 		this.pong3DInstance = undefined;
-		if (state.gameOngoing && state.gameMode === 'remote') {
-			console.debug('QUIT sent')
+		const gameMode = sessionStorage.getItem('gameMode');
+		const tournament = sessionStorage.getItem('tournament');
+		if (state.gameOngoing && gameMode === 'remote') {
+			console.debug('QUIT sent');
 			webSocket.send({ t: MESSAGE_QUIT });
 		}
+
+		if (gameMode === 'remote' && tournament === '0') {
+			clearAllGameData();
+		}
+
 		state.gameOngoing = false;
-		state.gameMode = null;
 
 		super.destroy();
 	}

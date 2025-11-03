@@ -81,10 +81,11 @@ export class LocalGameModal extends Modal {
 		if (!gameMode || gameMode !== 'local') {
 			sessionStorage.removeItem('alias1');
 			sessionStorage.removeItem('alias2');
+			sessionStorage.removeItem('alias3');
+			sessionStorage.removeItem('alias4');
 		}
 
 		clearAllGameData();
-		state.gameMode = 'local';
 		sessionStorage.setItem('gameMode', 'local');
 		sessionStorage.setItem('playerCount', n.toString());
 		sessionStorage.setItem('thisPlayer', '1');
