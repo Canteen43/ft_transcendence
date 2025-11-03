@@ -39,11 +39,9 @@ import { router } from './Router';
 class WebSocketWrapper {
 	public ws: WebSocket | null = null;
 	public shouldReconnect: boolean = false;
-	// private connectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	private pingIntervalId: ReturnType<typeof setInterval> | null = null;
 	private readonly PING_DELAY = 25000;
-	// private readonly CONNECTION_TIMEOUT = 10000; // 10 seconds
 	private readonly RECONNECT_DELAY = 3000;
 	private readonly MAX_RECONNECT_ATTEMPTS = 8; // total delay = 3*8=24s
 	private reconnectAttempts = 0;
@@ -82,12 +80,6 @@ class WebSocketWrapper {
 			console.log('WebSocket already connecting - returning');
 			return;
 		}
-		// this.connectionTimeoutId = setTimeout(() => {
-		// 	if (this.ws?.readyState === WebSocket.CONNECTING) {
-		// 		console.warn('Connection timeout - closing');
-		// 		this.ws.close(1000, 'Connection timeout');
-		// 	}
-		// }, this.CONNECTION_TIMEOUT);
 
 		if (this.ws) {
 			this.removeListeners();
@@ -138,16 +130,11 @@ class WebSocketWrapper {
 	}
 
 	//////////
-	// Private method
+	// Private methods
 
 	// Event handlers
 	private onOpen(): void {
 		console.info('WebSocket opened');
-		// if (this.connectionTimeoutId) {
-		// 	clearTimeout(this.connectionTimeoutId);
-		// 	this.connectionTimeoutId = null;
-		// }
-
 		this.reconnectAttempts = 0;
 
 		// Wait briefly to ensure backend doesn't immediately reject the connection
@@ -178,7 +165,7 @@ class WebSocketWrapper {
 	}
 
 	private onClose(event: CloseEvent): void {
-		console.debug('🔌 WebSocket.onClose() called', {
+		console.debug('WebSocket.onClose() called', {
 			code: event.code,
 			reason: event.reason,
 			shouldReconnect: this.shouldReconnect,
@@ -203,7 +190,7 @@ class WebSocketWrapper {
 		}
 
 		// Events for frontend components
-		console.debug('📢 Dispatching ws-close event');
+		console.debug('Dispatching ws-close event');
 		document.dispatchEvent(
 			new CustomEvent('ws-close', {
 				detail: { code: event.code, reason: event.reason },
@@ -247,7 +234,7 @@ class WebSocketWrapper {
 				`Reconnect attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} in ${this.RECONNECT_DELAY / 1000} seconds...`
 			);
 			this.reconnectTimeoutId = setTimeout(() => {
-				console.debug('⏰ Reconnect timeout fired, calling open()');
+				console.debug('Reconnect timeout fired, calling open()');
 				this.reconnectTimeoutId = null;
 				this.open();
 			}, this.RECONNECT_DELAY);
@@ -259,7 +246,7 @@ class WebSocketWrapper {
 				'Unable to connect to server. Please refresh the page and log in again.'
 			);
 		} else {
-			console.debug('⏹️ Not reconnecting (shouldReconnect is false)');
+			console.debug('Not reconnecting (shouldReconnect is false)');
 		}
 	}
 

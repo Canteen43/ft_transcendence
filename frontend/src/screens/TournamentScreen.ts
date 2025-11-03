@@ -53,7 +53,7 @@ export class TournamentScreen extends Screen {
 	private async tournamentUpdate(): Promise<void> {
 		const tournID = sessionStorage.getItem('tournamentID');
 		if (!tournID) {
-			console.error('No tournament ID found in session storage');
+			console.warn('No tournament ID found in session storage');
 			this.errorModal('No tournament found');
 			return;
 		}
@@ -66,19 +66,19 @@ export class TournamentScreen extends Screen {
 		);
 
 		if (error) {
-			console.error('Tournament fetch error:', error);
+			console.warn('Tournament fetch error:', error);
 			const message = `Error ${error.status}: ${error.statusText}, ${error.message}`;
 			this.errorModal(message);
 			return;
 		}
 
 		if (!tournData) {
-			console.error('Getting tournament data failed - no data returned');
+			console.warn('Getting tournament data failed - no data returned');
 			this.errorModal('Failed to get tournament data');
 			return;
 		}
 
-		console.log('Tournament data received:', tournData);
+		console.debug('Tournament data received:', tournData);
 		updateTournData(tournData);
 		this.render(); // Render after data is updated
 	}
@@ -314,7 +314,7 @@ export class TournamentScreen extends Screen {
 	}
 
 	public destroy(): void {
-		console.log('Destroying TournamentScreen...');
+		console.debug('Destroying TournamentScreen...');
 
 		if (this.trophyInstance) {
 			this.trophyInstance.dispose();

@@ -72,11 +72,11 @@ export class StatModal extends Modal {
 			RankingSchema
 		);
 		if (rankError) {
-			console.log('Error getting ranking:', rankError);
+			console.info('Error getting ranking:', rankError);
 			return;
 		}
 		if (!rankData) {
-			console.log('No ranking data available');
+			console.info('No ranking data available');
 			return;
 		}
 		console.debug('rankData: ', rankData);
@@ -95,11 +95,11 @@ export class StatModal extends Modal {
 			PercentageWinsHistorySchema
 		);
 		if (histError) {
-			console.log('Error getting historical data: ', histError);
+			console.info('Error getting historical data: ', histError);
 			return;
 		}
 		if (!histData) {
-			console.log('No historical data available');
+			console.info('No historical data available');
 			return;
 		}
 		console.debug('histData: ', histData);
@@ -118,11 +118,11 @@ export class StatModal extends Modal {
 			RankingItemSchema
 		);
 		if (matchError) {
-			console.log('Error getting match history: ', matchError);
+			console.info('Error getting match history: ', matchError);
 			return;
 		}
 		if (!matchData) {
-			console.log('No match data available');
+			console.info('No match data available');
 			return;
 		}
 		console.debug('matchData: ', matchData);
@@ -141,11 +141,11 @@ export class StatModal extends Modal {
 			TournamentStatsSchema
 		);
 		if (tournError) {
-			console.log('Error getting tournament history: ', tournError);
+			console.info('Error getting tournament history: ', tournError);
 			return;
 		}
 		if (!tournData) {
-			console.log('No tournament data available');
+			console.info('No tournament data available');
 			return;
 		}
 		console.debug('tournData: ', tournData);

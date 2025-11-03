@@ -272,6 +272,6 @@ export class LoginModal extends Modal {
 		this.UsernameField.removeEventListener('keydown', this.handleEnter);
 		this.PasswordField.removeEventListener('keydown', this.handleEnter);
 		super.destroy();
-		console.log('LoginModal.destroy() COMPLETE');
+		console.debug('LoginModal.destroy() COMPLETE');
 	}
 }
