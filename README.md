@@ -35,6 +35,10 @@ A full-stack web application featuring a real-time multiplayer Pong game with us
 git clone https://github.com/Canteen43/ft_transcendence
 cd transcendence
 
+# test local frontend
+
+npm run frontend_dev
+
 # Build the containers
 
 make build
